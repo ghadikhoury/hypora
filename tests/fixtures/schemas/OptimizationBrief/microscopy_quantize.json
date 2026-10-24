@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "brief_id": "brf_0412",
+  "run_id": "run_104",
+  "issued_by": "training_lead",
+  "assigned_role": "optimization_worker",
+  "objective": "Bring the fine-tuned ResNet-18 under 50 ms/image on CPU at batch size 1 without losing more than 0.01 macro-F1.",
+  "output_schema": "OptimizationFinding",
+  "allowed_tools": ["profile_model", "write_trial_files", "submit_experiment"],
+  "end_condition": "Return after one verified variant meets the latency target, or after 3 variants, or 15 tool calls.",
+  "context_refs": ["experiment_contract:v2", "result:trl_0007/validation"],
+  "budget": {"max_tool_calls": 15, "max_tokens": 40000},
+  "candidate_trial_id": "trl_0007",
+  "candidate_artifact_ref": "artifact:art_0031",
+  "model_ref": "microsoft/resnet-18@fb4ff4d",
+  "profile_ref": "profile_run:prf_0003",
+  "methods": ["torch_compile", "quantization", "thread_settings"],
+  "target_constraints": {"max_latency_ms": 50, "latency_device": "cpu", "latency_batch_size": 1},
+  "max_quality_degradation": 0.01
+}

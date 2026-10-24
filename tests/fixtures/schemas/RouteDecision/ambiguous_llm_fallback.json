@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "run_id": "run_112",
+  "family": "experimental",
+  "run_mode": "advice_only",
+  "decided_by": "llm_fallback",
+  "reasons": [
+    "protein sequences are not a verified family",
+    "the user asked for an experimental plan, not execution"
+  ],
+  "confidence": 0.75
+}

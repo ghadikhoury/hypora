@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "run_id": "run_101",
+  "family": "tabular",
+  "run_mode": "full",
+  "decided_by": "code",
+  "reasons": [
+    "dataset is a single CSV with a numeric target column 'yield'",
+    "requested action 'train' requires execution"
+  ]
+}

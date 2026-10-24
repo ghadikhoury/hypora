@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "brief_id": "brf_0305",
+  "run_id": "run_101",
+  "status": "complete",
+  "claims": [
+    {
+      "statement": "The first submission failed because pipeline.py imported xgboost, which the tabular template does not use; switched to HistGradientBoostingRegressor.",
+      "evidence_refs": ["job_log:job_0003"]
+    }
+  ],
+  "evidence_refs": ["job_log:job_0003", "job_log:job_0004"],
+  "confidence": 0.85,
+  "open_questions": [],
+  "trial_id": "trl_0002",
+  "outcome": "completed",
+  "files_written": ["trial.yaml", "pipeline.py", "requirements.lock"],
+  "job_ids": ["job_0003", "job_0004"],
+  "fix_attempts": 1,
+  "error_codes": ["PIPELINE_IMPORT_ERROR"],
+  "result_refs": ["result:trl_0002/validation"],
+  "summary": "HistGradientBoosting with Optuna (30 trials) fit within 5-fold grouped CV; metrics are recorded by the harness."
+}

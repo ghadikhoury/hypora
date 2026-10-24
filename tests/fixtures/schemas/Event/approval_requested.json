@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "run_id": "run_101",
+  "seq": 61,
+  "actor_role": "controller",
+  "created_at": "2026-10-23T14:10:03Z",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "span_id": "00f067aa0ba902b7",
+  "type": "approval_requested",
+  "payload": {
+    "approval_id": "apr_0007",
+    "artifact_type": "plan",
+    "artifact_hash": "60083ea7782be8298df2861d5ae91346c7c43b2adab8a178c9a84db11af3a462",
+    "artifact_ref": "approved_plan:v1",
+    "policy": "interactive",
+    "summary": "Plan: mean baseline + HistGradientBoosting + ridge; est. 262 s CPU, $0 compute; budget $2.00 LLM spend."
+  }
+}

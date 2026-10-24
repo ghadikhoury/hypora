@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "batch_id": "bat_0002",
+  "run_id": "run_104",
+  "contract_version": 2,
+  "situation": "genuinely_uncertain",
+  "confidence": 0.55,
+  "k_justification": "The frozen backbone missed the F1 target, and it is unclear whether ResNet-18 or MobileNet fine-tuning wins under the 50 ms CPU constraint; three cheap short rounds settle it.",
+  "trials": [
+    {
+      "kind": "finetune",
+      "operation": "finetune",
+      "hypothesis": "Fine-tuning ResNet-18 head-first then layer4 adapts to fluorescence images.",
+      "model_family": "resnet18",
+      "model_ref": "microsoft/resnet-18@fb4ff4d",
+      "config": {"unfreeze": ["fc", "layer4"], "epochs": 15, "lr": 0.0003, "image_size": 224},
+      "expected_effect": "macro-F1 above 0.85.",
+      "estimated_cost": {"compute_seconds": 3600, "gpu": true, "peak_memory_gb": 6.0}
+    },
+    {
+      "kind": "finetune",
+      "operation": "finetune",
+      "hypothesis": "Full fine-tuning of ResNet-18 at a lower learning rate beats partial unfreezing.",
+      "model_family": "resnet18",
+      "model_ref": "microsoft/resnet-18@fb4ff4d",
+      "config": {"unfreeze": "all", "epochs": 15, "lr": 0.0001, "image_size": 224},
+      "expected_effect": "Higher macro-F1 than partial unfreezing, at more overfitting risk.",
+      "estimated_cost": {"compute_seconds": 4200, "gpu": true, "peak_memory_gb": 7.0}
+    },
+    {
+      "kind": "finetune",
+      "operation": "finetune",
+      "hypothesis": "MobileNetV2 fine-tuning reaches similar F1 with more CPU latency headroom.",
+      "model_family": "mobilenet_v2",
+      "model_ref": "google/mobilenet_v2_1.0_224@3c5f8a1",
+      "config": {"unfreeze": "all", "epochs": 15, "lr": 0.0003, "image_size": 224},
+      "expected_effect": "macro-F1 within 0.01 of ResNet-18 at lower latency.",
+      "estimated_cost": {"compute_seconds": 2400, "gpu": true, "peak_memory_gb": 4.0}
+    }
+  ],
+  "halving": {
+    "short_budget": {"max_epochs": 3, "data_fraction": 0.5},
+    "promote_top_k": 1,
+    "promotion_metric": "f1_macro"
+  }
+}

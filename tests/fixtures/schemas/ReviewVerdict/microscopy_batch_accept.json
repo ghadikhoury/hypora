@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "run_id": "run_104",
+  "batch_id": "bat_0002",
+  "verdict": "accept",
+  "reasons": [],
+  "concerns": [
+    {
+      "category": "insignificant_improvement",
+      "description": "MobileNet beats ResNet-18 by 0.004 macro-F1, inside fold-to-fold variation.",
+      "severity": "low"
+    }
+  ]
+}

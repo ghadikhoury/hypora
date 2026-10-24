@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "run_id": "run_101",
+  "options": [
+    {
+      "option_id": "A1",
+      "path": "hosted_api",
+      "candidate": "generic hosted tabular prediction service",
+      "summary": "No hosted service targets lab reaction yield; using one would send data off-machine, which the task forbids.",
+      "tradeoffs": {
+        "task_fit": {"rating": "poor", "note": "generic AutoML endpoints only"},
+        "evidence_quality": {"rating": "unknown", "note": "no published results on comparable assay data"},
+        "privacy": {"rating": "poor", "note": "data_locality is local_only"},
+        "license": {"rating": "unknown"},
+        "hardware_feasibility": {"rating": "good", "note": "runs remotely"},
+        "setup_cost": {"rating": "acceptable"},
+        "expected_inference_cost": {"rating": "unknown", "note": "price unavailable"},
+        "latency_uncertainty": {"rating": "poor", "note": "network round trip"},
+        "evaluation_risk": {"rating": "poor", "note": "cannot run on the local hidden split"},
+        "price": {"status": "unavailable"}
+      }
+    },
+    {
+      "option_id": "D1",
+      "path": "task_specific_training",
+      "candidate": "hist_gradient_boosting",
+      "summary": "Gradient-boosted trees suit 1,840-row tabular regression with mixed numeric and categorical features.",
+      "tradeoffs": {
+        "task_fit": {"rating": "good", "note": "tabular regression, few rows", "evidence_refs": ["passage:31"]},
+        "evidence_quality": {"rating": "good", "evidence_refs": ["passage:31", "passage:44"]},
+        "privacy": {"rating": "good", "note": "fully local"},
+        "license": {"rating": "good", "note": "scikit-learn"},
+        "hardware_feasibility": {"rating": "good", "note": "CPU, seconds per fit"},
+        "setup_cost": {"rating": "good", "note": "platform template exists"},
+        "expected_inference_cost": {"rating": "good"},
+        "latency_uncertainty": {"rating": "good"},
+        "evaluation_risk": {"rating": "acceptable", "note": "46 batches limit grouped validation"},
+        "license_id": "BSD-3-Clause"
+      }
+    },
+    {
+      "option_id": "D2",
+      "path": "task_specific_training",
+      "candidate": "ridge_regression",
+      "summary": "A regularized linear model is a cheap reference and is easy to explain.",
+      "tradeoffs": {
+        "task_fit": {"rating": "acceptable", "note": "may underfit temperature interactions"},
+        "evidence_quality": {"rating": "good"},
+        "privacy": {"rating": "good"},
+        "license": {"rating": "good"},
+        "hardware_feasibility": {"rating": "good"},
+        "setup_cost": {"rating": "good"},
+        "expected_inference_cost": {"rating": "good"},
+        "latency_uncertainty": {"rating": "good"},
+        "evaluation_risk": {"rating": "good"},
+        "license_id": "BSD-3-Clause"
+      }
+    }
+  ],
+  "recommendation": {
+    "kind": "train_task_specific",
+    "option_ids": ["D1", "D2"],
+    "rationale": "Structured data with labels and no suitable pretrained or hosted model; trees are the expected winner and ridge is the reference."
+  },
+  "proposed_phase_b_plan": {
+    "measurements": [
+      {
+        "option_id": "D1",
+        "trial_kind": "candidate",
+        "rationale": "Main candidate.",
+        "estimated_cost": {"compute_seconds": 240, "usd": 0.0, "peak_memory_gb": 1.0, "assumptions": ["5-fold grouped CV", "Optuna, 30 trials"]}
+      },
+      {
+        "option_id": "D2",
+        "trial_kind": "candidate",
+        "rationale": "Linear reference beyond the mandatory baseline.",
+        "estimated_cost": {"compute_seconds": 20, "usd": 0.0, "peak_memory_gb": 0.5}
+      }
+    ],
+    "notes": "The controller adds the mandatory mean-predictor baseline."
+  },
+  "confidence": 0.8,
+  "citations": [
+    {
+      "ref": "passage:31",
+      "source_url": "https://scikit-learn.org/stable/modules/ensemble.html#histogram-based-gradient-boosting",
+      "title": "Histogram-Based Gradient Boosting",
+      "revision": "1.7",
+      "retrieved_on": "2026-10-20"
+    },
+    {
+      "ref": "passage:44",
+      "source_url": "https://scikit-learn.org/stable/modules/cross_validation.html#group-k-fold",
+      "title": "Cross-validation: GroupKFold",
+      "revision": "1.7",
+      "retrieved_on": "2026-10-20"
+    }
+  ],
+  "open_questions": []
+}

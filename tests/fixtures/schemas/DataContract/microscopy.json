@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "data_contract_version": 2,
+  "target": "label",
+  "task_type": "multiclass_classification",
+  "allowed_features": ["image_path", "magnification"],
+  "excluded_features": [
+    {
+      "name": "acquisition_batch",
+      "reason": "imaging session correlates with label (shortcut, not phenotype)",
+      "evidence": "diag_031"
+    }
+  ],
+  "split": {
+    "strategy": "group",
+    "group_key": "specimen_id",
+    "test_fraction": 0.2,
+    "validation": "group_kfold_5"
+  },
+  "non_learned_fixes": [
+    {"drop_column": "device_id"},
+    {"cast_dtype": {"column": "magnification", "dtype": "int64"}}
+  ],
+  "risks": [
+    "3 corrupt images are excluded before splitting",
+    "14 exact duplicates all share a specimen, so the group split keeps them together"
+  ],
+  "open_questions": ["Is 512px input required or can images be downsampled?"]
+}

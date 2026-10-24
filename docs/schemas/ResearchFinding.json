@@ -1,0 +1,260 @@
+{
+  "$defs": {
+    "Assessment": {
+      "description": "How favorable one tradeoff dimension is for an option ('good' = favors the option).",
+      "enum": [
+        "good",
+        "acceptable",
+        "poor",
+        "unknown"
+      ],
+      "title": "Assessment",
+      "type": "string"
+    },
+    "Claim": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "evidence_refs": {
+          "items": {
+            "maxLength": 512,
+            "pattern": "^[a-z][a-z0-9_]*:\\S+$",
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "statement": {
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "statement"
+      ],
+      "title": "Claim",
+      "type": "object"
+    },
+    "FindingStatus": {
+      "description": "How the worker's brief ended (spec §6.8 worker stop conditions).",
+      "enum": [
+        "complete",
+        "budget_exhausted",
+        "failed"
+      ],
+      "title": "FindingStatus",
+      "type": "string"
+    },
+    "StrategyPath": {
+      "description": "The four paths the Research Lead compares (spec §7.1, options A-D).",
+      "enum": [
+        "hosted_api",
+        "pretrained_as_is",
+        "fine_tune",
+        "task_specific_training"
+      ],
+      "title": "StrategyPath",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One candidate model or research question (spec §7.1, brief example §6.4).",
+  "properties": {
+    "brief_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Brief Id",
+      "type": "string"
+    },
+    "claims": {
+      "items": {
+        "$ref": "#/$defs/Claim"
+      },
+      "title": "Claims",
+      "type": "array"
+    },
+    "confidence": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Confidence",
+      "type": "number"
+    },
+    "evidence_refs": {
+      "items": {
+        "maxLength": 512,
+        "pattern": "^[a-z][a-z0-9_]*:\\S+$",
+        "type": "string"
+      },
+      "title": "Evidence Refs",
+      "type": "array"
+    },
+    "gated": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Gated"
+    },
+    "hardware_requirements": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Hardware Requirements"
+    },
+    "input_format": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Input Format"
+    },
+    "label_adaptability": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Label Adaptability"
+    },
+    "license": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "License"
+    },
+    "model": {
+      "anyOf": [
+        {
+          "maxLength": 256,
+          "pattern": "^[^\\s@]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model"
+    },
+    "model_ref": {
+      "anyOf": [
+        {
+          "maxLength": 320,
+          "pattern": "^[^\\s@]+@[^\\s@]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model Ref"
+    },
+    "open_questions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Open Questions",
+      "type": "array"
+    },
+    "path": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/StrategyPath"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "pretraining_domain": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Pretraining Domain"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "status": {
+      "$ref": "#/$defs/FindingStatus"
+    },
+    "subject": {
+      "description": "The candidate or question investigated.",
+      "minLength": 1,
+      "title": "Subject",
+      "type": "string"
+    },
+    "suitability": {
+      "$ref": "#/$defs/Assessment",
+      "default": "unknown"
+    }
+  },
+  "required": [
+    "brief_id",
+    "run_id",
+    "status",
+    "confidence",
+    "subject"
+  ],
+  "title": "ResearchFinding",
+  "type": "object"
+}

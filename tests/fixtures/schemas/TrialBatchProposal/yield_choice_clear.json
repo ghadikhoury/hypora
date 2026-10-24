@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "batch_id": "bat_0001",
+  "run_id": "run_101",
+  "contract_version": 1,
+  "situation": "choice_clear",
+  "confidence": 0.8,
+  "k_justification": "Tabular regression with 1,840 rows: gradient-boosted trees are the clear choice; ridge is a near-free reference. The controller adds the mean baseline.",
+  "trials": [
+    {
+      "kind": "candidate",
+      "operation": "fit",
+      "hypothesis": "Gradient-boosted trees capture the temperature x catalyst interaction that a linear model misses.",
+      "model_family": "hist_gradient_boosting",
+      "config": {"optuna_trials": 30, "categorical_features": ["catalyst", "solvent"]},
+      "expected_effect": "Lower grouped-CV MAE than ridge regression.",
+      "estimated_cost": {"compute_seconds": 240, "peak_memory_gb": 1.0}
+    },
+    {
+      "kind": "candidate",
+      "operation": "fit",
+      "hypothesis": "A regularized linear model explains most of the variance from dose and temperature.",
+      "model_family": "ridge",
+      "config": {"alphas": [0.1, 1.0, 10.0]},
+      "expected_effect": "A transparent reference MAE.",
+      "estimated_cost": {"compute_seconds": 20, "peak_memory_gb": 0.5}
+    }
+  ]
+}

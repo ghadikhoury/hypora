@@ -1,0 +1,183 @@
+{
+  "$defs": {
+    "ActorRole": {
+      "description": "Who acted: an LLM role (spec §6.3, §22.1 `roles/`) or a platform component.",
+      "enum": [
+        "intake",
+        "supervisor",
+        "research_lead",
+        "research_worker",
+        "data_lead",
+        "diagnostic_worker",
+        "training_lead",
+        "trial_worker",
+        "optimization_worker",
+        "reviewer",
+        "reporter",
+        "single_agent",
+        "controller",
+        "scheduler",
+        "policy_engine",
+        "verifier",
+        "harness",
+        "execution_worker",
+        "mcp_server",
+        "external_client",
+        "user"
+      ],
+      "title": "ActorRole",
+      "type": "string"
+    },
+    "BriefBudget": {
+      "additionalProperties": false,
+      "description": "Worker stop conditions (spec §6.4 `budget`, §6.8 worker row).",
+      "properties": {
+        "max_tokens": {
+          "exclusiveMinimum": 0,
+          "title": "Max Tokens",
+          "type": "integer"
+        },
+        "max_tool_calls": {
+          "exclusiveMinimum": 0,
+          "title": "Max Tool Calls",
+          "type": "integer"
+        },
+        "timeout_seconds": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timeout Seconds"
+        }
+      },
+      "required": [
+        "max_tool_calls",
+        "max_tokens"
+      ],
+      "title": "BriefBudget",
+      "type": "object"
+    },
+    "FindingSchemaName": {
+      "description": "Allowed `Brief.output_schema` values, spelled as in spec §6.4.",
+      "enum": [
+        "ResearchFinding",
+        "DiagnosticFinding",
+        "TrialFinding",
+        "OptimizationFinding"
+      ],
+      "title": "FindingSchemaName",
+      "type": "string"
+    },
+    "ToolName": {
+      "description": "Every tool the spec names: §12 (MCP server), §6.3 (role tools), §11 (tier examples).",
+      "enum": [
+        "inspect_environment",
+        "inspect_dataset",
+        "run_diagnostic",
+        "search_model_catalog",
+        "get_model_evidence",
+        "retrieve_methodology",
+        "estimate_experiment",
+        "write_trial_files",
+        "submit_experiment",
+        "get_experiment_status",
+        "get_experiment_logs",
+        "get_experiment_metrics",
+        "profile_model",
+        "compare_experiments",
+        "cancel_experiment",
+        "export_artifacts",
+        "delegate",
+        "propose_trials",
+        "escalate",
+        "ask_user",
+        "create_experiment",
+        "share_samples"
+      ],
+      "title": "ToolName",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A Lead's structured delegation to one worker (spec §6.4).",
+  "properties": {
+    "allowed_tools": {
+      "items": {
+        "$ref": "#/$defs/ToolName"
+      },
+      "minItems": 1,
+      "title": "Allowed Tools",
+      "type": "array"
+    },
+    "assigned_role": {
+      "$ref": "#/$defs/ActorRole"
+    },
+    "brief_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Brief Id",
+      "type": "string"
+    },
+    "budget": {
+      "$ref": "#/$defs/BriefBudget"
+    },
+    "context_refs": {
+      "items": {
+        "maxLength": 512,
+        "pattern": "^[a-z][a-z0-9_]*:\\S+$",
+        "type": "string"
+      },
+      "title": "Context Refs",
+      "type": "array"
+    },
+    "end_condition": {
+      "minLength": 1,
+      "title": "End Condition",
+      "type": "string"
+    },
+    "issued_by": {
+      "$ref": "#/$defs/ActorRole"
+    },
+    "objective": {
+      "minLength": 1,
+      "title": "Objective",
+      "type": "string"
+    },
+    "output_schema": {
+      "$ref": "#/$defs/FindingSchemaName"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "brief_id",
+    "run_id",
+    "issued_by",
+    "assigned_role",
+    "objective",
+    "output_schema",
+    "allowed_tools",
+    "end_condition",
+    "budget"
+  ],
+  "title": "Brief",
+  "type": "object"
+}

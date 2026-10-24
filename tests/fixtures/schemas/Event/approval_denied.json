@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "run_id": "run_104",
+  "seq": 140,
+  "actor_role": "policy_engine",
+  "created_at": "2026-10-23T20:41:05Z",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "span_id": "00f067aa0ba902b7",
+  "trial_id": "trl_0009",
+  "type": "approval_denied",
+  "payload": {
+    "approval_id": "apr_0019",
+    "artifact_type": "network_access",
+    "artifact_hash": "355031838336f9d60dcf88dc0660b6370418cd7da4d0328cf125279d31ec216a",
+    "approver": "policy:auto_within_contract",
+    "policy": "auto_within_contract",
+    "reason": "network access during fit is outside the pre-approved contract"
+  }
+}

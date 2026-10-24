@@ -1,0 +1,876 @@
+{
+  "$defs": {
+    "ChannelStat": {
+      "additionalProperties": false,
+      "properties": {
+        "channel": {
+          "minimum": 0,
+          "title": "Channel",
+          "type": "integer"
+        },
+        "mean": {
+          "title": "Mean",
+          "type": "number"
+        },
+        "std": {
+          "minimum": 0,
+          "title": "Std",
+          "type": "number"
+        }
+      },
+      "required": [
+        "channel",
+        "mean",
+        "std"
+      ],
+      "title": "ChannelStat",
+      "type": "object"
+    },
+    "ColumnProfile": {
+      "additionalProperties": false,
+      "description": "Per-column summary (spec §5.2 Profile).",
+      "properties": {
+        "dtype": {
+          "description": "Storage dtype as loaded, e.g. 'float64'.",
+          "minLength": 1,
+          "title": "Dtype",
+          "type": "string"
+        },
+        "inferred_type": {
+          "$ref": "#/$defs/InferredType"
+        },
+        "missing_fraction": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Missing Fraction",
+          "type": "number"
+        },
+        "n_missing": {
+          "minimum": 0,
+          "title": "N Missing",
+          "type": "integer"
+        },
+        "n_unique": {
+          "minimum": 0,
+          "title": "N Unique",
+          "type": "integer"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "numeric": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NumericSummary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "top_values": {
+          "items": {
+            "$ref": "#/$defs/ValueCount"
+          },
+          "maxItems": 20,
+          "title": "Top Values",
+          "type": "array"
+        },
+        "unique_fraction": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Unique Fraction",
+          "type": "number"
+        }
+      },
+      "required": [
+        "name",
+        "dtype",
+        "inferred_type",
+        "n_missing",
+        "missing_fraction",
+        "n_unique",
+        "unique_fraction"
+      ],
+      "title": "ColumnProfile",
+      "type": "object"
+    },
+    "DatasetModality": {
+      "enum": [
+        "tabular",
+        "image",
+        "timeseries"
+      ],
+      "title": "DatasetModality",
+      "type": "string"
+    },
+    "FeatureAssociation": {
+      "additionalProperties": false,
+      "description": "Single-feature association with the target, for any feature (spec §5.2 \"per-feature\ntarget-association statistics\"). Flagged ones are also listed as LeakageCandidate.",
+      "properties": {
+        "column": {
+          "minLength": 1,
+          "title": "Column",
+          "type": "string"
+        },
+        "method": {
+          "description": "e.g. 'single_feature_cv_decision_tree'.",
+          "minLength": 1,
+          "title": "Method",
+          "type": "string"
+        },
+        "score": {
+          "title": "Score",
+          "type": "number"
+        },
+        "score_metric": {
+          "$ref": "#/$defs/MetricName"
+        }
+      },
+      "required": [
+        "column",
+        "score",
+        "score_metric",
+        "method"
+      ],
+      "title": "FeatureAssociation",
+      "type": "object"
+    },
+    "GroupKeyCandidate": {
+      "additionalProperties": false,
+      "description": "A column whose rows share targets more than chance (spec §5.2, PLAN.md S1.1).",
+      "properties": {
+        "chance_level": {
+          "description": "The same statistic under random grouping.",
+          "title": "Chance Level",
+          "type": "number"
+        },
+        "column": {
+          "minLength": 1,
+          "title": "Column",
+          "type": "string"
+        },
+        "max_group_size": {
+          "exclusiveMinimum": 0,
+          "title": "Max Group Size",
+          "type": "integer"
+        },
+        "mean_group_size": {
+          "minimum": 1.0,
+          "title": "Mean Group Size",
+          "type": "number"
+        },
+        "n_groups": {
+          "exclusiveMinimum": 0,
+          "title": "N Groups",
+          "type": "integer"
+        },
+        "target_sharing": {
+          "description": "Within-group target agreement statistic.",
+          "title": "Target Sharing",
+          "type": "number"
+        }
+      },
+      "required": [
+        "column",
+        "n_groups",
+        "mean_group_size",
+        "max_group_size",
+        "target_sharing",
+        "chance_level"
+      ],
+      "title": "GroupKeyCandidate",
+      "type": "object"
+    },
+    "IdLikeColumn": {
+      "additionalProperties": false,
+      "properties": {
+        "column": {
+          "minLength": 1,
+          "title": "Column",
+          "type": "string"
+        },
+        "reasons": {
+          "items": {
+            "$ref": "#/$defs/IdLikeReason"
+          },
+          "minItems": 1,
+          "title": "Reasons",
+          "type": "array"
+        },
+        "unique_fraction": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Unique Fraction",
+          "type": "number"
+        }
+      },
+      "required": [
+        "column",
+        "reasons",
+        "unique_fraction"
+      ],
+      "title": "IdLikeColumn",
+      "type": "object"
+    },
+    "IdLikeReason": {
+      "enum": [
+        "near_unique",
+        "monotone_integer",
+        "uuid_pattern"
+      ],
+      "title": "IdLikeReason",
+      "type": "string"
+    },
+    "InferredType": {
+      "enum": [
+        "numeric",
+        "categorical",
+        "boolean",
+        "datetime",
+        "text",
+        "unknown"
+      ],
+      "title": "InferredType",
+      "type": "string"
+    },
+    "LeakageCandidate": {
+      "additionalProperties": false,
+      "description": "A feature that alone predicts the target suspiciously well (a candidate, not a verdict).",
+      "properties": {
+        "column": {
+          "minLength": 1,
+          "title": "Column",
+          "type": "string"
+        },
+        "method": {
+          "description": "e.g. 'single_feature_cv_decision_tree'.",
+          "minLength": 1,
+          "title": "Method",
+          "type": "string"
+        },
+        "score": {
+          "title": "Score",
+          "type": "number"
+        },
+        "score_metric": {
+          "$ref": "#/$defs/MetricName"
+        },
+        "threshold": {
+          "title": "Threshold",
+          "type": "number"
+        }
+      },
+      "required": [
+        "column",
+        "score",
+        "score_metric",
+        "threshold",
+        "method"
+      ],
+      "title": "LeakageCandidate",
+      "type": "object"
+    },
+    "MetricName": {
+      "description": "Metrics computed by platform code (spec §18; PLAN.md S1.3).",
+      "enum": [
+        "accuracy",
+        "balanced_accuracy",
+        "precision",
+        "recall",
+        "f1",
+        "precision_macro",
+        "recall_macro",
+        "f1_macro",
+        "roc_auc",
+        "pr_auc",
+        "log_loss",
+        "brier_score",
+        "mae",
+        "rmse",
+        "r2"
+      ],
+      "title": "MetricName",
+      "type": "string"
+    },
+    "NumericSummary": {
+      "additionalProperties": false,
+      "description": "Distribution summary of a numeric column (data-firewall safe: no rows).",
+      "properties": {
+        "max": {
+          "title": "Max",
+          "type": "number"
+        },
+        "mean": {
+          "title": "Mean",
+          "type": "number"
+        },
+        "min": {
+          "title": "Min",
+          "type": "number"
+        },
+        "p25": {
+          "title": "P25",
+          "type": "number"
+        },
+        "p50": {
+          "title": "P50",
+          "type": "number"
+        },
+        "p75": {
+          "title": "P75",
+          "type": "number"
+        },
+        "std": {
+          "minimum": 0,
+          "title": "Std",
+          "type": "number"
+        }
+      },
+      "required": [
+        "min",
+        "max",
+        "mean",
+        "std",
+        "p25",
+        "p50",
+        "p75"
+      ],
+      "title": "NumericSummary",
+      "type": "object"
+    },
+    "TabularProfile": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_group_keys": {
+          "items": {
+            "$ref": "#/$defs/GroupKeyCandidate"
+          },
+          "title": "Candidate Group Keys",
+          "type": "array"
+        },
+        "columns": {
+          "items": {
+            "$ref": "#/$defs/ColumnProfile"
+          },
+          "title": "Columns",
+          "type": "array"
+        },
+        "duplicate_fraction": {
+          "default": 0.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Duplicate Fraction",
+          "type": "number"
+        },
+        "feature_associations": {
+          "items": {
+            "$ref": "#/$defs/FeatureAssociation"
+          },
+          "title": "Feature Associations",
+          "type": "array"
+        },
+        "id_like_columns": {
+          "items": {
+            "$ref": "#/$defs/IdLikeColumn"
+          },
+          "title": "Id Like Columns",
+          "type": "array"
+        },
+        "leakage_candidates": {
+          "items": {
+            "$ref": "#/$defs/LeakageCandidate"
+          },
+          "title": "Leakage Candidates",
+          "type": "array"
+        },
+        "n_columns": {
+          "minimum": 0,
+          "title": "N Columns",
+          "type": "integer"
+        },
+        "n_duplicate_rows": {
+          "default": 0,
+          "minimum": 0,
+          "title": "N Duplicate Rows",
+          "type": "integer"
+        },
+        "n_rows": {
+          "minimum": 0,
+          "title": "N Rows",
+          "type": "integer"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetProfile"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "timestamp_columns": {
+          "items": {
+            "$ref": "#/$defs/TimestampColumn"
+          },
+          "title": "Timestamp Columns",
+          "type": "array"
+        }
+      },
+      "required": [
+        "n_rows",
+        "n_columns",
+        "columns"
+      ],
+      "title": "TabularProfile",
+      "type": "object"
+    },
+    "TargetProfile": {
+      "additionalProperties": false,
+      "properties": {
+        "class_counts": {
+          "items": {
+            "$ref": "#/$defs/ValueCount"
+          },
+          "title": "Class Counts",
+          "type": "array"
+        },
+        "column": {
+          "minLength": 1,
+          "title": "Column",
+          "type": "string"
+        },
+        "imbalance_ratio": {
+          "anyOf": [
+            {
+              "minimum": 1.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Majority-class count / minority-class count.",
+          "title": "Imbalance Ratio"
+        },
+        "n_classes": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "N Classes"
+        },
+        "n_missing": {
+          "minimum": 0,
+          "title": "N Missing",
+          "type": "integer"
+        },
+        "numeric": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NumericSummary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "column",
+        "n_missing"
+      ],
+      "title": "TargetProfile",
+      "type": "object"
+    },
+    "TimeSeriesProfile": {
+      "additionalProperties": false,
+      "description": "Time-series summary (spec §18.3).",
+      "properties": {
+        "end": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End"
+        },
+        "entity_column": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Entity Column"
+        },
+        "inferred_frequency": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "e.g. '1h', '15min'.",
+          "title": "Inferred Frequency"
+        },
+        "max_gap_seconds": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Gap Seconds"
+        },
+        "median_interval_seconds": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Median Interval Seconds"
+        },
+        "mixed_frequencies": {
+          "default": false,
+          "title": "Mixed Frequencies",
+          "type": "boolean"
+        },
+        "n_entities": {
+          "default": 1,
+          "exclusiveMinimum": 0,
+          "title": "N Entities",
+          "type": "integer"
+        },
+        "n_gaps": {
+          "default": 0,
+          "minimum": 0,
+          "title": "N Gaps",
+          "type": "integer"
+        },
+        "n_timestamps": {
+          "minimum": 0,
+          "title": "N Timestamps",
+          "type": "integer"
+        },
+        "start": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start"
+        },
+        "timestamp_column": {
+          "minLength": 1,
+          "title": "Timestamp Column",
+          "type": "string"
+        },
+        "timezone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timezone"
+        }
+      },
+      "required": [
+        "timestamp_column",
+        "n_timestamps"
+      ],
+      "title": "TimeSeriesProfile",
+      "type": "object"
+    },
+    "TimestampColumn": {
+      "additionalProperties": false,
+      "properties": {
+        "column": {
+          "minLength": 1,
+          "title": "Column",
+          "type": "string"
+        },
+        "is_monotonic_increasing": {
+          "title": "Is Monotonic Increasing",
+          "type": "boolean"
+        },
+        "max": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ISO 8601 latest value.",
+          "title": "Max"
+        },
+        "median_interval_seconds": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Median Interval Seconds"
+        },
+        "min": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ISO 8601 earliest value.",
+          "title": "Min"
+        },
+        "n_duplicate_timestamps": {
+          "default": 0,
+          "minimum": 0,
+          "title": "N Duplicate Timestamps",
+          "type": "integer"
+        },
+        "parse_fraction": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Parse Fraction",
+          "type": "number"
+        }
+      },
+      "required": [
+        "column",
+        "parse_fraction",
+        "is_monotonic_increasing"
+      ],
+      "title": "TimestampColumn",
+      "type": "object"
+    },
+    "ValueCount": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "minimum": 0,
+          "title": "Count",
+          "type": "integer"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "count"
+      ],
+      "title": "ValueCount",
+      "type": "object"
+    },
+    "VisionProfile": {
+      "additionalProperties": false,
+      "description": "Image-dataset summary (spec §18.2 Phase A checks).",
+      "properties": {
+        "channel_stats": {
+          "items": {
+            "$ref": "#/$defs/ChannelStat"
+          },
+          "title": "Channel Stats",
+          "type": "array"
+        },
+        "channels": {
+          "items": {
+            "$ref": "#/$defs/ValueCount"
+          },
+          "title": "Channels",
+          "type": "array"
+        },
+        "class_counts": {
+          "items": {
+            "$ref": "#/$defs/ValueCount"
+          },
+          "title": "Class Counts",
+          "type": "array"
+        },
+        "formats": {
+          "items": {
+            "$ref": "#/$defs/ValueCount"
+          },
+          "title": "Formats",
+          "type": "array"
+        },
+        "height": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NumericSummary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "manifest_columns": {
+          "description": "e.g. specimen_id, acquisition_batch (spec §18.2).",
+          "items": {
+            "type": "string"
+          },
+          "title": "Manifest Columns",
+          "type": "array"
+        },
+        "n_corrupt": {
+          "default": 0,
+          "minimum": 0,
+          "title": "N Corrupt",
+          "type": "integer"
+        },
+        "n_exact_duplicates": {
+          "default": 0,
+          "minimum": 0,
+          "title": "N Exact Duplicates",
+          "type": "integer"
+        },
+        "n_images": {
+          "minimum": 0,
+          "title": "N Images",
+          "type": "integer"
+        },
+        "width": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NumericSummary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "n_images"
+      ],
+      "title": "VisionProfile",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Deterministic dataset summary (spec §5.2 stage 2). Summaries only, never raw rows.",
+  "properties": {
+    "dataset_ref": {
+      "minLength": 1,
+      "title": "Dataset Ref",
+      "type": "string"
+    },
+    "fingerprint": {
+      "description": "SHA-256 of the dataset content.",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Fingerprint",
+      "type": "string"
+    },
+    "modality": {
+      "$ref": "#/$defs/DatasetModality"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "tabular": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TabularProfile"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "timeseries": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TimeSeriesProfile"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "vision": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VisionProfile"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "run_id",
+    "dataset_ref",
+    "fingerprint",
+    "modality"
+  ],
+  "title": "DatasetProfile",
+  "type": "object"
+}

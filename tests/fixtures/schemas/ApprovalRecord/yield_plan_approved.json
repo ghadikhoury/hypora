@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "approval_id": "apr_0007",
+  "run_id": "run_101",
+  "artifact_type": "plan",
+  "artifact_hash": "60083ea7782be8298df2861d5ae91346c7c43b2adab8a178c9a84db11af3a462",
+  "approver": "user:ghadi",
+  "decision": "approved",
+  "policy": "interactive",
+  "reason": null,
+  "created_at": "2026-10-23T14:12:40Z"
+}

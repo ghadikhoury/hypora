@@ -1,0 +1,167 @@
+{
+  "$defs": {
+    "ActorRole": {
+      "description": "Who acted: an LLM role (spec §6.3, §22.1 `roles/`) or a platform component.",
+      "enum": [
+        "intake",
+        "supervisor",
+        "research_lead",
+        "research_worker",
+        "data_lead",
+        "diagnostic_worker",
+        "training_lead",
+        "trial_worker",
+        "optimization_worker",
+        "reviewer",
+        "reporter",
+        "single_agent",
+        "controller",
+        "scheduler",
+        "policy_engine",
+        "verifier",
+        "harness",
+        "execution_worker",
+        "mcp_server",
+        "external_client",
+        "user"
+      ],
+      "title": "ActorRole",
+      "type": "string"
+    },
+    "PlanStep": {
+      "additionalProperties": false,
+      "properties": {
+        "depends_on": {
+          "items": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "purpose": {
+          "minLength": 1,
+          "title": "Purpose",
+          "type": "string"
+        },
+        "step": {
+          "description": "1-based position in the plan.",
+          "exclusiveMinimum": 0,
+          "title": "Step",
+          "type": "integer"
+        },
+        "success_check": {
+          "description": "How the role will know the step worked.",
+          "minLength": 1,
+          "title": "Success Check",
+          "type": "string"
+        },
+        "tool": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tool the step will call, or null for a reasoning/answer step.",
+          "title": "Tool"
+        }
+      },
+      "required": [
+        "step",
+        "purpose",
+        "success_check"
+      ],
+      "title": "PlanStep",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "An ordered plan emitted before a role's first tool call; replans are new revisions.",
+  "properties": {
+    "goal": {
+      "minLength": 1,
+      "title": "Goal",
+      "type": "string"
+    },
+    "plan_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Plan Id",
+      "type": "string"
+    },
+    "revises": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "plan_id of the plan this replaces.",
+      "title": "Revises"
+    },
+    "revision": {
+      "default": 1,
+      "exclusiveMinimum": 0,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "revision_reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The failure observation that triggered the replan.",
+      "title": "Revision Reason"
+    },
+    "role": {
+      "$ref": "#/$defs/ActorRole"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/PlanStep"
+      },
+      "minItems": 1,
+      "title": "Steps",
+      "type": "array"
+    }
+  },
+  "required": [
+    "plan_id",
+    "run_id",
+    "role",
+    "goal",
+    "steps"
+  ],
+  "title": "Plan",
+  "type": "object"
+}

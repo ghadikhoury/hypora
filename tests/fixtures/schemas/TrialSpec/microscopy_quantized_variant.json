@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "trial_id": "trl_0011",
+  "run_id": "run_104",
+  "batch_id": "bat_0004",
+  "contract_version": 2,
+  "kind": "optimization",
+  "operation": "optimize",
+  "hypothesis": "INT8 dynamic quantization of the fine-tuned ResNet-18 meets 50 ms/image on CPU within the F1 tolerance.",
+  "model_family": "resnet18",
+  "model_ref": "microsoft/resnet-18@fb4ff4d",
+  "parent_trial_id": "trl_0007",
+  "config": {"method": "dynamic_int8", "backend": "x86", "modules": ["Linear", "Conv2d"]},
+  "expected_effect": "About 2x lower CPU latency; macro-F1 within 0.01.",
+  "estimated_cost": {"compute_seconds": 300, "peak_memory_gb": 2.0}
+}

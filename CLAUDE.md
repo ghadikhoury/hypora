@@ -66,7 +66,8 @@ commits from WSL so the pre-commit hooks can run. All text files use LF line end
 | `make typecheck` | `mypy` (strict on `hypora/core/`) |
 | `make test` | `pytest` |
 | `make secrets` | gitleaks over the full git history (needs Docker running) |
-| `make check` | All of the above except `setup`; must pass before every PR |
+| `make schemas` | Regenerate `docs/schemas/` after a schema change (a test fails if it is stale) |
+| `make check` | `lint` + `typecheck` + `test` + `secrets`; must pass before every PR |
 
 **Layout:** all Python code lives in the top-level `hypora/` package, which mirrors spec §22.1
 (`hypora/core/...`, `hypora/execution/...`), so imports look like `hypora.core.schemas`. `web/`,

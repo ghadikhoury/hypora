@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "run_id": "run_101",
+  "after_batch_id": "bat_0003",
+  "decision": "stop_success",
+  "rationale": "The monotonic-constraint follow-up narrowed per-batch error without raising mean MAE; both trees beat ridge and the mean baseline, and the budget is 40% spent.",
+  "selected_trial_ids": ["trl_0005"]
+}

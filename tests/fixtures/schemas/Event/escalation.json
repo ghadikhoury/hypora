@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "run_id": "run_109",
+  "seq": 73,
+  "actor_role": "training_lead",
+  "created_at": "2026-10-23T18:30:00Z",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "span_id": "00f067aa0ba902b7",
+  "type": "escalation",
+  "payload": {
+    "escalation_type": "DATA_PROBLEM",
+    "summary": "All forecasters degrade after the sensor recalibration date.",
+    "trial_ids": [
+      "trl_0001",
+      "trl_0002",
+      "trl_0003"
+    ],
+    "evidence_refs": [
+      "comparison:cmp_0002"
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "is_error": true,
+  "code": "TOOL_NOT_ALLOWED",
+  "error_class": "policy_quota",
+  "message": "Role 'training_lead' may not call 'submit_experiment'.",
+  "retryable": false,
+  "details": {"role": "training_lead", "tool": "submit_experiment"},
+  "suggested_recovery": "Propose trials with 'propose_trials'; trial workers submit them."
+}

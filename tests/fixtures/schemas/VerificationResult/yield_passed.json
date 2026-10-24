@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "trial_id": "trl_0002",
+  "run_id": "run_101",
+  "contract_version": 1,
+  "contract_hash": "693679664923fe1bebfb769f1929f70733569b3ab95eaed0b6e5867c46ba43b6",
+  "passed": true,
+  "checks": [
+    {"check": "allowed_features", "status": "passed", "message": "model used exactly the 5 allowed features"},
+    {"check": "split_respected", "status": "passed", "message": "no batch_id appears in both train and test", "details": {"overlapping_groups": 0}},
+    {"check": "test_labels_not_accessed", "status": "passed", "message": "test labels were never mounted in a trial container"},
+    {"check": "metric_recomputation", "status": "passed", "details": {"metric": "mae", "tolerance": 1e-9}},
+    {"check": "output_shape", "status": "passed"},
+    {"check": "finite_outputs", "status": "passed"},
+    {"check": "artifact_loads", "status": "passed", "evidence_refs": ["artifact:art_0012"]},
+    {"check": "learned_transform_leakage", "status": "passed", "message": "all learned transforms are fit inside fit()"},
+    {"check": "resource_limits", "status": "passed", "details": {"peak_memory_gb": 0.8, "wall_seconds": 212}},
+    {"check": "latency_protocol", "status": "skipped", "message": "no latency constraint in the contract"}
+  ]
+}

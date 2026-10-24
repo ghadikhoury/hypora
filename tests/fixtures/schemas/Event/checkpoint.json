@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "run_id": "run_104",
+  "seq": 166,
+  "actor_role": "harness",
+  "created_at": "2026-10-23T16:05:12Z",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "span_id": "00f067aa0ba902b7",
+  "trial_id": "trl_0007",
+  "job_id": "job_0012",
+  "type": "checkpoint",
+  "payload": {
+    "kind": "training",
+    "sequence": 4,
+    "job_id": "job_0012",
+    "trial_id": "trl_0007",
+    "path": "runs/run_104/trials/trl_0007/checkpoints/epoch_004.ckpt",
+    "sha256": "8d6bd18e2329da51e6e4beaada18947f86b7e7390d50b10e7028c1c6339995dd",
+    "epoch": 4,
+    "step": 152
+  }
+}

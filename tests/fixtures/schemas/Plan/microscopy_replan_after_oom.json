@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "plan_id": "pln_0009",
+  "run_id": "run_104",
+  "role": "trial_worker",
+  "revision": 2,
+  "revises": "pln_0008",
+  "revision_reason": "submit_experiment returned INSUFFICIENT_GPU_MEMORY (estimated 12 GB, available 8 GB) for batch size 64 at 512 px.",
+  "goal": "Fine-tune ResNet-18 within 8 GB of GPU memory.",
+  "steps": [
+    {"step": 1, "tool": "write_trial_files", "purpose": "Lower batch size to 32 and resize inputs to 224 px.", "success_check": "Files are accepted and estimate_experiment reports at most 7 GB.", "depends_on": []},
+    {"step": 2, "tool": "submit_experiment", "purpose": "Resubmit with a new idempotency key.", "success_check": "A job ID is returned.", "depends_on": [1]},
+    {"step": 3, "tool": "get_experiment_status", "purpose": "Watch for OOM or divergence.", "success_check": "Job state is COMPLETED.", "depends_on": [2]}
+  ]
+}

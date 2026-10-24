@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "run_id": "run_104",
+  "options": [
+    {
+      "option_id": "B1",
+      "path": "pretrained_as_is",
+      "candidate": "microsoft/resnet-18",
+      "summary": "Frozen ImageNet backbone with a linear probe: weights unchanged, the cheapest measurement of transfer.",
+      "tradeoffs": {
+        "task_fit": {"rating": "acceptable", "note": "natural-image pretraining, fluorescence domain shift", "evidence_refs": ["catalog:12"]},
+        "evidence_quality": {"rating": "acceptable", "note": "model-card benchmarks are self-reported", "evidence_refs": ["catalog:12", "passage:9"]},
+        "privacy": {"rating": "good", "note": "local inference"},
+        "license": {"rating": "good", "note": "not gated"},
+        "hardware_feasibility": {"rating": "good", "note": "11.7M parameters"},
+        "setup_cost": {"rating": "good", "note": "frozen-backbone template"},
+        "expected_inference_cost": {"rating": "good"},
+        "latency_uncertainty": {"rating": "acceptable", "note": "50 ms/image on CPU not yet measured"},
+        "evaluation_risk": {"rating": "acceptable", "note": "specimen leakage must be prevented by the split"},
+        "license_id": "Apache-2.0"
+      },
+      "evidence_refs": ["catalog:12", "passage:9"]
+    },
+    {
+      "option_id": "C1",
+      "path": "fine_tune",
+      "candidate": "microsoft/resnet-18",
+      "summary": "Head first, then selective unfreezing; likely needed for the fluorescence domain shift.",
+      "tradeoffs": {
+        "task_fit": {"rating": "good", "evidence_refs": ["passage:9"]},
+        "evidence_quality": {"rating": "acceptable", "evidence_refs": ["passage:9"]},
+        "privacy": {"rating": "good"},
+        "license": {"rating": "good"},
+        "hardware_feasibility": {"rating": "acceptable", "note": "GPU strongly preferred"},
+        "setup_cost": {"rating": "acceptable"},
+        "expected_inference_cost": {"rating": "good"},
+        "latency_uncertainty": {"rating": "acceptable"},
+        "evaluation_risk": {"rating": "acceptable", "note": "1,200 images: overfitting risk"},
+        "license_id": "Apache-2.0"
+      }
+    },
+    {
+      "option_id": "C2",
+      "path": "fine_tune",
+      "candidate": "google/mobilenet_v2_1.0_224",
+      "summary": "Smaller backbone; more CPU latency headroom if ResNet-18 misses 50 ms/image.",
+      "tradeoffs": {
+        "task_fit": {"rating": "acceptable"},
+        "evidence_quality": {"rating": "acceptable", "evidence_refs": ["catalog:15"]},
+        "privacy": {"rating": "good"},
+        "license": {"rating": "acceptable", "note": "license field reads 'other'; terms need a check"},
+        "hardware_feasibility": {"rating": "good"},
+        "setup_cost": {"rating": "acceptable"},
+        "expected_inference_cost": {"rating": "good"},
+        "latency_uncertainty": {"rating": "good"},
+        "evaluation_risk": {"rating": "acceptable"},
+        "license_id": "other"
+      }
+    }
+  ],
+  "recommendation": {
+    "kind": "evaluate_pretrained_then_finetune_if_needed",
+    "option_ids": ["B1", "C1", "C2"],
+    "rationale": "Measure the frozen backbone first; fine-tune only if it misses the F1 target, keeping MobileNet as the latency fallback."
+  },
+  "proposed_phase_b_plan": {
+    "measurements": [
+      {"option_id": "B1", "trial_kind": "eval_as_is", "rationale": "Cheapest evidence for reuse.", "estimated_cost": {"compute_seconds": 600, "gpu": true, "peak_memory_gb": 3.0}},
+      {"option_id": "C1", "trial_kind": "finetune", "rationale": "Main fine-tuning candidate.", "estimated_cost": {"compute_seconds": 3600, "gpu": true, "peak_memory_gb": 6.0}},
+      {"option_id": "C2", "trial_kind": "finetune", "rationale": "Latency fallback.", "estimated_cost": {"compute_seconds": 2400, "gpu": true, "peak_memory_gb": 4.0}}
+    ],
+    "notes": "Uncertain choice: successive halving over C1 and C2 after B1."
+  },
+  "confidence": 0.7,
+  "citations": [
+    {"ref": "passage:9", "source_url": "https://docs.pytorch.org/vision/stable/models/resnet.html", "title": "torchvision ResNet", "retrieved_on": "2026-10-21"},
+    {"ref": "catalog:12", "source_url": "https://huggingface.co/microsoft/resnet-18", "title": "microsoft/resnet-18 model card", "revision": "fb4ff4d", "retrieved_on": "2026-10-21"},
+    {"ref": "catalog:15", "source_url": "https://huggingface.co/google/mobilenet_v2_1.0_224", "title": "google/mobilenet_v2_1.0_224 model card", "retrieved_on": "2026-10-21"}
+  ],
+  "open_questions": ["Is 512px input required or can images be downsampled?"]
+}

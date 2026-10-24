@@ -1,0 +1,109 @@
+{
+  "$defs": {
+    "ApprovalArtifactType": {
+      "description": "What a gate approves (spec §10.1).",
+      "enum": [
+        "task_spec",
+        "plan",
+        "budget_extension",
+        "dependency",
+        "network_access",
+        "external_download",
+        "export",
+        "share_samples"
+      ],
+      "title": "ApprovalArtifactType",
+      "type": "string"
+    },
+    "ApprovalDecision": {
+      "enum": [
+        "approved",
+        "denied"
+      ],
+      "title": "ApprovalDecision",
+      "type": "string"
+    },
+    "ApprovalPolicy": {
+      "description": "Spec §10.3.",
+      "enum": [
+        "interactive",
+        "auto_within_contract"
+      ],
+      "title": "ApprovalPolicy",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A human (or `auto_within_contract` policy) decision on one exact artifact hash.",
+  "properties": {
+    "approval_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Approval Id",
+      "type": "string"
+    },
+    "approver": {
+      "description": "User ID, or 'policy:auto_within_contract'.",
+      "minLength": 1,
+      "title": "Approver",
+      "type": "string"
+    },
+    "artifact_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Artifact Hash",
+      "type": "string"
+    },
+    "artifact_type": {
+      "$ref": "#/$defs/ApprovalArtifactType"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "decision": {
+      "$ref": "#/$defs/ApprovalDecision"
+    },
+    "policy": {
+      "$ref": "#/$defs/ApprovalPolicy"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reason"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "approval_id",
+    "run_id",
+    "artifact_type",
+    "artifact_hash",
+    "approver",
+    "decision",
+    "policy",
+    "created_at"
+  ],
+  "title": "ApprovalRecord",
+  "type": "object"
+}

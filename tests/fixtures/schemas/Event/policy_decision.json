@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "run_id": "run_104",
+  "seq": 77,
+  "actor_role": "policy_engine",
+  "created_at": "2026-10-23T15:20:44Z",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "span_id": "00f067aa0ba902b7",
+  "type": "policy_decision",
+  "payload": {
+    "call_id": "call_0650",
+    "tool": "submit_experiment",
+    "tier": "reversible",
+    "decision": "deny",
+    "decided_by": "role_allowlist",
+    "reasons": [
+      "training_lead has no execution tools (spec §6.3)"
+    ]
+  }
+}

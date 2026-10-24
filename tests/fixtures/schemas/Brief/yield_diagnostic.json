@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "brief_id": "brf_0201",
+  "run_id": "run_101",
+  "issued_by": "data_lead",
+  "assigned_role": "diagnostic_worker",
+  "objective": "Decide whether 'final_mass' (flagged as a leakage candidate, single-feature R2 0.94) is measured after the reaction completes and must be excluded.",
+  "output_schema": "DiagnosticFinding",
+  "allowed_tools": ["inspect_dataset", "run_diagnostic"],
+  "end_condition": "Return once single-feature predictive power and post-outcome timing evidence for final_mass are interpreted, or after 5 tool calls.",
+  "context_refs": ["task_spec:v1", "profile:summary"],
+  "budget": {"max_tool_calls": 5, "max_tokens": 15000, "timeout_seconds": 300}
+}

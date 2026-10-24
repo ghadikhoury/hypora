@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "run_id": "run_101",
+  "seq": 62,
+  "actor_role": "user",
+  "created_at": "2026-10-23T14:12:40Z",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "span_id": "00f067aa0ba902b7",
+  "type": "approval_granted",
+  "payload": {
+    "approval_id": "apr_0007",
+    "artifact_type": "plan",
+    "artifact_hash": "60083ea7782be8298df2861d5ae91346c7c43b2adab8a178c9a84db11af3a462",
+    "approver": "user:ghadi",
+    "policy": "interactive"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "run_id": "run_101",
+  "seq": 88,
+  "actor_role": "trial_worker",
+  "created_at": "2026-10-23T14:20:02Z",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "span_id": "00f067aa0ba902b7",
+  "trial_id": "trl_0002",
+  "type": "tool_call",
+  "payload": {
+    "call_id": "call_0412",
+    "tool": "submit_experiment",
+    "arguments": {
+      "trial_id": "trl_0002",
+      "operation": "fit",
+      "contract_version": 1
+    },
+    "idempotency_key": "run_101:call_0412",
+    "session_id": "mcp_ses_07"
+  }
+}

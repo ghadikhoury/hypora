@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "run_id": "run_101",
+  "seq": 91,
+  "actor_role": "execution_worker",
+  "created_at": "2026-10-23T14:20:05Z",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "span_id": "00f067aa0ba902b7",
+  "trial_id": "trl_0002",
+  "job_id": "job_0004",
+  "type": "job_transition",
+  "payload": {
+    "job_id": "job_0004",
+    "trial_id": "trl_0002",
+    "operation": "fit",
+    "expected_prior_state": "QUEUED",
+    "to_state": "LEASED",
+    "initiator": "worker:wkr_local_1",
+    "reason": "leased by worker with 4 free cpu_slots",
+    "attempt": 1,
+    "lease_owner": "wkr_local_1"
+  }
+}

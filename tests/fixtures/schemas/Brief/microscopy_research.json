@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "brief_id": "brf_0192",
+  "run_id": "run_104",
+  "issued_by": "research_lead",
+  "assigned_role": "research_worker",
+  "objective": "Assess whether 'microsoft/resnet-18' is suitable for 6-class fluorescence microscopy at 512x512 with 1,200 labeled images.",
+  "output_schema": "ResearchFinding",
+  "allowed_tools": ["get_model_evidence", "retrieve_methodology"],
+  "end_condition": "Return after evidence on license, input format, pretraining domain, and label adaptability is gathered, or after 6 tool calls.",
+  "context_refs": ["task_spec:v2", "profile:summary"],
+  "budget": {"max_tool_calls": 6, "max_tokens": 20000}
+}

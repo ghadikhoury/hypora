@@ -177,7 +177,7 @@ Concluding that an existing model already suffices — and that no training is n
  │     ├─ trial workers ×K (parallel)   — each writes fit/predict for ONE hypothesis
  │     ├─ optimization workers (parallel, pipelined behind passing candidates)
  │     ├─ VERIFIER (code) → REVIEWER (LLM, read-only)
- │     └─ Lead: continue · stop · escalate ◆ (DATA_PROBLEM / REUSE_WINS / INFEASIBLE)
+ │     └─ Lead: continue · stop · escalate ◆ (DATA_PROBLEM / REUSE_WINS / CONSTRAINT_INFEASIBLE / REPEATED_FAILURE)
  │                                         ★ gate if budget extension or new permission ★
  │
  └─ 5 REPORT (LLM; every number pulled from the DB) → deliverables
@@ -267,6 +267,9 @@ Every delegation from a Lead to a worker is a structured object with four requir
 ```json
 {
   "brief_id": "brf_0192",
+  "run_id": "run_104",
+  "issued_by": "research_lead",
+  "assigned_role": "research_worker",
   "objective": "Assess whether 'microsoft/resnet-18' is suitable for 6-class fluorescence microscopy at 512x512 with 1,200 labeled images.",
   "output_schema": "ResearchFinding",
   "allowed_tools": ["get_model_evidence", "retrieve_methodology"],
@@ -308,6 +311,8 @@ Vague delegation produces duplicate and off-target work; the brief schema preven
   "open_questions": ["Is 512px input required or can images be downsampled?"]
 }
 ```
+
+Every handoff is recorded as a `handoff` event; a role invocation opens with a `role_started` event (§15.1, D-003). `status` is one of `complete | partial | failed | cancelled`; `cancelled` records a speculative branch cancelled by the controller (§9.3).
 
 ### 6.8 Stop conditions
 
@@ -362,7 +367,8 @@ excluded_features:
     evidence: diag_017
 split:
   strategy: group            # random | stratified | group | temporal | group_temporal
-  group_key: batch_id
+  group_key: batch_id        # required for group | group_temporal
+  time_key: null             # time column; required for temporal | group_temporal (D-004)
   test_fraction: 0.2
   validation: group_kfold_5
 non_learned_fixes:
@@ -583,13 +589,13 @@ The tool boundary between agents and the platform. Our agent runtime is an MCP c
 
 **Error contract:**
 ```json
-{"is_error": true, "code": "INSUFFICIENT_GPU_MEMORY",
+{"is_error": true, "code": "INSUFFICIENT_GPU_MEMORY", "error_class": "resource",
  "message": "Requested configuration exceeds available GPU memory.",
  "retryable": false,
  "details": {"available_gb": 8, "estimated_gb": 12},
  "suggested_recovery": "Reduce batch size or select a smaller model."}
 ```
-Error classes: invalid arguments (repair), transient (bounded retry), policy/quota (ask user), resource (reconfigure), missing data (clarify). A successful call does not prove scientific correctness.
+Error classes (`error_class`): invalid arguments (repair), transient (bounded retry), policy/quota (ask user), resource (reconfigure), missing data (clarify). A successful call does not prove scientific correctness.
 
 **Auth & transport:** stdio between trusted local processes; Streamable HTTP for remote clients with authenticated, scoped, revocable tokens over TLS. External access is opt-in per workspace. Caller identity, tool, run, and policy decision are logged without credentials. Pin MCP SDK versions; test with at least two clients/models.
 
@@ -668,11 +674,14 @@ runs(id, workspace_id, family, run_mode, status, approval_policy,
      budget_usd, spent_usd, budget_compute_s, spent_compute_s,
      model_config, created_at, updated_at)
   status: INTAKE | PHASE_A | WAITING_APPROVAL | PHASE_B | REPORTING | DONE | FAILED | CANCELLED
+  (the finer §5.1 stage — INTAKE | PROFILE | ROUTE | PHASE_A | JOIN | CONTRACT | PHASE_B |
+   REPORT — is recorded alongside status in stage_transition events; D-005)
 
 events(run_id, seq, type, actor_role, payload_json, created_at)      -- append-only
   type: model_call | tool_call | tool_result | policy_decision | approval_requested |
         approval_granted | approval_denied | stage_transition | job_transition |
-        checkpoint | escalation | error
+        checkpoint | escalation | error |
+        role_started | plan | handoff                          -- added by D-003
 
 task_specs(id, run_id, version, json)
 dataset_profiles(id, run_id, dataset_ref, fingerprint, json)

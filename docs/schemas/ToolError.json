@@ -1,0 +1,78 @@
+{
+  "$defs": {
+    "ErrorClass": {
+      "description": "Spec §12 error classes, with the expected recovery in comments.",
+      "enum": [
+        "invalid_arguments",
+        "transient",
+        "policy_quota",
+        "resource",
+        "missing_data"
+      ],
+      "title": "ErrorClass",
+      "type": "string"
+    },
+    "JsonValue": {}
+  },
+  "additionalProperties": false,
+  "description": "Structured tool failure returned to the agent (spec §12 error contract, plus error_class).",
+  "properties": {
+    "code": {
+      "maxLength": 64,
+      "pattern": "^[A-Z][A-Z0-9_]*$",
+      "title": "Code",
+      "type": "string"
+    },
+    "details": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Details",
+      "type": "object"
+    },
+    "error_class": {
+      "$ref": "#/$defs/ErrorClass"
+    },
+    "is_error": {
+      "const": true,
+      "default": true,
+      "title": "Is Error",
+      "type": "boolean"
+    },
+    "message": {
+      "minLength": 1,
+      "title": "Message",
+      "type": "string"
+    },
+    "retryable": {
+      "title": "Retryable",
+      "type": "boolean"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "suggested_recovery": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Suggested Recovery"
+    }
+  },
+  "required": [
+    "code",
+    "error_class",
+    "message",
+    "retryable"
+  ],
+  "title": "ToolError",
+  "type": "object"
+}

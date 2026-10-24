@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "trial_id": "trl_0002",
+  "run_id": "run_101",
+  "batch_id": "bat_0001",
+  "contract_version": 1,
+  "kind": "candidate",
+  "operation": "fit",
+  "hypothesis": "Gradient-boosted trees capture the temperature x catalyst interaction that a linear model misses.",
+  "model_family": "hist_gradient_boosting",
+  "config": {"optuna_trials": 30, "search_space": {"learning_rate": [0.01, 0.3], "max_leaf_nodes": [15, 63]}, "categorical_features": ["catalyst", "solvent"]},
+  "expected_effect": "Lower grouped-CV MAE than ridge regression.",
+  "estimated_cost": {"compute_seconds": 240, "peak_memory_gb": 1.0, "assumptions": ["5-fold grouped CV", "Optuna, 30 trials"]}
+}

@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "data_contract_version": 1,
+  "target": "reading",
+  "task_type": "forecasting",
+  "allowed_features": ["sensor_id", "ambient_temp", "hour_of_day"],
+  "excluded_features": [
+    {
+      "name": "reading_centered_mean_24h",
+      "reason": "centered window uses future readings (lookahead)",
+      "evidence": "diag_052"
+    }
+  ],
+  "split": {
+    "strategy": "temporal",
+    "time_key": "timestamp",
+    "test_fraction": 0.15,
+    "validation": "walk_forward_4"
+  },
+  "non_learned_fixes": [
+    {"parse_datetime": "timestamp"},
+    {"set_missing": {"column": "reading", "values": [-999, -9999]}}
+  ],
+  "risks": ["sensor recalibrated on 2026-03-02; report error before and after"],
+  "open_questions": []
+}

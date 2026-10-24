@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "run_id": "run_101",
+  "trial_id": "trl_0002",
+  "operation": "fit",
+  "family": "tabular",
+  "contract_version": 1,
+  "model_ref": null,
+  "config": {"optuna_trials": 30},
+  "limits": {"max_wall_seconds": 900, "max_memory_gb": 4.0, "gpu": false, "cpu_threads": 4},
+  "approval_ref": "apr_0007",
+  "idempotency_key": "run_101:call_0412"
+}

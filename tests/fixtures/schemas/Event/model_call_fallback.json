@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "run_id": "run_104",
+  "seq": 57,
+  "actor_role": "research_worker",
+  "created_at": "2026-10-23T15:03:40Z",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "span_id": "b2c3d4e5f6071829",
+  "parent_span_id": "a1b2c3d4e5f60718",
+  "type": "model_call",
+  "payload": {
+    "call_id": "mc_0057",
+    "provider": "openai",
+    "model_id": "gpt-5-mini",
+    "profile": "dev",
+    "tier": "worker",
+    "temperature": "not_configurable",
+    "prompt_ref": "research_worker@v1",
+    "input_ref": "blob:in_0057",
+    "output_ref": "blob:out_0057",
+    "output_schema": "ResearchFinding",
+    "input_tokens": 3904,
+    "output_tokens": 611,
+    "cached_input_tokens": 1024,
+    "latency_ms": 2210,
+    "rate_limit_wait_ms": 7400,
+    "retries": 3,
+    "cost_usd": 0.0021,
+    "fallback_used": true,
+    "fallback_from": {
+      "provider": "gemini",
+      "model_id": "gemini-2.5-flash",
+      "reason": "HTTP 429 after 3 retries with backoff"
+    }
+  }
+}

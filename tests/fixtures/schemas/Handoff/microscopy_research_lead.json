@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "run_id": "run_104",
+  "from_role": "research_lead",
+  "to": "controller",
+  "status": "complete",
+  "recommendation": "evaluate_pretrained_then_finetune_if_needed",
+  "candidates": ["model_ref:resnet18@rev", "model_ref:mobilenetv3@rev"],
+  "evidence_refs": ["passage:9", "catalog:12"],
+  "confidence": 0.7,
+  "open_questions": ["Is 512px input required or can images be downsampled?"]
+}

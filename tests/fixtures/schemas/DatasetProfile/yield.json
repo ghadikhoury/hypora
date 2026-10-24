@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "run_id": "run_101",
+  "dataset_ref": "data/snapshots/reaction_yield/v1/yield.csv",
+  "fingerprint": "065d4a557bcf139333e4d2de4244f363c6662c70eb4b81d09b0d3fb6192bcae0",
+  "modality": "tabular",
+  "tabular": {
+    "n_rows": 1840,
+    "n_columns": 10,
+    "columns": [
+      {
+        "name": "sample_id", "dtype": "int64", "inferred_type": "numeric",
+        "n_missing": 0, "missing_fraction": 0.0, "n_unique": 1840, "unique_fraction": 1.0,
+        "numeric": {"min": 1, "max": 1840, "mean": 920.5, "std": 531.3, "p25": 460.75, "p50": 920.5, "p75": 1380.25}
+      },
+      {
+        "name": "batch_id", "dtype": "object", "inferred_type": "categorical",
+        "n_missing": 0, "missing_fraction": 0.0, "n_unique": 46, "unique_fraction": 0.025,
+        "top_values": [{"value": "B07", "count": 52}, {"value": "B12", "count": 48}, {"value": "B03", "count": 44}]
+      },
+      {
+        "name": "prep_date", "dtype": "object", "inferred_type": "datetime",
+        "n_missing": 0, "missing_fraction": 0.0, "n_unique": 46, "unique_fraction": 0.025
+      },
+      {
+        "name": "dose", "dtype": "float64", "inferred_type": "numeric",
+        "n_missing": 12, "missing_fraction": 0.0065, "n_unique": 412, "unique_fraction": 0.2239,
+        "numeric": {"min": 0.5, "max": 12.0, "mean": 5.84, "std": 2.71, "p25": 3.5, "p50": 5.75, "p75": 8.0}
+      },
+      {
+        "name": "temp", "dtype": "float64", "inferred_type": "numeric",
+        "n_missing": 0, "missing_fraction": 0.0, "n_unique": 73, "unique_fraction": 0.0397,
+        "numeric": {"min": 140.0, "max": 212.0, "mean": 176.4, "std": 18.2, "p25": 162.0, "p50": 176.0, "p75": 190.0}
+      },
+      {
+        "name": "catalyst", "dtype": "object", "inferred_type": "categorical",
+        "n_missing": 0, "missing_fraction": 0.0, "n_unique": 4, "unique_fraction": 0.0022,
+        "top_values": [
+          {"value": "Pd/C", "count": 702}, {"value": "Ni-Raney", "count": 511},
+          {"value": "Pt/Al2O3", "count": 389}, {"value": "none", "count": 238}
+        ]
+      },
+      {
+        "name": "solvent", "dtype": "object", "inferred_type": "categorical",
+        "n_missing": 0, "missing_fraction": 0.0, "n_unique": 3, "unique_fraction": 0.0016,
+        "top_values": [{"value": "ethanol", "count": 911}, {"value": "THF", "count": 604}, {"value": "water", "count": 325}]
+      },
+      {
+        "name": "prep_time", "dtype": "float64", "inferred_type": "numeric",
+        "n_missing": 0, "missing_fraction": 0.0, "n_unique": 180, "unique_fraction": 0.0978,
+        "numeric": {"min": 10.0, "max": 240.0, "mean": 96.3, "std": 51.8, "p25": 55.0, "p50": 90.0, "p75": 135.0}
+      },
+      {
+        "name": "final_mass", "dtype": "float64", "inferred_type": "numeric",
+        "n_missing": 0, "missing_fraction": 0.0, "n_unique": 1789, "unique_fraction": 0.9723,
+        "numeric": {"min": 0.12, "max": 9.87, "mean": 4.41, "std": 2.06, "p25": 2.83, "p50": 4.38, "p75": 5.96}
+      },
+      {
+        "name": "yield", "dtype": "float64", "inferred_type": "numeric",
+        "n_missing": 0, "missing_fraction": 0.0, "n_unique": 1702, "unique_fraction": 0.925,
+        "numeric": {"min": 2.1, "max": 97.4, "mean": 58.2, "std": 19.6, "p25": 44.0, "p50": 60.3, "p75": 73.1}
+      }
+    ],
+    "target": {
+      "column": "yield",
+      "n_missing": 0,
+      "numeric": {"min": 2.1, "max": 97.4, "mean": 58.2, "std": 19.6, "p25": 44.0, "p50": 60.3, "p75": 73.1}
+    },
+    "n_duplicate_rows": 0,
+    "duplicate_fraction": 0.0,
+    "id_like_columns": [
+      {"column": "sample_id", "reasons": ["near_unique", "monotone_integer"], "unique_fraction": 1.0}
+    ],
+    "candidate_group_keys": [
+      {
+        "column": "batch_id", "n_groups": 46, "mean_group_size": 40.0, "max_group_size": 52,
+        "target_sharing": 0.41, "chance_level": 0.02
+      }
+    ],
+    "timestamp_columns": [
+      {
+        "column": "prep_date", "parse_fraction": 1.0, "min": "2025-01-06", "max": "2025-11-24",
+        "is_monotonic_increasing": false, "median_interval_seconds": 0.0, "n_duplicate_timestamps": 1794
+      }
+    ],
+    "leakage_candidates": [
+      {
+        "column": "final_mass", "score": 0.94, "score_metric": "r2", "threshold": 0.8,
+        "method": "single_feature_cv_decision_tree"
+      }
+    ]
+  }
+}

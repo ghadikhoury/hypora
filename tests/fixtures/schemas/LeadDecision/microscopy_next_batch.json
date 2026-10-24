@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "run_id": "run_104",
+  "after_batch_id": "bat_0001",
+  "decision": "propose_next_batch",
+  "rationale": "The frozen ResNet-18 linear probe reached macro-F1 0.78, below the 0.85 target; fine-tuning is next.",
+  "next_batch": {
+    "schema_version": 1,
+    "batch_id": "bat_0002",
+    "run_id": "run_104",
+    "contract_version": 2,
+    "situation": "genuinely_uncertain",
+    "confidence": 0.55,
+    "k_justification": "ResNet-18 vs. MobileNet under the latency constraint is unclear; short rounds settle it cheaply.",
+    "trials": [
+      {
+        "kind": "finetune",
+        "operation": "finetune",
+        "hypothesis": "Fine-tuning ResNet-18 head-first then layer4 adapts to fluorescence images.",
+        "model_family": "resnet18",
+        "model_ref": "microsoft/resnet-18@fb4ff4d",
+        "config": {"unfreeze": ["fc", "layer4"], "epochs": 15},
+        "expected_effect": "macro-F1 above 0.85.",
+        "estimated_cost": {"compute_seconds": 3600, "gpu": true}
+      },
+      {
+        "kind": "finetune",
+        "operation": "finetune",
+        "hypothesis": "MobileNetV2 fine-tuning reaches similar F1 with more CPU latency headroom.",
+        "model_family": "mobilenet_v2",
+        "model_ref": "google/mobilenet_v2_1.0_224@3c5f8a1",
+        "config": {"unfreeze": "all", "epochs": 15},
+        "expected_effect": "macro-F1 within 0.01 of ResNet-18 at lower latency.",
+        "estimated_cost": {"compute_seconds": 2400, "gpu": true}
+      }
+    ],
+    "halving": {"short_budget": {"max_epochs": 3}, "promote_top_k": 1, "promotion_metric": "f1_macro"}
+  }
+}

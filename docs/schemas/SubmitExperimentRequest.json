@@ -1,0 +1,154 @@
+{
+  "$defs": {
+    "Family": {
+      "description": "Model family route (spec §5.2 Route, §18).",
+      "enum": [
+        "tabular",
+        "vision",
+        "timeseries",
+        "experimental"
+      ],
+      "title": "Family",
+      "type": "string"
+    },
+    "JobLimits": {
+      "additionalProperties": false,
+      "description": "Per-job sandbox limits (spec §12 `submit_experiment.limits`, §9.2, §14.3).",
+      "properties": {
+        "cpu_threads": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cpu Threads"
+        },
+        "gpu": {
+          "default": false,
+          "title": "Gpu",
+          "type": "boolean"
+        },
+        "max_memory_gb": {
+          "exclusiveMinimum": 0,
+          "title": "Max Memory Gb",
+          "type": "number"
+        },
+        "max_wall_seconds": {
+          "exclusiveMinimum": 0,
+          "title": "Max Wall Seconds",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_wall_seconds",
+        "max_memory_gb"
+      ],
+      "title": "JobLimits",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "Operation": {
+      "description": "Job operation (spec §12 `submit_experiment`).",
+      "enum": [
+        "fit",
+        "eval_as_is",
+        "finetune",
+        "optimize",
+        "profile"
+      ],
+      "title": "Operation",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`submit_experiment` input (spec §12 example), validated before a job is enqueued.",
+  "properties": {
+    "approval_ref": {
+      "description": "ApprovalRecord covering this run's contract.",
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Approval Ref",
+      "type": "string"
+    },
+    "config": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Config",
+      "type": "object"
+    },
+    "contract_version": {
+      "exclusiveMinimum": 0,
+      "title": "Contract Version",
+      "type": "integer"
+    },
+    "family": {
+      "$ref": "#/$defs/Family"
+    },
+    "idempotency_key": {
+      "maxLength": 260,
+      "pattern": "^[^:\\s]+:[^:\\s]+$",
+      "title": "Idempotency Key",
+      "type": "string"
+    },
+    "limits": {
+      "$ref": "#/$defs/JobLimits"
+    },
+    "model_ref": {
+      "anyOf": [
+        {
+          "maxLength": 320,
+          "pattern": "^[^\\s@]+@[^\\s@]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "`model_ref@revision`.",
+      "title": "Model Ref"
+    },
+    "operation": {
+      "$ref": "#/$defs/Operation"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "trial_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Trial Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "run_id",
+    "trial_id",
+    "operation",
+    "family",
+    "contract_version",
+    "limits",
+    "approval_ref",
+    "idempotency_key"
+  ],
+  "title": "SubmitExperimentRequest",
+  "type": "object"
+}
