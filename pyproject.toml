@@ -82,3 +82,4 @@ testpaths = ["tests", "hypora/storage/tests"]
 addopts = ["--import-mode=importlib", "-ra", "--strict-markers", "--strict-config"]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
+markers = ["docker: integration tests requiring Docker and the pinned gitleaks image"]
