@@ -29,7 +29,7 @@ test: ## pytest
 	$(RUN) pytest
 
 secrets: ## gitleaks over the full git history (requires Docker)
-	docker run --rm -v "$(CURDIR):/repo:ro" $(GITLEAKS_IMAGE) git /repo --redact --no-banner --verbose
+	$(RUN) python scripts/scan_secrets.py --image "$(GITLEAKS_IMAGE)"
 
 schemas: ## Regenerate docs/schemas/ from hypora.core.schemas
 	$(RUN) python scripts/export_schemas.py
