@@ -62,10 +62,10 @@ def test_concurrent_charges_do_not_lose_totals(database: Database) -> None:
 
 def test_failed_total_update_rolls_back_entry(database: Database) -> None:
     ledger = BudgetLedger(database)
-    ledger.charge("run_1", "api", "999999999999", "usd", "large_call")
+    ledger.charge("run_1", "api", "10000000", "usd", "large_call")
     before = ledger.remaining("run_1")
     with pytest.raises(ValueError):
-        ledger.charge("run_1", "api", "1", "usd", "overflow")
+        ledger.charge("run_1", "api", "0.00000001", "usd", "overflow")
     assert ledger.remaining("run_1") == before
     with database.engine.connect() as connection:
         assert connection.scalar(select(func.count()).select_from(BudgetEntry)) == 1

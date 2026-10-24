@@ -6,21 +6,11 @@ from typing import Literal
 
 from sqlalchemy import func, insert, select, update
 
+from hypora.storage.amounts import amount_decimal
 from hypora.storage.database import Database
 from hypora.storage.models import BudgetEntry, Run, utc_now
 
 Unit = Literal["usd", "compute_s"]
-_QUANTUM = Decimal("0.00000001")
-
-
-def amount_decimal(value: Decimal | str | int | float) -> Decimal:
-    """Require a nonnegative, finite value representable by the ledger's NUMERIC(20, 8)."""
-    amount = Decimal(str(value))
-    if not amount.is_finite() or amount < 0 or amount >= Decimal("1e12"):
-        raise ValueError("amount must be finite, nonnegative, and less than 1e12")
-    if amount != amount.quantize(_QUANTUM):
-        raise ValueError("amount supports at most 8 decimal places")
-    return amount
 
 
 @dataclass(frozen=True)

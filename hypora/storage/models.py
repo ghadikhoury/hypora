@@ -12,7 +12,6 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     MetaData,
-    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -38,6 +37,7 @@ from hypora.core.schemas import (
     parse_event,
 )
 from hypora.core.schemas.contracts import ApprovalArtifactType, ApprovalDecision
+from hypora.storage.amounts import BudgetAmount
 
 JsonObject = dict[str, JsonValue]
 
@@ -111,10 +111,10 @@ class Run(Base):
     approval_policy: Mapped[ApprovalPolicy] = mapped_column(
         enum_type(ApprovalPolicy), default=ApprovalPolicy.INTERACTIVE
     )
-    budget_usd: Mapped[Decimal | None] = mapped_column(Numeric(20, 8))
-    spent_usd: Mapped[Decimal] = mapped_column(Numeric(20, 8), default=Decimal(0))
-    budget_compute_s: Mapped[Decimal | None] = mapped_column(Numeric(20, 8))
-    spent_compute_s: Mapped[Decimal] = mapped_column(Numeric(20, 8), default=Decimal(0))
+    budget_usd: Mapped[Decimal | None] = mapped_column(BudgetAmount())
+    spent_usd: Mapped[Decimal] = mapped_column(BudgetAmount(), default=Decimal(0))
+    budget_compute_s: Mapped[Decimal | None] = mapped_column(BudgetAmount())
+    spent_compute_s: Mapped[Decimal] = mapped_column(BudgetAmount(), default=Decimal(0))
     model_config: Mapped[JsonObject] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now)
@@ -299,7 +299,7 @@ class BudgetEntry(Base):
     run_id: Mapped[str] = mapped_column(ForeignKey("runs.id"), primary_key=True)
     seq: Mapped[int] = mapped_column(Integer, primary_key=True)
     kind: Mapped[str] = mapped_column(String(64))
-    amount: Mapped[Decimal] = mapped_column(Numeric(20, 8))
+    amount: Mapped[Decimal] = mapped_column(BudgetAmount())
     unit: Mapped[str] = mapped_column(String(16))
     ref: Mapped[str] = mapped_column(String(512))
 

@@ -12,6 +12,10 @@ make check
 
 `migrations/0001` is a committed, standalone schema snapshot. It creates all 15 tables from
 §15.1, constraints, indexes, and SQLite append-only triggers for `events` and `budget_ledger`.
+Revision `0002` adds insert-conflict guards to both tables, including the ledger's independent
+charge-reference unique key. These reject `INSERT OR REPLACE` before it can delete history, even
+on connections with `recursive_triggers=OFF`. Upgrading an existing `0001` database preserves its
+rows and installs the same guards as a fresh migration.
 `eval_cases` and `eval_results` are storage records only; S2 defines their content. No held-out
 data or grading rules are implemented or modified. The migration tests upgrade an empty file,
 compare the resulting schema with SQLAlchemy metadata, then downgrade and re-upgrade.
@@ -67,8 +71,15 @@ authorize transitions, or update the database's run projection.
 ## Budgets
 
 `BudgetLedger.charge(run_id, kind, amount, unit, ref)` atomically inserts an entry and updates the
-run total. Units are `usd` and `compute_s`. Decimal conversion rejects negative/nonfinite amounts
-and values outside NUMERIC(20, 8)'s range/precision. A retry with the same `(run, kind, unit, ref)`
+run total. Units are `usd` and `compute_s`. Every charge, run limit, and materialized total supports
+**0 through 10,000,000 inclusive, with at most eight decimal places**. This deliberately narrower
+range is enforced by the shared `BudgetAmount` SQLAlchemy type as well as the ledger API: SQLite
+stores fractional NUMERIC values as binary64, so the SQL declaration `NUMERIC(20, 8)` cannot promise
+eight-place accuracy across its entire declared range. Below the supported bound, binary64 spacing
+is less than 2e-9, allowing SQLAlchemy's eight-place Decimal conversion to recover each input.
+Charges and totals outside the bound fail rather than round or lose a small increment; a failed
+total update rolls its ledger entry back. Historical/raw-SQL values outside the supported range
+are refused on read rather than trusted as accurate balances. A retry with the same `(run, kind, unit, ref)`
 and amount returns the original sequence; a changed amount fails. `remaining(run_id)` returns
 `RemainingBudget(usd, compute_s)`, where `None` means unlimited. Actual overruns are recorded and
 produce negative remaining balances: the controller enforces authorization before spending; this
