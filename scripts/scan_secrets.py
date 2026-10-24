@@ -5,10 +5,12 @@ container and gitleaks must report positive commit and byte counts before succes
 """
 
 import argparse
+import os
 import re
 import subprocess
 import sys
 from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
 
 # All arguments are passed separately through "$@"; paths and image names never become shell code.
@@ -20,10 +22,28 @@ class ScanError(RuntimeError):
     """History could not be verified or the scanner did not complete successfully."""
 
 
+@cache
+def repository_environment_variables() -> tuple[str, ...]:
+    """Ask Git which inherited variables can redirect repository-local operations."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--local-env-vars"], capture_output=True, text=True, check=False
+    )
+    if result.returncode or not result.stdout.strip():
+        raise ScanError("Git could not identify its repository-local environment variables.")
+    return tuple(result.stdout.splitlines())
+
+
 def git_output(directory: Path, *arguments: str) -> str:
     """Run a read-only Git query, failing with its diagnostic if the checkout is invalid."""
+    environment = os.environ.copy()
+    for name in repository_environment_variables():
+        environment.pop(name, None)
     result = subprocess.run(
-        ["git", "-C", str(directory), *arguments], capture_output=True, text=True, check=False
+        ["git", "-C", str(directory), *arguments],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=environment,
     )
     if result.returncode:
         raise ScanError(f"Git history is unavailable: {result.stderr.strip()}")

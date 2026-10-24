@@ -171,3 +171,29 @@ def test_pinned_scanner_false_success_is_rejected(tmp_path: Path, image: str) ->
     fixed = run_scan(broken, image)
     assert fixed.returncode != 0
     assert "no leaks found" not in fixed.stdout + fixed.stderr
+
+
+@pytest.mark.docker
+@pytest.mark.parametrize("variable", ["GIT_DIR", "GIT_COMMON_DIR", "GIT_WORK_TREE"])
+def test_inherited_git_location_cannot_scan_a_different_repo(
+    fixture_repo: Path, tmp_path: Path, image: str, variable: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    alternate = tmp_path / "alternate"
+    alternate.mkdir()
+    # The alternate is an independent clean repo, not another ref in the marked repo.
+    clean_repo = alternate / "clean repo"
+    subprocess.run(
+        ["git", "clone", str(fixture_repo), str(clean_repo)], check=True, capture_output=True
+    )
+    (fixture_repo / "marker.txt").write_text("hypora-scan-fixture-" + "1234567890\n")
+    git(fixture_repo, "add", "marker.txt")
+    git(fixture_repo, "commit", "-m", "Synthetic marker in requested repository only")
+    target = clean_repo if variable == "GIT_WORK_TREE" else clean_repo / ".git"
+    monkeypatch.setenv(variable, str(target))
+    history = GitHistory.discover(fixture_repo)
+    assert history.root == fixture_repo.resolve()
+    assert history.common_dir == (fixture_repo / ".git").resolve()
+    result = run_scan(fixture_repo, image)
+    assert result.returncode != 0
+    assert "fixture-marker" in result.stdout + result.stderr
+    assert "Secret scan passed" not in result.stdout

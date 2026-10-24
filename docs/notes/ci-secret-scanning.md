@@ -31,7 +31,9 @@ anywhere in history even between scheduled runs.
 supports ordinary checkouts and linked Git worktrees, including paths containing spaces:
 
 1. Ask Git for the checkout, private Git directory, shared Git directory, and reachable commit
-   count. Refuse missing, empty, or shallow history.
+   count. Ignore Git's declared repository-local environment overrides so the requested checkout
+   cannot be replaced by another terminal-selected repository. Refuse missing, empty, or shallow
+   history.
 2. Mount the checkout and shared metadata read-only. Preserve `worktrees/<id>` within the shared
    directory and set container-local `GIT_DIR`, `GIT_COMMON_DIR`, and `GIT_WORK_TREE`. This retains
    both the current worktree's HEAD and shared refs without following host paths inside Docker.
