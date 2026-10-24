@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "Agent-powered autonomous ML engineering platform (CIS 1990 final project)."
 requires-python = "==3.12.*"
 dependencies = [
+    "alembic==1.20.1",
     "pydantic==2.13.5",
+    "sqlalchemy==2.1.6",
 ]
 
 [dependency-groups]
@@ -75,7 +77,7 @@ init_typed = true
 warn_required_dynamic_aliases = true
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "hypora/storage/tests"]
 addopts = ["--import-mode=importlib", "-ra", "--strict-markers", "--strict-config"]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
