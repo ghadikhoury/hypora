@@ -184,3 +184,45 @@ def test_eval_config_with_bad_flag_fails_fast(config_dir: Path) -> None:
     )
     with pytest.raises(ConfigError, match=r"flags.breadth_mode"):
         load_settings_for_eval("bad", config_dir)
+
+
+# --- Recorded eval runs accept no environment overrides (review of PR #3) ------------------------
+
+
+@pytest.mark.parametrize(
+    "variable",
+    ["HYPORA_FLAGS__DEFENSES__FIREWALL", "HYPORA_MODEL_PROFILE", "hypora_flags__planning"],
+)
+def test_eval_run_refuses_environment_overrides(
+    config_dir: Path, monkeypatch: pytest.MonkeyPatch, variable: str
+) -> None:
+    monkeypatch.setenv(variable, "off" if "PLANNING" in variable.upper() else "false")
+    with pytest.raises(ConfigError, match=r"refuses environment overrides") as caught:
+        load_settings_for_eval("default", config_dir)
+    assert variable in str(caught.value)
+
+
+def test_eval_run_still_honours_config_dir(
+    config_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("HYPORA_CONFIG_DIR", str(config_dir))
+    assert load_settings_for_eval("default").flags.defenses.firewall is True
+
+
+@pytest.mark.parametrize("loader", ["dev", "eval_config"])
+def test_no_env_var_can_change_the_eval_models(
+    config_dir: Path, monkeypatch: pytest.MonkeyPatch, loader: str
+) -> None:
+    monkeypatch.setenv("HYPORA_MODELS__EVAL__TIERS__LEAD__MODEL_ID", "other")
+    with pytest.raises(ConfigError, match=r"pinned eval model profile|refuses environment"):
+        if loader == "dev":
+            load_settings(config_dir)
+        else:
+            load_settings_for_eval("default", config_dir)
+
+
+def test_dev_models_may_still_be_overridden_by_env(
+    config_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("HYPORA_MODELS__DEV__TIERS__CHEAP__MODEL_ID", "gemini-local-test")
+    assert load_settings(config_dir).models.dev.tiers.cheap.model_id == "gemini-local-test"

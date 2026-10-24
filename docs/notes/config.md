@@ -1,5 +1,9 @@
 # Configuration and feature flags (S0.4)
 
+**Layout.** `configs/` (spec §22.1) holds the configuration *data*; `hypora/core/config/` is the
+*loader* that validates it. The spec layout has no loader package; it lives under `core/` like the
+other runtime code (same reasoning as D-001).
+
 ```
 configs/*.yaml + HYPORA_* env vars --load_settings()--> HyporaSettings (validated, frozen)
                                      --RunConfig.build()--> RunConfig (deeply frozen, hashed)
@@ -30,6 +34,12 @@ first segment isn't a section; a typo like `HYPORA_FLAG__AGENT_MODE` can't go un
 **YAML 1.1 booleans.** PyYAML reads a bare `on`/`off`/`yes` as booleans. On/off flags therefore
 accept booleans (`planning: on` works), and no field is named `on` (the fallback triggers field is
 `triggers`).
+
+**Recorded eval runs ignore nothing silently.** `load_settings_for_eval` refuses to run if any
+`HYPORA_*` variable other than `HYPORA_CONFIG_DIR` is set, so a leftover `export` can't turn an
+"all defenses on" comparison into a partial one. No env var may change the pinned eval model
+profile (`HYPORA_MODELS__EVAL__*`) even in dev, because it is also dev's fallback target.
+`RunConfig.build` refuses an active profile that still has `placeholder-*` model IDs.
 
 **Enum reuse.** `approval_policy` is `schemas.ApprovalPolicy`; profiles, tiers, and providers are
 `schemas.ModelProfile`, `ModelTier`, `Provider`; budgets are `schemas.Budget` / `JobLimits`. Only

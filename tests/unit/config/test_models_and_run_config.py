@@ -2,12 +2,14 @@
 
 import typing
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 import pytest
 from pydantic import BaseModel, ValidationError
 
 from hypora.core.config import (
+    ConfigError,
     FeatureFlags,
     ModelsConfig,
     RunConfig,
@@ -17,6 +19,12 @@ from hypora.core.config import (
 from hypora.core.config.resources import DetectedResources, GpuDetection
 from hypora.core.hashing import canonical_hash
 from hypora.core.schemas import ApprovalPolicy, ModelProfile, ModelTier, Provider
+
+
+def build(settings: Any, **kwargs: Any) -> RunConfig:
+    """RunConfig.build for tests: the repo configs still hold placeholder model IDs."""
+    return RunConfig.build(settings, allow_placeholders=True, **kwargs)
+
 
 HARDWARE = DetectedResources(
     cpu_cores=8, total_memory_gb=16.0, gpu_detection=GpuDetection.NOT_FOUND
@@ -101,7 +109,7 @@ def _walk(value: object) -> Iterator[object]:
 
 
 def test_run_config_is_deeply_immutable() -> None:
-    config = RunConfig.build(load_settings(), hardware=HARDWARE)
+    config = build(load_settings(), hardware=HARDWARE)
     for value in _walk(config):
         assert not isinstance(value, list | dict | set), f"mutable {type(value).__name__} inside"
         if isinstance(value, BaseModel):
@@ -115,27 +123,40 @@ def test_run_config_is_deeply_immutable() -> None:
 
 
 def test_snapshot_is_canonical_json_and_round_trips() -> None:
-    config = RunConfig.build(load_settings(), hardware=HARDWARE, eval_config=None)
+    config = build(load_settings(), hardware=HARDWARE, eval_config=None)
     snapshot = config.snapshot_json()
     assert config.hash == canonical_hash(config)
     assert RunConfig.model_validate_json(snapshot) == config
-    again = RunConfig.build(load_settings(), hardware=HARDWARE)
+    again = build(load_settings(), hardware=HARDWARE)
     assert again.snapshot_json() == snapshot  # byte-identical for identical inputs
 
 
 def test_any_config_difference_changes_the_hash() -> None:
-    base = RunConfig.build(load_settings(), hardware=HARDWARE)
-    single = RunConfig.build(
+    base = build(load_settings(), hardware=HARDWARE)
+    single = build(
         load_settings_for_eval("single_agent"), hardware=HARDWARE, eval_config="single_agent"
     )
-    more_cores = RunConfig.build(
-        load_settings(), hardware=HARDWARE.model_copy(update={"cpu_cores": 16})
-    )
+    more_cores = build(load_settings(), hardware=HARDWARE.model_copy(update={"cpu_cores": 16}))
     assert len({base.hash, single.hash, more_cores.hash}) == 3
 
 
 def test_run_config_records_the_active_profile() -> None:
-    config = RunConfig.build(load_settings_for_eval("default"), hardware=HARDWARE)
+    config = build(load_settings_for_eval("default"), hardware=HARDWARE)
     assert config.model_profile is ModelProfile.EVAL
     assert config.active_profile == config.models.eval
     assert config.pools.cpu_slots == 7
+
+
+def test_run_config_refuses_placeholder_models_in_the_active_profile() -> None:
+    with pytest.raises(ConfigError, match=r"profile 'eval' still has placeholder model IDs"):
+        RunConfig.build(load_settings_for_eval("default"), hardware=HARDWARE)
+    with pytest.raises(ConfigError, match=r"profile 'dev' still has placeholder"):
+        RunConfig.build(load_settings(), hardware=HARDWARE)
+
+
+def test_run_config_checks_only_the_active_profile(config_dir: Path) -> None:
+    models = (config_dir / "models.yaml").read_text(encoding="utf-8")
+    real_dev = models.replace("placeholder-gemini-", "gemini-test-")
+    (config_dir / "models.yaml").write_text(real_dev, encoding="utf-8")
+    config = RunConfig.build(load_settings(config_dir), hardware=HARDWARE)  # eval unset: fine
+    assert config.active_profile.tiers.lead.model_id == "gemini-test-lead"

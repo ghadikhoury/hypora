@@ -8,6 +8,8 @@ Precedence, lowest to highest:
   `HYPORA_FLAGS__AGENT_MODE=single`, `HYPORA_FLAGS__DEFENSES__FIREWALL=false`,
   `HYPORA_MODEL_PROFILE=eval`.
 - Explicit overrides (a dict passed to `load_settings`) are how an eval config applies its flags.
+- Named eval configs (`load_settings_for_eval`) accept no HYPORA_* overrides except
+  HYPORA_CONFIG_DIR, and no environment variable may change the pinned eval model profile.
 - `.env` is deliberately not read here: it holds API keys, which belong to the LLM adapter (S0.5).
 
 Any invalid value fails fast with a `ConfigError` naming the offending setting and its source.
@@ -35,6 +37,7 @@ from hypora.core.schemas.events import ModelProfile
 DEFAULT_CONFIG_DIR = Path(__file__).resolve().parents[3] / "configs"
 CONFIG_DIR_ENV = "HYPORA_CONFIG_DIR"
 ENV_PREFIX = "HYPORA_"
+EVAL_MODELS_ENV_PREFIX = "HYPORA_MODELS__EVAL"
 SECTION_FILES: dict[str, str] = {
     "flags": "flags.yaml",
     "models": "models.yaml",
@@ -135,6 +138,27 @@ def _check_env_names(environ: Mapping[str, str]) -> None:
     if unknown:
         sections = ", ".join(sorted(ENV_PREFIX + k for k in known))
         raise ConfigError(f"unknown environment setting(s) {unknown}; valid prefixes: {sections}")
+    # The eval mapping is pinned (PLAN.md §1) and is also dev's fallback target: it changes only
+    # through models.yaml plus a 🧑 DECIDE, never through a stray environment variable.
+    eval_models = sorted(n for n in environ if n.upper().startswith(EVAL_MODELS_ENV_PREFIX))
+    if eval_models:
+        raise ConfigError(
+            f"{eval_models} would change the pinned eval model profile; edit configs/models.yaml "
+            "instead (changing eval requires a DECIDE, PLAN.md §1)"
+        )
+
+
+def _check_no_env_for_eval(environ: Mapping[str, str], name: str) -> None:
+    """A named eval config must mean the same settings every time (spec §19.4, PLAN.md §1)."""
+    stray = sorted(
+        n for n in environ if n.upper().startswith(ENV_PREFIX) and n.upper() != CONFIG_DIR_ENV
+    )
+    if stray:
+        raise ConfigError(
+            f"eval config {name!r} refuses environment overrides {stray}: a recorded run is "
+            "defined only by configs/*.yaml and configs/eval/<name>.yaml. Unset them "
+            "(HYPORA_CONFIG_DIR is the only variable allowed)."
+        )
 
 
 def _env_name(loc: tuple[int | str, ...]) -> str:
@@ -208,5 +232,10 @@ def load_eval_config(name: str, config_dir: Path | str | None = None) -> EvalCon
 
 
 def load_settings_for_eval(name: str, config_dir: Path | str | None = None) -> HyporaSettings:
-    """Settings for a named eval config: its flags and profile override YAML and environment."""
+    """Settings for a named eval config: configs/*.yaml with the eval config's overrides on top.
+
+    Any HYPORA_* variable other than HYPORA_CONFIG_DIR is an error, so a leftover `export` from a
+    dev session can't silently change a recorded comparison.
+    """
+    _check_no_env_for_eval(os.environ, name)
     return load_settings(config_dir, overrides=load_eval_config(name, config_dir).overrides())

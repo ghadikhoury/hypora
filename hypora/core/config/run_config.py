@@ -13,7 +13,7 @@ from hypora.core.config.resources import (
     detect_resources,
     resolve_pools,
 )
-from hypora.core.config.settings import BudgetsConfig, HyporaSettings
+from hypora.core.config.settings import BudgetsConfig, ConfigError, HyporaSettings
 from hypora.core.hashing import canonical_json
 from hypora.core.schemas.common import FrozenRecord
 from hypora.core.schemas.events import ModelProfile
@@ -36,8 +36,23 @@ class RunConfig(FrozenRecord):
         settings: HyporaSettings,
         hardware: DetectedResources | None = None,
         eval_config: str | None = None,
+        allow_placeholders: bool = False,
     ) -> "RunConfig":
-        """Resolve pools against `hardware` (detected now if not given) and freeze the result."""
+        """Resolve pools against `hardware` (detected now if not given) and freeze the result.
+
+        Refuses when the active profile still has `placeholder-*` model IDs, so no run can claim a
+        profile whose models are unset. `allow_placeholders=True` is for tests and dry runs only.
+        """
+        unset = [
+            tier
+            for tier in settings.models.placeholder_tiers()
+            if tier.startswith(f"{settings.model_profile.value}.")
+        ]
+        if unset and not allow_placeholders:
+            raise ConfigError(
+                f"profile {settings.model_profile.value!r} still has placeholder model IDs "
+                f"{unset}; set them in configs/models.yaml (dev: S0.5; eval: S2.6 DECIDE)"
+            )
         if hardware is None:
             hardware = detect_resources(settings.resources.gpu_detection_timeout_s)
         return cls(
