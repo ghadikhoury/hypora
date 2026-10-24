@@ -1,0 +1,13 @@
+# Resource pools (spec §9.2). null = derive from detected hardware:
+#   cpu_slots = cores - 1, gpu_slots = detected GPUs (never oversubscribed),
+#   memory_budget_gb = RAM - memory_reserve_gb.
+resources:
+  cpu_slots: null
+  gpu_slots: null
+  memory_budget_gb: null
+  memory_reserve_gb: 2.0
+  gpu_detection_timeout_s: 5.0
+  llm_concurrency:             # concurrent calls per provider (respect RPM/TPM limits)
+    gemini: 2
+    openai: 4
+    anthropic: 2

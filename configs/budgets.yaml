@@ -1,0 +1,15 @@
+# Default budgets (spec §6.8, §12). Provisional until S4.2 (DECIDE).
+# Note PLAN.md §0.3 trigger 6: a single run must not spend more than $5 without asking.
+budgets:
+  run:
+    max_usd: 2.0
+    max_compute_seconds: 3600
+    max_llm_tokens: 1000000
+    max_trials: 12
+    max_steps: 200
+    max_wall_clock_seconds: 7200
+  job_limits:
+    max_wall_seconds: 1800
+    max_memory_gb: 4.0
+    gpu: false
+    cpu_threads: 2

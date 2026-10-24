@@ -1,0 +1,6 @@
+# The full system as it will be evaluated: every flag from flags.yaml, eval profile.
+name: default
+description: Full system, eval profile.
+model_profile: eval
+flags:
+  approval_policy: auto_within_contract   # spec §10.3: eval runs auto-approve inside the contract
