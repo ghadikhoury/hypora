@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "brief_id": "brf_0192",
+  "run_id": "run_104",
+  "status": "complete",
+  "claims": [
+    {
+      "statement": "The model is pretrained on ImageNet-1k natural images, not fluorescence microscopy.",
+      "evidence_refs": ["catalog:12"],
+      "confidence": 0.95
+    },
+    {
+      "statement": "It expects 224x224 RGB input with ImageNet normalization; 512x512 inputs must be resized or tiled.",
+      "evidence_refs": ["passage:9"],
+      "confidence": 0.9
+    },
+    {
+      "statement": "The 1000-class head must be replaced with a 6-class head; head-first fine-tuning is the documented approach.",
+      "evidence_refs": ["passage:9"],
+      "confidence": 0.8
+    }
+  ],
+  "evidence_refs": ["catalog:12", "passage:9"],
+  "confidence": 0.7,
+  "open_questions": ["Is 512px input required or can images be downsampled?"],
+  "subject": "microsoft/resnet-18 for 6-class fluorescence microscopy",
+  "path": "fine_tune",
+  "model": "microsoft/resnet-18",
+  "model_ref": "microsoft/resnet-18@fb4ff4d",
+  "license": "apache-2.0",
+  "gated": false,
+  "input_format": "224x224 RGB, ImageNet mean/std normalization",
+  "pretraining_domain": "ImageNet-1k natural images",
+  "label_adaptability": "new 6-class linear head required",
+  "hardware_requirements": "11.7M parameters; CPU inference plausible within 50 ms at 224 px (unmeasured here)",
+  "suitability": "acceptable"
+}

@@ -1,0 +1,159 @@
+{
+  "$defs": {
+    "ActorRole": {
+      "description": "Who acted: an LLM role (spec §6.3, §22.1 `roles/`) or a platform component.",
+      "enum": [
+        "intake",
+        "supervisor",
+        "research_lead",
+        "research_worker",
+        "data_lead",
+        "diagnostic_worker",
+        "training_lead",
+        "trial_worker",
+        "optimization_worker",
+        "reviewer",
+        "reporter",
+        "single_agent",
+        "controller",
+        "scheduler",
+        "policy_engine",
+        "verifier",
+        "harness",
+        "execution_worker",
+        "mcp_server",
+        "external_client",
+        "user"
+      ],
+      "title": "ActorRole",
+      "type": "string"
+    },
+    "HandoffStatus": {
+      "enum": [
+        "complete",
+        "partial",
+        "failed",
+        "cancelled"
+      ],
+      "title": "HandoffStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A role returning control with its result (spec §6.7; recorded as a `handoff` event, D-003).\n\nWorkers hand off to their Lead; Leads and single roles hand off to the controller.",
+  "properties": {
+    "brief_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Brief Id"
+    },
+    "candidates": {
+      "items": {
+        "maxLength": 512,
+        "pattern": "^[a-z][a-z0-9_]*:\\S+$",
+        "type": "string"
+      },
+      "title": "Candidates",
+      "type": "array"
+    },
+    "confidence": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Confidence"
+    },
+    "evidence_refs": {
+      "items": {
+        "maxLength": 512,
+        "pattern": "^[a-z][a-z0-9_]*:\\S+$",
+        "type": "string"
+      },
+      "title": "Evidence Refs",
+      "type": "array"
+    },
+    "from_role": {
+      "$ref": "#/$defs/ActorRole"
+    },
+    "open_questions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Open Questions",
+      "type": "array"
+    },
+    "output_ref": {
+      "anyOf": [
+        {
+          "maxLength": 512,
+          "pattern": "^[a-z][a-z0-9_]*:\\S+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The validated output record.",
+      "title": "Output Ref"
+    },
+    "recommendation": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "snake_case label, e.g. 'reuse_x'.",
+      "title": "Recommendation"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "status": {
+      "$ref": "#/$defs/HandoffStatus"
+    },
+    "to": {
+      "$ref": "#/$defs/ActorRole"
+    }
+  },
+  "required": [
+    "run_id",
+    "from_role",
+    "to",
+    "status"
+  ],
+  "title": "Handoff",
+  "type": "object"
+}

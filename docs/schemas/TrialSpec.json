@@ -1,0 +1,248 @@
+{
+  "$defs": {
+    "CostEstimate": {
+      "additionalProperties": false,
+      "description": "Estimated cost of running something (`estimate_experiment`, spec §8.3).",
+      "properties": {
+        "assumptions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Assumptions",
+          "type": "array"
+        },
+        "compute_seconds": {
+          "minimum": 0,
+          "title": "Compute Seconds",
+          "type": "number"
+        },
+        "gpu": {
+          "default": false,
+          "title": "Gpu",
+          "type": "boolean"
+        },
+        "peak_memory_gb": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Peak Memory Gb"
+        },
+        "usd": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Usd",
+          "type": "number"
+        }
+      },
+      "required": [
+        "compute_seconds"
+      ],
+      "title": "CostEstimate",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "Operation": {
+      "description": "Job operation (spec §12 `submit_experiment`).",
+      "enum": [
+        "fit",
+        "eval_as_is",
+        "finetune",
+        "optimize",
+        "profile"
+      ],
+      "title": "Operation",
+      "type": "string"
+    },
+    "ShortBudget": {
+      "additionalProperties": false,
+      "description": "Reduced budget for a successive-halving round (spec §8.4).",
+      "properties": {
+        "data_fraction": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "maximum": 1.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Fraction"
+        },
+        "max_epochs": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Epochs"
+        },
+        "max_wall_seconds": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Wall Seconds"
+        }
+      },
+      "title": "ShortBudget",
+      "type": "object"
+    },
+    "TrialKind": {
+      "description": "`trials.kind`, spec §15.1.",
+      "enum": [
+        "baseline",
+        "candidate",
+        "eval_as_is",
+        "finetune",
+        "optimization"
+      ],
+      "title": "TrialKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A trial as recorded by the controller (`trials` table, spec §15.1).",
+  "properties": {
+    "batch_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Batch Id",
+      "type": "string"
+    },
+    "config": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Config",
+      "type": "object"
+    },
+    "contract_version": {
+      "exclusiveMinimum": 0,
+      "title": "Contract Version",
+      "type": "integer"
+    },
+    "estimated_cost": {
+      "$ref": "#/$defs/CostEstimate"
+    },
+    "expected_effect": {
+      "minLength": 1,
+      "title": "Expected Effect",
+      "type": "string"
+    },
+    "hypothesis": {
+      "minLength": 1,
+      "title": "Hypothesis",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/TrialKind"
+    },
+    "model_family": {
+      "description": "e.g. 'hist_gradient_boosting', 'resnet18'.",
+      "minLength": 1,
+      "title": "Model Family",
+      "type": "string"
+    },
+    "model_ref": {
+      "anyOf": [
+        {
+          "maxLength": 320,
+          "pattern": "^[^\\s@]+@[^\\s@]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Pretrained weights, pinned.",
+      "title": "Model Ref"
+    },
+    "operation": {
+      "$ref": "#/$defs/Operation"
+    },
+    "parent_trial_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Set for optimization variants.",
+      "title": "Parent Trial Id"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "short_budget": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ShortBudget"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "trial_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Trial Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "operation",
+    "hypothesis",
+    "model_family",
+    "expected_effect",
+    "estimated_cost",
+    "trial_id",
+    "run_id",
+    "batch_id",
+    "contract_version"
+  ],
+  "title": "TrialSpec",
+  "type": "object"
+}

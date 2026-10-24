@@ -1,0 +1,183 @@
+{
+  "$defs": {
+    "ConcernCategory": {
+      "enum": [
+        "suspicious_feature_engineering",
+        "insignificant_improvement",
+        "methodology",
+        "possible_leakage",
+        "better_hypothesis",
+        "other"
+      ],
+      "title": "ConcernCategory",
+      "type": "string"
+    },
+    "FollowUpRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "hypothesis": {
+          "minLength": 1,
+          "title": "Hypothesis",
+          "type": "string"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "hypothesis",
+        "rationale"
+      ],
+      "title": "FollowUpRequest",
+      "type": "object"
+    },
+    "ReviewConcern": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/ConcernCategory"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "maxLength": 512,
+            "pattern": "^[a-z][a-z0-9_]*:\\S+$",
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity"
+        }
+      },
+      "required": [
+        "category",
+        "description",
+        "severity"
+      ],
+      "title": "ReviewConcern",
+      "type": "object"
+    },
+    "ReviewDecision": {
+      "enum": [
+        "accept",
+        "reject",
+        "request_follow_up"
+      ],
+      "title": "ReviewDecision",
+      "type": "string"
+    },
+    "Severity": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "title": "Severity",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Read-only LLM review (spec §8.6). It can reject or ask for a follow-up; it cannot override\na failed deterministic check (enforced by the controller, which checks VerificationResult).",
+  "properties": {
+    "batch_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Batch Id"
+    },
+    "concerns": {
+      "items": {
+        "$ref": "#/$defs/ReviewConcern"
+      },
+      "title": "Concerns",
+      "type": "array"
+    },
+    "follow_up": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FollowUpRequest"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "reasons": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Reasons",
+      "type": "array"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "trial_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Trial Id"
+    },
+    "verdict": {
+      "$ref": "#/$defs/ReviewDecision"
+    },
+    "verification_ref": {
+      "anyOf": [
+        {
+          "maxLength": 512,
+          "pattern": "^[a-z][a-z0-9_]*:\\S+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Verification Ref"
+    }
+  },
+  "required": [
+    "run_id",
+    "verdict"
+  ],
+  "title": "ReviewVerdict",
+  "type": "object"
+}

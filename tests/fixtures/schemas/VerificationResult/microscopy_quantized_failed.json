@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "trial_id": "trl_0011",
+  "run_id": "run_104",
+  "contract_version": 2,
+  "contract_hash": "1ae13a45f1c8a6dcea44cd566257411e6fb61578c7549a035d4f95a72b4bbce5",
+  "passed": false,
+  "checks": [
+    {"check": "output_shape", "status": "passed"},
+    {"check": "finite_outputs", "status": "passed"},
+    {"check": "artifact_loads", "status": "passed"},
+    {"check": "numerical_tolerance", "status": "passed", "details": {"max_abs_logit_diff": 0.21, "tolerance": 0.5}},
+    {
+      "check": "heldout_quality_delta",
+      "status": "failed",
+      "message": "macro-F1 dropped 0.034 vs. trl_0007; contract allows 0.01",
+      "details": {"metric": "f1_macro", "delta": -0.034, "max_quality_degradation": 0.01}
+    },
+    {"check": "latency_protocol", "status": "passed", "details": {"warmup_runs": 20, "batch_size": 1, "p50_ms": 31.5, "p95_ms": 38.2}}
+  ]
+}

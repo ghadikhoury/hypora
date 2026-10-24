@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "run_id": "run_104",
+  "seq": 171,
+  "actor_role": "execution_worker",
+  "created_at": "2026-10-23T16:07:44Z",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "span_id": "00f067aa0ba902b7",
+  "trial_id": "trl_0007",
+  "job_id": "job_0012",
+  "type": "error",
+  "payload": {
+    "component": "execution_worker",
+    "code": "LEASE_EXPIRED",
+    "message": "Worker heartbeat stopped; job returned to QUEUED.",
+    "error_class": "transient",
+    "retryable": true,
+    "details": {
+      "lease_expired_at": "2026-10-23T16:07:40Z",
+      "last_checkpoint_epoch": 4
+    }
+  }
+}

@@ -162,10 +162,11 @@ Done when: `make setup && make check` passes locally and in CI; gitleaks runs in
 Build in `core/schemas/` (Pydantic v2, with JSON Schema export):
 - `TaskSpecification`, `DatasetProfile` (tabular section now; vision/time-series sections as typed optional blocks), `RouteDecision`.
 - `StrategyReport` (paths A–D, tradeoff rows, recommendation, proposed Phase B plan, confidence, citations).
-- `DataContract` (exactly the fields in spec §7.2), `ExperimentContract` (versioned, with `hash` computed from canonical JSON).
-- `Brief` (objective, output_schema, allowed_tools, end_condition, context_refs, budget), `ResearchFinding`, `DiagnosticFinding`, `TrialFinding`, `OptimizationFinding`, `ReviewVerdict`, `VerificationResult`, `SupervisorDecision`, `LeadDecision`, `TrialBatchProposal` (with confidence, K justification, per-trial estimated cost).
+- `DataContract` (exactly the fields in spec §7.2, plus `split.time_key` per D-004), `ApprovedPlan` (the hashed plan + budget gate artifact, spec §5.2), `ExperimentContract` (versioned, with `hash` computed from canonical JSON).
+- `Brief` (objective, output_schema, allowed_tools, end_condition, context_refs, budget), `TrialBrief` and `OptimizationBrief` (spec §6.3), `Handoff` (spec §6.7), `ResearchFinding`, `DiagnosticFinding`, `TrialFinding`, `OptimizationFinding`, `ReviewVerdict`, `VerificationResult`, `SupervisorDecision`, `LeadDecision`, `TrialBatchProposal` (with confidence, K justification, per-trial estimated cost).
 - `TrialSpec` and the trial file contract (`trial.yaml` schema).
-- `ToolError` (spec §12 error contract), `Event` (all event types in spec §15.1), `ApprovalRecord`, `Plan` (for F4: ordered steps with tool, purpose, success check).
+- `ToolError` (spec §12 error contract), `SubmitExperimentRequest` (spec §12 example), `Event` (all event types in spec §15.1 plus `role_started`, `plan`, `handoff` per D-003, with `Stage` recorded alongside `RunStatus` per D-005), `ApprovalRecord`, `Plan` (for F4: ordered steps with tool, purpose, success check).
+- One canonical-JSON hashing utility (`hypora/core/hashing.py`) used by every hash in the project.
 - `scripts/export_schemas.py` writes JSON Schemas to `docs/schemas/`.
 - Example fixtures for every schema in `tests/fixtures/schemas/`.
 
@@ -273,7 +274,7 @@ Done when: MCP Inspector lists and calls every tool; a pytest MCP client exercis
 **PR:** `s1.5-controller-v1` · `→ SERIAL` · **Depends on:** S1.4, S0.5 · **Spec:** §5, §6.8, §6.9, §8.6
 
 Build:
-- `core/controller/`: run state machine (`INTAKE → PROFILE → PHASE_B → REPORTING → DONE/FAILED`, simplified), budget checks before every model/tool call, step limit, stop conditions from spec §6.8.
+- `core/controller/`: run state machine (`INTAKE → PROFILE → PHASE_B → REPORTING → DONE/FAILED`, simplified; `PROFILE` is a `Stage`, recorded alongside the spec §15.1 `RunStatus` per D-005), budget checks before every model/tool call, step limit, stop conditions from spec §6.8.
 - `core/roles/single_agent.py`: one agent with the MCP tools, the run's TaskSpec, profile summary, and a system prompt; tool loop with errors returned as observations; iteration cap.
 - Minimal intake: parse the goal into a `TaskSpecification` with one structured-output call (full Intake role comes in S4.1).
 - `core/verification/` v1: allowed-features check, metric recomputation from saved predictions, finite outputs, artifact loads.
@@ -527,7 +528,7 @@ Done when: any event in a run can be found and inspected from the browser.
 ### Stream H — Planning and error recovery (spec §8.7, §15.2; course F4)
 
 **S3.H1 — Plan before acting** · PR `s3.h1-planning` · `⇉ PARALLEL · S3`
-Build: every Lead (and the single agent) emits a `Plan` before its first tool call; plan stored as an event; `planning` flag (`on`/`off`) where `off` is the no-plan tool-calling baseline.
+Build: every Lead (and the single agent) emits a `Plan` before its first tool call; plan stored as a `plan` event (D-003); `planning` flag (`on`/`off`) where `off` is the no-plan tool-calling baseline.
 Done when: with `planning=on`, the first event after role start is always a plan.
 
 **S3.H2 — Replanning and safe-retry backoff** · PR `s3.h2-replanning` · `⇉ PARALLEL · S3` · Depends on S3.H1

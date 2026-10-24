@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "brief_id": "brf_0412",
+  "run_id": "run_104",
+  "status": "complete",
+  "claims": [
+    {
+      "statement": "INT8 dynamic quantization cut CPU latency below 50 ms/image, but the verifier rejected the variant for exceeding the 0.01 macro-F1 tolerance.",
+      "evidence_refs": ["verification:ver_0011"]
+    }
+  ],
+  "evidence_refs": ["verification:ver_0011", "profile_run:prf_0004"],
+  "confidence": 0.8,
+  "open_questions": ["Would static quantization with calibration data stay within tolerance?"],
+  "candidate_trial_id": "trl_0007",
+  "variant_trial_id": "trl_0011",
+  "methods": ["quantization"],
+  "outcome": "rejected",
+  "result_refs": ["result:trl_0011/validation"],
+  "summary": "Quantized variant rejected on held-out quality; candidate trl_0007 remains the reference."
+}

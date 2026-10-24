@@ -1,0 +1,107 @@
+{
+  "$defs": {
+    "EscalationType": {
+      "description": "Lead escalations to the Supervisor (spec §6.2, §8.7).",
+      "enum": [
+        "DATA_PROBLEM",
+        "REUSE_WINS",
+        "CONSTRAINT_INFEASIBLE",
+        "REPEATED_FAILURE"
+      ],
+      "title": "EscalationType",
+      "type": "string"
+    },
+    "SupervisorAction": {
+      "enum": [
+        "continue",
+        "revisit_data",
+        "revisit_strategy",
+        "stop_and_report",
+        "ask_user"
+      ],
+      "title": "SupervisorAction",
+      "type": "string"
+    },
+    "SupervisorTrigger": {
+      "description": "The only events on which the controller invokes the Supervisor (spec §6.2).",
+      "enum": [
+        "phase_a_join",
+        "escalation",
+        "budget_exhausted"
+      ],
+      "title": "SupervisorTrigger",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`continue | revisit_data(question) | revisit_strategy(question) | stop_and_report(reason)\n| ask_user(question)` (spec §6.2). The controller executes it; the Supervisor calls no tools.",
+  "properties": {
+    "decision": {
+      "$ref": "#/$defs/SupervisorAction"
+    },
+    "escalation_type": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/EscalationType"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "question": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Question"
+    },
+    "rationale": {
+      "minLength": 1,
+      "title": "Rationale",
+      "type": "string"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reason"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "trigger": {
+      "$ref": "#/$defs/SupervisorTrigger"
+    }
+  },
+  "required": [
+    "run_id",
+    "trigger",
+    "decision",
+    "rationale"
+  ],
+  "title": "SupervisorDecision",
+  "type": "object"
+}

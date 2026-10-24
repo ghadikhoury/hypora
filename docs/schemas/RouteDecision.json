@@ -1,0 +1,90 @@
+{
+  "$defs": {
+    "Family": {
+      "description": "Model family route (spec §5.2 Route, §18).",
+      "enum": [
+        "tabular",
+        "vision",
+        "timeseries",
+        "experimental"
+      ],
+      "title": "Family",
+      "type": "string"
+    },
+    "RouteDecider": {
+      "enum": [
+        "code",
+        "llm_fallback"
+      ],
+      "title": "RouteDecider",
+      "type": "string"
+    },
+    "RunMode": {
+      "description": "Whether a run may execute anything (spec §5.2 Route).",
+      "enum": [
+        "advice_only",
+        "full"
+      ],
+      "title": "RunMode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Family and run mode (spec §5.2 stage 3: code decides, LLM only for ambiguous cases).",
+  "properties": {
+    "confidence": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Confidence"
+    },
+    "decided_by": {
+      "$ref": "#/$defs/RouteDecider"
+    },
+    "family": {
+      "$ref": "#/$defs/Family"
+    },
+    "reasons": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Reasons",
+      "type": "array"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "run_mode": {
+      "$ref": "#/$defs/RunMode"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "run_id",
+    "family",
+    "run_mode",
+    "decided_by",
+    "reasons"
+  ],
+  "title": "RouteDecision",
+  "type": "object"
+}

@@ -1,0 +1,478 @@
+{
+  "$defs": {
+    "BreadthSituation": {
+      "description": "Spec §8.3 adaptive-breadth table.",
+      "enum": [
+        "choice_clear",
+        "genuinely_uncertain",
+        "user_named_model"
+      ],
+      "title": "BreadthSituation",
+      "type": "string"
+    },
+    "CostEstimate": {
+      "additionalProperties": false,
+      "description": "Estimated cost of running something (`estimate_experiment`, spec §8.3).",
+      "properties": {
+        "assumptions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Assumptions",
+          "type": "array"
+        },
+        "compute_seconds": {
+          "minimum": 0,
+          "title": "Compute Seconds",
+          "type": "number"
+        },
+        "gpu": {
+          "default": false,
+          "title": "Gpu",
+          "type": "boolean"
+        },
+        "peak_memory_gb": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Peak Memory Gb"
+        },
+        "usd": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Usd",
+          "type": "number"
+        }
+      },
+      "required": [
+        "compute_seconds"
+      ],
+      "title": "CostEstimate",
+      "type": "object"
+    },
+    "Escalation": {
+      "additionalProperties": false,
+      "description": "A Lead escalation to the Supervisor (spec §6.2, §8.7).",
+      "properties": {
+        "evidence_refs": {
+          "items": {
+            "maxLength": 512,
+            "pattern": "^[a-z][a-z0-9_]*:\\S+$",
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "summary": {
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        },
+        "trial_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          "title": "Trial Ids",
+          "type": "array"
+        },
+        "type": {
+          "$ref": "#/$defs/EscalationType"
+        }
+      },
+      "required": [
+        "type",
+        "summary"
+      ],
+      "title": "Escalation",
+      "type": "object"
+    },
+    "EscalationType": {
+      "description": "Lead escalations to the Supervisor (spec §6.2, §8.7).",
+      "enum": [
+        "DATA_PROBLEM",
+        "REUSE_WINS",
+        "CONSTRAINT_INFEASIBLE",
+        "REPEATED_FAILURE"
+      ],
+      "title": "EscalationType",
+      "type": "string"
+    },
+    "HalvingPlan": {
+      "additionalProperties": false,
+      "description": "Successive halving: K candidates on a short budget, keep the top ones (spec §8.4).",
+      "properties": {
+        "promote_top_k": {
+          "exclusiveMinimum": 0,
+          "title": "Promote Top K",
+          "type": "integer"
+        },
+        "promotion_metric": {
+          "$ref": "#/$defs/MetricName"
+        },
+        "short_budget": {
+          "$ref": "#/$defs/ShortBudget"
+        }
+      },
+      "required": [
+        "short_budget",
+        "promote_top_k",
+        "promotion_metric"
+      ],
+      "title": "HalvingPlan",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "LeadAction": {
+      "enum": [
+        "stop_success",
+        "propose_next_batch",
+        "escalate",
+        "stop_budget"
+      ],
+      "title": "LeadAction",
+      "type": "string"
+    },
+    "MetricName": {
+      "description": "Metrics computed by platform code (spec §18; PLAN.md S1.3).",
+      "enum": [
+        "accuracy",
+        "balanced_accuracy",
+        "precision",
+        "recall",
+        "f1",
+        "precision_macro",
+        "recall_macro",
+        "f1_macro",
+        "roc_auc",
+        "pr_auc",
+        "log_loss",
+        "brier_score",
+        "mae",
+        "rmse",
+        "r2"
+      ],
+      "title": "MetricName",
+      "type": "string"
+    },
+    "Operation": {
+      "description": "Job operation (spec §12 `submit_experiment`).",
+      "enum": [
+        "fit",
+        "eval_as_is",
+        "finetune",
+        "optimize",
+        "profile"
+      ],
+      "title": "Operation",
+      "type": "string"
+    },
+    "ProposedTrial": {
+      "additionalProperties": false,
+      "description": "A trial inside a Lead's TrialBatchProposal, before the controller assigns IDs.",
+      "properties": {
+        "config": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Config",
+          "type": "object"
+        },
+        "estimated_cost": {
+          "$ref": "#/$defs/CostEstimate"
+        },
+        "expected_effect": {
+          "minLength": 1,
+          "title": "Expected Effect",
+          "type": "string"
+        },
+        "hypothesis": {
+          "minLength": 1,
+          "title": "Hypothesis",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/TrialKind"
+        },
+        "model_family": {
+          "description": "e.g. 'hist_gradient_boosting', 'resnet18'.",
+          "minLength": 1,
+          "title": "Model Family",
+          "type": "string"
+        },
+        "model_ref": {
+          "anyOf": [
+            {
+              "maxLength": 320,
+              "pattern": "^[^\\s@]+@[^\\s@]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Pretrained weights, pinned.",
+          "title": "Model Ref"
+        },
+        "operation": {
+          "$ref": "#/$defs/Operation"
+        },
+        "parent_trial_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set for optimization variants.",
+          "title": "Parent Trial Id"
+        },
+        "short_budget": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ShortBudget"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "kind",
+        "operation",
+        "hypothesis",
+        "model_family",
+        "expected_effect",
+        "estimated_cost"
+      ],
+      "title": "ProposedTrial",
+      "type": "object"
+    },
+    "ShortBudget": {
+      "additionalProperties": false,
+      "description": "Reduced budget for a successive-halving round (spec §8.4).",
+      "properties": {
+        "data_fraction": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "maximum": 1.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Fraction"
+        },
+        "max_epochs": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Epochs"
+        },
+        "max_wall_seconds": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Wall Seconds"
+        }
+      },
+      "title": "ShortBudget",
+      "type": "object"
+    },
+    "TrialBatchProposal": {
+      "additionalProperties": false,
+      "description": "A batch of trials with confidence, a justification for K, and per-trial cost (spec §8.3).\n\nThe controller injects the mandatory baseline and rejects batches over the approved budget.",
+      "properties": {
+        "batch_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Batch Id",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "contract_version": {
+          "exclusiveMinimum": 0,
+          "title": "Contract Version",
+          "type": "integer"
+        },
+        "halving": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HalvingPlan"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "k_justification": {
+          "minLength": 1,
+          "title": "K Justification",
+          "type": "string"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "situation": {
+          "$ref": "#/$defs/BreadthSituation"
+        },
+        "trials": {
+          "items": {
+            "$ref": "#/$defs/ProposedTrial"
+          },
+          "minItems": 1,
+          "title": "Trials",
+          "type": "array"
+        }
+      },
+      "required": [
+        "batch_id",
+        "run_id",
+        "contract_version",
+        "situation",
+        "confidence",
+        "k_justification",
+        "trials"
+      ],
+      "title": "TrialBatchProposal",
+      "type": "object"
+    },
+    "TrialKind": {
+      "description": "`trials.kind`, spec §15.1.",
+      "enum": [
+        "baseline",
+        "candidate",
+        "eval_as_is",
+        "finetune",
+        "optimization"
+      ],
+      "title": "TrialKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The Training Lead's decision after each batch (spec §8.7).",
+  "properties": {
+    "after_batch_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "After Batch Id",
+      "type": "string"
+    },
+    "decision": {
+      "$ref": "#/$defs/LeadAction"
+    },
+    "escalation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Escalation"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "next_batch": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TrialBatchProposal"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "rationale": {
+      "minLength": 1,
+      "title": "Rationale",
+      "type": "string"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "selected_trial_ids": {
+      "description": "Winner, or the Pareto frontier (spec §8.7).",
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "type": "string"
+      },
+      "title": "Selected Trial Ids",
+      "type": "array"
+    }
+  },
+  "required": [
+    "run_id",
+    "after_batch_id",
+    "decision",
+    "rationale"
+  ],
+  "title": "LeadDecision",
+  "type": "object"
+}

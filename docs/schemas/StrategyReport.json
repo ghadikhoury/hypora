@@ -1,0 +1,531 @@
+{
+  "$defs": {
+    "Assessment": {
+      "description": "How favorable one tradeoff dimension is for an option ('good' = favors the option).",
+      "enum": [
+        "good",
+        "acceptable",
+        "poor",
+        "unknown"
+      ],
+      "title": "Assessment",
+      "type": "string"
+    },
+    "Citation": {
+      "additionalProperties": false,
+      "properties": {
+        "ref": {
+          "description": "e.g. 'passage:9', 'catalog:12'.",
+          "maxLength": 512,
+          "pattern": "^[a-z][a-z0-9_]*:\\S+$",
+          "title": "Ref",
+          "type": "string"
+        },
+        "retrieved_on": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retrieved On"
+        },
+        "revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revision"
+        },
+        "source_url": {
+          "minLength": 1,
+          "title": "Source Url",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        }
+      },
+      "required": [
+        "ref",
+        "source_url"
+      ],
+      "title": "Citation",
+      "type": "object"
+    },
+    "CostEstimate": {
+      "additionalProperties": false,
+      "description": "Estimated cost of running something (`estimate_experiment`, spec §8.3).",
+      "properties": {
+        "assumptions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Assumptions",
+          "type": "array"
+        },
+        "compute_seconds": {
+          "minimum": 0,
+          "title": "Compute Seconds",
+          "type": "number"
+        },
+        "gpu": {
+          "default": false,
+          "title": "Gpu",
+          "type": "boolean"
+        },
+        "peak_memory_gb": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Peak Memory Gb"
+        },
+        "usd": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Usd",
+          "type": "number"
+        }
+      },
+      "required": [
+        "compute_seconds"
+      ],
+      "title": "CostEstimate",
+      "type": "object"
+    },
+    "PriceEstimate": {
+      "additionalProperties": false,
+      "description": "A timestamped price, or 'unavailable' (spec §7.1, §13 freshness).",
+      "properties": {
+        "amount_usd": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Amount Usd"
+        },
+        "retrieved_on": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retrieved On"
+        },
+        "source_ref": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "pattern": "^[a-z][a-z0-9_]*:\\S+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Ref"
+        },
+        "status": {
+          "$ref": "#/$defs/PriceStatus"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "e.g. 'per 1,000 images'.",
+          "title": "Unit"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "PriceEstimate",
+      "type": "object"
+    },
+    "PriceStatus": {
+      "enum": [
+        "available",
+        "unavailable"
+      ],
+      "title": "PriceStatus",
+      "type": "string"
+    },
+    "ProposedMeasurement": {
+      "additionalProperties": false,
+      "description": "One candidate the Phase B plan would measure (spec §7.1 'proposed Phase B plan').",
+      "properties": {
+        "estimated_cost": {
+          "$ref": "#/$defs/CostEstimate"
+        },
+        "option_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Option Id",
+          "type": "string"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "trial_kind": {
+          "$ref": "#/$defs/TrialKind"
+        }
+      },
+      "required": [
+        "option_id",
+        "trial_kind",
+        "rationale",
+        "estimated_cost"
+      ],
+      "title": "ProposedMeasurement",
+      "type": "object"
+    },
+    "ProposedPhaseBPlan": {
+      "additionalProperties": false,
+      "properties": {
+        "measurements": {
+          "items": {
+            "$ref": "#/$defs/ProposedMeasurement"
+          },
+          "minItems": 1,
+          "title": "Measurements",
+          "type": "array"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "measurements"
+      ],
+      "title": "ProposedPhaseBPlan",
+      "type": "object"
+    },
+    "Recommendation": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/RecommendationKind"
+        },
+        "option_ids": {
+          "description": "Options this recommendation selects, in order.",
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "type": "string"
+          },
+          "title": "Option Ids",
+          "type": "array"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "rationale"
+      ],
+      "title": "Recommendation",
+      "type": "object"
+    },
+    "RecommendationKind": {
+      "enum": [
+        "no_model_needed",
+        "use_hosted_api",
+        "reuse_pretrained",
+        "evaluate_pretrained_then_finetune_if_needed",
+        "fine_tune",
+        "train_task_specific",
+        "infeasible"
+      ],
+      "title": "RecommendationKind",
+      "type": "string"
+    },
+    "StrategyOption": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate": {
+          "description": "Model ref, service, or model family, e.g. 'microsoft/resnet-18'.",
+          "minLength": 1,
+          "title": "Candidate",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "maxLength": 512,
+            "pattern": "^[a-z][a-z0-9_]*:\\S+$",
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "option_id": {
+          "description": "Stable label within the report, e.g. 'B1'.",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Option Id",
+          "type": "string"
+        },
+        "path": {
+          "$ref": "#/$defs/StrategyPath"
+        },
+        "summary": {
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        },
+        "tradeoffs": {
+          "$ref": "#/$defs/TradeoffRow"
+        }
+      },
+      "required": [
+        "option_id",
+        "path",
+        "candidate",
+        "summary",
+        "tradeoffs"
+      ],
+      "title": "StrategyOption",
+      "type": "object"
+    },
+    "StrategyPath": {
+      "description": "The four paths the Research Lead compares (spec §7.1, options A-D).",
+      "enum": [
+        "hosted_api",
+        "pretrained_as_is",
+        "fine_tune",
+        "task_specific_training"
+      ],
+      "title": "StrategyPath",
+      "type": "string"
+    },
+    "TradeoffCell": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_refs": {
+          "items": {
+            "maxLength": 512,
+            "pattern": "^[a-z][a-z0-9_]*:\\S+$",
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        },
+        "rating": {
+          "$ref": "#/$defs/Assessment"
+        }
+      },
+      "required": [
+        "rating"
+      ],
+      "title": "TradeoffCell",
+      "type": "object"
+    },
+    "TradeoffRow": {
+      "additionalProperties": false,
+      "description": "One option's row of the tradeoff table (spec §7.1, dimensions in the spec's order).",
+      "properties": {
+        "evaluation_risk": {
+          "$ref": "#/$defs/TradeoffCell"
+        },
+        "evidence_quality": {
+          "$ref": "#/$defs/TradeoffCell"
+        },
+        "expected_inference_cost": {
+          "$ref": "#/$defs/TradeoffCell"
+        },
+        "hardware_feasibility": {
+          "$ref": "#/$defs/TradeoffCell"
+        },
+        "latency_uncertainty": {
+          "$ref": "#/$defs/TradeoffCell"
+        },
+        "license": {
+          "$ref": "#/$defs/TradeoffCell"
+        },
+        "license_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SPDX id or license name, if known.",
+          "title": "License Id"
+        },
+        "price": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PriceEstimate"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Hosted API price (path A)."
+        },
+        "privacy": {
+          "$ref": "#/$defs/TradeoffCell"
+        },
+        "setup_cost": {
+          "$ref": "#/$defs/TradeoffCell"
+        },
+        "task_fit": {
+          "$ref": "#/$defs/TradeoffCell"
+        }
+      },
+      "required": [
+        "task_fit",
+        "evidence_quality",
+        "privacy",
+        "license",
+        "hardware_feasibility",
+        "setup_cost",
+        "expected_inference_cost",
+        "latency_uncertainty",
+        "evaluation_risk"
+      ],
+      "title": "TradeoffRow",
+      "type": "object"
+    },
+    "TrialKind": {
+      "description": "`trials.kind`, spec §15.1.",
+      "enum": [
+        "baseline",
+        "candidate",
+        "eval_as_is",
+        "finetune",
+        "optimization"
+      ],
+      "title": "TrialKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Options A-D compared with evidence, a recommendation, and a Phase B plan (spec §7.1).",
+  "properties": {
+    "citations": {
+      "items": {
+        "$ref": "#/$defs/Citation"
+      },
+      "title": "Citations",
+      "type": "array"
+    },
+    "confidence": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Confidence",
+      "type": "number"
+    },
+    "open_questions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Open Questions",
+      "type": "array"
+    },
+    "options": {
+      "items": {
+        "$ref": "#/$defs/StrategyOption"
+      },
+      "minItems": 1,
+      "title": "Options",
+      "type": "array"
+    },
+    "proposed_phase_b_plan": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ProposedPhaseBPlan"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "recommendation": {
+      "$ref": "#/$defs/Recommendation"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "run_id",
+    "options",
+    "recommendation",
+    "confidence"
+  ],
+  "title": "StrategyReport",
+  "type": "object"
+}

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "run_id": "run_101",
+  "from_role": "diagnostic_worker",
+  "to": "data_lead",
+  "status": "complete",
+  "brief_id": "brf_0201",
+  "recommendation": "exclude_feature",
+  "evidence_refs": ["diagnostic:diag_017"],
+  "output_ref": "diagnostic_finding:fnd_0044",
+  "confidence": 0.9,
+  "open_questions": []
+}

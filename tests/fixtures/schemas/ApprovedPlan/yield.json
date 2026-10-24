@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "run_id": "run_101",
+  "version": 1,
+  "recommendation": {
+    "kind": "train_task_specific",
+    "option_ids": ["D1", "D2"],
+    "rationale": "Structured data with labels and no suitable pretrained or hosted model; trees are the expected winner and ridge is the reference."
+  },
+  "phase_b_plan": {
+    "measurements": [
+      {
+        "option_id": "D1",
+        "trial_kind": "candidate",
+        "rationale": "Main candidate.",
+        "estimated_cost": {"compute_seconds": 240, "usd": 0.0, "peak_memory_gb": 1.0, "assumptions": ["5-fold grouped CV", "Optuna, 30 trials"]}
+      },
+      {
+        "option_id": "D2",
+        "trial_kind": "candidate",
+        "rationale": "Linear reference beyond the mandatory baseline.",
+        "estimated_cost": {"compute_seconds": 20, "usd": 0.0, "peak_memory_gb": 0.5}
+      }
+    ],
+    "notes": "The controller adds the mandatory mean-predictor baseline."
+  },
+  "data_contract_version": 1,
+  "data_contract_hash": "6f558052d352836236522b32fa67054e750b0406e74089f0a35a9f42e12566cc",
+  "budget": {
+    "max_usd": 2.0,
+    "max_compute_seconds": 1800,
+    "max_llm_tokens": 400000,
+    "max_trials": 8,
+    "max_wall_clock_seconds": 3600
+  },
+  "approval_policy": "interactive",
+  "requested_model_downloads": [],
+  "requested_dependencies": []
+}

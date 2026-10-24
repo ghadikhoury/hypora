@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "is_error": true,
+  "code": "INSUFFICIENT_GPU_MEMORY",
+  "error_class": "resource",
+  "message": "Requested configuration exceeds available GPU memory.",
+  "retryable": false,
+  "details": {"available_gb": 8, "estimated_gb": 12},
+  "suggested_recovery": "Reduce batch size or select a smaller model."
+}

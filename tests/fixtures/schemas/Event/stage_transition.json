@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "run_id": "run_101",
+  "seq": 12,
+  "actor_role": "controller",
+  "created_at": "2026-10-23T14:01:30Z",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "span_id": "00f067aa0ba902b7",
+  "type": "stage_transition",
+  "payload": {
+    "previous_stage": "PROFILE",
+    "stage": "ROUTE",
+    "previous_status": "INTAKE",
+    "status": "INTAKE",
+    "reason": "DatasetProfile stored (fingerprint recorded)"
+  }
+}

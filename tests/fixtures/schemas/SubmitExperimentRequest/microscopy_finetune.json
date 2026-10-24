@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "run_id": "run_104",
+  "trial_id": "trl_0007",
+  "operation": "finetune",
+  "family": "vision",
+  "contract_version": 2,
+  "model_ref": "microsoft/resnet-18@fb4ff4d",
+  "config": {"unfreeze": ["fc", "layer4"], "epochs": 15, "batch_size": 32},
+  "limits": {"max_wall_seconds": 5400, "max_memory_gb": 12.0, "gpu": true, "cpu_threads": 6},
+  "approval_ref": "apr_0015",
+  "idempotency_key": "run_104:call_0733"
+}

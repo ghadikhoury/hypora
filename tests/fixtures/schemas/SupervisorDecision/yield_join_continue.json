@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "run_id": "run_101",
+  "trigger": "phase_a_join",
+  "decision": "continue",
+  "rationale": "The recommended tree and linear candidates use only the five allowed features and are compatible with the batch-grouped split."
+}

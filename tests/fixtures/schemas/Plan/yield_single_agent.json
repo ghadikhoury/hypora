@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "plan_id": "pln_0001",
+  "run_id": "run_101",
+  "role": "single_agent",
+  "revision": 1,
+  "goal": "Train and verify a yield regressor under the data contract, beating the mean baseline on MAE.",
+  "steps": [
+    {"step": 1, "tool": "inspect_dataset", "purpose": "Confirm allowed features and the batch structure.", "success_check": "Profile summary lists the 5 allowed features and 46 batches."},
+    {"step": 2, "tool": "write_trial_files", "purpose": "Write a HistGradientBoosting pipeline with learned preprocessing inside fit().", "success_check": "trial.yaml, pipeline.py, and requirements.lock are accepted.", "depends_on": [1]},
+    {"step": 3, "tool": "submit_experiment", "purpose": "Run the fit job in the sandbox.", "success_check": "A job ID is returned.", "depends_on": [2]},
+    {"step": 4, "tool": "get_experiment_status", "purpose": "Wait for completion and read failures.", "success_check": "Job state is COMPLETED.", "depends_on": [3]},
+    {"step": 5, "tool": "get_experiment_metrics", "purpose": "Read harness-computed MAE versus the baseline.", "success_check": "Candidate MAE is below the baseline MAE.", "depends_on": [4]},
+    {"step": 6, "tool": null, "purpose": "Hand off to the controller for verification and reporting.", "success_check": "Handoff validates.", "depends_on": [5]}
+  ]
+}

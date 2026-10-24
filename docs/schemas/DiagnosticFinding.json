@@ -1,0 +1,456 @@
+{
+  "$defs": {
+    "CastDtypeFix": {
+      "additionalProperties": false,
+      "properties": {
+        "cast_dtype": {
+          "$ref": "#/$defs/DtypeCast"
+        }
+      },
+      "required": [
+        "cast_dtype"
+      ],
+      "title": "CastDtypeFix",
+      "type": "object"
+    },
+    "Claim": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "evidence_refs": {
+          "items": {
+            "maxLength": 512,
+            "pattern": "^[a-z][a-z0-9_]*:\\S+$",
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "statement": {
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "statement"
+      ],
+      "title": "Claim",
+      "type": "object"
+    },
+    "DiagnosticVerdict": {
+      "enum": [
+        "confirmed",
+        "ruled_out",
+        "inconclusive"
+      ],
+      "title": "DiagnosticVerdict",
+      "type": "string"
+    },
+    "DropColumnFix": {
+      "additionalProperties": false,
+      "properties": {
+        "drop_column": {
+          "minLength": 1,
+          "title": "Drop Column",
+          "type": "string"
+        }
+      },
+      "required": [
+        "drop_column"
+      ],
+      "title": "DropColumnFix",
+      "type": "object"
+    },
+    "DtypeCast": {
+      "additionalProperties": false,
+      "properties": {
+        "column": {
+          "minLength": 1,
+          "title": "Column",
+          "type": "string"
+        },
+        "dtype": {
+          "minLength": 1,
+          "title": "Dtype",
+          "type": "string"
+        }
+      },
+      "required": [
+        "column",
+        "dtype"
+      ],
+      "title": "DtypeCast",
+      "type": "object"
+    },
+    "ExcludedFeature": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "description": "ID of the supporting diagnostic, e.g. 'diag_017'.",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Evidence",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "reason",
+        "evidence"
+      ],
+      "title": "ExcludedFeature",
+      "type": "object"
+    },
+    "FindingStatus": {
+      "description": "How the worker's brief ended (spec §6.8 worker stop conditions).",
+      "enum": [
+        "complete",
+        "budget_exhausted",
+        "failed"
+      ],
+      "title": "FindingStatus",
+      "type": "string"
+    },
+    "IssueCluster": {
+      "description": "Diagnostic worker fan-out clusters (spec §7.2).",
+      "enum": [
+        "leakage",
+        "grouping",
+        "temporal",
+        "label_validity",
+        "file_integrity",
+        "duplicates",
+        "sampling"
+      ],
+      "title": "IssueCluster",
+      "type": "string"
+    },
+    "MissingMarker": {
+      "additionalProperties": false,
+      "properties": {
+        "column": {
+          "minLength": 1,
+          "title": "Column",
+          "type": "string"
+        },
+        "values": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "minItems": 1,
+          "title": "Values",
+          "type": "array"
+        }
+      },
+      "required": [
+        "column",
+        "values"
+      ],
+      "title": "MissingMarker",
+      "type": "object"
+    },
+    "ParseDatetimeFix": {
+      "additionalProperties": false,
+      "properties": {
+        "parse_datetime": {
+          "minLength": 1,
+          "title": "Parse Datetime",
+          "type": "string"
+        }
+      },
+      "required": [
+        "parse_datetime"
+      ],
+      "title": "ParseDatetimeFix",
+      "type": "object"
+    },
+    "SetMissingFix": {
+      "additionalProperties": false,
+      "properties": {
+        "set_missing": {
+          "$ref": "#/$defs/MissingMarker"
+        }
+      },
+      "required": [
+        "set_missing"
+      ],
+      "title": "SetMissingFix",
+      "type": "object"
+    },
+    "SplitSpec": {
+      "additionalProperties": false,
+      "description": "How held-out data is carved (spec §7.2 `split`, plus `time_key` per D-004).",
+      "properties": {
+        "group_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Group Key"
+        },
+        "strategy": {
+          "$ref": "#/$defs/SplitStrategy"
+        },
+        "test_fraction": {
+          "exclusiveMaximum": 1.0,
+          "exclusiveMinimum": 0.0,
+          "title": "Test Fraction",
+          "type": "number"
+        },
+        "time_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Time column for temporal strategies (D-004).",
+          "title": "Time Key"
+        },
+        "validation": {
+          "pattern": "^(holdout|(kfold|stratified_kfold|group_kfold|walk_forward)_([2-9]|[1-9][0-9]))$",
+          "title": "Validation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "strategy",
+        "test_fraction",
+        "validation"
+      ],
+      "title": "SplitSpec",
+      "type": "object"
+    },
+    "SplitStrategy": {
+      "enum": [
+        "random",
+        "stratified",
+        "group",
+        "temporal",
+        "group_temporal"
+      ],
+      "title": "SplitStrategy",
+      "type": "string"
+    },
+    "UnitConversion": {
+      "additionalProperties": false,
+      "properties": {
+        "column": {
+          "minLength": 1,
+          "title": "Column",
+          "type": "string"
+        },
+        "from": {
+          "minLength": 1,
+          "title": "From",
+          "type": "string"
+        },
+        "to": {
+          "minLength": 1,
+          "title": "To",
+          "type": "string"
+        }
+      },
+      "required": [
+        "column",
+        "from",
+        "to"
+      ],
+      "title": "UnitConversion",
+      "type": "object"
+    },
+    "UnitConvertFix": {
+      "additionalProperties": false,
+      "properties": {
+        "unit_convert": {
+          "$ref": "#/$defs/UnitConversion"
+        }
+      },
+      "required": [
+        "unit_convert"
+      ],
+      "title": "UnitConvertFix",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One issue cluster, interpreted from `run_diagnostic` summaries (spec §7.2).\n\nProposals use the DataContract's own building blocks; the Data Lead merges them.",
+  "properties": {
+    "brief_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Brief Id",
+      "type": "string"
+    },
+    "claims": {
+      "items": {
+        "$ref": "#/$defs/Claim"
+      },
+      "title": "Claims",
+      "type": "array"
+    },
+    "columns": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Columns",
+      "type": "array"
+    },
+    "confidence": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Confidence",
+      "type": "number"
+    },
+    "diagnostic_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "type": "string"
+      },
+      "title": "Diagnostic Ids",
+      "type": "array"
+    },
+    "evidence_refs": {
+      "items": {
+        "maxLength": 512,
+        "pattern": "^[a-z][a-z0-9_]*:\\S+$",
+        "type": "string"
+      },
+      "title": "Evidence Refs",
+      "type": "array"
+    },
+    "issue": {
+      "$ref": "#/$defs/IssueCluster"
+    },
+    "open_questions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Open Questions",
+      "type": "array"
+    },
+    "proposed_exclusions": {
+      "items": {
+        "$ref": "#/$defs/ExcludedFeature"
+      },
+      "title": "Proposed Exclusions",
+      "type": "array"
+    },
+    "proposed_fixes": {
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ParseDatetimeFix"
+          },
+          {
+            "$ref": "#/$defs/UnitConvertFix"
+          },
+          {
+            "$ref": "#/$defs/DropColumnFix"
+          },
+          {
+            "$ref": "#/$defs/CastDtypeFix"
+          },
+          {
+            "$ref": "#/$defs/SetMissingFix"
+          }
+        ]
+      },
+      "title": "Proposed Fixes",
+      "type": "array"
+    },
+    "proposed_split": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SplitSpec"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "risks": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Risks",
+      "type": "array"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "status": {
+      "$ref": "#/$defs/FindingStatus"
+    },
+    "verdict": {
+      "$ref": "#/$defs/DiagnosticVerdict"
+    }
+  },
+  "required": [
+    "brief_id",
+    "run_id",
+    "status",
+    "confidence",
+    "issue",
+    "verdict"
+  ],
+  "title": "DiagnosticFinding",
+  "type": "object"
+}

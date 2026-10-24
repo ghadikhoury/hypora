@@ -1,0 +1,197 @@
+{
+  "$defs": {
+    "Claim": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "evidence_refs": {
+          "items": {
+            "maxLength": 512,
+            "pattern": "^[a-z][a-z0-9_]*:\\S+$",
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "statement": {
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "statement"
+      ],
+      "title": "Claim",
+      "type": "object"
+    },
+    "FindingStatus": {
+      "description": "How the worker's brief ended (spec §6.8 worker stop conditions).",
+      "enum": [
+        "complete",
+        "budget_exhausted",
+        "failed"
+      ],
+      "title": "FindingStatus",
+      "type": "string"
+    },
+    "OptimizationMethod": {
+      "description": "Inference optimizations (spec §18.1-18.3, PLAN.md S3.C5).",
+      "enum": [
+        "thread_settings",
+        "batch_inference",
+        "redundant_transform_removal",
+        "serialization_size",
+        "export_runtime",
+        "torch_compile",
+        "fp16",
+        "bf16",
+        "quantization",
+        "input_pipeline",
+        "smaller_architecture",
+        "context_length",
+        "cross_series_batching"
+      ],
+      "title": "OptimizationMethod",
+      "type": "string"
+    },
+    "OptimizationOutcome": {
+      "enum": [
+        "improved",
+        "neutral",
+        "regressed",
+        "rejected",
+        "failed"
+      ],
+      "title": "OptimizationOutcome",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "brief_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Brief Id",
+      "type": "string"
+    },
+    "candidate_trial_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Candidate Trial Id",
+      "type": "string"
+    },
+    "claims": {
+      "items": {
+        "$ref": "#/$defs/Claim"
+      },
+      "title": "Claims",
+      "type": "array"
+    },
+    "confidence": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Confidence",
+      "type": "number"
+    },
+    "evidence_refs": {
+      "items": {
+        "maxLength": 512,
+        "pattern": "^[a-z][a-z0-9_]*:\\S+$",
+        "type": "string"
+      },
+      "title": "Evidence Refs",
+      "type": "array"
+    },
+    "methods": {
+      "items": {
+        "$ref": "#/$defs/OptimizationMethod"
+      },
+      "minItems": 1,
+      "title": "Methods",
+      "type": "array"
+    },
+    "open_questions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Open Questions",
+      "type": "array"
+    },
+    "outcome": {
+      "$ref": "#/$defs/OptimizationOutcome"
+    },
+    "result_refs": {
+      "items": {
+        "maxLength": 512,
+        "pattern": "^[a-z][a-z0-9_]*:\\S+$",
+        "type": "string"
+      },
+      "title": "Result Refs",
+      "type": "array"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "status": {
+      "$ref": "#/$defs/FindingStatus"
+    },
+    "summary": {
+      "minLength": 1,
+      "title": "Summary",
+      "type": "string"
+    },
+    "variant_trial_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Variant Trial Id"
+    }
+  },
+  "required": [
+    "brief_id",
+    "run_id",
+    "status",
+    "confidence",
+    "candidate_trial_id",
+    "methods",
+    "outcome",
+    "summary"
+  ],
+  "title": "OptimizationFinding",
+  "type": "object"
+}

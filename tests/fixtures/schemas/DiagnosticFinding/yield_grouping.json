@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "brief_id": "brf_0202",
+  "run_id": "run_101",
+  "status": "complete",
+  "claims": [
+    {
+      "statement": "A random split scores MAE 4.1 while a batch-grouped split scores 7.9: rows within a batch share yield, so random splits inflate scores.",
+      "evidence_refs": ["diagnostic:diag_021"],
+      "confidence": 0.9
+    }
+  ],
+  "evidence_refs": ["diagnostic:diag_021"],
+  "confidence": 0.85,
+  "open_questions": [],
+  "issue": "grouping",
+  "columns": ["batch_id"],
+  "verdict": "confirmed",
+  "diagnostic_ids": ["diag_021"],
+  "proposed_split": {
+    "strategy": "group",
+    "group_key": "batch_id",
+    "test_fraction": 0.2,
+    "validation": "group_kfold_5"
+  },
+  "proposed_fixes": [{"parse_datetime": "prep_date"}],
+  "risks": ["batch 7 has 3x higher variance; report per-batch error"]
+}

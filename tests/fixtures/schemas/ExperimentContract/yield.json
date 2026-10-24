@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "run_id": "run_101",
+  "version": 1,
+  "approved_plan_hash": "60083ea7782be8298df2861d5ae91346c7c43b2adab8a178c9a84db11af3a462",
+  "approval_id": "apr_0007",
+  "family": "tabular",
+  "task_type": "regression",
+  "target": "yield",
+  "data_contract": {
+    "schema_version": 1,
+    "data_contract_version": 1,
+    "target": "yield",
+    "task_type": "regression",
+    "allowed_features": ["dose", "temp", "catalyst", "solvent", "prep_time"],
+    "excluded_features": [
+      {"name": "final_mass", "reason": "measured after reaction completes (leakage)", "evidence": "diag_017"}
+    ],
+    "split": {"strategy": "group", "group_key": "batch_id", "test_fraction": 0.2, "validation": "group_kfold_5"},
+    "non_learned_fixes": [
+      {"parse_datetime": "prep_date"},
+      {"unit_convert": {"column": "temp", "from": "F", "to": "C"}}
+    ],
+    "risks": ["batch 7 has 3x higher variance; report per-batch error"],
+    "open_questions": []
+  },
+  "primary_metric": "mae",
+  "secondary_metrics": ["rmse", "r2"],
+  "quality_threshold": null,
+  "max_quality_degradation": null,
+  "resource_constraints": {},
+  "budget": {
+    "max_usd": 2.0,
+    "max_compute_seconds": 1800,
+    "max_llm_tokens": 400000,
+    "max_trials": 8,
+    "max_wall_clock_seconds": 3600
+  },
+  "default_job_limits": {"max_wall_seconds": 900, "max_memory_gb": 4.0, "gpu": false, "cpu_threads": 4},
+  "approved_model_refs": [],
+  "approved_dependencies": [],
+  "approved_download_hosts": [],
+  "seed": 1234
+}

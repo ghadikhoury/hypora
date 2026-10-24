@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "run_id": "run_101",
+  "trial_id": "trl_0002",
+  "verification_ref": "verification:ver_0002",
+  "verdict": "request_follow_up",
+  "reasons": ["Per-batch MAE ranges from 3.2 to 14.8; batch 7 dominates the error, as the data contract warned."],
+  "concerns": [
+    {
+      "category": "methodology",
+      "description": "Aggregate MAE hides that one batch accounts for a third of total error.",
+      "severity": "medium",
+      "evidence_refs": ["result:trl_0002/validation"]
+    }
+  ],
+  "follow_up": {
+    "hypothesis": "Monotonic constraints on temp and dose reduce the per-batch error spread without hurting mean MAE.",
+    "rationale": "Yield should not decrease with dose in the studied range; constraining the trees may stabilize high-variance batches."
+  }
+}

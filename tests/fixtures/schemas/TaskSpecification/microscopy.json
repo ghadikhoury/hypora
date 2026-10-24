@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "run_id": "run_104",
+  "version": 2,
+  "objective": "Classify these fluorescence microscope images into 6 phenotypes. Reuse a pretrained model if possible; keep CPU inference under 50 ms/image.",
+  "requested_actions": ["model_search", "evaluate_as_is", "fine_tune"],
+  "dataset_ref": "data/snapshots/fluorescence_microscopy/v1/manifest.csv",
+  "family_hint": "vision",
+  "task_type": "multiclass_classification",
+  "target": "label",
+  "primary_metric": "f1_macro",
+  "secondary_metrics": ["accuracy"],
+  "quality_target": 0.85,
+  "max_quality_degradation": 0.01,
+  "resource_constraints": {
+    "max_latency_ms": 50,
+    "latency_device": "cpu",
+    "latency_batch_size": 1
+  },
+  "forbidden_columns": [],
+  "exclusion_rules": [],
+  "named_models": [],
+  "budget": {
+    "max_usd": 5.0,
+    "max_compute_seconds": 14400,
+    "max_trials": 12
+  },
+  "data_locality": "local_only",
+  "approval_policy": "interactive",
+  "share_samples": false,
+  "allow_gpu": true,
+  "clarifications": [
+    {
+      "question": "Can several images come from the same specimen?",
+      "answer": "Yes, 4 to 12 images per specimen; specimen_id is in the manifest."
+    }
+  ],
+  "from_form": ["target", "primary_metric", "quality_target", "resource_constraints", "allow_gpu"],
+  "open_questions": ["Is 512x512 input required, or can images be downsampled?"]
+}

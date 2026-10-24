@@ -1,0 +1,745 @@
+{
+  "$defs": {
+    "Budget": {
+      "additionalProperties": false,
+      "description": "Run-level limits (spec §6.8 run stop conditions; `runs.budget_*`). Unset = no limit.",
+      "properties": {
+        "max_compute_seconds": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Job compute time.",
+          "title": "Max Compute Seconds"
+        },
+        "max_llm_tokens": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Llm Tokens"
+        },
+        "max_steps": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Max controller steps in the run.",
+          "title": "Max Steps"
+        },
+        "max_trials": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Trials"
+        },
+        "max_usd": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "LLM + external API spend, USD.",
+          "title": "Max Usd"
+        },
+        "max_wall_clock_seconds": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Wall Clock Seconds"
+        }
+      },
+      "title": "Budget",
+      "type": "object"
+    },
+    "CastDtypeFix": {
+      "additionalProperties": false,
+      "properties": {
+        "cast_dtype": {
+          "$ref": "#/$defs/DtypeCast"
+        }
+      },
+      "required": [
+        "cast_dtype"
+      ],
+      "title": "CastDtypeFix",
+      "type": "object"
+    },
+    "DataContract": {
+      "additionalProperties": false,
+      "description": "Model-independent data decisions (spec §7.2, field for field, plus `split.time_key`).",
+      "properties": {
+        "allowed_features": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Allowed Features",
+          "type": "array"
+        },
+        "data_contract_version": {
+          "exclusiveMinimum": 0,
+          "title": "Data Contract Version",
+          "type": "integer"
+        },
+        "excluded_features": {
+          "items": {
+            "$ref": "#/$defs/ExcludedFeature"
+          },
+          "title": "Excluded Features",
+          "type": "array"
+        },
+        "non_learned_fixes": {
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ParseDatetimeFix"
+              },
+              {
+                "$ref": "#/$defs/UnitConvertFix"
+              },
+              {
+                "$ref": "#/$defs/DropColumnFix"
+              },
+              {
+                "$ref": "#/$defs/CastDtypeFix"
+              },
+              {
+                "$ref": "#/$defs/SetMissingFix"
+              }
+            ]
+          },
+          "title": "Non Learned Fixes",
+          "type": "array"
+        },
+        "open_questions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Open Questions",
+          "type": "array"
+        },
+        "risks": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Risks",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "split": {
+          "$ref": "#/$defs/SplitSpec"
+        },
+        "target": {
+          "minLength": 1,
+          "title": "Target",
+          "type": "string"
+        },
+        "task_type": {
+          "$ref": "#/$defs/TaskType"
+        }
+      },
+      "required": [
+        "data_contract_version",
+        "target",
+        "task_type",
+        "allowed_features",
+        "split"
+      ],
+      "title": "DataContract",
+      "type": "object"
+    },
+    "Device": {
+      "enum": [
+        "cpu",
+        "gpu"
+      ],
+      "title": "Device",
+      "type": "string"
+    },
+    "DropColumnFix": {
+      "additionalProperties": false,
+      "properties": {
+        "drop_column": {
+          "minLength": 1,
+          "title": "Drop Column",
+          "type": "string"
+        }
+      },
+      "required": [
+        "drop_column"
+      ],
+      "title": "DropColumnFix",
+      "type": "object"
+    },
+    "DtypeCast": {
+      "additionalProperties": false,
+      "properties": {
+        "column": {
+          "minLength": 1,
+          "title": "Column",
+          "type": "string"
+        },
+        "dtype": {
+          "minLength": 1,
+          "title": "Dtype",
+          "type": "string"
+        }
+      },
+      "required": [
+        "column",
+        "dtype"
+      ],
+      "title": "DtypeCast",
+      "type": "object"
+    },
+    "ExcludedFeature": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "description": "ID of the supporting diagnostic, e.g. 'diag_017'.",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Evidence",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "reason",
+        "evidence"
+      ],
+      "title": "ExcludedFeature",
+      "type": "object"
+    },
+    "Family": {
+      "description": "Model family route (spec §5.2 Route, §18).",
+      "enum": [
+        "tabular",
+        "vision",
+        "timeseries",
+        "experimental"
+      ],
+      "title": "Family",
+      "type": "string"
+    },
+    "JobLimits": {
+      "additionalProperties": false,
+      "description": "Per-job sandbox limits (spec §12 `submit_experiment.limits`, §9.2, §14.3).",
+      "properties": {
+        "cpu_threads": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cpu Threads"
+        },
+        "gpu": {
+          "default": false,
+          "title": "Gpu",
+          "type": "boolean"
+        },
+        "max_memory_gb": {
+          "exclusiveMinimum": 0,
+          "title": "Max Memory Gb",
+          "type": "number"
+        },
+        "max_wall_seconds": {
+          "exclusiveMinimum": 0,
+          "title": "Max Wall Seconds",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_wall_seconds",
+        "max_memory_gb"
+      ],
+      "title": "JobLimits",
+      "type": "object"
+    },
+    "MetricName": {
+      "description": "Metrics computed by platform code (spec §18; PLAN.md S1.3).",
+      "enum": [
+        "accuracy",
+        "balanced_accuracy",
+        "precision",
+        "recall",
+        "f1",
+        "precision_macro",
+        "recall_macro",
+        "f1_macro",
+        "roc_auc",
+        "pr_auc",
+        "log_loss",
+        "brier_score",
+        "mae",
+        "rmse",
+        "r2"
+      ],
+      "title": "MetricName",
+      "type": "string"
+    },
+    "MissingMarker": {
+      "additionalProperties": false,
+      "properties": {
+        "column": {
+          "minLength": 1,
+          "title": "Column",
+          "type": "string"
+        },
+        "values": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "minItems": 1,
+          "title": "Values",
+          "type": "array"
+        }
+      },
+      "required": [
+        "column",
+        "values"
+      ],
+      "title": "MissingMarker",
+      "type": "object"
+    },
+    "ParseDatetimeFix": {
+      "additionalProperties": false,
+      "properties": {
+        "parse_datetime": {
+          "minLength": 1,
+          "title": "Parse Datetime",
+          "type": "string"
+        }
+      },
+      "required": [
+        "parse_datetime"
+      ],
+      "title": "ParseDatetimeFix",
+      "type": "object"
+    },
+    "ResourceConstraints": {
+      "additionalProperties": false,
+      "description": "Inference-time constraints the user sets (spec §3 examples, §8.5).",
+      "properties": {
+        "latency_batch_size": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latency Batch Size"
+        },
+        "latency_device": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Device"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "max_latency_ms": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Latency Ms"
+        },
+        "max_memory_mb": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Memory Mb"
+        },
+        "max_model_size_mb": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Model Size Mb"
+        },
+        "min_throughput_per_s": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Throughput Per S"
+        }
+      },
+      "title": "ResourceConstraints",
+      "type": "object"
+    },
+    "SetMissingFix": {
+      "additionalProperties": false,
+      "properties": {
+        "set_missing": {
+          "$ref": "#/$defs/MissingMarker"
+        }
+      },
+      "required": [
+        "set_missing"
+      ],
+      "title": "SetMissingFix",
+      "type": "object"
+    },
+    "SplitSpec": {
+      "additionalProperties": false,
+      "description": "How held-out data is carved (spec §7.2 `split`, plus `time_key` per D-004).",
+      "properties": {
+        "group_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Group Key"
+        },
+        "strategy": {
+          "$ref": "#/$defs/SplitStrategy"
+        },
+        "test_fraction": {
+          "exclusiveMaximum": 1.0,
+          "exclusiveMinimum": 0.0,
+          "title": "Test Fraction",
+          "type": "number"
+        },
+        "time_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Time column for temporal strategies (D-004).",
+          "title": "Time Key"
+        },
+        "validation": {
+          "pattern": "^(holdout|(kfold|stratified_kfold|group_kfold|walk_forward)_([2-9]|[1-9][0-9]))$",
+          "title": "Validation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "strategy",
+        "test_fraction",
+        "validation"
+      ],
+      "title": "SplitSpec",
+      "type": "object"
+    },
+    "SplitStrategy": {
+      "enum": [
+        "random",
+        "stratified",
+        "group",
+        "temporal",
+        "group_temporal"
+      ],
+      "title": "SplitStrategy",
+      "type": "string"
+    },
+    "TaskType": {
+      "description": "Prediction task (spec §18 scopes).",
+      "enum": [
+        "binary_classification",
+        "multiclass_classification",
+        "multilabel_classification",
+        "regression",
+        "forecasting",
+        "window_classification"
+      ],
+      "title": "TaskType",
+      "type": "string"
+    },
+    "UnitConversion": {
+      "additionalProperties": false,
+      "properties": {
+        "column": {
+          "minLength": 1,
+          "title": "Column",
+          "type": "string"
+        },
+        "from": {
+          "minLength": 1,
+          "title": "From",
+          "type": "string"
+        },
+        "to": {
+          "minLength": 1,
+          "title": "To",
+          "type": "string"
+        }
+      },
+      "required": [
+        "column",
+        "from",
+        "to"
+      ],
+      "title": "UnitConversion",
+      "type": "object"
+    },
+    "UnitConvertFix": {
+      "additionalProperties": false,
+      "properties": {
+        "unit_convert": {
+          "$ref": "#/$defs/UnitConversion"
+        }
+      },
+      "required": [
+        "unit_convert"
+      ],
+      "title": "UnitConvertFix",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Frozen, versioned terms of Phase B (spec §5.2 stage 4). Changes create a new version.",
+  "properties": {
+    "approval_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Approval Id",
+      "type": "string"
+    },
+    "approved_dependencies": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Approved Dependencies",
+      "type": "array"
+    },
+    "approved_download_hosts": {
+      "description": "Egress allowlist for the prep step (spec §14.3).",
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Approved Download Hosts",
+      "type": "array"
+    },
+    "approved_model_refs": {
+      "items": {
+        "maxLength": 320,
+        "pattern": "^[^\\s@]+@[^\\s@]+$",
+        "type": "string"
+      },
+      "title": "Approved Model Refs",
+      "type": "array"
+    },
+    "approved_plan_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Approved Plan Hash",
+      "type": "string"
+    },
+    "budget": {
+      "$ref": "#/$defs/Budget"
+    },
+    "data_contract": {
+      "$ref": "#/$defs/DataContract"
+    },
+    "default_job_limits": {
+      "$ref": "#/$defs/JobLimits"
+    },
+    "family": {
+      "$ref": "#/$defs/Family"
+    },
+    "max_quality_degradation": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Allowed primary-metric loss for optimization variants.",
+      "title": "Max Quality Degradation"
+    },
+    "primary_metric": {
+      "$ref": "#/$defs/MetricName"
+    },
+    "quality_threshold": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Pass mark on primary_metric.",
+      "title": "Quality Threshold"
+    },
+    "resource_constraints": {
+      "$ref": "#/$defs/ResourceConstraints"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "secondary_metrics": {
+      "items": {
+        "$ref": "#/$defs/MetricName"
+      },
+      "title": "Secondary Metrics",
+      "type": "array"
+    },
+    "seed": {
+      "default": 0,
+      "title": "Seed",
+      "type": "integer"
+    },
+    "target": {
+      "minLength": 1,
+      "title": "Target",
+      "type": "string"
+    },
+    "task_type": {
+      "$ref": "#/$defs/TaskType"
+    },
+    "version": {
+      "exclusiveMinimum": 0,
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "run_id",
+    "version",
+    "approved_plan_hash",
+    "approval_id",
+    "family",
+    "task_type",
+    "target",
+    "data_contract",
+    "primary_metric",
+    "budget",
+    "default_job_limits"
+  ],
+  "title": "ExperimentContract",
+  "type": "object"
+}

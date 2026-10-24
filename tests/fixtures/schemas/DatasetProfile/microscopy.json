@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "run_id": "run_104",
+  "dataset_ref": "data/snapshots/fluorescence_microscopy/v1/manifest.csv",
+  "fingerprint": "1c57ed33e87ed703d7c5644460023a0f65ad72fe339434475b05b15e3f85027c",
+  "modality": "image",
+  "vision": {
+    "n_images": 1200,
+    "n_corrupt": 3,
+    "n_exact_duplicates": 14,
+    "formats": [{"value": "tiff", "count": 1200}],
+    "width": {"min": 512, "max": 512, "mean": 512, "std": 0, "p25": 512, "p50": 512, "p75": 512},
+    "height": {"min": 512, "max": 512, "mean": 512, "std": 0, "p25": 512, "p50": 512, "p75": 512},
+    "channels": [{"value": "3", "count": 1200}],
+    "channel_stats": [
+      {"channel": 0, "mean": 0.112, "std": 0.081},
+      {"channel": 1, "mean": 0.207, "std": 0.143},
+      {"channel": 2, "mean": 0.064, "std": 0.052}
+    ],
+    "class_counts": [
+      {"value": "interphase", "count": 412}, {"value": "prophase", "count": 233},
+      {"value": "metaphase", "count": 181}, {"value": "anaphase", "count": 139},
+      {"value": "telophase", "count": 128}, {"value": "apoptotic", "count": 107}
+    ],
+    "manifest_columns": ["image_path", "label", "specimen_id", "acquisition_batch", "magnification", "device_id"]
+  }
+}

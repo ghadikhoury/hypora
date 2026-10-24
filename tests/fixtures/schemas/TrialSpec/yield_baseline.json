@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "trial_id": "trl_0001",
+  "run_id": "run_101",
+  "batch_id": "bat_0001",
+  "contract_version": 1,
+  "kind": "baseline",
+  "operation": "fit",
+  "hypothesis": "Mandatory reference: predict the training-set mean yield.",
+  "model_family": "mean_predictor",
+  "config": {},
+  "expected_effect": "Reference MAE that every candidate must beat.",
+  "estimated_cost": {"compute_seconds": 2}
+}

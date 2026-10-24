@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "run_id": "run_109",
+  "after_batch_id": "bat_0001",
+  "decision": "escalate",
+  "rationale": "Error triples after 2026-03-02 for every candidate, including seasonal-naive; this is a data problem, not a model problem.",
+  "escalation": {
+    "type": "DATA_PROBLEM",
+    "summary": "All forecasters degrade after the sensor recalibration date.",
+    "trial_ids": ["trl_0001", "trl_0002", "trl_0003"],
+    "evidence_refs": ["comparison:cmp_0002"]
+  }
+}

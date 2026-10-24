@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "run_id": "run_104",
+  "family": "vision",
+  "run_mode": "full",
+  "decided_by": "code",
+  "reasons": [
+    "manifest references 1,200 TIFF images with a 'label' column",
+    "requested actions include evaluate_as_is and fine_tune, which require execution"
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "brief_id": "brf_0201",
+  "run_id": "run_101",
+  "status": "complete",
+  "claims": [
+    {
+      "statement": "final_mass alone reaches cross-validated R2 0.94 for yield, far above every pre-reaction feature (max 0.31).",
+      "evidence_refs": ["diagnostic:diag_017"],
+      "confidence": 0.95
+    },
+    {
+      "statement": "final_mass is the product mass weighed after the reaction completes, so it is unavailable at prediction time.",
+      "evidence_refs": ["task_spec:v1", "diagnostic:diag_018"],
+      "confidence": 0.85
+    }
+  ],
+  "evidence_refs": ["diagnostic:diag_017", "diagnostic:diag_018"],
+  "confidence": 0.9,
+  "open_questions": [],
+  "issue": "leakage",
+  "columns": ["final_mass"],
+  "verdict": "confirmed",
+  "diagnostic_ids": ["diag_017", "diag_018"],
+  "proposed_exclusions": [
+    {"name": "final_mass", "reason": "measured after reaction completes (leakage)", "evidence": "diag_017"}
+  ],
+  "risks": []
+}

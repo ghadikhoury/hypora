@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "run_id": "run_104",
+  "seq": 131,
+  "actor_role": "mcp_server",
+  "created_at": "2026-10-23T15:40:19Z",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "span_id": "00f067aa0ba902b7",
+  "trial_id": "trl_0007",
+  "type": "tool_result",
+  "payload": {
+    "call_id": "call_0731",
+    "tool": "submit_experiment",
+    "status": "error",
+    "error": {
+      "schema_version": 1,
+      "is_error": true,
+      "code": "INSUFFICIENT_GPU_MEMORY",
+      "error_class": "resource",
+      "message": "Requested configuration exceeds available GPU memory.",
+      "retryable": false,
+      "details": {
+        "available_gb": 8,
+        "estimated_gb": 12
+      },
+      "suggested_recovery": "Reduce batch size or select a smaller model."
+    },
+    "latency_ms": 41
+  }
+}

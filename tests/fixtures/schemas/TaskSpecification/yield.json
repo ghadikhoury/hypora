@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "run_id": "run_101",
+  "version": 1,
+  "objective": "Predict reaction yield from this CSV; minimize MAE; don't use measurements recorded after the reaction.",
+  "requested_actions": ["train"],
+  "dataset_ref": "data/snapshots/reaction_yield/v1/yield.csv",
+  "family_hint": "tabular",
+  "task_type": "regression",
+  "target": "yield",
+  "primary_metric": "mae",
+  "secondary_metrics": ["rmse", "r2"],
+  "quality_target": null,
+  "max_quality_degradation": null,
+  "resource_constraints": {},
+  "forbidden_columns": [],
+  "exclusion_rules": ["Do not use measurements recorded after the reaction completes."],
+  "named_models": [],
+  "existing_model_ref": null,
+  "budget": {
+    "max_usd": 2.0,
+    "max_compute_seconds": 1800,
+    "max_llm_tokens": 400000,
+    "max_trials": 8,
+    "max_wall_clock_seconds": 3600
+  },
+  "data_locality": "local_only",
+  "approval_policy": "interactive",
+  "share_samples": false,
+  "allow_gpu": false,
+  "clarifications": [
+    {
+      "question": "Will future predictions come from reaction batches that are not in this file?",
+      "answer": "Yes. New batches arrive every week.",
+      "asked_by": "intake"
+    }
+  ],
+  "from_form": ["target", "primary_metric", "budget", "data_locality", "approval_policy"],
+  "open_questions": []
+}

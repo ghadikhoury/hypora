@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "run_id": "run_109",
+  "trigger": "escalation",
+  "escalation_type": "DATA_PROBLEM",
+  "decision": "revisit_data",
+  "question": "Did the sensor recalibration on 2026-03-02 shift the reading distribution, and should the split or features be segment-aware?",
+  "rationale": "All three forecasters degrade sharply after the recalibration date; more trials cannot fix a data shift."
+}
