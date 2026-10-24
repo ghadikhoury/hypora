@@ -5,7 +5,7 @@
 | Layer | When | Scope |
 |---|---|---|
 | pre-commit hook (`.pre-commit-config.yaml`) | every local commit | staged changes |
-| `make secrets` (Docker, image pinned by digest) | `make check`, before every PR | full git history |
+| `make secrets` (Docker, image pinned by digest) | `make check`: locally before every PR, and in the CI `make check` job | full git history |
 | official `gitleaks/gitleaks-action` (`.github/workflows/gitleaks.yml`) | PR, push to `main`, daily, manual | see below |
 
 **Why the action's scope depends on the event.** The action builds its gitleaks command from
@@ -13,7 +13,9 @@
 commits (`--log-opts=<base>^..<head>`); for `workflow_dispatch` and `schedule` it passes no range and
 scans the **full history**. The workflow therefore enables all four events: PRs and pushes get a fast
 incremental scan, and the daily schedule (or a manual run: `gh workflow run gitleaks.yml`) re-scans the
-entire history, including commits that predate the workflow.
+entire history with the official action, including commits that predate the workflow. Every CI run
+also scans the full history through `make check` → `make secrets`, so a PR can't merge with a leak
+anywhere in history even between scheduled runs.
 
 **Hardening choices (public repo):**
 - Every action is pinned to a full commit SHA (tag in a comment), so a moved tag can't change CI.
