@@ -1,14 +1,17 @@
 """Loading, precedence, and fail-fast validation of configs/*.yaml + HYPORA_* env vars."""
 
+import json
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from pydantic_settings import EnvSettingsSource
 
 from hypora.core.config import (
     AgentMode,
     ConfigError,
     RetrievalMode,
+    RunConfig,
     Toggle,
     eval_config_names,
     load_eval_config,
@@ -16,6 +19,8 @@ from hypora.core.config import (
     load_settings_for_eval,
 )
 from hypora.core.config.flags import FeatureFlags
+from hypora.core.config.resources import DetectedResources, GpuDetection
+from hypora.core.config.settings import HyporaSettings
 from hypora.core.schemas import ApprovalPolicy, ModelProfile
 
 WriteSection = Callable[[str, str], Path]
@@ -124,6 +129,8 @@ def test_invalid_env_flag_fails_fast(config_dir: Path, monkeypatch: pytest.Monke
         ("flags.yaml", "flags:\n  defenses:\n    firewal: false\n", "flags.defenses.firewal"),
         ("flags.yaml", "flags:\n  max_parallel_trials: 0\n", "flags.max_parallel_trials"),
         ("flags.yaml", "flags: {}\nmodels: {}\n", "exactly one top-level key 'flags'"),
+        # The YAML source itself rejects non-string keys; our error must retain file context.
+        ("flags.yaml", "flags: {}\n1: {}\n", r"flags\.yaml"),
         ("flags.yaml", "flags: [unclosed\n", "not valid YAML"),
         (
             "budgets.yaml",
@@ -229,21 +236,57 @@ def test_dev_models_may_still_be_overridden_by_env(
 
 
 @pytest.mark.parametrize("variable", ["HYPORA_MODELS", "hypora_models"])
+@pytest.mark.parametrize("profile_key", ["eval", "EVAL", "Eval"])
+@pytest.mark.parametrize("entry_point", ["settings", "active_run", "named_eval"])
 def test_bulk_model_env_cannot_change_pinned_eval_mapping(
-    config_dir: Path, monkeypatch: pytest.MonkeyPatch, variable: str
+    config_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    variable: str,
+    profile_key: str,
+    entry_point: str,
 ) -> None:
-    monkeypatch.setenv(variable, '{"eval":{"tiers":{"lead":{"model_id":"unapproved"}}}}')
-    with pytest.raises(ConfigError, match="pinned eval model profile"):
-        load_settings(config_dir)
-
-
-def test_bulk_dev_only_model_env_remains_supported(
-    config_dir: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv(
-        "HYPORA_MODELS", '{"dev":{"tiers":{"cheap":{"model_id":"gemini-json-test"}}}}'
+    tiers = {tier: {"model_id": f"unapproved-{tier}"} for tier in ("lead", "worker", "cheap")}
+    # Include a legitimate key first: a pin check must examine the whole mapping.
+    monkeypatch.setenv(variable, json.dumps({"dev": {}, profile_key: {"tiers": tiers}}))
+    if entry_point == "active_run":
+        monkeypatch.setenv("HYPORA_MODEL_PROFILE", "eval")
+    # Check the public settings source too, so these cases track the dependency's actual
+    # normalization rather than merely exercising our guard with three spellings.
+    source_models = EnvSettingsSource(HyporaSettings)()["models"]
+    assert source_models["eval"]["tiers"] == tiers
+    expected_error = (
+        "refuses environment overrides" if entry_point == "named_eval" else "pinned eval"
     )
-    assert load_settings(config_dir).models.dev.tiers.cheap.model_id == "gemini-json-test"
+    with pytest.raises(ConfigError, match=expected_error) as caught:
+        if entry_point == "named_eval":
+            load_settings_for_eval("default", config_dir)
+        elif entry_point == "active_run":
+            # All three IDs are non-placeholders. The loader must stop this before a real
+            # active RunConfig can be built; allow_placeholders is deliberately not used.
+            RunConfig.build(load_settings(config_dir), hardware=_cpu_hardware())
+        else:
+            load_settings(config_dir)
+    assert variable in str(caught.value)
+
+
+@pytest.mark.parametrize("variable", ["HYPORA_MODELS", "hypora_models"])
+@pytest.mark.parametrize("profile_key", ["dev", "DEV", "Dev"])
+def test_bulk_dev_only_model_env_remains_supported(
+    config_dir: Path, monkeypatch: pytest.MonkeyPatch, variable: str, profile_key: str
+) -> None:
+    pinned_eval = load_settings(config_dir).models.eval
+    tiers = {tier: {"model_id": f"gemini-json-{tier}"} for tier in ("lead", "worker", "cheap")}
+    monkeypatch.setenv(variable, json.dumps({profile_key: {"tiers": tiers}}))
+    run = RunConfig.build(load_settings(config_dir), hardware=_cpu_hardware())
+    assert run.model_profile is ModelProfile.DEV
+    assert run.models.eval == pinned_eval
+    assert run.active_profile.tiers.lead.model_id == "gemini-json-lead"
+    assert run.active_profile.tiers.worker.model_id == "gemini-json-worker"
+    assert run.active_profile.tiers.cheap.model_id == "gemini-json-cheap"
+
+
+def _cpu_hardware() -> DetectedResources:
+    return DetectedResources(cpu_cores=8, total_memory_gb=16, gpu_detection=GpuDetection.NOT_FOUND)
 
 
 def test_malformed_bulk_model_env_has_config_error(
@@ -252,3 +295,72 @@ def test_malformed_bulk_model_env_has_config_error(
     monkeypatch.setenv("HYPORA_MODELS", "{invalid JSON")
     with pytest.raises(ConfigError, match="HYPORA_MODELS must contain valid JSON"):
         load_settings(config_dir)
+
+
+@pytest.mark.parametrize(
+    "variable",
+    [
+        "HYPORA_FLAGS",
+        "HYPORA_FLAGS__DEFENSES",
+        "HYPORA_RESOURCES",
+        "HYPORA_RESOURCES__LLM_CONCURRENCY",
+        "HYPORA_BUDGETS",
+    ],
+)
+def test_malformed_complex_env_has_config_error(
+    config_dir: Path, monkeypatch: pytest.MonkeyPatch, variable: str
+) -> None:
+    monkeypatch.setenv(variable, "{invalid JSON")
+    with pytest.raises(ConfigError) as caught:
+        load_settings(config_dir)
+    assert variable in str(caught.value)
+    assert str(config_dir) in str(caught.value)
+
+
+@pytest.mark.parametrize("content", ["name: [unclosed", "- not\n- a mapping\n"])
+@pytest.mark.parametrize("loader", ["definition", "settings"])
+def test_malformed_eval_file_has_config_error(config_dir: Path, content: str, loader: str) -> None:
+    path = config_dir / "eval" / "broken.yaml"
+    path.write_text(content, encoding="utf-8")
+    with pytest.raises(ConfigError) as caught:
+        if loader == "definition":
+            load_eval_config("broken", config_dir)
+        else:
+            load_settings_for_eval("broken", config_dir)
+    assert str(path) in str(caught.value)
+
+
+@pytest.mark.parametrize(
+    "variable", ["HYPORA_CONFIG_DIR", "hypora_config_dir", "Hypora_Config_Dir"]
+)
+@pytest.mark.parametrize("loader", ["dev", "named_eval"])
+def test_config_directory_case_matches_allowed_environment_names(
+    config_dir: Path, monkeypatch: pytest.MonkeyPatch, variable: str, loader: str
+) -> None:
+    (config_dir / "flags.yaml").write_text("flags:\n  agent_mode: single\n", encoding="utf-8")
+    monkeypatch.setenv(variable, str(config_dir))
+    settings = load_settings() if loader == "dev" else load_settings_for_eval("default")
+    assert settings.flags.agent_mode is AgentMode.SINGLE
+
+
+def test_explicit_directory_still_wins_over_case_variant_env(
+    config_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("hypora_config_dir", str(config_dir / "nonexistent"))
+    assert load_settings(config_dir).flags.agent_mode is AgentMode.MULTI
+
+
+@pytest.mark.parametrize(
+    "variables",
+    [
+        ("HYPORA_CONFIG_DIR", "hypora_config_dir"),
+        ("hypora_config_dir", "HYPORA_CONFIG_DIR"),
+    ],
+)
+def test_directory_env_uses_the_settings_sources_last_spelling_rule(
+    config_dir: Path, monkeypatch: pytest.MonkeyPatch, variables: tuple[str, str]
+) -> None:
+    monkeypatch.setenv(variables[0], str(config_dir / "nonexistent"))
+    monkeypatch.setenv(variables[1], str(config_dir))
+    (config_dir / "flags.yaml").write_text("flags:\n  agent_mode: single\n", encoding="utf-8")
+    assert load_settings().flags.agent_mode is AgentMode.SINGLE

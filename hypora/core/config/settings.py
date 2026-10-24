@@ -28,6 +28,7 @@ from pydantic_settings import (
     SettingsConfigDict,
     YamlConfigSettingsSource,
 )
+from pydantic_settings.exceptions import SettingsError
 
 from hypora.core.config.flags import FeatureFlags
 from hypora.core.config.models import ModelsConfig
@@ -65,6 +66,7 @@ class HyporaSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix=ENV_PREFIX,
         env_nested_delimiter="__",
+        case_sensitive=False,
         extra="forbid",
         frozen=True,
     )
@@ -93,14 +95,21 @@ class HyporaSettings(BaseSettings):
 
 def resolve_config_dir(config_dir: Path | str | None = None) -> Path:
     """The explicit directory, else $HYPORA_CONFIG_DIR, else the repo's configs/."""
-    chosen = config_dir or os.environ.get(CONFIG_DIR_ENV) or DEFAULT_CONFIG_DIR
+    # Match EnvSettingsSource's case-insensitive, last-spelling-wins environment lookup.
+    environment = {name.upper(): value for name, value in os.environ.items()}
+    chosen = config_dir or environment.get(CONFIG_DIR_ENV) or DEFAULT_CONFIG_DIR
     return Path(chosen)
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:
     """Read one YAML mapping through the pydantic-settings YAML source (the settings class only
     supplies its config; nothing is validated here)."""
-    content: dict[str, Any] = YamlConfigSettingsSource(HyporaSettings, yaml_file=path)()
+    try:
+        content: dict[str, Any] = YamlConfigSettingsSource(HyporaSettings, yaml_file=path)()
+    except Exception as exc:
+        # Parser-specific errors must share the same public contract for section and eval files.
+        # Keep the cause for debugging while putting the offending file in the user-facing error.
+        raise ConfigError(f"{path}: not valid YAML ({exc})") from exc
     return content
 
 
@@ -112,10 +121,7 @@ def _section_files(config_dir: Path) -> tuple[Path, ...]:
         path = config_dir / name
         if not path.is_file():
             raise ConfigError(f"missing config file: {path}")
-        try:
-            content = _read_yaml(path)
-        except Exception as exc:  # malformed YAML surfaces as a parser-specific exception
-            raise ConfigError(f"{path}: not valid YAML ({exc})") from exc
+        content = _read_yaml(path)
         if set(content) != {section}:
             raise ConfigError(
                 f"{path}: must contain exactly one top-level key {section!r}, "
@@ -151,7 +157,11 @@ def _check_env_names(environ: Mapping[str, str]) -> None:
             models = json.loads(value)
         except json.JSONDecodeError:
             raise ConfigError(f"{name} must contain valid JSON") from None
-        if isinstance(models, dict) and "eval" in models:
+        # EnvSettingsSource normalizes nested JSON field names with str.lower(), too.
+        # Normalize every profile key before applying the pin rule, regardless of its value.
+        if isinstance(models, dict) and any(
+            profile.lower() == ModelProfile.EVAL.value for profile in models
+        ):
             eval_models.append(name)
     if eval_models:
         raise ConfigError(
@@ -204,6 +214,12 @@ def load_settings(
         settings: HyporaSettings = bound(**dict(overrides or {}))
     except ValidationError as exc:
         raise ConfigError(_format_errors(exc, directory)) from None
+    except SettingsError as exc:
+        names = sorted(name for name in os.environ if name.upper().startswith(ENV_PREFIX))
+        raise ConfigError(
+            f"invalid Hypora configuration ({directory}): {exc}; "
+            f"check JSON in environment settings {names}"
+        ) from None
     return settings
 
 
