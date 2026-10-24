@@ -1,0 +1,22 @@
+# Feature flags (spec §19.4, §9.5). Every evaluation comparison is a switch here.
+# Override one with an env var, e.g. HYPORA_FLAGS__AGENT_MODE=single,
+# or per eval config in configs/eval/<name>.yaml.
+flags:
+  agent_mode: multi            # single | multi                       (F3)
+  planning: "on"               # on | off                             (F4)
+  retrieval_mode: hybrid       # off | tfidf | bm25 | embedding | hybrid | hybrid_rerank  (F1)
+  defenses:                    # each defense individually switchable (F6)
+    allowlist: true
+    sandbox_network: true
+    firewall: true
+    approval: true
+    injection_filter: true
+  durable_mode: "on"           # on | off                             (F10)
+  breadth_mode: adaptive       # adaptive | fixed_k
+  parallel_mode: "on"          # on | off
+  phase_a_mode: parallel       # parallel | research_first
+  approval_policy: interactive # interactive | auto_within_contract
+  # Parallelism limits (spec §9.5); provisional until S4.2 (DECIDE).
+  max_research_workers: 4
+  max_diagnostic_workers: 4
+  max_parallel_trials: 3

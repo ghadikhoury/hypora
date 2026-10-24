@@ -1,0 +1,24 @@
+# Model profiles (PLAN.md §1, spec §17). Model IDs are PLACEHOLDERS:
+#   - S0.5 (LLM adapter) fills in the dev models;
+#   - S2.6 (DECIDE) pins the exact eval model IDs and temperatures. Changing eval after S2.6
+#     invalidates recorded results.
+# Select a profile with HYPORA_MODEL_PROFILE=dev|eval (default: dev).
+models:
+  dev:
+    description: Development. Gemini free tier for every tier; falls back to the eval mapping.
+    tiers:
+      lead:   {provider: gemini, model_id: placeholder-gemini-lead,   temperature: 0.2}
+      worker: {provider: gemini, model_id: placeholder-gemini-worker, temperature: 0.2}
+      cheap:  {provider: gemini, model_id: placeholder-gemini-cheap,  temperature: 0.0}
+    fallback:
+      enabled: true
+      tiers_from: eval         # OpenAI, same tier mapping as eval
+      triggers: [rate_limit, quota, server_error]   # after bounded retries (S0.5)
+  eval:
+    description: Recorded evaluations and the demo. Pinned models; never falls back.
+    tiers:
+      lead:   {provider: openai, model_id: placeholder-openai-lead,   temperature: 0.0}
+      worker: {provider: openai, model_id: placeholder-openai-worker, temperature: 0.0}
+      cheap:  {provider: openai, model_id: placeholder-openai-cheap,  temperature: 0.0}
+    fallback:
+      enabled: false
