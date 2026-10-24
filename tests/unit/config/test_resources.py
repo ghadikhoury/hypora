@@ -144,3 +144,42 @@ def test_impossible_pools_fail_fast(
 ) -> None:
     with pytest.raises(ResourceConfigError, match=match):
         resolve_pools(detected, config)
+
+
+@pytest.mark.parametrize("memory", [1000.0, 16.0, 14.00000001])
+def test_explicit_memory_cannot_exceed_ram_minus_reserve(memory: float) -> None:
+    with pytest.raises(ResourceConfigError, match=r"memory_budget_gb.*exceeds"):
+        resolve_pools(CPU_ONLY, ResourcesConfig(memory_budget_gb=memory, memory_reserve_gb=2))
+
+
+@pytest.mark.parametrize("reserve", [16.0, 17.0])
+def test_explicit_memory_does_not_bypass_impossible_reserve(reserve: float) -> None:
+    with pytest.raises(ResourceConfigError, match="leaves no RAM"):
+        resolve_pools(CPU_ONLY, ResourcesConfig(memory_budget_gb=1, memory_reserve_gb=reserve))
+
+
+@pytest.mark.parametrize("memory", [4.0, 14.0])
+def test_valid_memory_override_including_exact_boundary(memory: float) -> None:
+    pools = resolve_pools(CPU_ONLY, ResourcesConfig(memory_budget_gb=memory, memory_reserve_gb=2))
+    assert pools.memory_budget_gb == memory
+
+
+def test_undetectable_ram_still_allows_manual_pool() -> None:
+    unknown = CPU_ONLY.model_copy(update={"total_memory_gb": None})
+    pools = resolve_pools(unknown, ResourcesConfig(memory_budget_gb=4))
+    assert pools.memory_budget_gb == 4
+
+
+def test_default_memory_pool_is_never_rounded_above_available_ram() -> None:
+    detected = CPU_ONLY.model_copy(update={"total_memory_gb": 16.0006})
+    assert detected.total_memory_gb is not None
+    pools = resolve_pools(detected, ResourcesConfig(memory_reserve_gb=2))
+    assert pools.memory_budget_gb == 16.0006 - 2
+    assert pools.memory_budget_gb <= detected.total_memory_gb - 2
+
+
+@pytest.mark.parametrize("memory", [13.9996, 0.0001])
+def test_explicit_memory_is_preserved_without_rounding(memory: float) -> None:
+    assert (
+        resolve_pools(CPU_ONLY, ResourcesConfig(memory_budget_gb=memory)).memory_budget_gb == memory
+    )

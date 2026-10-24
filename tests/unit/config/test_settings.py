@@ -226,3 +226,29 @@ def test_dev_models_may_still_be_overridden_by_env(
 ) -> None:
     monkeypatch.setenv("HYPORA_MODELS__DEV__TIERS__CHEAP__MODEL_ID", "gemini-local-test")
     assert load_settings(config_dir).models.dev.tiers.cheap.model_id == "gemini-local-test"
+
+
+@pytest.mark.parametrize("variable", ["HYPORA_MODELS", "hypora_models"])
+def test_bulk_model_env_cannot_change_pinned_eval_mapping(
+    config_dir: Path, monkeypatch: pytest.MonkeyPatch, variable: str
+) -> None:
+    monkeypatch.setenv(variable, '{"eval":{"tiers":{"lead":{"model_id":"unapproved"}}}}')
+    with pytest.raises(ConfigError, match="pinned eval model profile"):
+        load_settings(config_dir)
+
+
+def test_bulk_dev_only_model_env_remains_supported(
+    config_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(
+        "HYPORA_MODELS", '{"dev":{"tiers":{"cheap":{"model_id":"gemini-json-test"}}}}'
+    )
+    assert load_settings(config_dir).models.dev.tiers.cheap.model_id == "gemini-json-test"
+
+
+def test_malformed_bulk_model_env_has_config_error(
+    config_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("HYPORA_MODELS", "{invalid JSON")
+    with pytest.raises(ConfigError, match="HYPORA_MODELS must contain valid JSON"):
+        load_settings(config_dir)

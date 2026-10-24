@@ -149,20 +149,29 @@ def resolve_pools(detected: DetectedResources, config: ResourcesConfig) -> Resou
             f"({detected.gpu_detection.value}); GPUs are never oversubscribed"
         )
 
-    if config.memory_budget_gb is not None:
+    if detected.total_memory_gb is None:
+        if config.memory_budget_gb is None:
+            raise ResourceConfigError("RAM could not be detected: set resources.memory_budget_gb")
+        # Only the undetectable-RAM case must rely on the operator's explicit capacity.
         memory = config.memory_budget_gb
-    elif detected.total_memory_gb is None:
-        raise ResourceConfigError("RAM could not be detected: set resources.memory_budget_gb")
     else:
-        memory = detected.total_memory_gb - config.memory_reserve_gb
-        if memory <= 0:
+        available = detected.total_memory_gb - config.memory_reserve_gb
+        if available <= 0:
             raise ResourceConfigError(
                 f"memory_reserve_gb={config.memory_reserve_gb} leaves no RAM of "
                 f"{detected.total_memory_gb:.1f} GiB"
             )
+        memory = available if config.memory_budget_gb is None else config.memory_budget_gb
+        if memory > available:
+            raise ResourceConfigError(
+                f"resources.memory_budget_gb={memory} exceeds the {available} GiB available "
+                f"after memory_reserve_gb={config.memory_reserve_gb} is subtracted from "
+                f"{detected.total_memory_gb} GiB detected RAM"
+            )
     return ResourcePools(
         cpu_slots=cpu_slots,
         gpu_slots=gpu_slots,
-        memory_budget_gb=round(memory, 3),
+        # Rounding for display must not increase the scheduler's capacity or erase a small pool.
+        memory_budget_gb=memory,
         llm_concurrency=config.llm_concurrency,
     )

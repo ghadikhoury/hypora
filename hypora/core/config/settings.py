@@ -15,6 +15,7 @@ Precedence, lowest to highest:
 Any invalid value fails fast with a `ConfigError` naming the offending setting and its source.
 """
 
+import json
 import os
 from collections.abc import Mapping
 from pathlib import Path
@@ -141,10 +142,21 @@ def _check_env_names(environ: Mapping[str, str]) -> None:
     # The eval mapping is pinned (PLAN.md §1) and is also dev's fallback target: it changes only
     # through models.yaml plus a 🧑 DECIDE, never through a stray environment variable.
     eval_models = sorted(n for n in environ if n.upper().startswith(EVAL_MODELS_ENV_PREFIX))
+    # pydantic-settings also accepts an entire nested mapping as JSON in HYPORA_MODELS.
+    # Inspect that route too; guarding only HYPORA_MODELS__EVAL__* leaves the same pin bypass.
+    for name, value in environ.items():
+        if name.upper() != ENV_PREFIX + "MODELS":
+            continue
+        try:
+            models = json.loads(value)
+        except json.JSONDecodeError:
+            raise ConfigError(f"{name} must contain valid JSON") from None
+        if isinstance(models, dict) and "eval" in models:
+            eval_models.append(name)
     if eval_models:
         raise ConfigError(
-            f"{eval_models} would change the pinned eval model profile; edit configs/models.yaml "
-            "instead (changing eval requires a DECIDE, PLAN.md §1)"
+            f"{sorted(eval_models)} would change the pinned eval model profile; "
+            "edit configs/models.yaml instead (changing eval requires a DECIDE, PLAN.md §1)"
         )
 
 

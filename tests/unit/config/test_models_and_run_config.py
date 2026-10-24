@@ -16,7 +16,7 @@ from hypora.core.config import (
     load_settings,
     load_settings_for_eval,
 )
-from hypora.core.config.resources import DetectedResources, GpuDetection
+from hypora.core.config.resources import DetectedResources, GpuDetection, ResourceConfigError
 from hypora.core.hashing import canonical_hash
 from hypora.core.schemas import ApprovalPolicy, ModelProfile, ModelTier, Provider
 
@@ -160,3 +160,18 @@ def test_run_config_checks_only_the_active_profile(config_dir: Path) -> None:
     (config_dir / "models.yaml").write_text(real_dev, encoding="utf-8")
     config = RunConfig.build(load_settings(config_dir), hardware=HARDWARE)  # eval unset: fine
     assert config.active_profile.tiers.lead.model_id == "gemini-test-lead"
+
+
+@pytest.mark.parametrize("source", ["yaml", "env"])
+def test_run_config_rejects_impossible_memory_overrides(
+    config_dir: Path, monkeypatch: pytest.MonkeyPatch, source: str
+) -> None:
+    if source == "yaml":
+        (config_dir / "resources.yaml").write_text(
+            "resources:\n  memory_budget_gb: 1000\n  memory_reserve_gb: 2\n", encoding="utf-8"
+        )
+    else:
+        monkeypatch.setenv("HYPORA_RESOURCES__MEMORY_BUDGET_GB", "1000")
+    settings = load_settings(config_dir)
+    with pytest.raises(ResourceConfigError, match=r"memory_budget_gb.*exceeds"):
+        build(settings, hardware=HARDWARE)

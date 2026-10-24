@@ -39,6 +39,8 @@ accept booleans (`planning: on` works), and no field is named `on` (the fallback
 `HYPORA_*` variable other than `HYPORA_CONFIG_DIR` is set, so a leftover `export` can't turn an
 "all defenses on" comparison into a partial one. No env var may change the pinned eval model
 profile (`HYPORA_MODELS__EVAL__*`) even in dev, because it is also dev's fallback target.
+This includes an `eval` key inside a bulk JSON `HYPORA_MODELS` value; a bulk override containing
+only `dev` still works. The model-override guard matches variable names case-insensitively.
 `RunConfig.build` refuses an active profile that still has `placeholder-*` model IDs.
 
 **Enum reuse.** `approval_policy` is `schemas.ApprovalPolicy`; profiles, tiers, and providers are
@@ -49,7 +51,11 @@ switch enums with no schema counterpart (`AgentMode`, `RetrievalMode`, …) live
 `sysconf`, GPUs from `nvidia-smi --query-gpu=...` with a timeout. No `nvidia-smi`, a timeout, a
 non-zero exit, or unparseable output all mean "0 GPUs" plus a recorded status. Pools follow spec
 §9.2 (`cpu = cores − 1`, `gpu = detected`, `memory = RAM − reserve`); overrides may shrink a pool
-but never exceed the hardware.
+but never exceed the hardware. When RAM is known, an explicit memory override must fit within
+**RAM minus the reserve**, and a reserve that leaves no usable RAM is rejected even with an
+override. If RAM cannot be detected, an explicit memory pool is required and is taken as the
+operator's capacity declaration. Pool values retain their precision: display rounding must never
+increase scheduler capacity or round a small positive override to zero.
 
 **RunConfig** is a `FrozenRecord`: every nested model is frozen and every sequence a tuple, so
 nothing can change after `build()`. It records the effective flags, both model profiles, budgets,
