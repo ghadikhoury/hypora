@@ -1,0 +1,38 @@
+# Secrets: only .env.example (names, no values) is committed.
+.env
+.env.*
+!.env.example
+
+# Datasets, run outputs, raw eval results, checkpoints (PLAN.md S0.1).
+data/
+runs/
+results/raw/
+*.ckpt
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+build/
+dist/
+*.egg-info/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node / web
+node_modules/
+web/dist/
+
+# Local state
+*.sqlite
+*.db
+mlruns/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
