@@ -69,7 +69,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "Deterministic verdict on one trial (spec §8.6). Produced by code, never by an LLM.",
+  "description": "Deterministic verdict on one trial (spec §8.6). Produced by code, never by an LLM.\n\nThis is the only hard gate (the Reviewer cannot override it), so it cannot pass vacuously:\n`passed` requires every core check to be present with status `passed`.",
   "properties": {
     "checks": {
       "items": {

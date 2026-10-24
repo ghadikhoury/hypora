@@ -122,7 +122,7 @@ class TrialBatchProposal(Record):
             compute_seconds=sum(c.compute_seconds for c in costs),
             usd=sum(c.usd for c in costs),
             gpu=any(c.gpu for c in costs),
-            assumptions=["sum of per-trial estimates"],
+            assumptions=("sum of per-trial estimates",),
         )
 
     @model_validator(mode="after")
@@ -131,6 +131,9 @@ class TrialBatchProposal(Record):
             contenders = [t for t in self.trials if t.kind is not TrialKind.BASELINE]
             if self.halving.promote_top_k >= len(contenders):
                 raise ValueError("successive halving must promote fewer trials than it starts")
+            # One short budget per round: the batch-level one. A per-trial copy may only repeat it.
+            if any(t.short_budget not in (None, self.halving.short_budget) for t in self.trials):
+                raise ValueError("a trial's short_budget must match halving.short_budget")
         return self
 
 

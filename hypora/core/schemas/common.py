@@ -28,13 +28,15 @@ class StrictModel(BaseModel):
     """Base for every schema model.
 
     Unknown fields fail loudly (`extra="forbid"`), NaN/Infinity are rejected in float fields,
-    defaults are validated, and aliases (e.g. `from`) are used when serializing.
+    defaults are validated, assignments are re-validated (so cross-field validators can't be
+    bypassed by setting a field later), and aliases (e.g. `from`) are used when serializing.
     """
 
     model_config = ConfigDict(
         extra="forbid",
         allow_inf_nan=False,
         validate_default=True,
+        validate_assignment=True,
         validate_by_alias=True,
         validate_by_name=True,
         serialize_by_alias=True,
@@ -49,6 +51,22 @@ class Record(StrictModel):
     def content_hash(self) -> str:
         """SHA-256 of this record's canonical JSON (see `hypora.core.hashing`)."""
         return canonical_hash(self.model_dump(mode="json"))
+
+
+class FrozenModel(StrictModel):
+    """Deeply immutable value: frozen, with tuple (never list or dict) sequence fields.
+
+    Every model nested inside a frozen model must itself be frozen, so nothing reachable from it can
+    change after validation (tests/unit/schemas/test_immutability.py walks the whole tree).
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+
+class FrozenRecord(Record):
+    """A top-level record with the same deep immutability as `FrozenModel`."""
+
+    model_config = ConfigDict(frozen=True)
 
 
 # --- Identifier and reference types -------------------------------------------------------------
@@ -277,7 +295,7 @@ class Device(StrEnum):
 # --- Budgets, limits, constraints, estimates ------------------------------------------------------
 
 
-class Budget(StrictModel):
+class Budget(FrozenModel):
     """Run-level limits (spec §6.8 run stop conditions; `runs.budget_*`). Unset = no limit."""
 
     max_usd: NonNegativeFloat | None = Field(None, description="LLM + external API spend, USD.")
@@ -288,7 +306,7 @@ class Budget(StrictModel):
     max_wall_clock_seconds: PositiveFloat | None = None
 
 
-class JobLimits(StrictModel):
+class JobLimits(FrozenModel):
     """Per-job sandbox limits (spec §12 `submit_experiment.limits`, §9.2, §14.3)."""
 
     max_wall_seconds: PositiveInt
@@ -297,17 +315,17 @@ class JobLimits(StrictModel):
     cpu_threads: PositiveInt | None = None
 
 
-class CostEstimate(StrictModel):
+class CostEstimate(FrozenModel):
     """Estimated cost of running something (`estimate_experiment`, spec §8.3)."""
 
     compute_seconds: NonNegativeFloat
     usd: NonNegativeFloat = 0.0
     peak_memory_gb: NonNegativeFloat | None = None
     gpu: bool = False
-    assumptions: list[str] = Field(default_factory=list)
+    assumptions: tuple[str, ...] = ()
 
 
-class ResourceConstraints(StrictModel):
+class ResourceConstraints(FrozenModel):
     """Inference-time constraints the user sets (spec §3 examples, §8.5)."""
 
     max_latency_ms: PositiveFloat | None = None

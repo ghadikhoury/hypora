@@ -164,8 +164,25 @@ class CheckResult(StrictModel):
     evidence_refs: list[RecordRef] = Field(default_factory=list)
 
 
+CORE_VERIFICATION_CHECKS: frozenset[VerificationCheck] = frozenset(
+    {
+        VerificationCheck.METRIC_RECOMPUTATION,
+        VerificationCheck.FINITE_OUTPUTS,
+        VerificationCheck.OUTPUT_SHAPE,
+        VerificationCheck.ARTIFACT_LOADS,
+        VerificationCheck.TEST_LABELS_NOT_ACCESSED,
+    }
+)
+"""Checks that apply to every trial, so a passing result must have run and passed all of them.
+Only the remaining, situational checks (e.g. optimization tolerance, latency) may be skipped."""
+
+
 class VerificationResult(Record):
-    """Deterministic verdict on one trial (spec §8.6). Produced by code, never by an LLM."""
+    """Deterministic verdict on one trial (spec §8.6). Produced by code, never by an LLM.
+
+    This is the only hard gate (the Reviewer cannot override it), so it cannot pass vacuously:
+    `passed` requires every core check to be present with status `passed`.
+    """
 
     trial_id: Identifier
     run_id: Identifier
@@ -180,8 +197,15 @@ class VerificationResult(Record):
         if len(set(names)) != len(names):
             raise ValueError("each check appears at most once")
         failing = any(c.status in (CheckStatus.FAILED, CheckStatus.ERROR) for c in self.checks)
-        if self.passed == failing:
-            raise ValueError("passed must be true exactly when no check failed or errored")
+        if self.passed and failing:
+            raise ValueError("passed cannot be true when a check failed or errored")
+        if not self.passed and not failing:
+            raise ValueError("passed is false only when some check failed or errored")
+        if self.passed:
+            passed_checks = {c.check for c in self.checks if c.status is CheckStatus.PASSED}
+            missing = sorted(CORE_VERIFICATION_CHECKS - passed_checks)
+            if missing:
+                raise ValueError(f"passed requires these core checks to pass: {missing}")
         return self
 
 

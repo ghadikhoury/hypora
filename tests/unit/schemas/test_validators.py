@@ -25,6 +25,7 @@ from hypora.core.schemas import (
     VerificationResult,
     parse_event,
 )
+from hypora.core.schemas.findings import CORE_VERIFICATION_CHECKS
 from hypora.core.schemas.strategy import PriceEstimate
 from hypora.core.schemas.task import LeakageCandidate
 from tests.unit.schemas.helpers import load
@@ -77,6 +78,16 @@ def test_feature_cannot_be_both_allowed_and_excluded() -> None:
     rejects(DataContract, data, "both allowed and excluded")
 
 
+def test_exclusion_evidence_is_a_diagnostic_id_or_a_typed_ref() -> None:
+    data = load("DataContract/yield")
+    data["excluded_features"].append(
+        {"name": "operator_notes", "reason": "user forbade it", "evidence": "task_spec:v1"}
+    )
+    assert DataContract.model_validate(data).excluded_features[1].evidence == "task_spec:v1"
+    data["excluded_features"][1]["evidence"] = "see the task spec"
+    rejects(DataContract, data, "evidence")
+
+
 def test_target_cannot_be_a_feature() -> None:
     data = load("DataContract/yield")
     data["allowed_features"].append("yield")
@@ -124,6 +135,15 @@ def test_leakage_candidate_must_exceed_threshold() -> None:
 def test_profile_cannot_reference_unknown_columns() -> None:
     data = load("DatasetProfile/yield")
     data["tabular"]["candidate_group_keys"][0]["column"] = "plate_id"
+    rejects(DatasetProfile, data, "unknown columns")
+
+
+def test_feature_associations_must_reference_profile_columns() -> None:
+    data = load("DatasetProfile/yield")
+    association = {"score": 0.31, "score_metric": "r2", "method": "single_feature_cv"}
+    data["tabular"]["feature_associations"] = [{"column": "temp", **association}]
+    DatasetProfile.model_validate(data)  # below-threshold stats are allowed here
+    data["tabular"]["feature_associations"] = [{"column": "pressure", **association}]
     rejects(DatasetProfile, data, "unknown columns")
 
 
@@ -197,6 +217,14 @@ def test_halving_must_promote_fewer_than_it_starts() -> None:
     rejects(TrialBatchProposal, data, "promote fewer")
 
 
+def test_halving_has_one_short_budget() -> None:
+    data = load("TrialBatchProposal/microscopy_uncertain_halving")
+    data["trials"][0]["short_budget"] = {"max_epochs": 5}
+    rejects(TrialBatchProposal, data, "must match halving.short_budget")
+    data["trials"][0]["short_budget"] = data["halving"]["short_budget"]
+    TrialBatchProposal.model_validate(data)  # repeating the batch budget is allowed
+
+
 def test_batch_total_cost_is_computed() -> None:
     batch = TrialBatchProposal.model_validate(load("TrialBatchProposal/yield_choice_clear"))
     assert batch.total_estimated_cost.compute_seconds == 260
@@ -206,8 +234,35 @@ def test_batch_total_cost_is_computed() -> None:
 
 
 def test_verification_passed_must_agree_with_checks() -> None:
-    data = load("VerificationResult/microscopy_quantized_failed")
-    rejects(VerificationResult, {**data, "passed": True}, "passed must be true exactly")
+    failed = load("VerificationResult/microscopy_quantized_failed")
+    rejects(VerificationResult, {**failed, "passed": True}, "cannot be true when a check failed")
+    ok = load("VerificationResult/yield_passed")
+    rejects(VerificationResult, {**ok, "passed": False}, "only when some check failed")
+
+
+def test_verification_cannot_pass_vacuously() -> None:
+    all_skipped = {
+        **load("VerificationResult/yield_passed"),
+        "checks": [{"check": "allowed_features", "status": "skipped"}],
+    }
+    rejects(VerificationResult, all_skipped, "core checks to pass")
+
+
+@pytest.mark.parametrize("core_check", sorted(CORE_VERIFICATION_CHECKS))
+def test_verification_pass_needs_every_core_check_passed(core_check: str) -> None:
+    data = load("VerificationResult/yield_passed")
+    skipped = [
+        {**c, "status": "skipped"} if c["check"] == core_check else c for c in data["checks"]
+    ]
+    rejects(VerificationResult, {**data, "checks": skipped}, core_check)
+    missing = [c for c in data["checks"] if c["check"] != core_check]
+    rejects(VerificationResult, {**data, "checks": missing}, core_check)
+
+
+def test_situational_checks_may_be_skipped_on_a_pass() -> None:
+    result = VerificationResult.model_validate(load("VerificationResult/yield_passed"))
+    assert result.passed
+    assert any(c.status == "skipped" for c in result.checks)  # latency_protocol
 
 
 def test_review_follow_up_rules() -> None:

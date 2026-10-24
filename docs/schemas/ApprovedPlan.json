@@ -103,6 +103,7 @@
       "description": "Estimated cost of running something (`estimate_experiment`, spec §8.3).",
       "properties": {
         "assumptions": {
+          "default": [],
           "items": {
             "type": "string"
           },
@@ -207,6 +208,7 @@
           "$ref": "#/$defs/RecommendationKind"
         },
         "option_ids": {
+          "default": [],
           "description": "Options this recommendation selects, in order.",
           "items": {
             "maxLength": 128,
@@ -283,6 +285,7 @@
       "$ref": "#/$defs/Recommendation"
     },
     "requested_dependencies": {
+      "default": [],
       "items": {
         "minLength": 1,
         "type": "string"
@@ -291,6 +294,7 @@
       "type": "array"
     },
     "requested_model_downloads": {
+      "default": [],
       "items": {
         "maxLength": 320,
         "pattern": "^[^\\s@]+@[^\\s@]+$",

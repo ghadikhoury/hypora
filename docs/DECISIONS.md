@@ -98,3 +98,10 @@ one it supersedes.
   - Fixtures are JSON (PyYAML is not pre-approved for S0.2); the §7.2 YAML example is stored as its
     exact JSON equivalent.
   - pydantic is pinned (named in spec §22).
+  - `Brief` also requires `run_id`, `issued_by`, and `assigned_role` (the controller checks the worker
+    role against `output_schema`); the spec §6.4 example now includes them. `ToolError` requires
+    `error_class`; the spec §12 example includes it.
+  - Added in review: contracts are deeply frozen (nested models frozen, tuples for sequences);
+    `VerificationResult.passed` requires every core check to pass; `ExcludedFeature.evidence` also
+    accepts a typed reference (e.g. `task_spec:v1`); profiles may carry `feature_associations`
+    for unflagged features; a halving batch has one short budget.

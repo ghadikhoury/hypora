@@ -10,7 +10,6 @@ from hypora.core.schemas import (
     SCHEMAS,
     DataContract,
     EventType,
-    ExperimentContract,
     MetricDirection,
     MetricName,
     RunStatus,
@@ -67,10 +66,10 @@ def test_nan_is_rejected_in_float_fields() -> None:
         TaskSpecification.model_validate(data)
 
 
-def test_experiment_contract_is_immutable() -> None:
-    contract = ExperimentContract.model_validate(load("ExperimentContract/yield"))
-    with pytest.raises(ValidationError, match="frozen"):
-        contract.seed = 7  # type: ignore[misc]
+def test_assignment_reruns_cross_field_validators() -> None:
+    spec = TaskSpecification.model_validate(load("TaskSpecification/microscopy"))
+    with pytest.raises(ValidationError, match="quality_target requires primary_metric"):
+        spec.primary_metric = None
 
 
 def test_event_types_are_the_spec_list_plus_d003() -> None:

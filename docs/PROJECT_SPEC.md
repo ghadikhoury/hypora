@@ -267,6 +267,9 @@ Every delegation from a Lead to a worker is a structured object with four requir
 ```json
 {
   "brief_id": "brf_0192",
+  "run_id": "run_104",
+  "issued_by": "research_lead",
+  "assigned_role": "research_worker",
   "objective": "Assess whether 'microsoft/resnet-18' is suitable for 6-class fluorescence microscopy at 512x512 with 1,200 labeled images.",
   "output_schema": "ResearchFinding",
   "allowed_tools": ["get_model_evidence", "retrieve_methodology"],

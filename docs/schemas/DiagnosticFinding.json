@@ -100,12 +100,21 @@
       "additionalProperties": false,
       "properties": {
         "evidence": {
-          "description": "ID of the supporting diagnostic, e.g. 'diag_017'.",
-          "maxLength": 128,
-          "minLength": 1,
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-          "title": "Evidence",
-          "type": "string"
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            {
+              "maxLength": 512,
+              "pattern": "^[a-z][a-z0-9_]*:\\S+$",
+              "type": "string"
+            }
+          ],
+          "description": "A diagnostic ID as in spec §7.2 ('diag_017'), or a typed reference such as 'task_spec:v1' when the exclusion comes from the user's own instruction.",
+          "title": "Evidence"
         },
         "name": {
           "minLength": 1,

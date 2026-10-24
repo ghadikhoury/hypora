@@ -1,6 +1,10 @@
 """Contracts and approvals: DataContract (spec §7.2), ApprovedPlan and ExperimentContract (§5.2),
 and ApprovalRecord (§10.2).
 
+Immutability: DataContract, ApprovedPlan, ExperimentContract, and ApprovalRecord are deeply frozen
+(every nested model is frozen and every sequence is a tuple), so a validated contract cannot drift
+into a state its validators would reject.
+
 Hashing rule: a record's hash is never stored inside the record. It is always recomputed with
 `content_hash()` (canonical JSON, `hypora.core.hashing`), so it can't go stale or be forged; the
 DB keeps it in its own column (`experiment_contracts.hash`, `approvals.artifact_hash`).
@@ -11,7 +15,6 @@ from enum import StrEnum
 from typing import Annotated, Literal, Self
 
 from pydantic import (
-    ConfigDict,
     Field,
     NonNegativeFloat,
     PositiveInt,
@@ -23,15 +26,16 @@ from hypora.core.schemas.common import (
     ApprovalPolicy,
     Budget,
     Family,
+    FrozenModel,
+    FrozenRecord,
     Identifier,
     JobLimits,
     MetricName,
     NonEmptyStr,
     PinnedModelRef,
-    Record,
+    RecordRef,
     ResourceConstraints,
     Sha256Hex,
-    StrictModel,
     TaskType,
     UtcDatetime,
 )
@@ -62,7 +66,7 @@ ValidationScheme = Annotated[
 _SHUFFLED_FOLDS = re.compile(r"^(kfold|stratified_kfold)_")
 
 
-class SplitSpec(StrictModel):
+class SplitSpec(FrozenModel):
     """How held-out data is carved (spec §7.2 `split`, plus `time_key` per D-004)."""
 
     strategy: SplitStrategy
@@ -89,67 +93,70 @@ class SplitSpec(StrictModel):
         return self
 
 
-class ExcludedFeature(StrictModel):
+class ExcludedFeature(FrozenModel):
     name: NonEmptyStr
     reason: NonEmptyStr
-    evidence: Identifier = Field(description="ID of the supporting diagnostic, e.g. 'diag_017'.")
+    evidence: Identifier | RecordRef = Field(
+        description="A diagnostic ID as in spec §7.2 ('diag_017'), or a typed reference such as "
+        "'task_spec:v1' when the exclusion comes from the user's own instruction."
+    )
 
 
-class UnitConversion(StrictModel):
+class UnitConversion(FrozenModel):
     column: NonEmptyStr
     from_: NonEmptyStr = Field(alias="from")
     to: NonEmptyStr
 
 
-class DtypeCast(StrictModel):
+class DtypeCast(FrozenModel):
     column: NonEmptyStr
     dtype: NonEmptyStr
 
 
-class MissingMarker(StrictModel):
+class MissingMarker(FrozenModel):
     column: NonEmptyStr
-    values: list[str | int | float] = Field(min_length=1)
+    values: tuple[str | int | float, ...] = Field(min_length=1)
 
 
 # Non-learned fixes (spec §2): row-wise, no statistics from the data. Each list item has exactly one
 # key naming the fix, matching the spec's YAML form, e.g. `- parse_datetime: prep_date`.
 
 
-class ParseDatetimeFix(StrictModel):
+class ParseDatetimeFix(FrozenModel):
     parse_datetime: NonEmptyStr
 
 
-class UnitConvertFix(StrictModel):
+class UnitConvertFix(FrozenModel):
     unit_convert: UnitConversion
 
 
-class DropColumnFix(StrictModel):
+class DropColumnFix(FrozenModel):
     drop_column: NonEmptyStr
 
 
-class CastDtypeFix(StrictModel):
+class CastDtypeFix(FrozenModel):
     cast_dtype: DtypeCast
 
 
-class SetMissingFix(StrictModel):
+class SetMissingFix(FrozenModel):
     set_missing: MissingMarker
 
 
 NonLearnedFix = ParseDatetimeFix | UnitConvertFix | DropColumnFix | CastDtypeFix | SetMissingFix
 
 
-class DataContract(Record):
+class DataContract(FrozenRecord):
     """Model-independent data decisions (spec §7.2, field for field, plus `split.time_key`)."""
 
     data_contract_version: PositiveInt
     target: NonEmptyStr
     task_type: TaskType
-    allowed_features: list[NonEmptyStr] = Field(min_length=1)
-    excluded_features: list[ExcludedFeature] = Field(default_factory=list)
+    allowed_features: tuple[NonEmptyStr, ...] = Field(min_length=1)
+    excluded_features: tuple[ExcludedFeature, ...] = ()
     split: SplitSpec
-    non_learned_fixes: list[NonLearnedFix] = Field(default_factory=list)
-    risks: list[str] = Field(default_factory=list)
-    open_questions: list[str] = Field(default_factory=list)
+    non_learned_fixes: tuple[NonLearnedFix, ...] = ()
+    risks: tuple[str, ...] = ()
+    open_questions: tuple[str, ...] = ()
 
     @model_validator(mode="after")
     def _features_consistent(self) -> Self:
@@ -168,14 +175,12 @@ class DataContract(Record):
 # --- ApprovedPlan and ExperimentContract (spec §5.2 Join+Gate, stage 4) ---------------------------
 
 
-class ApprovedPlan(Record):
+class ApprovedPlan(FrozenRecord):
     """The artifact shown at the plan + budget gate (spec §5.2, §10.2).
 
     It is "approved" when an ApprovalRecord with decision `approved` references its
     `content_hash()`. Any change produces a different hash, so approval resets.
     """
-
-    model_config = ConfigDict(frozen=True)
 
     run_id: Identifier
     version: PositiveInt
@@ -185,14 +190,12 @@ class ApprovedPlan(Record):
     data_contract_hash: Sha256Hex = Field(description="content_hash() of that DataContract.")
     budget: Budget
     approval_policy: ApprovalPolicy
-    requested_model_downloads: list[PinnedModelRef] = Field(default_factory=list)
-    requested_dependencies: list[NonEmptyStr] = Field(default_factory=list)
+    requested_model_downloads: tuple[PinnedModelRef, ...] = ()
+    requested_dependencies: tuple[NonEmptyStr, ...] = ()
 
 
-class ExperimentContract(Record):
+class ExperimentContract(FrozenRecord):
     """Frozen, versioned terms of Phase B (spec §5.2 stage 4). Changes create a new version."""
-
-    model_config = ConfigDict(frozen=True)
 
     run_id: Identifier
     version: PositiveInt
@@ -203,7 +206,7 @@ class ExperimentContract(Record):
     target: NonEmptyStr
     data_contract: DataContract
     primary_metric: MetricName
-    secondary_metrics: list[MetricName] = Field(default_factory=list)
+    secondary_metrics: tuple[MetricName, ...] = ()
     quality_threshold: float | None = Field(None, description="Pass mark on primary_metric.")
     max_quality_degradation: NonNegativeFloat | None = Field(
         None, description="Allowed primary-metric loss for optimization variants."
@@ -211,10 +214,10 @@ class ExperimentContract(Record):
     resource_constraints: ResourceConstraints = Field(default_factory=ResourceConstraints)
     budget: Budget
     default_job_limits: JobLimits
-    approved_model_refs: list[PinnedModelRef] = Field(default_factory=list)
-    approved_dependencies: list[NonEmptyStr] = Field(default_factory=list)
-    approved_download_hosts: list[NonEmptyStr] = Field(
-        default_factory=list, description="Egress allowlist for the prep step (spec §14.3)."
+    approved_model_refs: tuple[PinnedModelRef, ...] = ()
+    approved_dependencies: tuple[NonEmptyStr, ...] = ()
+    approved_download_hosts: tuple[NonEmptyStr, ...] = Field(
+        (), description="Egress allowlist for the prep step (spec §14.3)."
     )
     seed: int = 0
 
@@ -255,7 +258,7 @@ class ApprovalDecision(StrEnum):
     DENIED = "denied"
 
 
-class ApprovalRecord(Record):
+class ApprovalRecord(FrozenRecord):
     """A human (or `auto_within_contract` policy) decision on one exact artifact hash."""
 
     approval_id: Identifier

@@ -5,6 +5,7 @@
       "description": "Estimated cost of running something (`estimate_experiment`, spec §8.3).",
       "properties": {
         "assumptions": {
+          "default": [],
           "items": {
             "type": "string"
           },

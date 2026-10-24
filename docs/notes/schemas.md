@@ -45,7 +45,13 @@ Every number in a report comes from platform-computed results (spec principle 3,
   an attempted call to a tool that does not exist.
 - `PinnedModelRef` (`name@revision`) is required wherever weights are run or downloaded; a user-named
   model without a revision is a `ModelName`.
-- `ExperimentContract` and `ApprovedPlan` are frozen; changes are new versions with new hashes.
+- `DataContract`, `ApprovedPlan`, `ExperimentContract`, and `ApprovalRecord` are **deeply** frozen:
+  they and every model reachable from them subclass `FrozenModel`/`FrozenRecord`, and every sequence
+  is a tuple. Nothing inside a validated contract can change, so its validators can't be bypassed by
+  mutating it later (a test walks the whole object tree). Changes are new versions with new hashes.
+- Other records set `validate_assignment=True`, so assigning a field re-runs its validators.
+- `VerificationResult.passed` cannot be vacuous: it requires the five core checks
+  (`CORE_VERIFICATION_CHECKS`) to be present and `passed`; only situational checks may be skipped.
 
 **Known follow-up for S3.H1.** Its Done-when says "the first event after role start is always a plan".
 The plan is produced by a model call, and `model_call` is logged when that call returns, so the literal

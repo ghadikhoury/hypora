@@ -107,6 +107,38 @@
       "title": "DatasetModality",
       "type": "string"
     },
+    "FeatureAssociation": {
+      "additionalProperties": false,
+      "description": "Single-feature association with the target, for any feature (spec §5.2 \"per-feature\ntarget-association statistics\"). Flagged ones are also listed as LeakageCandidate.",
+      "properties": {
+        "column": {
+          "minLength": 1,
+          "title": "Column",
+          "type": "string"
+        },
+        "method": {
+          "description": "e.g. 'single_feature_cv_decision_tree'.",
+          "minLength": 1,
+          "title": "Method",
+          "type": "string"
+        },
+        "score": {
+          "title": "Score",
+          "type": "number"
+        },
+        "score_metric": {
+          "$ref": "#/$defs/MetricName"
+        }
+      },
+      "required": [
+        "column",
+        "score",
+        "score_metric",
+        "method"
+      ],
+      "title": "FeatureAssociation",
+      "type": "object"
+    },
     "GroupKeyCandidate": {
       "additionalProperties": false,
       "description": "A column whose rows share targets more than chance (spec §5.2, PLAN.md S1.1).",
@@ -333,6 +365,13 @@
           "minimum": 0.0,
           "title": "Duplicate Fraction",
           "type": "number"
+        },
+        "feature_associations": {
+          "items": {
+            "$ref": "#/$defs/FeatureAssociation"
+          },
+          "title": "Feature Associations",
+          "type": "array"
         },
         "id_like_columns": {
           "items": {

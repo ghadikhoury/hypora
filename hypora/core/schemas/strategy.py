@@ -9,6 +9,7 @@ from pydantic import Field, NonNegativeFloat, model_validator
 from hypora.core.schemas.common import (
     Confidence,
     CostEstimate,
+    FrozenModel,
     Identifier,
     NonEmptyStr,
     Record,
@@ -103,15 +104,15 @@ class RecommendationKind(StrEnum):
     INFEASIBLE = "infeasible"
 
 
-class Recommendation(StrictModel):
+class Recommendation(FrozenModel):
     kind: RecommendationKind
-    option_ids: list[Identifier] = Field(
-        default_factory=list, description="Options this recommendation selects, in order."
+    option_ids: tuple[Identifier, ...] = Field(
+        (), description="Options this recommendation selects, in order."
     )
     rationale: NonEmptyStr
 
 
-class ProposedMeasurement(StrictModel):
+class ProposedMeasurement(FrozenModel):
     """One candidate the Phase B plan would measure (spec §7.1 'proposed Phase B plan')."""
 
     option_id: Identifier
@@ -120,8 +121,8 @@ class ProposedMeasurement(StrictModel):
     estimated_cost: CostEstimate
 
 
-class ProposedPhaseBPlan(StrictModel):
-    measurements: list[ProposedMeasurement] = Field(min_length=1)
+class ProposedPhaseBPlan(FrozenModel):
+    measurements: tuple[ProposedMeasurement, ...] = Field(min_length=1)
     notes: str = ""
 
     @property
@@ -132,7 +133,7 @@ class ProposedPhaseBPlan(StrictModel):
             compute_seconds=sum(c.compute_seconds for c in costs),
             usd=sum(c.usd for c in costs),
             gpu=any(c.gpu for c in costs),
-            assumptions=["sum of per-measurement estimates"],
+            assumptions=("sum of per-measurement estimates",),
         )
 
 

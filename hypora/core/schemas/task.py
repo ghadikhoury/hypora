@@ -217,6 +217,16 @@ class TimestampColumn(StrictModel):
     n_duplicate_timestamps: NonNegativeInt = 0
 
 
+class FeatureAssociation(StrictModel):
+    """Single-feature association with the target, for any feature (spec §5.2 "per-feature
+    target-association statistics"). Flagged ones are also listed as LeakageCandidate."""
+
+    column: NonEmptyStr
+    score: float
+    score_metric: MetricName
+    method: NonEmptyStr = Field(description="e.g. 'single_feature_cv_decision_tree'.")
+
+
 class LeakageCandidate(StrictModel):
     """A feature that alone predicts the target suspiciously well (a candidate, not a verdict)."""
 
@@ -248,6 +258,7 @@ class TabularProfile(StrictModel):
     candidate_group_keys: list[GroupKeyCandidate] = Field(default_factory=list)
     timestamp_columns: list[TimestampColumn] = Field(default_factory=list)
     leakage_candidates: list[LeakageCandidate] = Field(default_factory=list)
+    feature_associations: list[FeatureAssociation] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _columns_consistent(self) -> Self:
@@ -261,6 +272,7 @@ class TabularProfile(StrictModel):
             + [c.column for c in self.candidate_group_keys]
             + [c.column for c in self.timestamp_columns]
             + [c.column for c in self.leakage_candidates]
+            + [c.column for c in self.feature_associations]
             + ([self.target.column] if self.target else [])
         )
         missing = sorted(set(referenced) - set(names))

@@ -76,6 +76,7 @@
       "description": "Estimated cost of running something (`estimate_experiment`, spec §8.3).",
       "properties": {
         "assumptions": {
+          "default": [],
           "items": {
             "type": "string"
           },
@@ -255,6 +256,7 @@
           "$ref": "#/$defs/RecommendationKind"
         },
         "option_ids": {
+          "default": [],
           "description": "Options this recommendation selects, in order.",
           "items": {
             "maxLength": 128,
