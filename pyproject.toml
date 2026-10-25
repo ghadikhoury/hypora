@@ -5,6 +5,8 @@ description = "Agent-powered autonomous ML engineering platform (CIS 1990 final 
 requires-python = "==3.12.*"
 dependencies = [
     "alembic==1.20.1",
+    "google-genai==2.31.0",
+    "openai==3.35.1",
     "pydantic==2.13.5",
     "pydantic-settings[yaml]==2.15.0",
     "sqlalchemy==2.1.6",
@@ -79,7 +81,12 @@ warn_required_dynamic_aliases = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "hypora/storage/tests"]
-addopts = ["--import-mode=importlib", "-ra", "--strict-markers", "--strict-config"]
+# Live provider calls never run by default (make test-live opts in; see tests/live/).
+addopts = ["--import-mode=importlib", "-ra", "--strict-markers", "--strict-config", "-m", "not live"]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
-markers = ["docker: integration tests requiring Docker and the pinned gitleaks image"]
+markers = [
+    "docker: integration tests requiring Docker and the pinned gitleaks image",
+    "live: real LLM provider calls; skipped unless selected (make test-live)",
+    "paid: live calls that spend money; run only on explicit request (-m 'live and paid')",
+]

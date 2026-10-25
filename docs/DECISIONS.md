@@ -105,3 +105,61 @@ one it supersedes.
     `VerificationResult.passed` requires every core check to pass; `ExcludedFeature.evidence` also
     accepts a typed reference (e.g. `task_spec:v1`); profiles may carry `feature_associations`
     for unflagged features; a halving batch has one short budget.
+
+## D-007 — Dev models, Gemini rate limits, and how the eval model will be chosen
+- Date: 2026-10-24
+- Step: S0.5
+- Decided by: Ghadi
+- Options considered for the dev `lead` tier: (a) `gemini-3.6-flash`, if its daily limit were in
+  the hundreds; (b) Flash-Lite for every tier (recommended); (c) `gemini-3.8-flash` at 20
+  requests/day. (a) fails its own condition: `gemini-3.6-flash` allows only 20 requests/day.
+- Decision:
+  - **Dev profile:** `gemini-3.5-flash-lite` for `lead`, `worker`, and `cheap` (temperature 1.0,
+    Google's recommendation for Gemini 3), on a dedicated Google project named "Hypora" with its
+    own free-tier key in `.env`. Quotas are per project, so nothing else consumes Hypora's quota.
+  - **Free-tier limits** (Google AI Studio rate-limit page, read by Ghadi on 2026-10-24), all in
+    `configs/models.yaml` → `rate_limits`:
+
+    | Model | Requests/min | Tokens/min | Requests/day |
+    |---|---|---|---|
+    | gemini-3.8-flash | 5 | 250K | 20 |
+    | gemini-3.6-flash | 5 | 250K | 20 |
+    | gemini-3.5-flash-lite | 15 | 250K | 500 |
+    | gemini-3.1-flash-lite | 15 | 250K | 500 |
+
+  - **The adapter rate-limits itself below these limits** (`headroom: 0.9`, so at most 13 RPM,
+    225K TPM, and 450 RPD on Flash-Lite), waits instead of spinning when a minute window is full,
+    stops cleanly with a clear error when the daily cap is reached, and never retries in a tight
+    loop (exponential backoff with jitter, at least 1 s, at most 3 retries; daily-quota errors
+    are never retried).
+  - **Flash-Lite is the smallest tier: dev and plumbing only.** Dev results on it mean "does the
+    system work", not "how good is Hypora".
+  - **Dev fallback to OpenAI stays disabled until S2.6**, since there is no OpenAI funding for
+    development (`dev.fallback.enabled: false`). The fallback code path is implemented and tested.
+  - **The recorded eval and demo model is NOT decided yet.** At S2.6, run the dev trap cases
+    (leakage, grouped data, nothing-to-train, OOM recovery, injection) on three candidates:
+    `gemini-3.5-flash-lite`; a full Gemini Flash model with billing enabled on the Hypora project
+    only; and one OpenAI mini-class model. Compute **cost per pass = total dollars / traps passed**
+    from the run ledger's token counts and each provider's list price (`configs/prices.yaml`).
+    Only compare models that pass both the leakage and grouped-data traps. If the pass-rate
+    Wilson intervals overlap, pick the cheaper one. Pin the winner in the `eval` profile for
+    every recorded eval, with no fallback.
+- Why: the free tier's daily limits make Flash-Lite the only Gemini model usable for daily
+  development; choosing the eval model by measured cost per passed trap, instead of up front,
+  keeps the recorded results honest and the spend proportional to quality.
+- Consequences: `configs/models.yaml` dev tiers, `rate_limits`, and `retry`; `eval` placeholders
+  stay until S2.6. This supersedes PLAN.md §1's "eval = OpenAI": the eval provider is decided at
+  S2.6 by the procedure above (PLAN.md §1 and AGENTS.md note this). S2.6 remains the only
+  `🧑 HUMAN · DECIDE` for the model choice.
+
+## D-008 — S0.5 live tests use Gemini only; the OpenAI live call waits for S2.6
+- Date: 2026-10-24
+- Step: S0.5
+- Decided by: Ghadi ("use Gemini for the test run since it is free; we will only use OpenAI when
+  we are actually evaluating")
+- Decision: `make test-live` runs only free-tier Gemini tests. The OpenAI client is implemented and
+  unit-tested offline against recorded response shapes; its live test exists but is marked `paid`
+  and runs only on explicit request (`uv run --locked pytest -m "live and paid"`).
+- Why: no OpenAI spending before the evaluation stage.
+- Consequences: S0.5's "one live call per provider succeeds locally" is met for Gemini; the OpenAI
+  live check happens at S2.6, before any OpenAI candidate is compared.

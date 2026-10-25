@@ -72,6 +72,7 @@ Rules:
 - **Recorded runs never mix models.** In the `eval` profile, a provider failure is retried with backoff and then recorded as a failure — never silently swapped.
 - **Stage gate:** the last step of Stages 1–4 includes running the dev case set on **both** profiles and committing both result sets. This catches Gemini-vs-OpenAI behavior differences at every stage instead of at the end.
 - Changing the `eval` profile after S2.6 invalidates recorded results; it requires `🧑 HUMAN · DECIDE` and a re-run of affected evals.
+- **D-007 (2026-10-24):** the dev profile is `gemini-3.5-flash-lite` for every tier, with self-imposed rate limits from `configs/models.yaml`; dev fallback stays disabled until S2.6; and the `eval` provider/model is no longer fixed to OpenAI: S2.6 chooses it by measured cost per passed trap (`docs/DECISIONS.md` D-007).
 - The two providers also serve as the "two models" required for the F5 MCP evaluation (S5.3).
 
 ---

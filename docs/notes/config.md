@@ -17,7 +17,7 @@ Sources are merged field by field: overriding `flags.defenses.firewall` keeps ev
 | File | Top-level key | Contents |
 |---|---|---|
 | `flags.yaml` | `flags` | spec §19.4 switches + §9.5 parallelism limits |
-| `models.yaml` | `models` | `dev` / `eval` profiles: provider + model + temperature per tier, fallback policy |
+| `models.yaml` | `models` | `dev` / `eval` profiles: provider + model + temperature per tier, fallback policy; per-model `rate_limits` and the `retry` policy (S0.5) |
 | `resources.yaml` | `resources` | pool overrides (`null` = derive from hardware), memory reserve, LLM concurrency |
 | `budgets.yaml` | `budgets` | default run `Budget` and per-job `JobLimits` (S0.2 schema types) |
 | `eval/<name>.yaml` | — | `name`, `model_profile`, partial `flags` |
@@ -70,5 +70,7 @@ increase scheduler capacity or round a small positive override to zero.
 nothing can change after `build()`. It records the effective flags, both model profiles, budgets,
 resolved pools, and detected hardware; `hash` is its canonical-JSON SHA-256.
 
-**Provisional values.** Model IDs are `placeholder-*` (S0.5 fills dev; S2.6 `🧑 DECIDE` pins eval).
+**Provisional values.** S0.5 set the dev model IDs (D-007); the eval IDs stay `placeholder-*`
+until S2.6 `🧑 DECIDE`. `configs/prices.yaml` is not a settings section: the LLM adapter loads it
+(`hypora.core.llm.pricing`, see llm-adapter.md).
 Budgets and worker limits are placeholders for S4.2 `🧑 DECIDE`.

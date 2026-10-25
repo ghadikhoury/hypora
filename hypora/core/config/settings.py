@@ -101,7 +101,7 @@ def resolve_config_dir(config_dir: Path | str | None = None) -> Path:
     return Path(chosen)
 
 
-def _read_yaml(path: Path) -> dict[str, Any]:
+def read_yaml(path: Path) -> dict[str, Any]:
     """Read one YAML mapping through the pydantic-settings YAML source (the settings class only
     supplies its config; nothing is validated here)."""
     try:
@@ -121,7 +121,7 @@ def _section_files(config_dir: Path) -> tuple[Path, ...]:
         path = config_dir / name
         if not path.is_file():
             raise ConfigError(f"missing config file: {path}")
-        content = _read_yaml(path)
+        content = read_yaml(path)
         if set(content) != {section}:
             raise ConfigError(
                 f"{path}: must contain exactly one top-level key {section!r}, "
@@ -251,7 +251,7 @@ def load_eval_config(name: str, config_dir: Path | str | None = None) -> EvalCon
         known = ", ".join(eval_config_names(config_dir)) or "none"
         raise ConfigError(f"unknown eval config {name!r} (known: {known})")
     try:
-        config = EvalConfig.model_validate(_read_yaml(path))
+        config = EvalConfig.model_validate(read_yaml(path))
     except ValidationError as exc:
         raise ConfigError(f"{path}: {exc}") from None
     if config.name != name:

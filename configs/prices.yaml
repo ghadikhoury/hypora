@@ -1,0 +1,42 @@
+# List prices in USD per 1M tokens, Standard (non-batch) processing (PLAN.md S0.5, spec §19.5).
+# Every entry names its source page and the date it was read. A price that could not be confirmed
+# is null, never guessed; the LLM adapter refuses to call a model whose input or output price is
+# unknown, because budgets could not be enforced. A null cached-input price bills cached tokens at
+# the full input price (an upper bound).
+#
+# Recorded cost is the paid-tier LIST price, also for calls on Gemini's free tier, where the
+# actual spend is $0. Budgets therefore stay conservative and comparable across providers.
+# Add S2.6's candidate models here (with source and date) before they are compared.
+prices:
+  currency: USD
+  models:
+    - provider: gemini
+      model_id: gemini-3.5-flash-lite
+      standard:
+        input_usd_per_mtok: 0.30           # text / image / video / audio
+        cached_input_usd_per_mtok: 0.03    # excludes explicit-cache storage ($1.00 / 1M tokens / hour)
+        cache_write_usd_per_mtok: null     # Gemini reports no cache-write tokens
+        output_usd_per_mtok: 2.50          # includes thinking tokens
+      long_context: null                   # flat price at every prompt length
+      source: https://ai.google.dev/gemini-api/docs/pricing
+      retrieved_on: 2026-10-24
+      notes: Page last updated 2026-10-22. Free tier is free of charge.
+
+    - provider: openai
+      model_id: gpt-6-luna
+      standard:
+        input_usd_per_mtok: 0.10
+        cached_input_usd_per_mtok: 0.01
+        cache_write_usd_per_mtok: 0.125    # 30-minute retention (the default; 12 h costs $0.25)
+        output_usd_per_mtok: 0.50
+      long_context:                        # prompts over 272K input tokens: 2x input/cache, 1.5x output
+        above_input_tokens: 272000
+        input_usd_per_mtok: 0.20
+        cached_input_usd_per_mtok: 0.02
+        cache_write_usd_per_mtok: 0.25
+        output_usd_per_mtok: 0.75
+      source: https://developers.openai.com/api/docs/models/gpt-6-luna
+      retrieved_on: 2026-10-24
+      notes: >-
+        Long-context prices derived from the page's stated rule ("2x input and cache rates and
+        1.5x output for the full request"). Only used by the opt-in paid live test until S2.6.
