@@ -31,8 +31,8 @@ build-backend = "uv_build"
 
 [tool.uv]
 required-version = ">=0.12.17"
-# The repo lives on the Windows drive (/mnt/c) while uv's cache is on the WSL filesystem, where
-# hardlinks are impossible; copy explicitly instead of warning on every sync.
+# Copy dependencies explicitly so syncing works even when the checkout and uv cache cannot
+# share hardlinks. Development checkouts live on the WSL filesystem (AGENTS.md).
 link-mode = "copy"
 
 [tool.uv.build-backend]
@@ -90,7 +90,7 @@ init_typed = true
 warn_required_dynamic_aliases = true
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "hypora/storage/tests"]
+testpaths = ["tests"]
 # Live provider calls never run by default (make test-live opts in; see tests/live/).
 addopts = ["--import-mode=importlib", "-ra", "--strict-markers", "--strict-config", "-m", "not live"]
 asyncio_mode = "strict"

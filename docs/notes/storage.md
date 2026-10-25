@@ -104,7 +104,7 @@ garbage collection or training checkpoint recovery (S3.E3).
 
 ## Acceptance evidence
 
-`hypora/storage/tests/` is collected by `make check` (added to pytest's `testpaths`). Tests cover all
+`tests/storage/` is collected by `make check` through pytest's root `tests/` path. Tests cover all
 S0.2 event fixtures, invalid writes, UTC normalization, foreign keys, rollback, schema/migration
 parity, immutable log rows, pure/incremental replay, exact budget assertions, retry deduplication,
 six real thread writers, four spawned process writers, and a spawned artifact writer killed after
