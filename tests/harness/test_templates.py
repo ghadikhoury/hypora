@@ -59,3 +59,40 @@ def test_templates_accept_null_boolean_and_datetime_features(template, monkeypat
     y = pd.Series([0, 1] * 3)
     model = module.fit(TrainData(X, y), TrialContext(314, "binary_classification"))
     assert module.predict(model, X.iloc[:2]).values.shape == (2,)
+
+
+@pytest.mark.parametrize("template", ["dummy", "linear", "gradient_boosting"])
+@pytest.mark.parametrize("categorical_kind", ["nullable_string", "datetime"])
+def test_categorical_preprocessing_handles_supported_dtypes_separately(
+    template,
+    categorical_kind,
+    monkeypatch,
+):
+    """Isolate the review failures; mixed object columns can mask datetime rejection."""
+    monkeypatch.setitem(sys.modules, "runtime", runtime)
+    spec = importlib.util.spec_from_file_location("template", TEMPLATES / template / "pipeline.py")
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    if categorical_kind == "nullable_string":
+        category = pd.Series(["a", "b", pd.NA, "a", "b", "a"], dtype="string")
+        future_category = pd.Series(["unseen", pd.NA], dtype="string")
+    else:
+        category = pd.Series(pd.date_range("2026-01-01", periods=6))
+        future_category = pd.Series([pd.Timestamp("2030-01-01"), pd.NaT])
+    X = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0], "category": category})
+    future = pd.DataFrame({"x": [7.0, 8.0], "category": future_category})
+    model = module.fit(
+        TrainData(X, pd.Series([0, 1] * 3), future, pd.Series([0, 1])),
+        TrialContext(314, "binary_classification"),
+    )
+    categorical = model["preparation"].named_transformers_["categorical"]
+    before = [values.copy() for values in categorical["encode"].categories_]
+    prediction = module.predict(model, future)
+    assert prediction.values.shape == (2,)
+    assert np.isfinite(prediction.probabilities).all()
+    np.testing.assert_allclose(prediction.probabilities.sum(axis=1), 1)
+    # Missing prediction inputs use the training mode; new values never refit the vocabulary.
+    assert not pd.isna(categorical["impute"].statistics_).any()
+    for old, current in zip(before, categorical["encode"].categories_, strict=True):
+        np.testing.assert_array_equal(old, current)

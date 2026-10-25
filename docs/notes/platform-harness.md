@@ -75,6 +75,12 @@ positive class is the second sorted training label. Learned imputation/scaling/e
 fit(); predict() only applies saved transforms. Baseline, linear/logistic, and HistGradientBoosting
 templates handle regression, binary, and multiclass classification.
 
+The categorical branch first applies the row-wise string normalizer, converting nullable
+string/datetime values to strings and missing entries to NumPy NaN before imputation. The
+normalizer stays in the fitted pipeline so prediction uses the same representation and the
+training-derived imputation/category vocabulary. Separate unit and real-Docker regressions
+cover nullable strings with pd.NA and a datetime-only categorical branch for every template.
+
 Validation predictions.parquet contains fold, row_id, prediction, and classification p_N columns.
 Platform code reads that saved file back to recompute each fold's metrics. metrics.json contains
 per-fold results; test-predictions.parquet and test-metrics.json retain final-test evidence separately.

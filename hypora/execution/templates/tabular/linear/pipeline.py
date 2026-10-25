@@ -7,6 +7,7 @@ from sklearn.impute import SimpleImputer  # type: ignore[import-untyped]
 from sklearn.linear_model import LogisticRegression, Ridge  # type: ignore[import-untyped]
 from sklearn.pipeline import Pipeline  # type: ignore[import-untyped]
 from sklearn.preprocessing import (  # type: ignore[import-untyped]
+    FunctionTransformer,
     OneHotEncoder,
     StandardScaler,
 )
@@ -40,6 +41,8 @@ def fit(train: TrainData, ctx: TrialContext):
                 "categorical",
                 Pipeline(
                     [
+                        # Normalize pd.NA/NaT before the training-only imputer.
+                        ("strings", FunctionTransformer(_categorical_strings)),
                         (
                             "impute",
                             SimpleImputer(strategy="most_frequent", keep_empty_features=True),

@@ -335,3 +335,37 @@ def test_harness_planner_runs_fit_and_prediction_via_real_worker_queue(
             ]
     finally:
         database.close()
+
+
+@pytest.mark.parametrize("template", ["dummy", "linear", "gradient_boosting"])
+@pytest.mark.parametrize("categorical_kind", ["nullable_string", "datetime"])
+def test_categorical_dtypes_survive_parquet_and_real_sandbox_model_loading(
+    template,
+    categorical_kind,
+    frame,
+    contract_factory,
+    tmp_path,
+    sandbox_image,
+):
+    """Fit, serialize, reload and score each template through real Docker for each regression."""
+    if categorical_kind == "nullable_string":
+        frame["category"] = pd.Series(["a", "b", pd.NA] * 40, dtype="string")
+    else:
+        # It is the only nonnumeric feature; mixed categorical columns cannot hide its dtype.
+        frame["category"] = pd.date_range("2026-01-01", periods=len(frame))
+    frame["y"] = np.tile([0, 1], len(frame) // 2)
+    contract = contract_factory(task="binary_classification")
+    harness = TabularHarness(tmp_path / "execution", sandbox_image, SandboxLauncher())
+    validation = harness.validate(
+        frame,
+        contract,
+        make_trial(tmp_path, template),
+        trial_id="trial_dtype",
+        dataset_ref="unit-test-only:categorical-dtype",
+    )
+    candidate = harness.freeze_candidate(validation, contract)
+    test_scores = harness.score_test(candidate, contract)
+    assert validation.scores["folds"][0]["metrics"]["f1_macro"] is not None
+    assert test_scores["metrics"]["log_loss"] is not None
+    assert len(validation.resources) == 4
+    assert all(stage["status"] == "completed" for stage in validation.resources)
