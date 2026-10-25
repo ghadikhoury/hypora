@@ -19,6 +19,7 @@ reach the job's events are platform-authored, or screened by the data firewall f
 import argparse
 import contextlib
 import hashlib
+import io
 import json
 import logging
 import signal
@@ -26,16 +27,26 @@ import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
+
+import pandas as pd  # type: ignore[import-untyped]
 
 from hypora.core.policy.firewall import DataFirewall
-from hypora.core.schemas import ExperimentContract, JobState, Operation
+from hypora.core.schemas import ExperimentContract, JobState, Operation, VerificationResult
+from hypora.core.verification.verifier import FinalEvidence, StageRecord, verify_final
 from hypora.execution.harness.data import apply_contract
-from hypora.execution.harness.runner import HarnessFailure, TabularHarness, load_tabular
+from hypora.execution.harness.runner import (
+    HarnessFailure,
+    TabularHarness,
+    ValidationResult,
+    load_tabular,
+)
 from hypora.execution.protocol.experiments import (
     HARNESS_DIR,
     OUTCOME_FILE,
     TRIAL_SNAPSHOT_DIR,
     ExperimentOutcome,
+    ExperimentPhase,
     ExperimentRequest,
     OutcomeArtifact,
     StageLog,
@@ -62,6 +73,21 @@ _ARTIFACTS = {
     "predictions": ("predictions.parquet", 512 * 1024**2),
     "manifest": ("manifest.yaml", 64 * 1024**2),
 }
+# A FINAL job also keeps the frozen model and its one test evaluation. The model file is opaque
+# bytes here: it is only ever deserialized inside a sandbox (D-017).
+_FINAL_ARTIFACTS = {
+    **_ARTIFACTS,
+    "model": ("model.joblib", 4 * 1024**3),
+    "test_predictions": ("test-predictions.parquet", 512 * 1024**2),
+    "test_metrics": ("test-metrics.json", 16 * 1024**2),
+}
+
+
+@dataclass(frozen=True)
+class _Final:
+    test_scores: dict[str, Any]
+    verification: VerificationResult
+
 
 # A failed sandbox stage -> (error code, retryable). Infrastructure faults are retryable; a
 # trial's own failure is not (spec §15.5: don't repeat unchanged).
@@ -96,10 +122,12 @@ class _RecordingLauncher(SandboxLauncher):
         self.stages = 0
         self.last_failure: SandboxResult | None = None
         self.last_action = ""
+        self.records: list[StageRecord] = []  # what each stage saw, for verifier v1
 
     def run(self, spec: SandboxSpec, should_abort: AbortCheck = lambda: None) -> SandboxResult:
         if reason := self.abort():  # the job is being stopped: start nothing new
             raise HarnessFailure(f"aborted before stage {self.stages}: {reason}")
+        inputs = sorted(entry.name for entry in spec.mounts.data.iterdir())  # platform-written
         result = super().run(spec, lambda: self.abort() or should_abort())
         action = spec.command[-1]
         append_stage_log(
@@ -112,8 +140,10 @@ class _RecordingLauncher(SandboxLauncher):
                 duration_s=result.duration_s,
                 lines=split_log_lines(result.logs),
                 truncated=result.logs_truncated,
+                inputs=inputs,
             ),
         )
+        self.records.append(StageRecord(action, result.status.value, tuple(inputs)))
         self.stages += 1
         if not result.ok:
             self.last_failure, self.last_action = result, action
@@ -254,6 +284,8 @@ class ExperimentWorker:
         harness = TabularHarness(
             folder / HARNESS_DIR, self.image, launcher, worker_id=self.worker_id
         )
+        failure: tuple[str, str, bool] | None = None
+        final: _Final | None = None
         try:
             # The verified bytes themselves: the harness never reopens the dataset path, so
             # what runs is exactly what was hashed and what the firewall indexed.
@@ -267,11 +299,11 @@ class ExperimentWorker:
                 limits=request.request.limits,
                 source=source,
             )
-        except Exception as exc:
-            code, message, retryable = self._failure(exc, launcher, firewall)
-            failure: tuple[str, str, bool] | None = (code, message, retryable)
-        else:
             failure = _provenance_mismatch(request, result.dataset_fingerprint, result.pipeline)
+            if failure is None and request.phase is ExperimentPhase.FINAL:
+                final = self._finalize(harness, result, contract, launcher, job)
+        except Exception as exc:
+            failure = self._failure(exc, launcher, firewall)
         finally:
             heartbeat.done.set()
             thread.join()
@@ -289,17 +321,24 @@ class ExperimentWorker:
         if failure is not None:
             return self._fail(job, (request, launcher), *failure)
 
-        artifacts = self._store_artifacts(job, result.artifacts)
+        kinds = _FINAL_ARTIFACTS if final is not None else _ARTIFACTS
+        artifacts = self._store_artifacts(job, result.artifacts, kinds)
         # The saved metrics.json, not the in-memory dict: exactly what was recorded, plain JSON.
         scores = json.loads(read_output_bytes(result.artifacts, "metrics.json", 16 * 1024**2))
-        upsert_result(
-            self.database,
-            job.trial_id,
-            "validation",
-            scores,
-            {"job_id": job.id, "stages": json.loads(json.dumps(result.resources))},
-        )
-        set_trial_status(self.database, job.trial_id, "validated")
+        resources = {"job_id": job.id, "stages": json.loads(json.dumps(result.resources))}
+        upsert_result(self.database, job.trial_id, "validation", scores, resources)
+        status = "validated"
+        if final is not None:
+            upsert_result(
+                self.database,
+                job.trial_id,
+                "test",
+                final.test_scores,
+                resources,
+                verification=final.verification.model_dump(mode="json"),
+            )
+            status = "verified" if final.verification.passed else "verification_failed"
+        set_trial_status(self.database, job.trial_id, status)
         outcome = ExperimentOutcome(
             job_id=job.id,
             succeeded=True,
@@ -307,15 +346,60 @@ class ExperimentWorker:
             scores=scores,
             stages=launcher.stages,
             limits=request.request.limits,
+            test_scores=final.test_scores if final else None,
+            verification=final.verification if final else None,
         )
         write_json_once(folder / OUTCOME_FILE, outcome)
         try:
             record = self.queue.complete(
-                job.id, self.worker_id, f"validated: {launcher.stages} sandbox stages"
+                job.id, self.worker_id, f"{status}: {launcher.stages} sandbox stages"
             )
         except StaleJobState:
             return ExperimentRun(job.id, None, outcome)
         return ExperimentRun(job.id, record.status, outcome)
+
+    def _finalize(
+        self,
+        harness: TabularHarness,
+        result: ValidationResult,
+        contract: ExperimentContract,
+        launcher: _RecordingLauncher,
+        job: JobRecord,
+    ) -> "_Final":
+        """FINAL phase (D-019): refit on development rows, score the test split once, verify."""
+        frozen = harness.freeze_candidate(result, contract)
+        harness.score_test(frozen, contract)
+        directory = result.artifacts
+
+        def read(name: str, cap: int = 512 * 1024**2) -> bytes:
+            return read_output_bytes(directory, name, cap)
+
+        data = result.prepared
+        split = contract.data_contract.split
+        test_scores = json.loads(read("test-metrics.json", 16 * 1024**2))
+        evidence = FinalEvidence(
+            run_id=job.run_id,
+            trial_id=job.trial_id,
+            contract=contract,
+            feature_columns=tuple(data.features.columns),
+            target=data.target,
+            development_ids=data.development,
+            test_ids=data.test,
+            group_values=data.frame[split.group_key] if split.group_key else None,
+            time_values=data.frame[split.time_key] if split.time_key else None,
+            validation_predictions=pd.read_parquet(
+                io.BytesIO(read("predictions.parquet")), engine="pyarrow"
+            ),
+            validation_scores=json.loads(read("metrics.json", 16 * 1024**2)),
+            test_predictions=pd.read_parquet(
+                io.BytesIO(read("test-predictions.parquet")), engine="pyarrow"
+            ),
+            test_scores=test_scores,
+            stages=tuple(launcher.records),
+            model_sha256=hashlib.sha256(read("model.joblib", 4 * 1024**3)).hexdigest(),
+            frozen_model_sha256=frozen.model_hash,
+        )
+        return _Final(test_scores, verify_final(evidence))
 
     def _firewall(self, dataset: Path, source: bytes, contract: ExperimentContract) -> DataFirewall:
         """Index both the raw data and what trial code sees (after non-learned fixes)."""
@@ -351,10 +435,12 @@ class ExperimentWorker:
             return WITHHELD_MESSAGE
         return message[:400]
 
-    def _store_artifacts(self, job: JobRecord, directory: Path) -> list[OutcomeArtifact]:
+    def _store_artifacts(
+        self, job: JobRecord, directory: Path, kinds: dict[str, tuple[str, int]]
+    ) -> list[OutcomeArtifact]:
         store = ArtifactStore(self.database, self.runs_root / job.run_id / "artifacts")
         stored = []
-        for kind, (name, cap) in _ARTIFACTS.items():
+        for kind, (name, cap) in kinds.items():
             content = read_output_bytes(directory, name, cap)
             artifact = store.write(f"{job.id}.{kind}", job.trial_id, kind, [content])
             stored.append(

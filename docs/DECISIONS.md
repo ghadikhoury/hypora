@@ -385,3 +385,55 @@ one it supersedes.
 - Consequences: docs/notes/mcp-server.md documents the design, the firewall's measured behavior,
   and its residual risks (for S3.D3/S3.D4). S1.5's controller launches the server with a
   `SessionConfig` and runs the experiment worker; the tool contract is frozen once merged.
+
+## D-019 — Controller v1: Stage-1 approval, default data contract, final model, reporter
+- Date: 2026-10-25
+- Step: S1.5
+- Decided by: Ghadi ("1a 2a 3a 4a", the proposed defaults, and "go" for the live run)
+- Options considered and decisions:
+  1. The plan + budget gate before Phase B (spec §10.1), whose interactive form arrives with
+     S3.D2: (a, chosen) the controller builds the plan and contract, records
+     `approval_requested`, and approves the exact plan hash by policy (approver
+     `policy:auto_within_contract`), recorded as `approval_granted`; replaced by the real gate in
+     S3.D2; (b) park the run in `WAITING_APPROVAL` until a manual approval (no CLI before S1.6).
+  2. The data contract without Phase A (S3.A2 builds the Data Lead): (a, chosen) deterministic
+     code: every column except the target and the user's forbidden columns (excluded with
+     evidence `task_spec:v1`); stratified split for classification, random for regression; 20%
+     test, 3-fold validation; default primary metric `roc_auc` (binary), `f1_macro`
+     (multiclass), `mae` (regression). Leakage candidates and ID-like columns are shown to the
+     agent through the profile, not excluded (candidates are not verdicts); (b) also exclude every
+     leakage candidate and ID-like column automatically.
+  3. The verified model: (a, chosen) the agent nominates a trial in its final answer; the
+     controller accepts it only if it is a completed, validated trial of this run, otherwise it
+     takes the best mean primary metric (computed by code); the controller then queues one
+     `final` job in which the experiment worker re-validates that trial's snapshot, refits on
+     development rows, scores the test split once, and runs verifier v1 (in the worker, which
+     holds the test labels; code in `hypora/core/verification/`, with its own metric
+     recomputation); (b) always take the best-by-metric trial.
+  4. Reporter v1: (a, chosen) a deterministic report built from DB records, plus a short LLM
+     narrative that may not contain numbers: placeholders are filled by code from stored metrics,
+     a validator rejects stray digits, and a failed narrative leaves the report without one;
+     (b) deterministic report only.
+- Defaults accepted with these choices: an explicit `(state, event) -> state` transition table
+  (stages INTAKE, PROFILE, CONTRACT, PHASE_B, REPORT, with the spec status alongside, D-005);
+  the single agent is a real MCP stdio client of `python -m hypora.mcp_server` with a
+  controller-written session; the experiment worker runs as a subprocess for the run; prompts in
+  `hypora/core/roles/prompts/*.md` with a version header, `prompt_ref` on every model call;
+  budget, step, token, trial, and wall-clock checks before every model and tool call, a stop
+  emitting an `error` event (`RUN_LIMIT_REACHED`) naming the limit, the amount used, and the
+  maximum; role-local output models in `hypora/core/roles/` (no change to
+  `hypora/core/schemas/` or the frozen MCP contract); the job folder's request gains an optional
+  `phase` (validate / final); the deterministic end-to-end test uses a scripted provider with the
+  real UCI breast-cancer data and the real sandbox.
+- Live run: Ghadi approved free-tier live calls on the dev profile, `gemini-3.5-flash-lite`, with
+  the key of the dedicated Hypora Google project (D-007).
+- Why: the Done-when needs an end-to-end run before S3.D2 and S3.A2 exist; deterministic
+  contract and selection rules keep code in charge of what code can decide (spec principle 2);
+  the verifier must see test labels, which only the execution plane holds (spec principle 3); a
+  narrative without numbers keeps every figure traceable to stored metrics (spec §5.2 Report).
+- Consequences: the Stage-1 approval and contract are placeholders for S3.D2 / S3.A2 and are
+  labeled as such in events and the report. When `flags.agent_mode` or `flags.approval_policy`
+  asks for what Stage 1 does not have (multi-agent roles, the interactive gate), the run says so
+  in its notes rather than appearing to honour it. User cancel (spec §6.8) is a
+  `runs/<run_id>/CANCEL` file until S1.6 gives it a command; a cancelled run reports and ends
+  `CANCELLED`. docs/notes/controller.md documents the design.
