@@ -96,3 +96,46 @@ def test_categorical_preprocessing_handles_supported_dtypes_separately(
     assert not pd.isna(categorical["impute"].statistics_).any()
     for old, current in zip(before, categorical["encode"].categories_, strict=True):
         np.testing.assert_array_equal(old, current)
+
+
+@pytest.mark.parametrize("template", ["dummy", "linear", "gradient_boosting"])
+@pytest.mark.parametrize("timestamp_kind", ["naive", "timezone", "nanosecond"])
+def test_datetime_normalization_and_encoding_do_not_depend_on_batch(
+    template,
+    timestamp_kind,
+    monkeypatch,
+):
+    """An unrelated row must not change a known timestamp's representation or encoded features."""
+    monkeypatch.setitem(sys.modules, "runtime", runtime)
+    spec = importlib.util.spec_from_file_location("template", TEMPLATES / template / "pipeline.py")
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    first = pd.Timestamp("2026-01-01")
+    second = pd.Timestamp("2026-01-02")
+    other = pd.Timestamp("2026-01-03 12:34:56")
+    if timestamp_kind == "timezone":
+        first, second, other = [value.tz_localize("UTC") for value in (first, second, other)]
+    elif timestamp_kind == "nanosecond":
+        first += pd.Timedelta(1, unit="ns")
+        second += pd.Timedelta(1, unit="ns")
+    train = pd.DataFrame({"x": np.zeros(200), "category": [first, second] * 100})
+    single = pd.DataFrame({"x": [0.0], "category": [second]})
+    batch = pd.DataFrame({"x": [0.0, 0.0, 0.0], "category": [second, other, pd.NaT]})
+    assert single["category"].dtype == batch["category"].dtype
+    alone = module._categorical_strings(single[["category"]])
+    together = module._categorical_strings(batch[["category"]])
+    assert alone.iloc[0, 0] == together.iloc[0, 0]
+    assert pd.isna(together.iloc[2, 0])
+    model = module.fit(
+        TrainData(train, pd.Series([0, 1] * 100)), TrialContext(314, "binary_classification")
+    )
+    np.testing.assert_array_equal(
+        model["preparation"].transform(single)[0], model["preparation"].transform(batch)[0]
+    )
+    np.testing.assert_allclose(
+        module.predict(model, single).probabilities[0],
+        module.predict(model, batch).probabilities[0],
+        rtol=0,
+        atol=1e-12,
+    )

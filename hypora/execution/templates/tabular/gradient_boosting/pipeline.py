@@ -18,7 +18,9 @@ from sklearn.preprocessing import (  # type: ignore[import-untyped]
 
 def _categorical_strings(X):
     """Normalize booleans/datetimes to strings while preserving missing entries."""
-    return X.astype("string").astype(object).where(X.notna(), np.nan)
+    # Format each scalar, so a timestamp does not change when other rows are added.
+    # Column-wide datetime astype('string') chooses a format from the whole batch.
+    return X.map(str).astype(object).where(X.notna(), np.nan)
 
 
 def fit(train: TrainData, ctx: TrialContext):

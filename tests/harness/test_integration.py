@@ -369,3 +369,52 @@ def test_categorical_dtypes_survive_parquet_and_real_sandbox_model_loading(
     assert test_scores["metrics"]["log_loss"] is not None
     assert len(validation.resources) == 4
     assert all(stage["status"] == "completed" for stage in validation.resources)
+
+
+@pytest.mark.parametrize("template", ["dummy", "linear", "gradient_boosting"])
+def test_same_serialized_model_predicts_same_timestamp_alone_and_in_batch(
+    template,
+    contract_factory,
+    tmp_path,
+    sandbox_image,
+):
+    """One real fit, then two fresh scoring containers with exactly the same opaque model bytes."""
+    from hypora.execution.harness.data import prepare_data
+    from hypora.execution.harness.runner import digest
+
+    contract = contract_factory(task="binary_classification")
+    frame = pd.DataFrame(
+        {
+            "x": np.zeros(200),
+            "category": [pd.Timestamp("2026-01-01"), pd.Timestamp("2026-01-02")] * 100,
+            "y": [0, 1] * 100,
+        }
+    )
+    data = prepare_data(frame, contract)
+    pipeline = (TEMPLATES / template / "pipeline.py").read_bytes()
+    harness = TabularHarness(tmp_path / "execution", sandbox_image, SandboxLauncher())
+    model = harness._fit(data, data.development, pipeline, contract, {})
+    model_hash = digest(model)
+    single = pd.DataFrame({"x": [0.0], "category": [pd.Timestamp("2026-01-02")]})
+    batch = pd.DataFrame(
+        {
+            "x": [0.0, 0.0, 0.0],
+            "category": [pd.Timestamp("2026-01-02"), pd.Timestamp("2026-01-03 12:34:56"), pd.NaT],
+        }
+    )
+    assert single["category"].dtype == batch["category"].dtype
+    alone, alone_classes = harness._predict(single, model, pipeline, contract, {})
+    together, batch_classes = harness._predict(batch, model, pipeline, contract, {})
+    assert alone_classes == batch_classes
+    np.testing.assert_allclose(
+        alone[["p_0", "p_1"]].iloc[0].to_numpy(),
+        together[["p_0", "p_1"]].iloc[0].to_numpy(),
+        rtol=0,
+        atol=1e-12,
+    )
+    assert alone["prediction"].iloc[0] == together["prediction"].iloc[0]
+    assert digest(model) == model_hash
+    assert len(harness.resources) == 3
+    assert all(stage["status"] == "completed" for stage in harness.resources)
+    scoring = list(harness.planner.specs.values())[1:]
+    assert scoring[0].mounts.out != scoring[1].mounts.out

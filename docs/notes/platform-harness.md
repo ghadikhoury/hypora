@@ -78,7 +78,11 @@ templates handle regression, binary, and multiclass classification.
 The categorical branch first applies the row-wise string normalizer, converting nullable
 string/datetime values to strings and missing entries to NumPy NaN before imputation. The
 normalizer stays in the fitted pipeline so prediction uses the same representation and the
-training-derived imputation/category vocabulary. Separate unit and real-Docker regressions
+training-derived imputation/category vocabulary. Conversion calls str on each scalar, rather
+than choosing a datetime display format for the column, so an identical timestamp has the
+same encoding alone or beside non-midnight timestamps. Batch-invariance tests cover naive,
+timezone-aware, and nanosecond timestamps and compare real-container predictions using the
+same serialized model. Separate unit and real-Docker regressions
 cover nullable strings with pd.NA and a datetime-only categorical branch for every template.
 
 Validation predictions.parquet contains fold, row_id, prediction, and classification p_N columns.
