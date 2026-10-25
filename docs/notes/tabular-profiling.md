@@ -51,6 +51,8 @@ calls or state transitions happen here: this is a pure library, called by later 
 - IDs: near-unique integer-valued numerics (including floats storing integers) or string/
   categorical/text values, monotone integer values (either direction), or >=95% UUID-shaped
   strings. Non-integer continuous measurements and datetime columns are not ID candidates.
+  Known limitation until S2.5 (D-011): the monotone rule is non-strict and also scans the
+  target, so a class-sorted target or a sorted, repeated `batch_id` is reported as ID-like.
 
 ## Bounded output and reproducibility
 

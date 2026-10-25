@@ -2,7 +2,7 @@
 
 Mount-sensitive tests run twice: under pytest's tmp_path and under the repo's git-ignored `runs/`
 directory, where real job directories live. The repo must be on the WSL/Linux filesystem, never
-/mnt/c (docs/notes/dev-environment.md; the Windows-drive measurements are recorded in D-011).
+/mnt/c (docs/notes/dev-environment.md; the Windows-drive measurements are recorded in D-012).
 The real image comes from the session fixture `sandbox_image` in tests/conftest.py.
 """
 

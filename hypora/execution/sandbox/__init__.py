@@ -3,7 +3,7 @@
 - `layout`: the fixed mount layout (/data ro, /trial rw, /harness ro, /out rw-fresh); S1.3 uses it.
 - `spec`: `SandboxSpec`, `SandboxMounts` (validated: real, separate, fresh /out), `SandboxLimits`.
 - `launcher`: `SandboxLauncher.run(spec)`, the hardened container and its supervised lifetime.
-- `outputs`: the ONLY way platform code may read job outputs (never follows links, D-011).
+- `outputs`: the ONLY way platform code may read job outputs (never follows links, D-012).
 - `image`: build and tag the hash-locked sandbox image.
 
 See docs/notes/sandbox-layout.md.

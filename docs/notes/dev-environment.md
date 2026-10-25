@@ -15,7 +15,7 @@ Nothing Hypora runs should have its working directory on the Windows drive.
   broke 13 unrelated `make check` tests that start subprocesses. Processes on ext4 (or in `/`) were
   never affected. Docker Desktop also leaks these bind mounts (632 → 749 during the probes).
 - **Permissions differ.** On `/mnt/c`, Docker Desktop ignores Unix permissions on bind mounts, and
-  FIFOs cannot be created. On ext4 everything behaves like Linux CI (D-011).
+  FIFOs cannot be created. On ext4 everything behaves like Linux CI (D-012).
 - **Speed.** `/mnt/c` is a 9p network share inside WSL: a cold mypy run took about 10 minutes
   there.
 - **Line endings.** Windows tools writing into the checkout can introduce CRLF; on ext4 the tools

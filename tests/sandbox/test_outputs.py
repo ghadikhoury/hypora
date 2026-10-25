@@ -1,4 +1,4 @@
-"""The output reader never follows links (D-011). Host-only: no containers needed."""
+"""The output reader never follows links (D-012). Host-only: no containers needed."""
 
 import hashlib
 import os
