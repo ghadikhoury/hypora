@@ -137,8 +137,23 @@ block) when:
 6. An operation would spend **more than $5 of API credits** in one run, or start GPU jobs.
 7. Tests or the dev eval **regress** and the cause is not clear after one investigation.
 8. The spec is **ambiguous or contradictory**, or something **cannot be implemented as specified**.
+9. A required **real OpenML/UCI dataset cannot be obtained**. List its OpenML/UCI dataset IDs
+   and wait for Ghadi; never substitute synthetic data (PLAN.md §0.4).
 
 Everything else proceeds without asking.
+
+## Real-data rule (PLAN.md §0.4, D-015)
+
+- Evaluation, dev cases, demos, and recorded runs use **real OpenML/UCI datasets** fetched
+  with `scripts/snapshot_dataset.py`, with a manifest entry recording source URL, version,
+  license, retrieval date, and SHA-256 (S1.6).
+- Synthetic data is allowed **only in unit tests and in trap-planting scripts that modify a
+  real dataset**. Never substitute synthetic data for an unavailable real dataset.
+- If a required real dataset cannot be obtained, stop, list the OpenML/UCI dataset IDs, and
+  ask Ghadi how to proceed (trigger 9). Kaggle is not an evaluation source.
+
+This owner decision supersedes the broader public/synthetic dataset allowances in spec §17
+and §19.2 for these uses.
 
 ## Model policy (PLAN.md §1)
 
@@ -156,7 +171,8 @@ Two model profiles live in `configs/models.yaml`:
   both result sets.
 - Changing the `eval` profile after S2.6 invalidates recorded results; it requires
   `🧑 HUMAN · DECIDE` and a re-run of affected evals.
-- Only public or synthetic datasets are used in development (Gemini free-tier data-use terms).
+- Development uses public datasets (Gemini free-tier data-use terms), subject to the Real-data
+  rule above; synthetic data is limited to unit tests and trap-planting scripts on real datasets.
 - Dev results on Flash-Lite answer "does the system work", not "how good is Hypora" (D-007).
 - The adapter enforces each model's published rate limits from `configs/models.yaml` and stops
   cleanly at the daily cap; every model's price lives in `configs/prices.yaml` (source + date).
