@@ -53,8 +53,23 @@ The implementing agent must stop and ask Ghadi when:
 6. An operation would spend **more than $5 of API credits** in one run, or start GPU jobs.
 7. Tests or the dev eval **regress** and the cause is not clear after one investigation.
 8. The spec is **ambiguous or contradictory**, or something **cannot be implemented as specified**.
+9. A required **real OpenML/UCI dataset cannot be obtained**. List its OpenML/UCI dataset IDs
+   and wait for Ghadi; never substitute synthetic data (§0.4).
 
 Everything else proceeds without asking.
+
+### 0.4 Real-data rule (D-015)
+
+- Evaluation, dev cases, demos, and recorded runs use **real OpenML/UCI datasets** fetched
+  with `scripts/snapshot_dataset.py`, with a manifest entry recording source URL, version,
+  license, retrieval date, and SHA-256 (S1.6).
+- Synthetic data is allowed **only in unit tests and in trap-planting scripts that modify a
+  real dataset**. Never substitute synthetic data for an unavailable real dataset.
+- If a required real dataset cannot be obtained, stop, list the OpenML/UCI dataset IDs, and
+  ask Ghadi how to proceed (trigger 9). Kaggle is not an evaluation source.
+
+This owner decision supersedes the broader public/synthetic dataset allowances in spec §17
+and §19.2 for the uses above; it changes no evaluation cases or grading rules.
 
 ---
 

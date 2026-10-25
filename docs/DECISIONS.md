@@ -287,3 +287,21 @@ one it supersedes.
   the same text.
 - Consequences: edit only `AGENTS.md`. A test checks that `CLAUDE.md` contains nothing but the
   import (and an HTML comment pointing to `AGENTS.md`).
+
+## D-015 — Real OpenML/UCI datasets for evaluation and demonstrations
+- Date: 2026-10-25
+- Step: repository consistency follow-up; applies to all stages
+- Decided by: Ghadi (explicit cleanup instructions)
+- Options considered: (a) keep the broad public/synthetic allowances in spec §17 and §19.2;
+  (b) require real OpenML/UCI snapshots for evaluation, dev cases, demos, and recorded runs.
+- Decision: (b). Fetch datasets with `scripts/snapshot_dataset.py` (S1.6) and record a manifest
+  entry with source URL, version, license, retrieval date, and SHA-256. Kaggle is not an
+  evaluation source. Synthetic data is allowed only in unit tests and in trap-planting scripts
+  that modify a real dataset.
+- Why: results and demonstrations must be grounded in documented real data; an unavailable
+  dataset must never silently become a synthetic substitute.
+- Consequences: PLAN.md §0.4 and AGENTS.md carry the rule, and both add stop-and-ask trigger 9:
+  if a required real dataset cannot be obtained, stop, list its OpenML/UCI dataset IDs, and
+  wait for Ghadi. This supersedes the broader synthetic-data allowances in spec §17 and §19.2
+  for these uses. No case, grading rule, hidden split, dependency, or runtime behavior changes.
+  CLAUDE.md remains the D-014 import of AGENTS.md.
