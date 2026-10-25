@@ -71,7 +71,14 @@ OUTPUT_SCHEMA_INVALID = "OUTPUT_SCHEMA_INVALID"
 
 
 class LLMError(Exception):
-    """Base class for every error the adapter raises."""
+    """Base class for every error the adapter raises.
+
+    When raised out of `LLMAdapter.complete`, `total_cost_usd` and `call_ids` cover every
+    `model_call` event that call produced before failing, so billed attempts are never lost.
+    """
+
+    total_cost_usd: float = 0.0
+    call_ids: tuple[str, ...] = ()
 
 
 class ProviderError(LLMError):

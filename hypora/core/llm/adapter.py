@@ -27,7 +27,7 @@ import random
 import time
 import uuid
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from pydantic import BaseModel, JsonValue, ValidationError
@@ -44,12 +44,19 @@ from hypora.core.llm.credentials import ProviderCredentials, load_credentials
 from hypora.core.llm.errors import (
     OUTPUT_SCHEMA_INVALID,
     LLMCallError,
+    LLMError,
     ProviderError,
     StructuredOutputError,
 )
 from hypora.core.llm.pricing import PriceTable, load_price_table
 from hypora.core.llm.providers.base import ProviderClient, ProviderRequest, ProviderResult
-from hypora.core.llm.rate_limit import Clock, ProviderAdmission, Sleep, estimate_tokens
+from hypora.core.llm.rate_limit import (
+    Clock,
+    ProviderAdmission,
+    Reservation,
+    Sleep,
+    estimate_tokens,
+)
 from hypora.core.llm.retry import Backoff
 from hypora.core.llm.sinks import EventSink, IOKind, ModelIOStore, redact
 from hypora.core.llm.types import CallContext, LLMResponse, Message, MessageRole, ToolSpec
@@ -76,6 +83,19 @@ SCHEMA_RETRY_PROMPT = (
 class _Outcome:
     response: LLMResponse
     validation_error: str | None
+
+
+@dataclass
+class _Ledger:
+    """Every `model_call` event one `complete()` produced (attempts with usage, a schema retry,
+    a fallback): their summed list-price cost and their call IDs, for budget accounting."""
+
+    total_cost_usd: float = 0.0
+    call_ids: list[str] = field(default_factory=list)
+
+    def record(self, payload: ModelCallPayload) -> None:
+        self.total_cost_usd += payload.cost_usd
+        self.call_ids.append(payload.call_id)
 
 
 class LLMAdapter:
@@ -190,10 +210,36 @@ class LLMAdapter:
         """
         if not messages:
             raise ValueError("complete() needs at least one message")
-        conversation = tuple(messages)
-        outcome = await self._call_with_fallback(
-            conversation, tier, context, tuple(tools), output_schema, max_output_tokens
+        ledger = _Ledger()
+        try:
+            response = await self._complete(
+                tuple(messages),
+                tier,
+                context,
+                tuple(tools),
+                output_schema,
+                max_output_tokens,
+                ledger,
+            )
+        except LLMError as error:
+            error.total_cost_usd, error.call_ids = ledger.total_cost_usd, tuple(ledger.call_ids)
+            raise
+        return replace(
+            response, total_cost_usd=ledger.total_cost_usd, call_ids=tuple(ledger.call_ids)
         )
+
+    async def _complete(
+        self,
+        conversation: tuple[Message, ...],
+        tier: ModelTier,
+        context: CallContext,
+        tools: tuple[ToolSpec, ...],
+        output_schema: type[BaseModel] | None,
+        max_output_tokens: int | None,
+        ledger: "_Ledger",
+    ) -> LLMResponse:
+        args = (tier, context, tools, output_schema, max_output_tokens, ledger)
+        outcome = await self._call_with_fallback(conversation, *args)
         if outcome.validation_error is None or output_schema is None:
             return outcome.response
         retry_conversation = (
@@ -205,9 +251,7 @@ class LLMAdapter:
                 )
             ),
         )
-        second = await self._call_with_fallback(
-            retry_conversation, tier, context, tuple(tools), output_schema, max_output_tokens
-        )
+        second = await self._call_with_fallback(retry_conversation, *args)
         if second.validation_error is not None:
             raise StructuredOutputError(
                 f"{output_schema.__name__}: output failed validation twice "
@@ -226,10 +270,11 @@ class LLMAdapter:
         tools: tuple[ToolSpec, ...],
         output_schema: type[BaseModel] | None,
         max_output_tokens: int | None,
+        ledger: "_Ledger",
     ) -> _Outcome:
         profile = self._models.profile(self._profile)
         primary = profile.tiers.for_tier(tier)
-        args = (messages, tier, context, tools, output_schema, max_output_tokens)
+        args = (messages, tier, context, tools, output_schema, max_output_tokens, ledger)
         try:
             return await self._call_target(primary, *args, fallback_from=None)
         except LLMCallError as error:
@@ -274,10 +319,16 @@ class LLMAdapter:
         tools: tuple[ToolSpec, ...],
         output_schema: type[BaseModel] | None,
         max_output_tokens: int | None,
+        ledger: "_Ledger",
         *,
         fallback_from: FallbackOrigin | None,
     ) -> _Outcome:
-        """One logical call to one model: rate limit, attempts with backoff, validation, event."""
+        """One logical call to one model: admission, attempts with backoff, validation, events.
+
+        Every attempt with provider-reported usage is billed, so it gets its own `model_call`
+        event (and ledger entry) before any retry; attempts without usage (429, timeouts, ...)
+        are summarized in the next event's `retries` and wait time.
+        """
         price = self._prices.require(target.provider, target.model_id)
         client = self._clients[target.provider]
         call_id = f"mc_{uuid.uuid4().hex[:16]}"
@@ -294,11 +345,15 @@ class LLMAdapter:
         request_json = _request_payload(request)
         input_ref = self._store(context.run_id, call_id, "input", request_json)
         estimated = estimate_tokens(len(json.dumps(request_json)))
-        retries, waited_s, latency_s = 0, 0.0, 0.0
+        retries, waited_s, latency_s, events_emitted = 0, 0.0, 0.0, 0
+
+        def event_id() -> str:
+            # The first event of this call uses the call ID; any later one names its attempt.
+            return call_id if events_emitted == 0 else f"{call_id}-r{retries}"
 
         def event_fields(**fields: Any) -> dict[str, Any]:
             return {
-                "call_id": call_id,
+                "call_id": event_id(),
                 "provider": target.provider,
                 "model_id": target.model_id,
                 "profile": self._profile,
@@ -315,7 +370,23 @@ class LLMAdapter:
                 **fields,
             }
 
+        def failure_payload(error: ProviderError) -> ModelCallPayload:
+            # A failure that reports usage (a completed-but-failed or undecodable response) was
+            # billed: record its tokens and cost.
+            billed = error.usage
+            return ModelCallPayload(
+                **event_fields(
+                    input_tokens=billed.input_tokens if billed else 0,
+                    output_tokens=billed.output_tokens if billed else 0,
+                    cached_input_tokens=billed.cached_input_tokens if billed else 0,
+                    cost_usd=price.cost_usd(billed) if billed else 0.0,
+                    status=CallStatus.ERROR,
+                    error_code=error.kind.error_code,
+                )
+            )
+
         while True:
+            reservation: Reservation | None = None
             try:
                 # Permit first, then the rate-limit slot, then the request: the windows are
                 # charged at the moment of dispatch (rate_limit.ProviderAdmission.dispatch).
@@ -332,27 +403,20 @@ class LLMAdapter:
                     reservation.settle(result.usage.input_tokens)
                 break
             except ProviderError as error:
+                if error.usage is not None and reservation is not None:
+                    reservation.settle(error.usage.input_tokens)
                 if self._backoff.should_retry(error, retries):
+                    if error.usage is not None:
+                        # Billed before the retry: its own event, never folded into the next.
+                        await self._emit(context, failure_payload(error), ledger)
+                        events_emitted += 1
+                        latency_s = waited_s = 0.0  # the next event covers later attempts only
                     delay = self._backoff.delay_s(retries, error.retry_after_s)
                     await self._sleep(delay)
                     waited_s += delay
                     retries += 1
                     continue
-                # A completed-but-undecodable response was billed: record its tokens and cost.
-                billed = error.usage
-                await self._emit(
-                    context,
-                    ModelCallPayload(
-                        **event_fields(
-                            input_tokens=billed.input_tokens if billed else 0,
-                            output_tokens=billed.output_tokens if billed else 0,
-                            cached_input_tokens=billed.cached_input_tokens if billed else 0,
-                            cost_usd=price.cost_usd(billed) if billed else 0.0,
-                            status=CallStatus.ERROR,
-                            error_code=error.kind.error_code,
-                        )
-                    ),
-                )
+                await self._emit(context, failure_payload(error), ledger)
                 raise LLMCallError(
                     f"{target.provider.value}/{target.model_id} failed after {retries} "
                     f"retries: {error}",
@@ -362,6 +426,7 @@ class LLMAdapter:
 
         cost = price.cost_usd(result.usage)
         parsed, validation_error = _validate(output_schema, result)
+        final_id = event_id()
         message = Message(
             role=MessageRole.ASSISTANT,
             content=result.text,
@@ -370,7 +435,7 @@ class LLMAdapter:
         )
         output_ref = self._store(
             context.run_id,
-            call_id,
+            final_id,
             "output",
             {
                 "text": result.text,
@@ -394,9 +459,10 @@ class LLMAdapter:
                     error_code=None if validation_error is None else OUTPUT_SCHEMA_INVALID,
                 )
             ),
+            ledger,
         )
         response = LLMResponse(
-            call_id=call_id,
+            call_id=final_id,
             provider=target.provider,
             model_id=target.model_id,
             profile=self._profile,
@@ -422,8 +488,12 @@ class LLMAdapter:
             return None
         return self._io_store.put(run_id, call_id, kind, redact(payload, self._secrets))
 
-    async def _emit(self, context: CallContext, payload: ModelCallPayload) -> None:
-        """Append the `model_call` event (in a thread: the event log is synchronous SQLite)."""
+    async def _emit(
+        self, context: CallContext, payload: ModelCallPayload, ledger: "_Ledger"
+    ) -> None:
+        """Append the `model_call` event (in a thread: the event log is synchronous SQLite) and
+        add it to the logical call's ledger."""
+        ledger.record(payload)
         await asyncio.to_thread(
             self._events.append,
             context.run_id,

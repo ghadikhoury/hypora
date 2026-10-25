@@ -226,14 +226,15 @@ def test_native_non_finite_and_nameless_tool_calls_are_normalized() -> None:
 
 
 class OpenAISdkStub:
-    """Stands in for `AsyncOpenAI`; returns one prepared response object, no network."""
+    """Stands in for `AsyncOpenAI`: returns the prepared responses in order (the last one
+    repeats), no network."""
 
-    def __init__(self, response: Any) -> None:
+    def __init__(self, *responses: Any) -> None:
         self.calls = 0
 
         async def create(**_: Any) -> Any:
             self.calls += 1
-            return response
+            return responses[min(self.calls, len(responses)) - 1]
 
         self.responses = SimpleNamespace(create=create)
 
@@ -378,3 +379,142 @@ async def test_an_undecodable_completed_response_still_records_its_billed_usage(
     assert payload.error_code == "PROVIDER_RESPONSE_INVALID"
     assert (payload.input_tokens, payload.output_tokens) == (120, 60)
     assert payload.cost_usd == pytest.approx((120 * 0.10 + 60 * 0.50) / 1e6)
+    assert caught.value.total_cost_usd == pytest.approx(payload.cost_usd)
+
+
+# --- 4. (re-review) billed attempts are accounted before any retry --------------------------------
+
+# Each SDK response below reports 120 input (20 cached, 10 cache-write) / 60 output tokens.
+# gpt-6-luna list price: (90 x 0.10 + 20 x 0.01 + 10 x 0.125 + 60 x 0.50) / 1e6 = $0.00004045.
+ATTEMPT_COST = (90 * 0.10 + 20 * 0.01 + 10 * 0.125 + 60 * 0.50) / 1e6
+BILLED_USAGE = {
+    "input_tokens": 120,
+    "input_tokens_details": {"cached_tokens": 20, "cache_write_tokens": 10},
+    "output_tokens": 60,
+    "output_tokens_details": {"reasoning_tokens": 0},
+    "total_tokens": 180,
+}
+
+
+def openai_response(status: str, **extra: Any) -> Response:
+    data: dict[str, Any] = {
+        "id": f"resp_{status}",
+        "created_at": 0,
+        "model": "gpt-6-luna",
+        "object": "response",
+        "output": [],
+        "parallel_tool_calls": True,
+        "tool_choice": "auto",
+        "tools": [],
+        "status": status,
+        "usage": BILLED_USAGE,
+    }
+    data.update(extra)
+    return Response.model_validate(data)
+
+
+FAILED = openai_response("failed", error={"code": "server_error", "message": "backend failed"})
+SUCCEEDED = openai_response(
+    "completed",
+    output=[
+        {
+            "type": "message",
+            "id": "msg_1",
+            "role": "assistant",
+            "status": "completed",
+            "content": [{"type": "output_text", "text": "hi", "annotations": []}],
+        }
+    ],
+)
+
+
+def billed_adapter(make_adapter: AdapterFactory, *responses: Response) -> tuple[Any, Any, Any]:
+    from hypora.core.schemas import ModelProfile
+
+    sdk = OpenAISdkStub(*responses)
+    adapter, events, _ = make_adapter(
+        {Provider.OPENAI: OpenAIClient("unused", timeout_s=1, client=sdk)},
+        models=openai_eval_models(),
+        profile=ModelProfile.EVAL,
+    )
+    return adapter, events, sdk
+
+
+@pytest.mark.asyncio
+async def test_a_billed_failed_attempt_is_recorded_before_the_successful_retry(
+    make_adapter: AdapterFactory,
+) -> None:
+    adapter, events, sdk = billed_adapter(make_adapter, FAILED, SUCCEEDED)
+
+    response = await adapter.complete(HELLO, tier=ModelTier.LEAD, context=CONTEXT)
+
+    assert response.text == "hi" and sdk.calls == 2 and response.retries == 1
+    failed, served = (payload_of(e) for e in events.events)
+    for payload in (failed, served):  # every SDK response's usage is in the log
+        assert (payload.input_tokens, payload.output_tokens) == (120, 60)
+        assert payload.cached_input_tokens == 20
+        assert payload.cost_usd == pytest.approx(ATTEMPT_COST)
+    assert failed.status.value == "error" and failed.error_code == "PROVIDER_SERVER_ERROR"
+    assert served.status.value == "ok" and served.retries == 1
+    assert failed.call_id != served.call_id
+    assert response.cost_usd == pytest.approx(ATTEMPT_COST)
+    assert response.total_cost_usd == pytest.approx(2 * ATTEMPT_COST)  # $0.00008090
+    assert response.call_ids == (failed.call_id, served.call_id)
+    assert response.call_id == served.call_id
+    assert sum(p.input_tokens for p in (failed, served)) == 240
+
+
+@pytest.mark.asyncio
+async def test_every_billed_attempt_is_recorded_when_retries_are_exhausted(
+    make_adapter: AdapterFactory,
+) -> None:
+    adapter, events, sdk = billed_adapter(make_adapter, FAILED)  # fails on every attempt
+
+    with pytest.raises(LLMCallError) as caught:
+        await adapter.complete(HELLO, tier=ModelTier.LEAD, context=CONTEXT)
+
+    assert sdk.calls == 4  # 1 attempt + max_retries (3)
+    payloads = [payload_of(e) for e in events.events]
+    assert len(payloads) == 4 and len({p.call_id for p in payloads}) == 4
+    assert [p.retries for p in payloads] == [0, 1, 2, 3]
+    assert sum(p.input_tokens for p in payloads) == 480
+    assert sum(p.output_tokens for p in payloads) == 240
+    assert sum(p.cost_usd for p in payloads) == pytest.approx(4 * ATTEMPT_COST)  # $0.00016180
+    assert caught.value.total_cost_usd == pytest.approx(4 * ATTEMPT_COST)
+    assert caught.value.call_ids == tuple(p.call_id for p in payloads)
+
+
+@pytest.mark.asyncio
+async def test_unbilled_retries_still_produce_a_single_event(
+    make_adapter: AdapterFactory,
+) -> None:
+    from hypora.core.llm import FakeProvider, ProviderError
+
+    provider = FakeProvider([ProviderError(ProviderErrorKind.RATE_LIMIT, "429"), text_result("ok")])
+    adapter, events, _ = make_adapter(provider)
+    response = await adapter.complete(HELLO, tier=ModelTier.LEAD, context=CONTEXT)
+    assert len(events.events) == 1 and response.retries == 1
+    assert response.call_ids == (response.call_id,)
+    assert response.total_cost_usd == pytest.approx(response.cost_usd)
+
+
+@pytest.mark.asyncio
+async def test_total_cost_includes_the_first_answer_of_a_schema_retry(
+    make_adapter: AdapterFactory,
+) -> None:
+    from pydantic import BaseModel
+
+    from hypora.core.llm import FakeProvider
+    from hypora.core.llm.providers.fake import json_result
+
+    class Answer(BaseModel):
+        answer: str
+
+    provider = FakeProvider([text_result("not json"), json_result({"answer": "42"})])
+    adapter, events, _ = make_adapter(provider)
+    response = await adapter.complete(
+        HELLO, tier=ModelTier.LEAD, context=CONTEXT, output_schema=Answer
+    )
+    costs = [payload_of(e).cost_usd for e in events.events]
+    assert len(costs) == 2 and response.total_cost_usd == pytest.approx(sum(costs))
+    assert response.cost_usd == pytest.approx(costs[1])

@@ -129,6 +129,15 @@ recorded.
   prompt ref, tokens, latency (provider time) and `rate_limit_wait_ms` (all admission waiting:
   the concurrency queue, the rate-limit windows, and backoff; kept separate from model time per
   spec §9.4), retries, cost, fallback flag/origin, status/error code, input/output refs.
+- **Every billed attempt gets its own event, before any retry.** A failed attempt that reports usage
+  (for example an OpenAI response with `status="failed"`, which is retried as a server error) is
+  recorded with its tokens and cost and a distinct call ID (`<call_id>-r<n>`) before the backoff.
+  Unbilled failures (429, timeouts) are summarized in the next event's `retries` and wait time.
+- **Totals per `complete()`.** `LLMResponse.total_cost_usd` and `call_ids` cover every event the
+  call produced: billed failed attempts, a schema retry's first answer, and a failed primary before
+  a fallback. `cost_usd` is the returned answer's attempt only. `LLMCallError` and
+  `StructuredOutputError` carry the same totals, so budget accounting (S1.5) charges
+  `total_cost_usd` (or each event's cost, by call ID) and never under-counts.
 - **Billed but undecodable.** If a provider completes a request but its response cannot be decoded,
   the client raises a non-retryable `INVALID_RESPONSE` that carries the billed usage. The adapter
   records that usage and its cost in an error event (`PROVIDER_RESPONSE_INVALID`) instead of

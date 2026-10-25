@@ -207,6 +207,12 @@ class LLMResponse:
     served_model_id: str | None = None
     """The exact model version the provider reports having served, when it reports one."""
     structured_output_attempts: int = field(default=1)
+    total_cost_usd: float = 0.0
+    """List-price cost of EVERY `model_call` event this `complete()` produced: this answer plus
+    any billed failed attempts, a schema retry's first answer, or a failed primary before a
+    fallback. `cost_usd` is this answer's attempt only. Budgets must charge `total_cost_usd`."""
+    call_ids: tuple[str, ...] = ()
+    """The call IDs of all those events, in order (the last one is `call_id`)."""
 
     @property
     def fallback_used(self) -> bool:
