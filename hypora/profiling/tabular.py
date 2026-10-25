@@ -51,11 +51,13 @@ _METHOD = "single_feature_3fold_cv_depth3_decision_tree"
 
 @dataclass(frozen=True)
 class ProfilingConfig:
-    """Limits and candidate thresholds; leakage margin is added to the median feature score."""
+    """Sampling limits and candidate thresholds, including reachable per-metric leakage caps."""
 
     seed: int = 42
     max_sample_rows: int = 20_000
     leakage_score_margin: float = 0.25
+    leakage_auc_cap: float = 0.99
+    leakage_r2_cap: float = 0.95
     group_agreement_margin: float = 0.10
     near_unique_fraction: float = 0.98
     timestamp_parse_fraction: float = 0.95
@@ -69,7 +71,12 @@ class ProfilingConfig:
             value = getattr(self, name)
             if not np.isfinite(value) or value <= 0:
                 raise ValueError(f"{name} must be finite and positive")
-        for name in ("near_unique_fraction", "timestamp_parse_fraction"):
+        for name in (
+            "near_unique_fraction",
+            "timestamp_parse_fraction",
+            "leakage_auc_cap",
+            "leakage_r2_cap",
+        ):
             value = getattr(self, name)
             if not np.isfinite(value) or not 0 < value <= 1:
                 raise ValueError(f"{name} must be in (0, 1]")
@@ -165,20 +172,28 @@ def _id_like(
     series: pd.Series, column: ColumnProfile, config: ProfilingConfig
 ) -> IdLikeColumn | None:
     present = series.dropna()
-    if len(present) < 2:
+    if len(present) < 2 or column.inferred_type is InferredType.DATETIME:
         return None
-    reasons = []
-    if column.unique_fraction >= config.near_unique_fraction:
-        reasons.append(IdLikeReason.NEAR_UNIQUE)
-    if is_numeric_dtype(series.dtype) and not is_bool_dtype(series.dtype):
+    numeric = is_numeric_dtype(series.dtype) and not is_bool_dtype(series.dtype)
+    integer_valued = False
+    if numeric:
         values = present.to_numpy(dtype=float)
-        if (
-            np.isfinite(values).all()
-            and np.equal(values, np.floor(values)).all()
-            and (present.is_monotonic_increasing or present.is_monotonic_decreasing)
-            and column.n_unique > 1
-        ):
-            reasons.append(IdLikeReason.MONOTONE_INTEGER)
+        integer_valued = bool(
+            np.isfinite(values).all() and np.equal(values, np.floor(values)).all()
+        )
+    identifier_shaped = integer_valued or column.inferred_type in (
+        InferredType.CATEGORICAL,
+        InferredType.TEXT,
+    )
+    reasons = []
+    if identifier_shaped and column.unique_fraction >= config.near_unique_fraction:
+        reasons.append(IdLikeReason.NEAR_UNIQUE)
+    if (
+        integer_valued
+        and (present.is_monotonic_increasing or present.is_monotonic_decreasing)
+        and column.n_unique > 1
+    ):
+        reasons.append(IdLikeReason.MONOTONE_INTEGER)
     if (
         not is_numeric_dtype(series.dtype)
         and present.astype(str).map(lambda value: bool(_UUID.fullmatch(value))).mean() >= 0.95
@@ -316,9 +331,11 @@ def _associations(
             else "No feature has a finite score in all three CV folds."
         )
         return [], [], reason
-    threshold = (
+    relative_threshold = (
         float(np.median([item.score for item in associations])) + config.leakage_score_margin
     )
+    cap = config.leakage_auc_cap if classification else config.leakage_r2_cap
+    threshold = min(relative_threshold, cap)
     candidates = [
         LeakageCandidate(
             column=item.column,
@@ -328,7 +345,7 @@ def _associations(
             method=_METHOD,
         )
         for item in associations
-        if item.score > threshold
+        if item.score >= threshold
     ]
     return associations, candidates, None
 
@@ -410,7 +427,11 @@ def profile_tabular(
     except TypeError:
         raise ValueError("columns must contain hashable scalar values") from None
     sample_size = min(len(data), config.max_sample_rows)
-    sample = data.sample(n=sample_size, random_state=config.seed).sort_index(kind="stable")
+    # Select positions, not labels: arbitrary or duplicate index labels must not affect profiling.
+    positions = np.sort(
+        np.random.default_rng(config.seed).choice(len(data), sample_size, replace=False)
+    )
+    sample = data.iloc[positions]
     timestamps = [stamp for name in data if (stamp := _timestamps(data[name], config)) is not None]
     by_name = {item.column: item for item in timestamps}
     columns = [_column(data[name], by_name.get(name)) for name in data]

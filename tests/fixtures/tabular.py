@@ -42,3 +42,33 @@ def make_tabular_traps(
     data["treatment"] = rng.choice(["control", "treated"], n_rows)
     data["target"] = target
     return data
+
+
+def make_strong_feature_traps(*, regression: bool, seed: int = 11) -> pd.DataFrame:
+    """Plant a target copy among eight noisy but genuinely strong predictors."""
+    rng = np.random.default_rng(seed)
+    target = rng.uniform(-2, 2, 1200) if regression else rng.integers(0, 2, 1200)
+    data = pd.DataFrame(
+        {f"predictor_{i}": target + rng.normal(0, 0.45, len(target)) for i in range(8)}
+    )
+    data["post_outcome"] = target + rng.normal(0, 0.001, len(target))
+    data["target"] = target
+    return data
+
+
+def make_mixed_tabular(*, n_rows: int = 100_000, seed: int = 7) -> pd.DataFrame:
+    """Build 50 columns: 20 floats, 15 categories, 5 dates, 5 nullable ints, 4 texts, target."""
+    rng = np.random.default_rng(seed)
+    data = pd.DataFrame({f"float_{i}": rng.normal(size=n_rows) for i in range(20)})
+    for i in range(15):
+        data[f"category_{i}"] = rng.choice(["control", "treated", "unknown"], n_rows)
+    dates = pd.date_range("2025-01-01", periods=n_rows, freq="min")
+    for i in range(5):
+        data[f"date_{i}"] = (dates + pd.Timedelta(days=i)).astype(str)
+        integers = pd.Series(rng.integers(0, 1000, n_rows), dtype="Int64")
+        integers.iloc[::10] = pd.NA
+        data[f"nullable_{i}"] = integers
+    for i in range(4):
+        data[f"text_{i}"] = [f"synthetic free text {i} row {j}" for j in range(n_rows)]
+    data["target"] = rng.integers(0, 2, n_rows)
+    return data

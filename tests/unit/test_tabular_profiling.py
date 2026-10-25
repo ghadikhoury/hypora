@@ -8,6 +8,11 @@ import numpy as np
 import pandas as pd  # type: ignore[import-untyped]
 import pytest
 from pydantic import ValidationError
+from sklearn.datasets import (  # type: ignore[import-untyped]
+    load_breast_cancer,
+    load_iris,
+    load_wine,
+)
 
 from hypora.core.schemas import DatasetProfile, MetricName, TaskType
 from hypora.core.schemas.task import IdLikeReason, TabularProfile
@@ -17,7 +22,7 @@ from hypora.profiling.tabular import (
     profile_csv,
     profile_tabular,
 )
-from tests.fixtures.tabular import make_tabular_traps
+from tests.fixtures.tabular import make_mixed_tabular, make_strong_feature_traps, make_tabular_traps
 
 
 def profile(data: pd.DataFrame, task_type: TaskType | None = None, **kwargs) -> TabularProfile:
@@ -40,10 +45,10 @@ def test_planted_traps_and_evidence(regression: bool) -> None:
     kind = TaskType.REGRESSION if regression else TaskType.BINARY_CLASSIFICATION
     result = profile(data, kind)
     leak = next(item for item in result.leakage_candidates if item.column == "post_outcome")
-    assert leak.score > leak.threshold
+    assert leak.score >= leak.threshold
     assert leak.score_metric is (MetricName.R2 if regression else MetricName.ROC_AUC)
     median = np.median([item.score for item in result.feature_associations])
-    assert leak.threshold == pytest.approx(median + 0.25)
+    assert leak.threshold == pytest.approx(min(median + 0.25, 0.95 if regression else 0.99))
     assert "3fold" in leak.method and "depth3" in leak.method
     group = next(item for item in result.candidate_group_keys if item.column == "subject_id")
     assert group.n_groups == 90
@@ -88,15 +93,15 @@ def test_seeded_sampling_and_configurable_threshold() -> None:
     assert first.statistics_sample_size == 600
     assert first.n_rows == 1200
     strict = profile(
-        data,
+        data.drop(columns="post_outcome"),
         TaskType.BINARY_CLASSIFICATION,
         config=ProfilingConfig(
             seed=9,
             max_sample_rows=600,
             leakage_score_margin=2,
+            leakage_auc_cap=1,
         ),
     )
-    assert strict.feature_associations == first.feature_associations
     assert not strict.leakage_candidates
     assert strict.leakage_screen_skipped_reason is None
     assert leakage_screen_summary(strict).startswith("No leakage candidates flagged")
@@ -308,6 +313,10 @@ def test_schema_sample_bounds(size: int) -> None:
         {"seed": -1},
         {"leakage_score_margin": float("nan")},
         {"group_agreement_margin": -1},
+        {"leakage_auc_cap": 1.01},
+        {"leakage_r2_cap": 0},
+        {"leakage_auc_cap": float("nan")},
+        {"leakage_r2_cap": float("inf")},
     ],
 )
 def test_invalid_config(kwargs: dict) -> None:
@@ -334,3 +343,114 @@ def test_100k_by_50_runtime() -> None:
     assert result.n_columns == 50 and result.statistics_sample_size == 20_000
     assert len(result.feature_associations) == 49
     assert elapsed < 10, f"100k x 50 profiling took {elapsed:.2f}s (limit 10s)"
+
+
+@pytest.mark.parametrize("regression", [False, True])
+def test_leak_among_strong_features_is_flagged(regression: bool) -> None:
+    data = make_strong_feature_traps(regression=regression)
+    kind = TaskType.REGRESSION if regression else TaskType.BINARY_CLASSIFICATION
+    result = profile(data, kind)
+    assert np.median([item.score for item in result.feature_associations]) + 0.25 > 1
+    candidate = next(item for item in result.leakage_candidates if item.column == "post_outcome")
+    assert candidate.threshold == (0.95 if regression else 0.99)
+    assert candidate.score >= candidate.threshold
+
+
+@pytest.mark.parametrize("loader", [load_breast_cancer, load_wine, load_iris])
+def test_bundled_uci_data_with_planted_leak(loader) -> None:
+    dataset = loader(as_frame=True)
+    data = dataset.data.copy()
+    data["target"] = dataset.target
+    data["post_outcome"] = dataset.target + np.random.default_rng(0).normal(0, 0.001, len(data))
+    kind = (
+        TaskType.BINARY_CLASSIFICATION
+        if dataset.target.nunique() == 2
+        else (TaskType.MULTICLASS_CLASSIFICATION)
+    )
+    result = profile(data, kind)
+    assert any(item.column == "post_outcome" for item in result.leakage_candidates)
+
+
+@pytest.mark.parametrize("regression", [False, True])
+def test_single_feature_target_copy_is_flagged(regression: bool) -> None:
+    rng = np.random.default_rng(12)
+    y = rng.uniform(-2, 2, 600) if regression else rng.integers(0, 2, 600)
+    kind = TaskType.REGRESSION if regression else TaskType.BINARY_CLASSIFICATION
+    result = profile(pd.DataFrame({"copy": y, "target": y}), kind)
+    assert [item.column for item in result.leakage_candidates] == ["copy"]
+    assert leakage_screen_summary(result).startswith("Leakage candidates flagged:")
+
+
+@pytest.mark.parametrize("regression", [False, True])
+def test_absolute_caps_are_configurable_and_inclusive(regression: bool) -> None:
+    data = make_strong_feature_traps(regression=regression)
+    kind = TaskType.REGRESSION if regression else TaskType.BINARY_CLASSIFICATION
+    default = profile(data, kind)
+    leak_score = next(
+        item.score for item in default.feature_associations if item.column == "post_outcome"
+    )
+    equal = profile(
+        data,
+        kind,
+        config=ProfilingConfig(
+            leakage_score_margin=2,
+            leakage_r2_cap=leak_score if regression else 1,
+            leakage_auc_cap=1 if regression else leak_score,
+        ),
+    )
+    assert any(item.column == "post_outcome" for item in equal.leakage_candidates)
+    stricter = profile(
+        data,
+        kind,
+        config=ProfilingConfig(
+            leakage_score_margin=2,
+            leakage_r2_cap=1,
+            leakage_auc_cap=1,
+        ),
+    )
+    if regression:
+        assert not stricter.leakage_candidates
+    else:
+        assert any(item.column == "post_outcome" for item in stricter.leakage_candidates)
+    assert stricter.feature_associations == default.feature_associations
+
+
+def test_continuous_features_and_timestamps_are_not_ids() -> None:
+    data = make_tabular_traps()
+    assert {item.column for item in profile(data).id_like_columns} == {"sample_id"}
+    measurements = pd.DataFrame(np.random.default_rng(0).normal(size=(5000, 5)))
+    measurements.columns = [f"measurement_{i}" for i in range(5)]
+    assert not profile(measurements).id_like_columns
+
+
+def test_shuffled_integer_float_integer_and_string_ids_are_detected() -> None:
+    shuffled = np.random.default_rng(0).permutation(100)
+    data = pd.DataFrame(
+        {
+            "integer_id": shuffled,
+            "float_id": shuffled.astype(float),
+            "string_id": [f"sample_{i}" for i in shuffled],
+        }
+    )
+    result = profile(data)
+    assert {item.column for item in result.id_like_columns} == set(data.columns)
+    assert all(item.reasons == [IdLikeReason.NEAR_UNIQUE] for item in result.id_like_columns)
+
+
+def test_sampling_ignores_unorderable_and_duplicate_index_labels() -> None:
+    data = make_tabular_traps(n_rows=40)
+    config = ProfilingConfig(max_sample_rows=30)
+    original = profile(data, TaskType.BINARY_CLASSIFICATION, config=config)
+    changed_index = data.set_axis(["a", 1] * 20)
+    assert original == profile(changed_index, TaskType.BINARY_CLASSIFICATION, config=config)
+
+
+def test_mixed_100k_by_50_runtime() -> None:
+    data = make_mixed_tabular()
+    started = perf_counter()
+    result = profile(data, TaskType.BINARY_CLASSIFICATION)
+    elapsed = perf_counter() - started
+    assert result.n_columns == 50 and result.statistics_sample_size == 20_000
+    assert len(result.timestamp_columns) == 5 and len(result.feature_associations) == 49
+    assert "synthetic free text" not in result.model_dump_json()
+    assert elapsed < 10, f"Mixed 100k x 50 profiling took {elapsed:.2f}s (limit 10s)"

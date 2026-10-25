@@ -196,7 +196,7 @@ Concluding that an existing model already suffices — and that no training is n
 | **Phase B** | Training & Optimization Lead | Contract | Trials, verified results | See 8. |
 | **5 Report** | LLM (Reporter) | DB records only | Report + export bundle | Every number is quoted from stored metrics; no free-form figures. |
 
-#### DatasetProfile tabular schema (S1.1, D-009)
+#### DatasetProfile tabular schema (S1.1)
 
 `DatasetProfile` contains `run_id`, `dataset_ref`, content `fingerprint`, `modality`, and
 the modality-specific profile block. The tabular block contains shape, column summaries,
@@ -212,8 +212,13 @@ classification target summaries may include at most five labels truncated to 40 
 with counts; colliding truncated labels have combined counts. Numeric and timestamp ranges
 are aggregates. Group candidates include group count, mean/max size, within-group target
 agreement, and chance agreement. Feature associations use 3-fold CV of depth-3 decision trees
-(ROC-AUC for classification, R² for regression). Leakage candidates are outliers above the
-median feature score plus a configurable margin and report the score and absolute threshold.
+(ROC-AUC for classification, R² for regression). Flag leakage candidates at or above
+`min(median feature score + margin, metric cap)`, with configurable defaults of margin 0.25,
+ROC-AUC cap 0.99, and R² cap 0.95. The cap keeps screening reachable when most features are
+strong or there is only one feature. Candidates report the score and applied threshold;
+crossing either threshold is a signal for methodological review, not a leakage verdict.
+Near-unique ID candidates require integer-valued numeric or string/categorical/text columns;
+ordinary non-integer float measurements and datetime columns are excluded from this rule.
 `leakage_screen_skipped_reason: str | None = None` records why CV was not computed, including
 insufficient usable targets, a constant target, insufficient examples per class, missing target
 or features, or no finite CV scores. Reports must say **"leakage not screened"** with that reason,

@@ -12,6 +12,8 @@ calls or state transitions happen here: this is a pure library, called by later 
   distribution, numeric summaries, ID candidates, and timestamps. Unique fractions use
   nonmissing rows; numeric summaries omit nonfinite values and use population standard deviation.
 - Expensive statistics: one seeded sample without replacement, capped at 20,000 rows.
+  Sampling selects sorted row positions with NumPy's seeded generator, independent of index
+  labels, so mixed-type and duplicate labels do not change results or cause sorting failures.
   `statistics_sample_size` records selected rows before missing/nonfinite targets are removed.
   CV and group evidence can therefore use fewer labeled rows. The seed and cap are arguments
   in `ProfilingConfig`; defaults are 42 and 20,000. Group sizes describe this labeled sample.
@@ -19,10 +21,14 @@ calls or state transitions happen here: this is a pure library, called by later 
   Classification uses stratified folds, probability-based ROC-AUC (macro one-vs-rest for
   multiclass); regression uses R². Encoders are fitted inside each training fold; unknown
   categories and missing values have fixed sentinels. The median is across finite feature
-  scores, excluding the target. Flag scores strictly above median + `leakage_score_margin`
-  (default 0.25); flagged records include the actual absolute threshold and mean CV score.
-  These are candidates, not proof of leakage. A lone feature or a majority of leaky features
-  may not be an outlier. Ordinal category order also limits a depth-3 tree's sensitivity.
+  scores, excluding the target. Flag scores at or above the smaller of median +
+  `leakage_score_margin` (default 0.25) and the metric's configurable cap (`leakage_auc_cap`
+  defaults to 0.99; `leakage_r2_cap` to 0.95). Caps must be finite and in (0, 1]; equality
+  counts so a perfect copy is detectable even with a cap of 1. Flagged records include the
+  applied threshold and mean CV score. A strong median or a single feature can no longer
+  make the threshold exceed the metric's maximum. These remain candidates, not proof of
+  leakage: legitimate strong predictors may cross the cap and need review. Ordinal category
+  order also limits a depth-3 tree's sensitivity; leaks scoring below both rules can be missed.
 - Unscorable CV: fewer than six labeled rows, a constant target, or fewer than three examples
   in any class produces no associations. Nonfinite regression fold scores are omitted,
   never replaced with a fabricated score. Structural and target summaries remain available.
@@ -42,8 +48,9 @@ calls or state transitions happen here: this is a pure library, called by later 
 - Timestamps: native datetime or predominantly ISO-style strings, at least 95% parseable
   nonmissing values. Normalize to UTC; report min/max, duplicates, and median interval in
   sorted time order. Monotonicity uses original row order; failed parses make it false.
-- IDs: near-unique nonmissing values, monotone integer values (either direction), or >=95%
-  UUID-shaped strings. Near-unique continuous features are intentionally candidates too.
+- IDs: near-unique integer-valued numerics (including floats storing integers) or string/
+  categorical/text values, monotone integer values (either direction), or >=95% UUID-shaped
+  strings. Non-integer continuous measurements and datetime columns are not ID candidates.
 
 ## Bounded output and reproducibility
 
@@ -64,5 +71,11 @@ hash. CSV fingerprints hash exact source bytes. Neither is a redaction mechanism
 The reusable `tests/fixtures/tabular.py` generator creates synthetic leakage, subject-group,
 and timestamp traps. The 100k-row, 50-column test times the full in-memory profiling call,
 including fingerprinting; it excludes imports, data generation, and CSV disk I/O.
-On Ghadi's WSL2 Ubuntu environment (2026-10-24), the regression fixture took 3.10 seconds
-with 49 feature associations and a 20,000-row sample (10-second acceptance limit).
+Both the mostly numeric regression fixture and a mixed classification fixture must pass
+the 10-second limit. The mixed fixture has 20 float, 15 categorical string, 5 ISO timestamp,
+5 nullable integer, and 4 free-text features, plus the target; it exercises parsing and encoding.
+Bundled UCI breast-cancer, wine, and iris data and synthetic strong-feature/single-feature
+cases test leakage detection without a noise-dominated median. ID tests include negative
+continuous/timestamp cases as well as shuffled integer, integer-valued float, and string IDs.
+The review regression run on Ghadi's WSL2 Ubuntu environment took 2.89 seconds for the
+mostly numeric fixture and 7.05 seconds for the mixed fixture; both produced 49 associations.
