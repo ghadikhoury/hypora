@@ -13,9 +13,12 @@ import errno
 import hashlib
 import json
 import math
+import os
 import re
 import secrets
+import shutil
 import statistics
+import tempfile
 import threading
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -24,8 +27,8 @@ from typing import Annotated, Any, Final
 
 import yaml  # type: ignore[import-untyped]
 from pydantic import Field, JsonValue, ValidationError
-from sqlalchemy import select
 
+from hypora.core.hashing import canonical_hash
 from hypora.core.policy.firewall import DataFirewall
 from hypora.core.schemas import (
     TRIAL_DIR_TEMPLATE,
@@ -42,6 +45,7 @@ from hypora.core.schemas import (
     PinnedModelRef,
     SubmitExperimentRequest,
     TaskType,
+    ToolName,
     TrialFile,
 )
 from hypora.core.schemas.events import PolicyRule
@@ -69,8 +73,8 @@ from hypora.mcp_server.session import Session
 from hypora.mcp_server.trialfs import existing_files, write_file
 from hypora.profiling.tabular import profile_tabular
 from hypora.storage.artifacts import ArtifactStore
+from hypora.storage.idempotency import IdempotencyConflict, IdempotencyLedger, Reservation
 from hypora.storage.jobs import TERMINAL_STATES, JobNotFound, JobRecord, new_job_id
-from hypora.storage.models import Job
 from hypora.storage.records import (
     RecordNotFound,
     StoredTrial,
@@ -300,7 +304,7 @@ class HyporaTools:
             target=target,
             task_type=task_type,
         )
-        profile.fingerprint = _sha256(path.read_bytes())
+        profile.fingerprint = session.dataset_sha256(dataset_id)  # the bytes profiled
         with self._lock:
             self._profiles[key] = profile
         return profile
@@ -309,6 +313,14 @@ class HyporaTools:
 
     def write_trial_files(
         self,
+        idempotency_key: Annotated[
+            IdempotencyKey,
+            Field(
+                description="'{run_id}:{unique id}', e.g. 'run_104:wr_0001'. Use a NEW key for "
+                "every new write; resend the SAME key only to retry a write whose reply you did "
+                "not receive (it returns the original result and writes nothing again)."
+            ),
+        ],
         design: Annotated[
             TrialDesign | None,
             Field(
@@ -358,12 +370,13 @@ class HyporaTools:
         Returns the trial_id, the files written (SHA-256, size), the files the trial now has,
         and `submit_defaults`: the values submit_experiment uses for omitted arguments.
 
-        Example: write_trial_files(design={"kind": "baseline", "operation": "fit",
-        "hypothesis": "A majority-class predictor sets the floor", "model_family": "dummy",
-        "expected_effect": "f1_macro near 0.4", "estimated_cost": {"compute_seconds": 30}},
-        pipeline_py="...")
+        Example: write_trial_files(idempotency_key="run_104:wr_0001", design={"kind":
+        "baseline", "operation": "fit", "hypothesis": "A majority-class predictor sets the
+        floor", "model_family": "dummy", "expected_effect": "f1_macro near 0.4",
+        "estimated_cost": {"compute_seconds": 30}}, pipeline_py="...")
         """
         session = self.session
+        self._check_key(idempotency_key)
         created = trial_id is None
         if created:
             if design is None or pipeline_py is None:
@@ -372,7 +385,6 @@ class HyporaTools:
                     "A new trial needs both design and pipeline_py.",
                     "Pass design and pipeline_py (requirements_lock is optional).",
                 )
-            trial_id = self._new_trial_id()
         else:
             assert trial_id is not None
             self._trial(trial_id)
@@ -382,6 +394,23 @@ class HyporaTools:
                     "No file content was given.",
                     "Pass at least one of design, pipeline_py, requirements_lock.",
                 )
+        code = self._checked_pipeline(pipeline_py) if pipeline_py is not None else None
+        lock = self._checked_lock(requirements_lock) if requirements_lock is not None else None
+        reservation = self._reserve(
+            ToolName.WRITE_TRIAL_FILES,
+            idempotency_key,
+            {
+                "trial_id": trial_id,
+                "design": design.model_dump(mode="json") if design is not None else None,
+                "pipeline.py": _sha256(code) if code is not None else None,
+                "requirements.lock": _sha256(lock) if lock is not None else None,
+            },
+            plan={"trial_id": trial_id or self._new_trial_id()},
+        )
+        if reservation.result is not None:  # an identical, finished call: its original result
+            return TrialFilesResult.model_validate(reservation.result)
+        trial_id = str(reservation.plan["trial_id"])  # the same trial for every identical call
+
         files: dict[str, bytes] = {}
         trial_file: TrialFile | None = None
         if design is not None:
@@ -389,10 +418,10 @@ class HyporaTools:
             files["trial.yaml"] = yaml.safe_dump(
                 trial_file.model_dump(mode="json"), sort_keys=False
             ).encode()
-        if pipeline_py is not None:
-            files["pipeline.py"] = self._checked_pipeline(pipeline_py)
-        if requirements_lock is not None:
-            files["requirements.lock"] = self._checked_lock(requirements_lock)
+        if code is not None:
+            files["pipeline.py"] = code
+        if lock is not None:
+            files["requirements.lock"] = lock
 
         parts = self._trial_dir_parts(trial_id)
         directory = TRIAL_DIR_TEMPLATE.format(run_id=session.run_id, trial_id=trial_id)
@@ -411,7 +440,7 @@ class HyporaTools:
         if trial_file is not None:
             upsert_trial(session.database, session.run_id, trial_file, directory)
         contract = self._contract()
-        return TrialFilesResult.model_validate(
+        result = TrialFilesResult.model_validate(
             {
                 "trial_id": trial_id,
                 "created": created,
@@ -427,6 +456,43 @@ class HyporaTools:
                 "next_step": self._after_write(trial_id, contract),
             }
         )
+        recorded = self._ledger.complete(idempotency_key, result.model_dump(mode="json"))
+        return TrialFilesResult.model_validate(recorded)  # concurrent twins return one result
+
+    # --- idempotency (spec §11, §15.5) ------------------------------------------------------------
+
+    @property
+    def _ledger(self) -> IdempotencyLedger:
+        return IdempotencyLedger(self.session.database)
+
+    def _check_key(self, key: str) -> None:
+        prefix = f"{self.session.run_id}:"
+        if not key.startswith(prefix):
+            raise errors.invalid(
+                "IDEMPOTENCY_KEY_FORMAT",
+                f"idempotency_key must start with this run's ID: '{prefix}'.",
+                f"Use a key such as '{prefix}call_0001'.",
+            )
+
+    def _reserve(
+        self, tool: ToolName, key: str, request: dict[str, Any], plan: dict[str, Any]
+    ) -> Reservation:
+        """Claim the key for this exact request (hash of every resolved field), atomically."""
+        digest = canonical_hash({"tool": tool.value, "request": request})
+        try:
+            return self._ledger.reserve(
+                run_id=self.session.run_id,
+                key=key,
+                tool=tool.value,
+                request_sha256=digest,
+                plan=plan,
+            )
+        except IdempotencyConflict:
+            raise errors.invalid(
+                "IDEMPOTENCY_KEY_REUSED",
+                "This idempotency_key was already used for a different call.",
+                f"Use a new key such as '{self.session.run_id}:<new unique id>'.",
+            ) from None
 
     def _after_write(self, trial_id: str, contract: ExperimentContract | None) -> str:
         if contract is None:
@@ -606,12 +672,7 @@ class HyporaTools:
             )
         limits = limits or contract.default_job_limits
         self._check_limits(limits, contract.default_job_limits)
-        if not idempotency_key.startswith(f"{session.run_id}:"):
-            raise errors.invalid(
-                "IDEMPOTENCY_KEY_FORMAT",
-                f"idempotency_key must start with this run's ID: '{session.run_id}:'.",
-                f"Use a key such as '{session.run_id}:sub_0001'.",
-            )
+        self._check_key(idempotency_key)
         try:
             request = SubmitExperimentRequest(
                 run_id=session.run_id,
@@ -627,35 +688,22 @@ class HyporaTools:
             )
         except ValidationError as exc:
             raise errors.ToolFailure.from_error(errors.validation_failure(exc)) from None
-        if (existing := self._existing_submission(request)) is not None:
-            return existing
         trial = self._trial(trial_id)
-        snapshot = self._trial_snapshot(trial_id)
-        design = TrialFile.model_validate(yaml.safe_load(snapshot["trial.yaml"]))
-        if design.operation is not operation:
-            raise errors.invalid(
-                "OPERATION_MISMATCH",
-                f"trial.yaml declares operation {design.operation.value!r}.",
-                "Rewrite the trial's design with operation 'fit'.",
-            )
-        dataset_id = session.config.experiment_dataset
-        dataset_path = session.dataset_path(dataset_id)
-        assert dataset_path is not None
-        job_id = new_job_id()
-        folder = protocol.job_dir(session.runs_root, session.run_id, job_id)
-        (folder / protocol.TRIAL_SNAPSHOT_DIR).mkdir(parents=True)
-        for name, content in snapshot.items():
-            protocol.write_once(folder / protocol.TRIAL_SNAPSHOT_DIR / name, content)
-        protocol.write_json_once(
-            folder / protocol.REQUEST_FILE,
-            protocol.ExperimentRequest(
-                request=request,
-                dataset_id=dataset_id,
-                dataset_path=str(dataset_path),
-                dataset_sha256=_sha256(dataset_path.read_bytes()),
-                trial_files={name: _sha256(content) for name, content in snapshot.items()},
-            ),
+        # The key is claimed for this exact request (every resolved field, config included)
+        # before anything is written: a different request under the same key is refused even
+        # when both arrive at once, and identical ones share one planned job ID.
+        reservation = self._reserve(
+            ToolName.SUBMIT_EXPERIMENT,
+            idempotency_key,
+            request.model_dump(mode="json"),
+            plan={"job_id": new_job_id()},
         )
+        job_id = str(reservation.plan["job_id"])
+        if not reservation.fresh and (existing := self._find_job(job_id)) is not None:
+            self._ledger.complete(idempotency_key, {"job_id": job_id})
+            return self._submitted(existing, request, deduplicated=True)
+
+        self._publish_job(job_id, request)  # the frozen snapshot; first publisher wins
         queued = session.queue.enqueue(
             trial_id=trial.trial_id,
             operation=operation,
@@ -666,10 +714,84 @@ class HyporaTools:
             actor_role=session.role,
             job_id=job_id,
         )
-        if queued != job_id:  # a concurrent call with the same key won the race
-            return self._submitted(session.queue.get(queued), request, deduplicated=True)
+        if queued != job_id or self._published_request(job_id) != request:
+            # Defense in depth: never report another submission's job as this one.
+            raise errors.invalid(
+                "IDEMPOTENCY_KEY_REUSED",
+                "This idempotency_key was already used for a different submission.",
+                f"Use a new key such as '{session.run_id}:<new unique id>'.",
+            )
         set_trial_status(session.database, trial_id, "submitted")
-        return self._submitted(session.queue.get(job_id), request, deduplicated=False)
+        self._ledger.complete(idempotency_key, {"job_id": job_id})
+        return self._submitted(
+            session.queue.get(job_id), request, deduplicated=not reservation.fresh
+        )
+
+    def _find_job(self, job_id: str) -> JobRecord | None:
+        try:
+            return self.session.queue.get(job_id)
+        except JobNotFound:
+            return None
+
+    def _published_request(self, job_id: str) -> SubmitExperimentRequest | None:
+        folder = protocol.job_dir(self.session.runs_root, self.session.run_id, job_id)
+        try:
+            return protocol.read_request(folder).request
+        except FileNotFoundError:
+            return None
+
+    def _publish_job(self, job_id: str, request: SubmitExperimentRequest) -> None:
+        """Freeze the trial's files and the request as the job folder, atomically.
+
+        Everything is written into a private staging directory, then renamed into place in one
+        step: the worker can only ever see a complete folder, and if an identical call already
+        published this job, its snapshot stands (the original submission is what runs).
+        """
+        session = self.session
+        final = protocol.job_dir(session.runs_root, session.run_id, job_id)
+        if (final / protocol.REQUEST_FILE).exists():
+            return
+        snapshot = self._trial_snapshot(request.trial_id)
+        design = TrialFile.model_validate(yaml.safe_load(snapshot["trial.yaml"]))
+        if design.operation is not request.operation:
+            raise errors.invalid(
+                "OPERATION_MISMATCH",
+                f"trial.yaml declares operation {design.operation.value!r}.",
+                "Rewrite the trial's design with operation 'fit', then submit again.",
+            )
+        dataset_id = session.config.experiment_dataset
+        dataset_path = session.dataset_path(dataset_id)
+        assert dataset_path is not None
+        dataset_sha256 = _sha256(dataset_path.read_bytes())
+        if dataset_sha256 != session.dataset_sha256(dataset_id):
+            raise errors.missing(
+                "DATASET_CHANGED",
+                "The dataset file changed after this session loaded and indexed it.",
+                "Report this to the user: the session must be restarted on the new data.",
+            )
+        final.parent.mkdir(parents=True, exist_ok=True)
+        staging = Path(tempfile.mkdtemp(prefix=f".{job_id}.", dir=final.parent))
+        try:
+            (staging / protocol.TRIAL_SNAPSHOT_DIR).mkdir()
+            for name, content in snapshot.items():
+                protocol.write_once(staging / protocol.TRIAL_SNAPSHOT_DIR / name, content)
+            protocol.write_json_once(
+                staging / protocol.REQUEST_FILE,
+                protocol.ExperimentRequest(
+                    request=request,
+                    dataset_id=dataset_id,
+                    dataset_path=str(dataset_path),
+                    dataset_sha256=dataset_sha256,
+                    trial_files={name: _sha256(content) for name, content in snapshot.items()},
+                ),
+            )
+            try:
+                os.rename(staging, final)
+            except OSError as exc:  # an identical call published this job first
+                if exc.errno not in (errno.EEXIST, errno.ENOTEMPTY):
+                    raise
+        finally:
+            shutil.rmtree(staging, ignore_errors=True)
 
     def _check_approval(self, contract: ExperimentContract, approval_ref: str) -> None:
         recovery = "Omit approval_ref; experiments run under the contract's own approval."
@@ -717,28 +839,6 @@ class HyporaTools:
                 decided_by=PolicyRule.CONTRACT_SCOPE,
                 ceiling=ceiling.model_dump(mode="json"),
             )
-
-    def _existing_submission(self, request: SubmitExperimentRequest) -> SubmitResult | None:
-        """Idempotency (spec §11): the same key and request returns the original job."""
-        with self.session.database.engine.connect() as connection:
-            job_id = connection.scalar(
-                select(Job.id).where(Job.idempotency_key == request.idempotency_key)
-            )
-        if job_id is None:
-            return None
-        job = self.session.queue.get(job_id)
-        folder = protocol.job_dir(self.session.runs_root, job.run_id, job.id)
-        try:
-            original = protocol.read_request(folder).request
-        except FileNotFoundError:
-            original = None
-        if job.run_id != self.session.run_id or original != request:
-            raise errors.invalid(
-                "IDEMPOTENCY_KEY_REUSED",
-                "This idempotency_key was already used for a different submission.",
-                f"Use a new key such as '{self.session.run_id}:<new unique id>'.",
-            )
-        return self._submitted(job, request, deduplicated=True)
 
     def _trial_snapshot(self, trial_id: str) -> dict[str, bytes]:
         directory = self._trial_dir(trial_id)
@@ -952,19 +1052,55 @@ def _summary(values: Sequence[float]) -> MetricSummary:
     )
 
 
-def _label(value: Any) -> str:
-    return str(value)[:40]
+LABEL_CHARS: Final = 40
+
+
+def display_labels(labels: Sequence[str]) -> list[str]:
+    """Unique labels of at most 40 characters (the D-009 bound), one per class, in order.
+
+    A label that fits is shown as is; a longer one is cut and ends in "…". Cutting never merges
+    classes: if a shortened label is already taken, it gets the class's index ("…#3").
+    """
+    shown: list[str] = []
+    taken: set[str] = set()
+    for index, label in enumerate(labels):
+        text = label if len(label) <= LABEL_CHARS else label[: LABEL_CHARS - 1] + "…"
+        attempt = 0
+        while text in taken:
+            tag = f"…#{index}" if attempt == 0 else f"…#{index}.{attempt}"
+            text = label[: LABEL_CHARS - len(tag)] + tag
+            attempt += 1
+        taken.add(text)
+        shown.append(text)
+    return shown
 
 
 def _metrics(job: JobRecord, primary: MetricName, scores: dict[str, Any]) -> ExperimentMetrics:
-    """Shape the harness's metrics.json for an LLM: bounded, unnamed groups, cut labels."""
+    """Shape the harness's metrics.json for an LLM: bounded, unnamed groups, short labels.
+
+    Per-class scores are aggregated by each class's full label; only the shown label is
+    shortened (`display_labels`), so distinct classes are never merged.
+    """
     folds_raw = scores.get("folds", [])
     folds: list[FoldScore] = []
     per_metric: dict[MetricName, list[float]] = {}
     per_class: dict[str, dict[str, list[float]]] = {}
     support: dict[str, int] = {}
-    labels: list[str] = []
+    labels: list[str] = []  # full labels, in class order
+    fold_orders: list[list[str]] = []
     known = {metric.value for metric in MetricName}
+    for fold in folds_raw:
+        values = fold.get("metrics", {})
+        order = [str(entry["label"]) for entry in values.get("per_class", [])]
+        fold_orders.append(order)
+        for entry in values.get("per_class", []):
+            label = str(entry["label"])
+            if label not in labels:
+                labels.append(label)
+            bucket = per_class.setdefault(label, {"precision": [], "recall": [], "f1": []})
+            for key in bucket:
+                bucket[key].append(float(entry[key]))
+            support[label] = support.get(label, 0) + int(entry["support"])
     for number, fold in enumerate(folds_raw):
         values = fold.get("metrics", {})
         metrics: dict[MetricName, float | None] = {}
@@ -974,15 +1110,9 @@ def _metrics(job: JobRecord, primary: MetricName, scores: dict[str, Any]) -> Exp
                 metrics[metric] = _finite(value)
                 if metrics[metric] is not None:
                     per_metric.setdefault(metric, []).append(metrics[metric])  # type: ignore[arg-type]
-        for entry in values.get("per_class", []):
-            label = _label(entry["label"])
-            if label not in labels:
-                labels.append(label)
-            bucket = per_class.setdefault(label, {"precision": [], "recall": [], "f1": []})
-            for key in bucket:
-                bucket[key].append(float(entry[key]))
-            support[label] = support.get(label, 0) + int(entry["support"])
         matrix = values.get("confusion_matrix")
+        if fold_orders[number] != labels:  # rows/columns must follow class_labels exactly
+            matrix = None
         groups = None
         if "per_group" in fold:
             group_scores = [
@@ -1016,6 +1146,9 @@ def _metrics(job: JobRecord, primary: MetricName, scores: dict[str, Any]) -> Exp
     note = "Validation folds of the contract's split, scored by platform code."
     if len(folds) > len(shown):
         note += f" Showing 20 of {len(folds)} folds; the summary covers all of them."
+    if len(labels) > 50:
+        note += f" Showing 50 of {len(labels)} classes."
+    names = display_labels(labels)
     return ExperimentMetrics(
         job_id=job.id,
         trial_id=job.trial_id,
@@ -1025,16 +1158,17 @@ def _metrics(job: JobRecord, primary: MetricName, scores: dict[str, Any]) -> Exp
         primary=_summary(per_metric[primary]) if per_metric.get(primary) else None,
         summary={metric: _summary(values) for metric, values in per_metric.items()},
         folds=shown,
-        class_labels=labels[:50] if labels else None,
+        class_labels=names[:50] if labels else None,
         per_class=[
             ClassScore(
-                label=label,
+                index=index,
+                label=names[index],
                 precision=statistics.fmean(per_class[label]["precision"]),
                 recall=statistics.fmean(per_class[label]["recall"]),
                 f1=statistics.fmean(per_class[label]["f1"]),
                 support=support[label],
             )
-            for label in labels[:50]
+            for index, label in enumerate(labels[:50])
         ],
         note=note,
     )

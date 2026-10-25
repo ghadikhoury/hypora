@@ -7,6 +7,7 @@ a client cannot widen its tool allowlist or reach another run's trials or jobs.
 """
 
 import contextlib
+import hashlib
 import threading
 from pathlib import Path
 
@@ -74,7 +75,7 @@ class Session:
         self.runs_root = Path(config.runs_root).resolve()
         self.runs_root.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
-        self._frames: dict[str, pd.DataFrame] = {}
+        self._frames: dict[str, tuple[pd.DataFrame, str]] = {}  # frame, SHA-256 of its bytes
         self._firewall: tuple[int | None, DataFirewall] | None = None
 
     @property
@@ -89,13 +90,22 @@ class Session:
         path = self.config.datasets.get(dataset_id)
         return Path(path) if path is not None else None
 
-    def frame(self, dataset_id: str) -> pd.DataFrame:
-        """The dataset as loaded by the harness's own reader (same parsing as the experiments)."""
+    def _loaded(self, dataset_id: str) -> tuple[pd.DataFrame, str]:
         with self._lock:
             if dataset_id not in self._frames:
                 path = Path(self.config.datasets[dataset_id])
-                self._frames[dataset_id] = load_tabular(path)
+                source = path.read_bytes()  # one read: the frame and its hash are the same bytes
+                frame = load_tabular(path, source=source)
+                self._frames[dataset_id] = (frame, hashlib.sha256(source).hexdigest())
             return self._frames[dataset_id]
+
+    def frame(self, dataset_id: str) -> pd.DataFrame:
+        """The dataset as loaded by the harness's own reader (same parsing as the experiments)."""
+        return self._loaded(dataset_id)[0]
+
+    def dataset_sha256(self, dataset_id: str) -> str:
+        """SHA-256 of the exact bytes this session loaded, profiled, and indexed."""
+        return self._loaded(dataset_id)[1]
 
     def contract(self) -> ExperimentContract | None:
         """The run's latest experiment contract, or None before one exists."""

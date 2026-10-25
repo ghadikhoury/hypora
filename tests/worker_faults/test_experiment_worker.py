@@ -2,19 +2,22 @@
 the launcher is never reached, so it gets a client that would fail if it were."""
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from hypora.core.schemas import JobLimits, Operation
 from hypora.core.schemas.trials import TrialDesign
+from hypora.execution.harness.runner import HarnessFailure, TabularHarness
 from hypora.execution.protocol import experiments as protocol
 from hypora.execution.sandbox.launcher import SandboxLauncher
 from hypora.execution.worker.experiments import ExperimentWorker
 from hypora.mcp_server.dev import create_dev_workspace
+from hypora.mcp_server.errors import ToolFailure
 from hypora.mcp_server.session import Session, SessionConfig
 from hypora.mcp_server.tools import HyporaTools
 from hypora.storage.jobs import WorkerCapacity
-from tests.mcp_contracts.helpers import DESIGN, LINEAR, RUN_ID
+from tests.mcp_contracts.helpers import DESIGN, LINEAR, RUN_ID, fresh_key
 
 
 class _NoDocker:
@@ -40,7 +43,7 @@ def setup(tmp_path: Path):
 
 def new_trial(tools: HyporaTools) -> str:
     return tools.write_trial_files(
-        design=TrialDesign.model_validate(DESIGN), pipeline_py=LINEAR
+        idempotency_key=fresh_key(), design=TrialDesign.model_validate(DESIGN), pipeline_py=LINEAR
     ).trial_id
 
 
@@ -102,3 +105,61 @@ def test_only_fit_jobs_are_run(setup):
     ran = worker.run_once()
     assert ran.final_state.value == "FAILED_TERMINAL"
     assert ran.outcome.error_code == "OPERATION_UNSUPPORTED"
+
+
+def mutate_after_verification(monkeypatch, dataset: Path) -> None:
+    """The review's reproduction: change the file right after the worker verified and indexed
+    it, before the harness runs."""
+    original = ExperimentWorker._firewall
+
+    def indexed_then_changed(self, path, source, contract):
+        firewall = original(self, path, source, contract)
+        dataset.write_text(dataset.read_text().replace("\n", ",\n", 1))
+        return firewall
+
+    monkeypatch.setattr(ExperimentWorker, "_firewall", indexed_then_changed)
+
+
+def test_the_harness_gets_the_verified_bytes_never_the_path_again(setup, monkeypatch):
+    session, tools, worker = setup
+    submitted(tools)
+    dataset = Path(session.config.datasets["ds_main"])
+    verified = dataset.read_bytes()
+    mutate_after_verification(monkeypatch, dataset)
+    seen: dict[str, bytes] = {}
+
+    def record(self, frame, contract, trial_dir, **kwargs):
+        seen["source"] = kwargs["source"]
+        raise HarnessFailure("stop here: this test only checks the handoff")
+
+    monkeypatch.setattr(TabularHarness, "validate", record)
+    worker.run_once()
+    assert dataset.read_bytes() != verified  # the file really changed under the worker
+    assert seen["source"] == verified  # but the harness got exactly what was verified
+
+
+def test_a_job_never_completes_on_data_other_than_submitted(setup, monkeypatch):
+    """Defense in depth: if the harness's own record ever disagreed with the request, the job
+    fails instead of completing."""
+    _, tools, worker = setup
+    job_id = submitted(tools)
+
+    def wrong_provenance(self, frame, contract, trial_dir, **kwargs):
+        return SimpleNamespace(dataset_fingerprint="0" * 64, pipeline=LINEAR.encode())
+
+    monkeypatch.setattr(TabularHarness, "validate", wrong_provenance)
+    ran = worker.run_once()
+    assert ran.final_state.value == "FAILED_TERMINAL"
+    assert ran.outcome.error_code == "DATASET_CHANGED"
+    assert tools.get_experiment_status(job_id=job_id).error.code == "DATASET_CHANGED"
+
+
+def test_submit_refuses_a_dataset_changed_since_the_session_indexed_it(setup):
+    session, tools, _ = setup
+    trial = new_trial(tools)  # the session has loaded and indexed the dataset by now
+    session.firewall()
+    dataset = Path(session.config.datasets["ds_main"])
+    dataset.write_text(dataset.read_text() + "\n")
+    with pytest.raises(ToolFailure) as refused:
+        tools.submit_experiment(trial_id=trial, idempotency_key=fresh_key())
+    assert refused.value.error.code == "DATASET_CHANGED"

@@ -20,6 +20,7 @@ from tests.mcp_contracts.helpers import (
     new_trial,
     open_session,
     submit,
+    write,
 )
 
 pytestmark = pytest.mark.anyio
@@ -81,9 +82,8 @@ async def test_inspect_dataset_errors(client, arguments, expected):
 
 
 async def test_write_trial_files_creates_a_trial_in_its_own_directory(client, session):
-    error, content = await call(
+    error, content = await write(
         client,
-        "write_trial_files",
         {
             "design": DESIGN,
             "pipeline_py": LINEAR,
@@ -105,9 +105,7 @@ async def test_write_trial_files_creates_a_trial_in_its_own_directory(client, se
 async def test_write_trial_files_updates_only_the_files_given(client, session):
     trial_id = await new_trial(client)
     changed = LINEAR + "\n# tuned\n"
-    error, content = await call(
-        client, "write_trial_files", {"trial_id": trial_id, "pipeline_py": changed}
-    )
+    error, content = await write(client, {"trial_id": trial_id, "pipeline_py": changed})
     assert not error and not content["created"]
     assert [f["name"] for f in content["files"]] == ["pipeline.py"]
     directory = session.runs_root / RUN_ID / "trials" / trial_id
@@ -136,14 +134,13 @@ async def test_write_trial_files_updates_only_the_files_given(client, session):
     ],
 )
 async def test_write_trial_files_errors(client, arguments, expected):
-    error, content = await call(client, "write_trial_files", arguments)
+    error, content = await write(client, arguments)
     assert error and code(content) == expected
 
 
 async def test_unapproved_dependencies_are_a_logged_policy_decision(client, session):
-    await call(
+    await write(
         client,
-        "write_trial_files",
         {"design": DESIGN, "pipeline_py": LINEAR, "requirements_lock": "torch==2.9.0"},
     )
     assert last_denial(session).decided_by.value == "approval_state"
@@ -151,7 +148,7 @@ async def test_unapproved_dependencies_are_a_logged_policy_decision(client, sess
 
 async def test_an_empty_update_is_refused(client):
     trial_id = await new_trial(client)
-    error, content = await call(client, "write_trial_files", {"trial_id": trial_id})
+    error, content = await write(client, {"trial_id": trial_id})
     assert error and code(content) == "NOTHING_TO_WRITE"
 
 
@@ -162,9 +159,7 @@ async def test_writes_replace_a_planted_link_and_never_follow_it(client, session
     pipeline = session.runs_root / RUN_ID / "trials" / trial_id / "pipeline.py"
     pipeline.unlink()
     os.symlink(target, pipeline)
-    error, _ = await call(
-        client, "write_trial_files", {"trial_id": trial_id, "pipeline_py": LINEAR}
-    )
+    error, _ = await write(client, {"trial_id": trial_id, "pipeline_py": LINEAR})
     assert not error
     assert target.read_text() == "must not change"
     assert not pipeline.is_symlink() and pipeline.read_text() == LINEAR
@@ -179,9 +174,7 @@ async def test_a_linked_trial_directory_is_refused(client, session, tmp_path):
         child.unlink()
     directory.rmdir()
     os.symlink(outside, directory)
-    error, content = await call(
-        client, "write_trial_files", {"trial_id": trial_id, "pipeline_py": LINEAR}
-    )
+    error, content = await write(client, {"trial_id": trial_id, "pipeline_py": LINEAR})
     assert error and code(content) == "UNSAFE_TRIAL_DIR"
     assert list(outside.iterdir()) == []
 
@@ -197,7 +190,7 @@ async def test_submit_freezes_the_trial_and_queues_a_fit_job(client, session):
     assert job.trial_id == trial_id and job.operation.value == "fit"
     folder = session.runs_root / RUN_ID / "jobs" / content["job_id"]
     assert (folder / "trial" / "pipeline.py").read_text() == LINEAR
-    await call(client, "write_trial_files", {"trial_id": trial_id, "pipeline_py": LINEAR + "#\n"})
+    await write(client, {"trial_id": trial_id, "pipeline_py": LINEAR + "#\n"})
     assert (folder / "trial" / "pipeline.py").read_text() == LINEAR  # the snapshot is frozen
     transitions = [e.payload.to_state.value for e in events(session, "job_transition")]
     assert transitions == ["DRAFT", "VALIDATING", "AWAITING_APPROVAL", "QUEUED"]
@@ -264,10 +257,8 @@ async def test_submit_without_a_contract(session_file):
     session = open_session(session_file, run_id="run_without_contract")
     create_run(session.database, "run_without_contract", "ws_mcp_dev")
     async with Client(HyporaMCPServer(session)) as client:
-        error, content = await call(
-            client,
-            "write_trial_files",
-            {"design": DESIGN, "pipeline_py": LINEAR},
+        error, content = await write(
+            client, {"design": DESIGN, "pipeline_py": LINEAR}, run_id="run_without_contract"
         )
         assert not error and content["submit_defaults"] is None
         error, content = await call(
@@ -289,8 +280,8 @@ async def test_another_runs_trials_and_jobs_are_invisible(client, session, sessi
             intruder, "get_experiment_status", {"job_id": submitted["job_id"]}
         )
         assert error and code(content) == "EXPERIMENT_NOT_FOUND"
-        error, content = await call(
-            intruder, "write_trial_files", {"trial_id": trial_id, "pipeline_py": LINEAR}
+        error, content = await write(
+            intruder, {"trial_id": trial_id, "pipeline_py": LINEAR}, run_id="run_other_run"
         )
         assert error and code(content) == "TRIAL_NOT_FOUND"
     other.close()
@@ -358,6 +349,69 @@ async def test_metrics_of_a_completed_job(client, session):
     assert groups == {"n_groups": 2, "mean": pytest.approx(0.95), "worst": 0.91, "best": 0.99}
     assert "patient-0042" not in str(metrics)  # group labels are data values: never returned
     assert metrics["folds"][0]["unavailable"]["pr_auc"].startswith("scoring partition")
+    assert [entry["index"] for entry in metrics["per_class"]] == [0, 1]
+
+
+def two_long_classes(first: str, second: str) -> dict:
+    """Scores of one fold with two classes, supports 100 and 200, distinct per-class values."""
+    return {
+        "folds": [
+            {
+                "rows": 300,
+                "metrics": {
+                    "f1_macro": 0.8,
+                    "roc_auc": 0.9,
+                    "confusion_matrix": [[90, 10], [20, 180]],
+                    "per_class": [
+                        {
+                            "label": first,
+                            "precision": 0.82,
+                            "recall": 0.9,
+                            "f1": 0.86,
+                            "support": 100,
+                        },
+                        {
+                            "label": second,
+                            "precision": 0.95,
+                            "recall": 0.9,
+                            "f1": 0.92,
+                            "support": 200,
+                        },
+                    ],
+                },
+                "unavailable": {},
+            }
+        ]
+    }
+
+
+async def test_long_labels_sharing_a_prefix_stay_separate_classes(client, session):
+    """The PR #15 review's reproduction: two labels with the same first 40 characters."""
+    first, second = "a" * 40 + "0", "a" * 40 + "1"
+    trial_id = await new_trial(client)
+    _, submitted = await submit(client, trial_id)
+    finish_job(session, submitted["job_id"], scores=two_long_classes(first, second))
+    error, metrics = await call(client, "get_experiment_metrics", {"job_id": submitted["job_id"]})
+    assert not error
+    labels = metrics["class_labels"]
+    assert len(labels) == 2 and len(set(labels)) == 2  # never merged
+    assert all(len(label) <= 40 for label in labels)
+    by_index = {entry["index"]: entry for entry in metrics["per_class"]}
+    assert by_index[0]["support"] == 100 and by_index[1]["support"] == 200
+    assert by_index[0]["precision"] == 0.82 and by_index[1]["precision"] == 0.95
+    assert [by_index[i]["label"] for i in (0, 1)] == labels  # one order for labels and matrix
+    assert metrics["folds"][0]["confusion_matrix"] == [[90, 10], [20, 180]]
+
+
+def test_display_labels_are_unique_bounded_and_keep_short_labels():
+    from hypora.mcp_server.tools import display_labels
+
+    long = "x" * 45
+    shown = display_labels(["cat", "dog", long, long + "y", "x" * 39 + "…"])
+    assert shown[:2] == ["cat", "dog"]
+    assert len(set(shown)) == 5 and all(len(label) <= 40 for label in shown)
+    assert shown[2] == "x" * 39 + "…"  # the first long label just gets cut
+    assert shown[3].endswith("…#3") and shown[4].endswith("…#4")
 
 
 async def test_metrics_and_status_of_a_failed_job(client, session):

@@ -96,7 +96,7 @@ def _annotations(name: ToolName) -> ToolAnnotations:
         title=TITLES[name],
         read_only_hint=tier is ToolTier.READ,
         destructive_hint=tier is ToolTier.DESTRUCTIVE_EGRESS,
-        idempotent_hint=tier is ToolTier.READ or name is ToolName.SUBMIT_EXPERIMENT,
+        idempotent_hint=True,  # reads by nature; the two writes by their idempotency keys
         open_world_hint=False,
     )
 

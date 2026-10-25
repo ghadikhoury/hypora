@@ -154,6 +154,17 @@ class _Heartbeat:
                 return
 
 
+def _provenance_mismatch(
+    request: ExperimentRequest, dataset_fingerprint: str, pipeline: bytes
+) -> tuple[str, str, bool] | None:
+    """Refuse to complete a job whose recorded data or code differs from what was submitted."""
+    if dataset_fingerprint != request.dataset_sha256:
+        return "DATASET_CHANGED", "the executed dataset differs from the submitted one", False
+    if hashlib.sha256(pipeline).hexdigest() != request.trial_files.get("pipeline.py"):
+        return "SNAPSHOT_CHANGED", "the executed pipeline.py differs from the snapshot", False
+    return None
+
+
 @dataclass(frozen=True)
 class ExperimentRun:
     """What happened to one leased experiment job."""
@@ -244,6 +255,8 @@ class ExperimentWorker:
             folder / HARNESS_DIR, self.image, launcher, worker_id=self.worker_id
         )
         try:
+            # The verified bytes themselves: the harness never reopens the dataset path, so
+            # what runs is exactly what was hashed and what the firewall indexed.
             result = harness.validate(
                 dataset,
                 contract,
@@ -252,12 +265,13 @@ class ExperimentWorker:
                 dataset_ref=f"dataset:{request.dataset_id}",
                 config=dict(request.request.config),
                 limits=request.request.limits,
+                source=source,
             )
         except Exception as exc:
             code, message, retryable = self._failure(exc, launcher, firewall)
             failure: tuple[str, str, bool] | None = (code, message, retryable)
         else:
-            failure = None
+            failure = _provenance_mismatch(request, result.dataset_fingerprint, result.pipeline)
         finally:
             heartbeat.done.set()
             thread.join()

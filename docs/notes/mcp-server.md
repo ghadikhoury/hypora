@@ -46,6 +46,27 @@ the SDK's `MCPServer.call_tool`, through which every `tools/call` passes, so no 
 Every check is a `policy_decision` event (spec §11), including passes and switched-off defenses,
 and the events carry the call ID that joins `tool_call`, its decisions, and `tool_result`.
 
+## Idempotency of the two write tools (spec §11, §15.5)
+
+`write_trial_files` and `submit_experiment` both require an `idempotency_key` of the form
+`{run_id}:{call_id}`. Before doing anything, a call reserves its key in `idempotency_records`
+(`hypora/storage/idempotency.py`, migration 0003), in one SQLite write transaction, together with
+the SHA-256 of the fully resolved request (every field after defaults, `config` included; file
+contents by hash) and the IDs it plans to create (`trial_id` or `job_id`):
+
+| Same key arrives with | Outcome |
+|---|---|
+| a different request, another tool, or another run | `IDEMPOTENCY_KEY_REUSED`; nothing happens |
+| the same request, first call finished | the original result (`write_trial_files`: verbatim; `submit_experiment`: the same job, `deduplicated: true`) |
+| the same request, first call still running or crashed | the same plan, redone: the same trial or job ID; every step is safe to repeat |
+
+The reservation serializes concurrent calls, so two different requests are never both accepted
+under one key (the PR #15 review's race), and identical ones always share one trial or job. A
+late duplicate of an old write returns its original result and writes nothing, so it cannot undo
+a later write. `submit_experiment` publishes its job folder by renaming a fully written private
+staging directory into place: the worker never sees a partial folder, and when two identical
+calls race, the first published snapshot is the one that runs.
+
 **What the LLM decides vs. what code decides.** The LLM chooses which tool to call, the trial's
 hypothesis and code, and when to submit. Code decides everything else: which tools the role sees,
 whether arguments are valid, which run and trials it may touch, the split, the limits ceiling,
@@ -69,7 +90,10 @@ each call records `policy_decision` "defenses.X is off".
 Two layers. **Typed outputs:** every tool returns a declared, bounded model
 (`hypora/mcp_server/models.py`): no field can hold per-row data, lists and strings are capped,
 numbers are platform aggregates, metric group labels are dropped (they are data values), class
-labels are cut to 40 characters (the D-009 bound). **One boundary filter:** `DataFirewall`
+labels are shown in at most 40 characters (the D-009 bound). Per-class scores are aggregated by
+each class's full label, and a shortened label that would collide gets its class index
+(`display_labels`), so distinct classes are never merged; each class carries its `index`, the
+order of `class_labels` and of every confusion matrix. **One boundary filter:** `DataFirewall`
 (`hypora/core/policy/firewall.py`) checks every string and dict key of every result against the
 run's actual data: each authorized dataset, plus the contract-applied frame that trial code sees.
 
@@ -113,12 +137,15 @@ worker, before text leaves the user's machine (spec §4.3).
 ```
 submit_experiment (control plane)              experiment worker (execution plane, own process)
   checks: run, contract version, approval,      lease (WorkerCapacity from resource pools)
-          fit/tabular, limits <= contract        verify dataset SHA-256 and snapshot hashes
-  idempotency: same key + same request          start; heartbeat thread (lease, cancel)
-          -> the original job; else refused     TabularHarness.validate(..., limits=job limits)
-  snapshot trial files -> job folder               one fit + one predict sandbox per fold
-  request.json (frozen ExperimentRequest)        artifacts (metrics, predictions, manifest)
-  JobQueue.enqueue -> QUEUED ─────────────────►  results row (trial, validation), outcome.json
+          fit/tabular, limits <= contract        read the dataset ONCE; verify its SHA-256 and
+  reserve the idempotency key (request hash)       the snapshot hashes; index those bytes
+  dataset unchanged since the session loaded it start; heartbeat thread (lease, cancel)
+  publish job folder atomically:                TabularHarness.validate(..., limits=job limits,
+    trial snapshot + request.json                   source=the verified bytes)
+  JobQueue.enqueue -> QUEUED ─────────────────►    one fit + one predict sandbox per fold
+                                                 provenance check: recorded dataset fingerprint and
+                                                   pipeline hash must equal the request's
+                                                 artifacts, results row, outcome.json
                                                  complete / fail (code + safe message)
 ```
 
@@ -127,13 +154,20 @@ submit_experiment (control plane)              experiment worker (execution plan
   mounted into a sandbox.
 - The snapshot freezes what runs: editing the trial after submitting changes nothing, and the
   worker refuses a changed snapshot (`SNAPSHOT_CHANGED`) or dataset (`DATASET_CHANGED`).
+- One dataset read (PR #15 review): the worker reads the file once, verifies those bytes, indexes
+  them for the firewall, and hands the same bytes to the harness (`validate(source=...)`), which
+  never reopens the path. A file changed after verification therefore cannot run; and the worker
+  still refuses to complete a job whose recorded fingerprint or pipeline hash differs from the
+  request. On the server side, `submit_experiment` refuses a dataset that changed since the
+  session loaded and indexed it, so the firewall and the experiment always see the same data.
 - Error codes: `STAGE_FAILED`, `TIMEOUT`, `OOM_KILLED`, `OUTPUT_LIMIT`, `UNSAFE_OUTPUT` (the trial's
   fault, terminal); `SANDBOX_START_FAILED`, `ABORTED`, `WORKER_ERROR` (infrastructure, retried while
   attempts remain); `HARNESS_REJECTED`, `CONTRACT_DATA_ERROR`, `PREPARATION_FAILED`.
 - The worker logs every sandbox stage's output (raw, platform-owned `logs.jsonl`); the MCP server
   redacts it on the way out. Messages written to events are platform-authored or screened.
-- S1.3's harness gained one optional argument, `validate(..., limits=...)`: every stage runs with
-  the job's limits (default: the contract's). `submit_experiment` refuses limits above the contract.
+- S1.3's harness gained two optional arguments: `validate(..., limits=..., source=...)`. Every
+  stage runs with the job's limits (default: the contract's; `submit_experiment` refuses limits
+  above the contract), and `source` is the caller's already-verified dataset content.
 - v1 runs one job at a time per worker and only `fit`. Final freeze and test scoring stay with the
   controller (S1.5); resumable checkpoints and backoff are S3.E.
 
@@ -153,8 +187,9 @@ Open the printed `http://127.0.0.1:6274?...` URL in a Windows browser (WSL forwa
 click **Connect**, then **Tools → List Tools**. A session to try:
 
 1. `inspect_dataset` with no arguments (UCI Breast Cancer Wisconsin, 569 rows).
-2. `write_trial_files` with a `design` (kind `baseline`, operation `fit`, ...) and `pipeline_py` set
-   to `hypora/execution/templates/tabular/linear/pipeline.py`; note the `trial_id`.
+2. `write_trial_files` with `idempotency_key` `run_mcp_dev:write1`, a `design` (kind `baseline`,
+   operation `fit`, ...), and `pipeline_py` set to
+   `hypora/execution/templates/tabular/linear/pipeline.py`; note the `trial_id`.
 3. `submit_experiment` with that `trial_id` and `idempotency_key` `run_mcp_dev:try1`.
 4. `get_experiment_status` until `finished`; then `get_experiment_metrics` and `get_experiment_logs`.
 

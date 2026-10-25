@@ -207,14 +207,17 @@ class TabularHarness:
         dataset_ref: str,
         config: dict | None = None,
         limits: JobLimits | None = None,
+        source: bytes | None = None,
     ) -> ValidationResult:
         """Fit every validation fold and recompute scores from saved predictions on the worker.
 
         `limits` are the submitted job's own sandbox limits, applied to every stage; by default
         the contract's `default_job_limits`. The caller checks they stay within the contract.
+        `source` is the dataset's content the caller already read and verified: the path then
+        only names the format, and is never read again (one read, one fingerprint).
         """
         if isinstance(frame, Path):
-            source = frame.read_bytes()
+            source = frame.read_bytes() if source is None else source
             fingerprint = digest(source)
             frame = load_tabular(frame, source=source)
         else:

@@ -372,9 +372,11 @@ one it supersedes.
 - Defaults accepted with these choices: the frozen contract in `docs/mcp/tools.json` includes
   descriptions; tool output models live in `hypora/mcp_server/` (no change to
   `hypora/core/schemas/`); `write_trial_files` takes a typed design and allocates trial IDs;
-  `submit_experiment` supports tabular `fit` only, defaults run/contract/approval to the session,
-  and requires a `{run_id}:{call_id}` idempotency key; the launcher fixes each session's role and
-  run; the Inspector dev workspace uses scikit-learn's bundled UCI Breast Cancer Wisconsin data.
+  `submit_experiment` supports tabular `fit` only and defaults run/contract/approval to the
+  session; both write tools (`write_trial_files` added in the PR #15 review, per spec §11)
+  require a `{run_id}:{call_id}` idempotency key, recorded with the request's hash in the state
+  database; the launcher fixes each session's role and run; the Inspector dev workspace uses
+  scikit-learn's bundled UCI Breast Cancer Wisconsin data.
 - Why: the official SDK's current line; a queue-backed bridge is the only way the tools can be
   exercised end to end while keeping the worker a separate process (spec §4.1) and labels out of
   the control plane; a filter that knows the data catches realistic leaks without blocking

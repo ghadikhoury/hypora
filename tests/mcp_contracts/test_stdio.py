@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from mcp import Client, StdioServerParameters
 
-from tests.mcp_contracts.helpers import DESIGN, LINEAR, open_session
+from tests.mcp_contracts.helpers import DESIGN, LINEAR, fresh_key, open_session
 
 pytestmark = pytest.mark.anyio
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -27,7 +27,8 @@ async def test_a_stdio_client_lists_and_calls_tools(session_file):
         assert not profile.is_error
         assert profile.structured_content["tabular"]["n_rows"] == 569
         written = await client.call_tool(
-            "write_trial_files", {"design": DESIGN, "pipeline_py": LINEAR}
+            "write_trial_files",
+            {"idempotency_key": fresh_key(), "design": DESIGN, "pipeline_py": LINEAR},
         )
         assert not written.is_error
         refused = await client.call_tool("export_artifacts", {})

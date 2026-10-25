@@ -16,6 +16,9 @@ Revision `0002` adds insert-conflict guards to both tables, including the ledger
 charge-reference unique key. These reject `INSERT OR REPLACE` before it can delete history, even
 on connections with `recursive_triggers=OFF`. Upgrading an existing `0001` database preserves its
 rows and installs the same guards as a fresh migration.
+Revision `0003` (S1.4) adds `idempotency_records`: one row per write tool call key
+(`{run_id}:{call_id}`, spec §11) with the request's hash, the IDs it planned, and its result
+(`hypora/storage/idempotency.py`; docs/notes/mcp-server.md).
 `eval_cases` and `eval_results` are storage records only; S2 defines their content. No held-out
 data or grading rules are implemented or modified. The migration tests upgrade an empty file,
 compare the resulting schema with SQLAlchemy metadata, then downgrade and re-upgrade.

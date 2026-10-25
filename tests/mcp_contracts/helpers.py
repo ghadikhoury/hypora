@@ -2,6 +2,7 @@
 is about the tools, not the sandbox (test_end_to_end.py runs the real worker in Docker)."""
 
 import json
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -39,10 +40,20 @@ async def call(client: Client, name: str, arguments: dict[str, Any] | None = Non
     return result.is_error, result.structured_content
 
 
-async def new_trial(client: Client, pipeline: str = LINEAR) -> str:
-    error, content = await call(
-        client, "write_trial_files", {"design": DESIGN, "pipeline_py": pipeline}
+def fresh_key(run_id: str = RUN_ID) -> str:
+    """A new `{run_id}:{call_id}` idempotency key."""
+    return f"{run_id}:call_{uuid.uuid4().hex[:12]}"
+
+
+async def write(client: Client, arguments: dict[str, Any], run_id: str = RUN_ID) -> Any:
+    """write_trial_files with a fresh idempotency key (unless the test passes its own)."""
+    return await call(
+        client, "write_trial_files", {"idempotency_key": fresh_key(run_id), **arguments}
     )
+
+
+async def new_trial(client: Client, pipeline: str = LINEAR) -> str:
+    error, content = await write(client, {"design": DESIGN, "pipeline_py": pipeline})
     assert not error, content
     return str(content["trial_id"])
 

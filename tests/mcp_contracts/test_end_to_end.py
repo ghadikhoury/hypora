@@ -126,3 +126,36 @@ async def test_a_failing_pipeline_reports_a_platform_error_only(client, session,
     firewall = DataFirewall([session.frame("ds_main")])
     reasons = " ".join(e.payload.reason for e in events(session, "job_transition"))
     assert not firewall.screen_untrusted([reasons])[1]  # no data in the event log either
+
+
+async def test_a_dataset_changed_after_verification_never_reaches_the_sandbox(
+    client, session, worker, monkeypatch
+):
+    """The PR #15 review's reproduction: change the CSV after the worker verified and indexed
+    it. The job runs on exactly the verified bytes, so the recorded fingerprint is the one
+    that was submitted."""
+    from pathlib import Path
+
+    from hypora.execution.protocol import experiments as protocol
+
+    trial = await new_trial(client)
+    _, submitted = await submit(client, trial)
+    job_id = submitted["job_id"]
+    dataset = Path(session.config.datasets["ds_main"])
+    original = ExperimentWorker._firewall
+
+    def indexed_then_changed(self, path, source, contract):
+        firewall = original(self, path, source, contract)
+        dataset.write_text(dataset.read_text().replace("\n", ",\n", 1))
+        return firewall
+
+    monkeypatch.setattr(ExperimentWorker, "_firewall", indexed_then_changed)
+    ran = await run_one(worker)
+    assert ran.final_state.value == "COMPLETED", ran.outcome
+
+    submitted_sha = protocol.read_request(
+        protocol.job_dir(session.runs_root, RUN_ID, job_id)
+    ).dataset_sha256
+    store = ArtifactStore(session.database, session.runs_root / RUN_ID / "artifacts")
+    manifest = yaml.safe_load(store.get(f"{job_id}.manifest").path.read_text())
+    assert manifest["dataset_fingerprint"] == submitted_sha

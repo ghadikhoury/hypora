@@ -23,7 +23,8 @@ from hypora.core.schemas import (
 )
 
 Label = Annotated[str, StringConstraints(max_length=40)]
-"""A class label, cut to 40 characters (the D-009 bound)."""
+"""A class label of at most 40 characters (the D-009 bound), unique within one result: a longer
+label is cut, and disambiguated by its class index if the cut collides (`tools.display_labels`)."""
 
 Line = Annotated[str, StringConstraints(max_length=600)]
 Note = Annotated[str, StringConstraints(max_length=400)]
@@ -49,7 +50,10 @@ class TrialFilesResult(StrictModel):
     trial_id: Identifier = Field(
         description="Pass this to write_trial_files and submit_experiment."
     )
-    created: bool = Field(description="True if this call created the trial.")
+    created: bool = Field(
+        description="True if this call created the trial (a retry with the same "
+        "idempotency_key returns this original result)."
+    )
     trial_dir: Note = Field(description="The trial's own directory, relative to the repository.")
     files: list[WrittenFile] = Field(max_length=3, description="Files this call wrote.")
     present: list[Literal["trial.yaml", "pipeline.py", "requirements.lock"]] = Field(
@@ -133,12 +137,18 @@ class FoldScore(StrictModel):
         default_factory=dict, description="Why a metric is undefined on this fold."
     )
     confusion_matrix: list[list[NonNegativeInt]] | None = Field(
-        None, max_length=50, description="Rows: true class; columns: predicted (class_labels)."
+        None,
+        max_length=50,
+        description="Rows: true class; columns: predicted; both in class_labels order (index). "
+        "Null for a fold whose classes differ from class_labels.",
     )
     groups: GroupSummary | None = None
 
 
 class ClassScore(StrictModel):
+    index: NonNegativeInt = Field(
+        description="The class's position in class_labels and in every confusion matrix."
+    )
     label: Label
     precision: float
     recall: float

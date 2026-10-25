@@ -20,6 +20,7 @@ from tests.mcp_contracts.helpers import (
     new_trial,
     open_session,
     submit,
+    write,
 )
 
 pytestmark = pytest.mark.anyio
@@ -100,7 +101,7 @@ async def test_unknown_arguments_are_refused_not_dropped(client):
 async def test_schema_violations_name_fields_without_echoing_values(client):
     secret_looking = "zz-raw-value-that-must-not-echo"
     bad = {**DESIGN, "kind": secret_looking}
-    error, content = await call(client, "write_trial_files", {"design": bad, "pipeline_py": LINEAR})
+    error, content = await write(client, {"design": bad, "pipeline_py": LINEAR})
     assert error and content["code"] == "INVALID_ARGUMENTS"
     assert "design.kind" in content["message"]
     assert secret_looking not in content["message"]

@@ -989,12 +989,12 @@
     {
       "annotations": {
         "destructiveHint": false,
-        "idempotentHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Write a trial's files"
       },
-      "description": "Create a trial, or replace its files, in the run's own trial directory.\n\nA trial tests ONE hypothesis. Its pipeline.py is model code that the platform runs in a\nsandbox: `fit(train, ctx)` receives `train.X` / `train.y` (pandas; training rows only)\nand must do all learned preprocessing (imputation, scaling, encoding) inside fit;\n`predict(model, X)` returns `runtime.Predictions(values, probabilities, classes)`, with\nclass probabilities in sorted-label order for classification. Import `Predictions` from\n`runtime`. The platform, never this code, splits the data and computes the metrics.\n\nUse it to start a trial (omit trial_id), or to fix a trial after reading its logs\n(pass trial_id and only the files that change). Then call submit_experiment.\n\nDo not use it to read files or to write anywhere but this trial: paths are fixed. Do not\nprint data from pipeline.py; output that shows dataset values is withheld from logs.\n\nReturns the trial_id, the files written (SHA-256, size), the files the trial now has,\nand `submit_defaults`: the values submit_experiment uses for omitted arguments.\n\nExample: write_trial_files(design={\"kind\": \"baseline\", \"operation\": \"fit\",\n\"hypothesis\": \"A majority-class predictor sets the floor\", \"model_family\": \"dummy\",\n\"expected_effect\": \"f1_macro near 0.4\", \"estimated_cost\": {\"compute_seconds\": 30}},\npipeline_py=\"...\")",
+      "description": "Create a trial, or replace its files, in the run's own trial directory.\n\nA trial tests ONE hypothesis. Its pipeline.py is model code that the platform runs in a\nsandbox: `fit(train, ctx)` receives `train.X` / `train.y` (pandas; training rows only)\nand must do all learned preprocessing (imputation, scaling, encoding) inside fit;\n`predict(model, X)` returns `runtime.Predictions(values, probabilities, classes)`, with\nclass probabilities in sorted-label order for classification. Import `Predictions` from\n`runtime`. The platform, never this code, splits the data and computes the metrics.\n\nUse it to start a trial (omit trial_id), or to fix a trial after reading its logs\n(pass trial_id and only the files that change). Then call submit_experiment.\n\nDo not use it to read files or to write anywhere but this trial: paths are fixed. Do not\nprint data from pipeline.py; output that shows dataset values is withheld from logs.\n\nReturns the trial_id, the files written (SHA-256, size), the files the trial now has,\nand `submit_defaults`: the values submit_experiment uses for omitted arguments.\n\nExample: write_trial_files(idempotency_key=\"run_104:wr_0001\", design={\"kind\":\n\"baseline\", \"operation\": \"fit\", \"hypothesis\": \"A majority-class predictor sets the\nfloor\", \"model_family\": \"dummy\", \"expected_effect\": \"f1_macro near 0.4\",\n\"estimated_cost\": {\"compute_seconds\": 30}}, pipeline_py=\"...\")",
       "inputSchema": {
         "$defs": {
           "CostEstimate": {
@@ -1223,6 +1223,13 @@
             "default": null,
             "description": "The trial's hypothesis and plan, saved as trial.yaml. Required when creating a trial. For a fit trial: kind 'baseline' or 'candidate', operation 'fit'."
           },
+          "idempotency_key": {
+            "description": "'{run_id}:{unique id}', e.g. 'run_104:wr_0001'. Use a NEW key for every new write; resend the SAME key only to retry a write whose reply you did not receive (it returns the original result and writes nothing again).",
+            "maxLength": 260,
+            "pattern": "^[^:\\s]+:[^:\\s]+$",
+            "title": "Idempotency Key",
+            "type": "string"
+          },
           "pipeline_py": {
             "anyOf": [
               {
@@ -1266,6 +1273,9 @@
             "title": "Trial Id"
           }
         },
+        "required": [
+          "idempotency_key"
+        ],
         "title": "write_trial_filesArguments",
         "type": "object"
       },
@@ -1399,7 +1409,7 @@
         "additionalProperties": false,
         "properties": {
           "created": {
-            "description": "True if this call created the trial.",
+            "description": "True if this call created the trial (a retry with the same idempotency_key returns this original result).",
             "title": "Created",
             "type": "boolean"
           },
@@ -2073,6 +2083,12 @@
                 "title": "F1",
                 "type": "number"
               },
+              "index": {
+                "description": "The class's position in class_labels and in every confusion matrix.",
+                "minimum": 0,
+                "title": "Index",
+                "type": "integer"
+              },
               "label": {
                 "maxLength": 40,
                 "title": "Label",
@@ -2094,6 +2110,7 @@
               }
             },
             "required": [
+              "index",
               "label",
               "precision",
               "recall",
@@ -2124,7 +2141,7 @@
                   }
                 ],
                 "default": null,
-                "description": "Rows: true class; columns: predicted (class_labels).",
+                "description": "Rows: true class; columns: predicted; both in class_labels order (index). Null for a fold whose classes differ from class_labels.",
                 "title": "Confusion Matrix"
               },
               "fold": {
