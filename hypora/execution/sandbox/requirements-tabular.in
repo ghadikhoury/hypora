@@ -8,3 +8,7 @@ scikit-learn
 xgboost-cpu  # the official CPU-only XGBoost build (no NVIDIA libraries); GPU images come in S3.F1
 lightgbm
 optuna
+
+# S1.3: approved Parquet engine and in-sandbox sklearn model persistence.
+pyarrow==26.0.0
+joblib==1.6.0
