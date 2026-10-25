@@ -54,7 +54,10 @@ continuing. Raise it at the point it is needed: before starting the step, or bef
 
 ## Development environment and commands
 
-Ghadi's machine is Windows 11 with Docker Desktop on WSL2; CI runs on GitHub's Ubuntu runners. Run
+Ghadi's machine is Windows 11 with Docker Desktop on WSL2; CI runs on GitHub's Ubuntu runners.
+**Work from the WSL filesystem (`~/hypora`, or your own clone under `~`), never from `/mnt/c`:**
+Docker Desktop's bind mounts can break the working directory of processes on the Windows drive, and
+permissions and speed differ there (`docs/notes/dev-environment.md`). Run
 `make` from a POSIX shell: the **WSL2 Ubuntu** shell on Windows (`wsl -d Ubuntu-24.04`), or Linux.
 The `.venv` is a Linux environment, so don't run `uv sync` from PowerShell in this folder, and make
 commits from WSL so the pre-commit hooks can run. All text files use LF line endings (`.gitattributes`).

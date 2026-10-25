@@ -1,9 +1,9 @@
-"""Fixtures for sandbox tests: a launcher and job directories on two filesystems.
+"""Fixtures for sandbox tests: a launcher and job directories in two locations.
 
-Mount-sensitive tests run twice: under pytest's tmp_path (WSL ext4 / Linux) and under the repo's
-git-ignored `runs/` directory, which on Ghadi's machine is the Windows drive (/mnt/c, where Docker
-Desktop ignores Unix permissions). The security properties must hold on both (D-011). The real
-image comes from the session fixture `sandbox_image` in tests/conftest.py.
+Mount-sensitive tests run twice: under pytest's tmp_path and under the repo's git-ignored `runs/`
+directory, where real job directories live. The repo must be on the WSL/Linux filesystem, never
+/mnt/c (docs/notes/dev-environment.md; the Windows-drive measurements are recorded in D-011).
+The real image comes from the session fixture `sandbox_image` in tests/conftest.py.
 """
 
 import shutil

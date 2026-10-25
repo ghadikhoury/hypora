@@ -1,5 +1,7 @@
 """Execution worker: pools, outcomes, heartbeats, lost leases, cancellation, and real containers."""
 
+import os
+import sys
 import threading
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
@@ -389,10 +391,13 @@ def test_the_worker_command_line_runs_a_job(
     queue = JobQueue(database)
     job_id = enqueue(queue, "k:cli")
     monkeypatch.setenv("SANDBOX_TEST_BASE", str(tmp_path / "jobs"))
+    # The worker moves its process to `/`; monkeypatch restores this test's directory and path.
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "path", list(sys.path))
     main(
         [
             "--db",
-            str(tmp_path / "state.sqlite"),
+            "state.sqlite",  # relative on purpose: resolved before the move to `/`
             "--planner",
             "tests.worker_faults.planners:from_environment",
             "--worker-id",
@@ -402,4 +407,6 @@ def test_the_worker_command_line_runs_a_job(
             "0.1",
         ]
     )
+    assert os.getcwd() == "/"
+    assert all(os.path.isabs(entry) for entry in sys.path)
     assert queue.get(job_id).status is S.COMPLETED

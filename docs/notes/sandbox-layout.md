@@ -82,12 +82,18 @@ trial's jobs, so S1.4's `write_trial_files` must not follow links when it writes
 | GPUs | none visible unless `limits.gpu` (device request) | — (no GPU in S1.2) |
 | PID 1 | `tini` (`init=True`) reaps stray processes | — |
 
-Mount-sensitive tests run on two filesystems: pytest's `tmp_path` (WSL ext4 or Linux) and the
-repo's git-ignored `runs/.sandbox-tests/`, which on Ghadi's machine is the Windows drive.
+Mount-sensitive tests run in two locations: pytest's `tmp_path` and the repo's git-ignored
+`runs/.sandbox-tests/`, where real job directories live.
 
-**Windows-drive differences (D-011).** On `/mnt/c`, Docker Desktop ignores Unix permissions on
-bind mounts, so nothing here relies on them. It also refuses to create FIFOs, which is stricter.
-The symlink, read-only, network, and limit behaviors are identical on both filesystems.
+**Windows-drive differences (D-011).** The suite ran on both WSL ext4 and `/mnt/c` before the
+working copies moved to WSL. On `/mnt/c`:
+- Docker Desktop ignores Unix permissions on bind mounts, so nothing here relies on them.
+- It refuses to create FIFOs, which is stricter.
+- The symlink, read-only, network, and limit behaviors are identical.
+- Docker Desktop's bind mounts also break the working directory of other processes on `/mnt/c`.
+
+So all work happens on the WSL filesystem (`docs/notes/dev-environment.md`), and the worker runs
+in `/`.
 
 **Threat model, briefly.** Docker isolation is meaningful but not a guarantee against hostile code
 (spec §14.3). Residual risks:
