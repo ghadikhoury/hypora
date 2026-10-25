@@ -387,6 +387,20 @@
           "title": "Leakage Candidates",
           "type": "array"
         },
+        "leakage_screen_skipped_reason": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Why leakage CV was skipped; null alone does not prove screening occurred.",
+          "title": "Leakage Screen Skipped Reason"
+        },
         "n_columns": {
           "minimum": 0,
           "title": "N Columns",
@@ -402,6 +416,21 @@
           "minimum": 0,
           "title": "N Rows",
           "type": "integer"
+        },
+        "statistics_sample_size": {
+          "anyOf": [
+            {
+              "maximum": 20000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Seeded sample rows used for expensive statistics; null for older profiles.",
+          "title": "Statistics Sample Size"
         },
         "target": {
           "anyOf": [

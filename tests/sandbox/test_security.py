@@ -1,4 +1,4 @@
-"""Sandbox security tests (PLAN.md S1.2, spec §14.3, D-009) against the real image.
+"""Sandbox security tests (PLAN.md S1.2, spec §14.3, D-011) against the real image.
 
 Each test runs untrusted-style code in a container and checks that the boundary holds. Tests that
 depend on mounts run on both filesystems (`base_dir`: tmp and the repo's runs/, i.e. /mnt/c on
@@ -185,7 +185,7 @@ def test_worker_environment_never_leaks(
     assert env["JOB_SETTING"] == "visible" and env["HOME"] == "/tmp"
 
 
-# --- the symlink escape (D-009; also an attack case for S3.D4) ------------------------------------
+# --- the symlink escape (D-011; also an attack case for S3.D4) ------------------------------------
 
 
 def test_symlink_escape_through_outputs_is_refused(run_script: RunScript, base_dir: Path) -> None:

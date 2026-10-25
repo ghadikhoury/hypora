@@ -7,9 +7,12 @@ dependencies = [
     "alembic==1.20.1",
     "docker==7.2.0",
     "google-genai==2.31.0",
+    "numpy==2.5.4",
     "openai==3.35.1",
+    "pandas==3.1.0",
     "pydantic==2.13.5",
     "pydantic-settings[yaml]==2.15.0",
+    "scikit-learn==1.9.1",
     "sqlalchemy==2.1.6",
 ]
 

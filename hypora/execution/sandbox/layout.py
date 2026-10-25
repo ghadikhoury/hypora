@@ -1,4 +1,4 @@
-"""The fixed sandbox mount layout (D-009; docs/notes/sandbox-layout.md). S1.3's harness uses it.
+"""The fixed sandbox mount layout (D-011; docs/notes/sandbox-layout.md). S1.3's harness uses it.
 
     /data     read-only    this job's input data, nothing else
     /trial    read-write   this trial's own directory (trial.yaml, pipeline.py, ...)
@@ -24,4 +24,4 @@ READ_ONLY = frozenset({DATA, HARNESS})
 READ_WRITE = frozenset({TRIAL, OUT})
 
 FALLBACK_UID = 10001
-"""Container UID/GID used only when the worker itself runs as root (D-009: never run as 0)."""
+"""Container UID/GID used only when the worker itself runs as root (D-011: never run as 0)."""

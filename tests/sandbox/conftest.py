@@ -2,7 +2,7 @@
 
 Mount-sensitive tests run twice: under pytest's tmp_path (WSL ext4 / Linux) and under the repo's
 git-ignored `runs/` directory, which on Ghadi's machine is the Windows drive (/mnt/c, where Docker
-Desktop ignores Unix permissions). The security properties must hold on both (D-009). The real
+Desktop ignores Unix permissions). The security properties must hold on both (D-011). The real
 image comes from the session fixture `sandbox_image` in tests/conftest.py.
 """
 

@@ -1,4 +1,4 @@
-"""Reading what a sandboxed job left behind, without ever following a link (D-009).
+"""Reading what a sandboxed job left behind, without ever following a link (D-011).
 
 Trial code controls everything in its writable mounts (/trial, /out). A symlink it creates there,
 e.g. `model.bin -> /home/<user>/.ssh/id_rsa` or `-> /etc/passwd`, becomes a real symlink on the

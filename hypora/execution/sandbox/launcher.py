@@ -1,4 +1,4 @@
-"""Launch one job in a hardened container and collect its result (spec §14.3; D-009).
+"""Launch one job in a hardened container and collect its result (spec §14.3; D-011).
 
 Isolation applied to every container (the image cannot enforce these on itself):
 

@@ -15,7 +15,7 @@ from hypora.storage.jobs import JobRecord
 
 class JobPlanner(Protocol):
     def plan(self, job: JobRecord, worker_id: str) -> SandboxSpec:
-        """The spec for `job`. Must give it a fresh, empty /out directory (D-009)."""
+        """The spec for `job`. Must give it a fresh, empty /out directory (D-011)."""
         ...
 
 

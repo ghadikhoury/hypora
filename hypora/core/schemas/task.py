@@ -250,6 +250,12 @@ class LeakageCandidate(StrictModel):
 class TabularProfile(StrictModel):
     n_rows: NonNegativeInt
     n_columns: NonNegativeInt
+    statistics_sample_size: int | None = Field(
+        None,
+        ge=0,
+        le=20_000,
+        description="Seeded sample rows used for expensive statistics; null for older profiles.",
+    )
     columns: list[ColumnProfile]
     target: TargetProfile | None = None
     n_duplicate_rows: NonNegativeInt = 0
@@ -259,9 +265,17 @@ class TabularProfile(StrictModel):
     timestamp_columns: list[TimestampColumn] = Field(default_factory=list)
     leakage_candidates: list[LeakageCandidate] = Field(default_factory=list)
     feature_associations: list[FeatureAssociation] = Field(default_factory=list)
+    leakage_screen_skipped_reason: NonEmptyStr | None = Field(
+        None,
+        description="Why leakage CV was skipped; null alone does not prove screening occurred.",
+    )
 
     @model_validator(mode="after")
     def _columns_consistent(self) -> Self:
+        if self.leakage_screen_skipped_reason is not None and (
+            self.feature_associations or self.leakage_candidates
+        ):
+            raise ValueError("a skipped leakage screen cannot contain CV scores or candidates")
         names = [c.name for c in self.columns]
         if len(names) != self.n_columns:
             raise ValueError("n_columns must equal len(columns)")

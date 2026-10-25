@@ -24,7 +24,7 @@ COPY requirements-tabular.lock /tmp/requirements.lock
 RUN pip install --no-deps --require-hashes --only-binary=:all: -r /tmp/requirements.lock \
     && rm /tmp/requirements.lock
 
-# Default non-root user. The launcher always passes an explicit non-root UID (D-009), so this is a
+# Default non-root user. The launcher always passes an explicit non-root UID (D-011), so this is a
 # second line of defense if the image is ever run without one.
 RUN groupadd --gid 10001 sandbox \
     && useradd --uid 10001 --gid 10001 --no-create-home --home-dir /tmp --shell /usr/sbin/nologin sandbox

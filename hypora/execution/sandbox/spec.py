@@ -86,7 +86,7 @@ class SandboxMounts:
         """Resolve real paths and refuse anything unsafe; returns the resolved mounts.
 
         - every source is an existing real directory (symlinks resolved, then compared);
-        - /out is empty: a fresh directory per job (D-009);
+        - /out is empty: a fresh directory per job (D-011);
         - no two sources are the same or nested. Otherwise a read-write mount could expose a
           read-only one (data or harness inside the trial dir becomes writable) or earlier
           outputs (out inside the trial dir becomes readable and not fresh).

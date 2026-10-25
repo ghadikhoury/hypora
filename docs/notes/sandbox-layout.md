@@ -1,7 +1,7 @@
 # Sandbox layout, isolation, and the job queue (S1.2)
 
 Packages: `hypora/execution/sandbox/` (image, spec, launcher, outputs), `hypora/execution/worker/`
-(worker loop, pools, planners), `hypora/storage/jobs.py` (job queue). Decisions: D-009.
+(worker loop, pools, planners), `hypora/storage/jobs.py` (job queue). Decisions: D-011.
 
 ## The fixed mount layout (S1.3 depends on this)
 
@@ -26,7 +26,7 @@ The nesting rule matters: data or harness inside the trial directory would becom
 `/trial`, and an `/out` inside it would expose earlier results.
 
 **"Write-only /out".** Docker bind mounts can only be read-only or read-write. So `/out` is a new
-empty directory for every job (D-009, option 2a): trial code can only ever read back what the same
+empty directory for every job (D-011, option 2a): trial code can only ever read back what the same
 job wrote, and the platform reads it afterwards only through the output reader below.
 
 ## Reading job outputs: never follow a link (binding for S1.3 and every later reader)
@@ -85,7 +85,7 @@ trial's jobs, so S1.4's `write_trial_files` must not follow links when it writes
 Mount-sensitive tests run on two filesystems: pytest's `tmp_path` (WSL ext4 or Linux) and the
 repo's git-ignored `runs/.sandbox-tests/`, which on Ghadi's machine is the Windows drive.
 
-**Windows-drive differences (D-009).** On `/mnt/c`, Docker Desktop ignores Unix permissions on
+**Windows-drive differences (D-011).** On `/mnt/c`, Docker Desktop ignores Unix permissions on
 bind mounts, so nothing here relies on them. It also refuses to create FIFOs, which is stricter.
 The symlink, read-only, network, and limit behaviors are identical on both filesystems.
 
