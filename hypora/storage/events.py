@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 from sqlalchemy import func, insert, select
+from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session
 
 from hypora.core.schemas import (
@@ -56,8 +57,13 @@ class EventLog:
         trace_id: str | None = None,
         span_id: str | None = None,
         parent_span_id: str | None = None,
+        connection: Connection | None = None,
     ) -> AnyEvent:
-        """Validate against AnyEvent and allocate seq under a database write reservation."""
+        """Validate against AnyEvent and allocate seq under a database write reservation.
+
+        Pass `connection` (from an open `Database.write()` block) to append inside the caller's
+        transaction, so a state change and its event commit or roll back together (S1.2 jobs).
+        """
         data: dict[str, object] = {
             "run_id": run_id,
             "seq": 1,
@@ -77,19 +83,27 @@ class EventLog:
         # Validation precedes lock acquisition, and validates serialized payloads even if a caller
         # constructed/mutated a Pydantic model without normal validation.
         validated = parse_event(data)
-        with self.database.write() as connection:
-            exists = connection.scalar(select(Run.id).where(Run.id == run_id))
-            if exists is None:
-                raise KeyError(f"unknown run: {run_id}")
-            last_seq = connection.scalar(
-                select(func.max(EventRow.seq)).where(EventRow.run_id == run_id)
-            )
-            data = validated.model_dump()
-            data["seq"] = (last_seq or 0) + 1
-            result = parse_event(data)
-            values = result.model_dump(exclude={"payload"})
-            values["payload_json"] = result.payload.model_dump(mode="json")
-            connection.execute(insert(EventRow).values(**values))
+        if connection is not None:
+            return self._insert(connection, validated)
+        with self.database.write() as owned:
+            return self._insert(owned, validated)
+
+    @staticmethod
+    def _insert(connection: Connection, validated: AnyEvent) -> AnyEvent:
+        """Allocate the next seq and insert; the caller holds the write transaction."""
+        run_id = validated.run_id
+        exists = connection.scalar(select(Run.id).where(Run.id == run_id))
+        if exists is None:
+            raise KeyError(f"unknown run: {run_id}")
+        last_seq = connection.scalar(
+            select(func.max(EventRow.seq)).where(EventRow.run_id == run_id)
+        )
+        data = validated.model_dump()
+        data["seq"] = (last_seq or 0) + 1
+        result = parse_event(data)
+        values = result.model_dump(exclude={"payload"})
+        values["payload_json"] = result.payload.model_dump(mode="json")
+        connection.execute(insert(EventRow).values(**values))
         return result
 
     def read(self, run_id: str, filters: EventFilters | None = None) -> list[AnyEvent]:

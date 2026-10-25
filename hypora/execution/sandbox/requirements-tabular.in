@@ -1,0 +1,10 @@
+# Libraries available to trial code in the tabular sandbox image (PLAN.md S1.2, spec §8.2, §22).
+# Regenerate the hash-locked file with `make sandbox-lock` after editing this list; the image installs
+# ONLY from requirements-tabular.lock (pip --require-hashes), never from this file.
+# Later steps add what they need here (e.g. S1.3's serialization/parquet libraries).
+pandas
+numpy
+scikit-learn
+xgboost-cpu  # the official CPU-only XGBoost build (no NVIDIA libraries); GPU images come in S3.F1
+lightgbm
+optuna

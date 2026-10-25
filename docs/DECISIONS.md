@@ -163,3 +163,37 @@ one it supersedes.
 - Why: no OpenAI spending before the evaluation stage.
 - Consequences: S0.5's "one live call per provider succeeds locally" is met for Gemini; the OpenAI
   live check happens at S2.6, before any OpenAI candidate is compared.
+
+## D-009 — Sandbox user, `/out` semantics, and the no-symlink output rule
+- Date: 2026-10-25
+- Step: S1.2
+- Decided by: Ghadi (options 1a and 2a, plus the output-check requirements)
+- Context (measured on Ghadi's machine, Docker Desktop 29.8 on WSL2): read-only mounts, the
+  read-only root filesystem, `--network none`, dropped capabilities, and pids/memory limits are
+  enforced on both WSL ext4 and the Windows drive (`/mnt/c`). **Unix file permissions are not:** on
+  `/mnt/c` any container UID can write any read-write bind mount (files appear as 777), while on
+  ext4 a 755 directory owned by UID 1000 refuses UID 10001. On `/mnt/c`, creating a FIFO inside a
+  bind mount fails outright. And on both, a symlink created inside a writable mount becomes a real
+  host symlink, which host code that follows it would resolve to host files.
+- Options considered:
+  1. Container user: (a, chosen) the worker's own non-root UID:GID, with UID 10001 only if the worker
+     runs as root, so job outputs belong to the worker; (b) a fixed UID 10001 baked into the image,
+     which would require world-writable (0777) job directories on ext4.
+  2. `/out`: (a, chosen) a fresh, empty, read-write directory per job; (b) also mode 0o300
+     (write-only listing), which works only on ext4, not `/mnt/c`, so it guarantees nothing there.
+- Decision:
+  - The sandbox's security relies only on mount flags, namespaces, and limits, which behave the
+    same on WSL ext4, `/mnt/c`, and Linux CI; never on host file permissions.
+  - Containers run as the worker's own non-root UID:GID (never 0). `/out` is a fresh, empty
+    directory per job, mounted read-write; the fixed layout is /data (ro), /trial (rw),
+    /harness (ro), /out (rw, fresh) (docs/notes/sandbox-layout.md).
+  - **No-symlink output rule.** After every job (and after the container is removed), the worker
+    scans `/trial` and `/out` without following links. Any symlink or special file fails the job
+    (`UNSAFE_OUTPUT`) and is unlinked. Platform code reads job outputs **only** through
+    `hypora.execution.sandbox.outputs` (`scan_outputs`, `open_output`, `read_output_bytes`), which
+    open every path component with `O_NOFOLLOW`. This binds S1.3 (harness post-processing) and
+    every later reader of job outputs.
+  - The symlink escape is a sandbox security test now (`tests/sandbox/test_security.py`) and must
+    also be one of the F6 attack cases when S3.D4 builds the attack suite.
+- Consequences: PLAN.md S1.3 and S3.D4 carry these requirements. Sandbox tests run on both
+  filesystems locally; the FIFO case is asserted wherever FIFOs can exist (everywhere except `/mnt/c`).

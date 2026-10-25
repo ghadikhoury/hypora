@@ -252,6 +252,7 @@ Build in `execution/harness/`:
 - **Validation scoring:** `predict` on validation features inside the sandbox; metrics computed **outside** trial code by `execution/harness/metrics.py`.
 - **Test scoring:** separate container with test **features only**; labels never mounted; platform computes metrics.
 - Writes `metrics.json`, `predictions.parquet`, `manifest.yaml` (spec §16 manifest), resource usage, hashes.
+- **Reads job outputs only through `hypora.execution.sandbox.outputs`** (`scan_outputs` / `open_output` / `read_output_bytes`, which never follow links), and uses S1.2's fixed mount layout (`docs/notes/sandbox-layout.md`, D-009).
 - Templates in `execution/templates/tabular/`: majority/mean baseline, linear/logistic, HistGradientBoosting/XGBoost — each a valid `pipeline.py` with learned preprocessing inside `fit`.
 - Metrics library: classification (accuracy, precision/recall/F1 macro+per-class, ROC-AUC, PR-AUC, log loss) and regression (MAE, RMSE, R²), per-group breakdowns.
 
@@ -468,7 +469,7 @@ Done when: raw-row exfiltration attempts via any tool fail; HTTP MCP rejects mis
 
 **S3.D4 — Attack suite and threat model** · PR `s3.d4-attacks` · `⇉ PARALLEL · S3` · Depends on S3.D2, S3.D3
 `🔍 REVIEW FOCUS` — Attack coverage (≥ 30, ≥ 10 indirect, every defense exercised) and threat-model completeness.
-Build: ≥ 30 attack cases (≥ 10 indirect injections via model cards, dataset text columns, and tool results; plus direct requests to exfiltrate, read secrets, enable network, install packages, exceed budget, write outside scope) as eval cases with programmatic success criteria; `docs/threat-model.md` (assets, attackers, vectors, defenses, residual risk).
+Build: ≥ 30 attack cases (≥ 10 indirect injections via model cards, dataset text columns, and tool results; plus direct requests to exfiltrate, read secrets, enable network, install packages, exceed budget, write outside scope, and the **symlink escape through trial outputs**, D-009) as eval cases with programmatic success criteria; `docs/threat-model.md` (assets, attackers, vectors, defenses, residual risk).
 Done when: the suite runs under the runner with `defenses=all_on` and `defenses=all_off` configs.
 
 ### Stream E — Runtime: scheduler and durability (spec §9, §15)

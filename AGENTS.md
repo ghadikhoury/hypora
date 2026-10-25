@@ -64,10 +64,12 @@ commits from WSL so the pre-commit hooks can run. All text files use LF line end
 | `make setup` | `uv sync --locked` (pinned Python 3.12 + locked dev deps) and install the pre-commit hooks |
 | `make lint` | `ruff check` + `ruff format --check` |
 | `make typecheck` | `mypy` (strict on `hypora/core/`) |
-| `make test` | `pytest` (live provider calls excluded) |
+| `make test` | `pytest` (live provider calls excluded; sandbox tests need Docker and build the sandbox image on first run) |
 | `make test-live` | Live LLM calls on the free Gemini tier only; needs `GEMINI_API_KEY` in `.env`. Run only when Ghadi says so. Paid tests (`-m "live and paid"`) run only on his explicit request |
 | `make secrets` | gitleaks over the full git history (needs Docker running) |
 | `make schemas` | Regenerate `docs/schemas/` after a schema change (a test fails if it is stale) |
+| `make sandbox-image` | Build the hash-tagged tabular sandbox image (needs Docker) |
+| `make sandbox-lock` | Re-lock the sandbox image's packages (with hashes) after editing `requirements-tabular.in` |
 | `make check` | `lint` + `typecheck` + `test` + `secrets`; must pass before every PR |
 
 **Layout:** all Python code lives in the top-level `hypora/` package, which mirrors spec §22.1
