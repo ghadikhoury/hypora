@@ -403,6 +403,21 @@
           "title": "N Rows",
           "type": "integer"
         },
+        "statistics_sample_size": {
+          "anyOf": [
+            {
+              "maximum": 20000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Seeded sample rows used for expensive statistics; null for older profiles.",
+          "title": "Statistics Sample Size"
+        },
         "target": {
           "anyOf": [
             {

@@ -250,6 +250,12 @@ class LeakageCandidate(StrictModel):
 class TabularProfile(StrictModel):
     n_rows: NonNegativeInt
     n_columns: NonNegativeInt
+    statistics_sample_size: int | None = Field(
+        None,
+        ge=0,
+        le=20_000,
+        description="Seeded sample rows used for expensive statistics; null for older profiles.",
+    )
     columns: list[ColumnProfile]
     target: TargetProfile | None = None
     n_duplicate_rows: NonNegativeInt = 0

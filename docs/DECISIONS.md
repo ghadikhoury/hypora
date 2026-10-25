@@ -163,3 +163,24 @@ one it supersedes.
 - Why: no OpenAI spending before the evaluation stage.
 - Consequences: S0.5's "one live call per provider succeeds locally" is met for Gemini; the OpenAI
   live check happens at S2.6, before any OpenAI candidate is compared.
+
+## D-009 — S1.1 sampling metadata and bounded categorical summaries
+- Date: 2026-10-24
+- Step: S1.1
+- Decided by: Ghadi (explicitly approved the schema addition and output rule)
+- Options considered: (a) add sampling metadata to `TabularProfile` (recommended);
+  (b) keep sampling metadata outside `DatasetProfile`, which would not meet the requested profile.
+- Decision: add `TabularProfile.statistics_sample_size: int | None = None`, constrained to
+  0–20,000. New profiles record the actual seeded sample size used for expensive statistics;
+  `None` preserves compatibility with profiles produced before S1.1. Regenerate JSON Schemas
+  and update the spec's profile definition.
+- Decision: profiles contain aggregates, column names, and dtypes, with one bounded exception:
+  categorical/boolean columns and classification target summaries may expose at most five
+  labels truncated to 40 characters, with counts. Free-text column values are never returned.
+  Combine counts when truncation produces identical display labels.
+- Why: bound profiling time on 100k × 50 datasets and keep sampling visible without exposing
+  rows or unbounded categorical contents to downstream LLM tools.
+- Consequences: the profiler caps the seeded expensive-statistics sample at 20,000 rows;
+  cheap counts and distributions use full data. The existing schema permits larger label
+  lists, so S1.1 enforces the stricter output bound in profiling code without changing those
+  shared fields. No raw-row sharing grant is introduced by this decision.

@@ -196,6 +196,25 @@ Concluding that an existing model already suffices — and that no training is n
 | **Phase B** | Training & Optimization Lead | Contract | Trials, verified results | See 8. |
 | **5 Report** | LLM (Reporter) | DB records only | Report + export bundle | Every number is quoted from stored metrics; no free-form figures. |
 
+#### DatasetProfile tabular schema (S1.1, D-009)
+
+`DatasetProfile` contains `run_id`, `dataset_ref`, content `fingerprint`, `modality`, and
+the modality-specific profile block. The tabular block contains shape, column summaries,
+target distribution, duplicate counts/fraction, ID-like columns, candidate group keys,
+timestamps, feature associations, and leakage candidates. It additionally includes
+`statistics_sample_size: int | None = None` (0–20,000): the actual number of rows selected
+by seeded sampling for expensive statistics. `None` denotes older profiles with unknown
+sampling metadata; zero denotes an empty dataset. CV and target-dependent group diagnostics
+exclude missing/nonfinite targets after sampling. Cheap counts and distributions use all rows.
+
+Profiles contain no raw rows or free-text cell values. Categorical/boolean columns and
+classification target summaries may include at most five labels truncated to 40 characters,
+with counts; colliding truncated labels have combined counts. Numeric and timestamp ranges
+are aggregates. Group candidates include group count, mean/max size, within-group target
+agreement, and chance agreement. Feature associations use 3-fold CV of depth-3 decision trees
+(ROC-AUC for classification, R² for regression). Leakage candidates are outliers above the
+median feature score plus a configurable margin and report the score and absolute threshold.
+
 ### 5.3 Phase B entry and skip rules
 
 Phase B is required whenever anything must be **run on the user's data** — not only training:
