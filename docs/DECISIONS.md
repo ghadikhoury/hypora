@@ -196,3 +196,32 @@ one it supersedes.
   explicitly labels skipped and legacy/unknown screens as "leakage not screened". Completed
   screens with no candidates report only that none were flagged among the screened features.
   S1.5's future Reporter must preserve the same distinction.
+
+## D-011 — S1.1 follow-up: the sorted-data ID-like false positive is fixed in S2.5
+- Date: 2026-10-24
+- Step: S1.1 (review follow-up), attached to S2.5
+- Decided by: Ghadi (asked that the S1.1 reviewer's non-blocking nit be tracked and fixed with a
+  test at the next step that touches profiling, S2.5 or Stream A; S2.5 was recommended)
+- Problem: the `MONOTONE_INTEGER` rule in `hypora/profiling/tabular.py` (`_id_like`) accepts
+  non-strictly monotone values and is checked on every column, including the target. A
+  low-cardinality integer column on rows stored sorted by that column is therefore reported in
+  `id_like_columns`. Reproduced on `main` at `07a9e7a`: the class-sorted targets of UCI wine and
+  iris are reported as ID-like, and a sorted `batch_id` with 10 rows per batch is reported as
+  both ID-like and a candidate group key. Found in the PR #7 re-review.
+- Options considered: (a) S2.5 (recommended); (b) S3.A1, Stream A's diagnostics step, which
+  owns `profiling/`.
+- Decision: (a). S2.5 fixes the rule in `hypora/profiling/tabular.py`, with regression tests:
+  - a sorted column whose values repeat (e.g. a class-sorted target or a sorted `batch_id`) is
+    not reported as ID-like, for example because the monotone rule also requires near-uniqueness;
+  - ID-like detection skips the target column, which is never a feature;
+  - a sorted unique integer ID is still reported with `monotone_integer`.
+  This is a profiling behavior fix. `IdLikeColumn` and `IdLikeReason` are unchanged, so no
+  schema stop-and-ask applies.
+- Why: S2.5 builds the grouped-rows trap from OpenML/UCI snapshots, which are often stored sorted
+  by subject or batch. A group key that is also reported as ID-like gives the S1.5 single agent
+  conflicting signals and invites it to drop the key instead of splitting by it. S2.6 runs the
+  first recorded eval, and D-007 compares eval-model candidates only if they pass the
+  grouped-data trap, so the fix must land before S2.6; S3.A1 comes after it. S2.5 is
+  `→ SERIAL`, so a small `profiling/` change cannot collide with a parallel branch.
+- Consequences: PLAN.md S2.5 carries the fix in its Build and Done-when. Until S2.5 merges,
+  `docs/notes/tabular-profiling.md` lists the behavior as a known limitation.

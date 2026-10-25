@@ -350,12 +350,14 @@ Build:
 Done when: running two fixture cases on agent + baseline produces records, a summary with intervals, and a regression comparison.
 
 ### S2.5 — Dev case set v1 (tabular planted traps)
-**PR:** `s2.5-dev-cases` · `→ SERIAL` · **Depends on:** S2.2, S2.3, S2.4 · **Spec:** §19.2
+**PR:** `s2.5-dev-cases` · `→ SERIAL` · **Depends on:** S2.2, S2.3, S2.4 · **Spec:** §19.2, §5.2 (Profile; D-011)
 `🔍 REVIEW FOCUS` — For each case, run its generation script and verify the trap is really present in the data and the pass rule matches it.
 
 Build at least **6 dev cases** from OpenML/UCI snapshots: target leakage, grouped rows, temporal order, class imbalance, a clean control case, and one tool-failure case. Each with a generation script (how the trap was planted) and a README line explaining it.
 
-Done when: all cases validate; the baseline fails the trap cases it should fail and passes the clean control.
+Also fix the S1.1 profiling follow-up recorded in D-011, in `hypora/profiling/tabular.py`: the monotone-integer ID rule must not report the target column, or a sorted column whose values repeat (such as a class-sorted target or a sorted `batch_id`), as ID-like. A sorted unique integer ID stays ID-like. No schema change.
+
+Done when: all cases validate; the baseline fails the trap cases it should fail and passes the clean control; the D-011 regression tests pass (a class-sorted target and a sorted `batch_id` with repeated values are absent from `id_like_columns`, and a sorted unique integer ID is still reported with `monotone_integer`).
 
 ### S2.6 — First recorded evaluation and model lock
 **PR:** `s2.6-first-eval` · `→ SERIAL` · **Depends on:** S2.5 · **Spec:** §17, §19.5
