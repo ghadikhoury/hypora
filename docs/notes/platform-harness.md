@@ -10,7 +10,9 @@ worker-local CSV/Parquet path (or a DataFrame for tests), the immutable Experime
 the trial's pipeline.py. Its methods deliberately separate validation from final test scoring:
 
 1. validate applies row-wise contract fixes, selects allowed features, freezes the test holdout,
-   fits every validation fold, and saves validation predictions and metrics.
+   fits every validation fold, and saves validation predictions and metrics. Every stage runs
+   with the submitted job's `limits` (S1.4, D-018), by default the contract's
+   `default_job_limits`; `submit_experiment` refuses limits above the contract's.
 2. freeze_candidate refits once on all development rows, never test rows, and freezes the model
    hash, original pipeline hash, configuration, and contract hash.
 3. score_test scores that frozen candidate once. A platform-owned exclusive marker also prevents

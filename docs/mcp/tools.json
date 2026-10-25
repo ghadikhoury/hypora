@@ -1,0 +1,2584 @@
+{
+  "server": {
+    "instructions": "Hypora platform tools for one run. Typical order: inspect_dataset -> write_trial_files -> submit_experiment -> get_experiment_status (poll until finished) -> get_experiment_metrics, or get_experiment_logs to diagnose a failure. The platform owns the data split, the held-out labels, and every metric. No tool returns raw dataset rows.",
+    "name": "hypora",
+    "version": "1"
+  },
+  "tools": [
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Profile a dataset"
+      },
+      "description": "Summarize an authorized tabular dataset without revealing any of its rows.\n\nUse it first, to learn the dataset's shape before designing a trial: column types,\nmissing values, value ranges, the target's class balance, ID-like columns, candidate\ngroup keys (repeated subjects or batches), timestamps, and leakage candidates (single\ncolumns that predict the target suspiciously well; a signal to review, not proof).\n\nDo not use it to look at rows, samples, or individual values: no tool returns them (the\ndata firewall). Categorical columns list at most their five most frequent labels.\n\nReturns a DatasetProfile. `tabular.leakage_screen_skipped_reason`, when set, means\nleakage was not screened; an empty `leakage_candidates` list then proves nothing.\nProfiles are cached: repeating the same call is cheap.\n\nExample: inspect_dataset(dataset_id=\"ds_main\")",
+      "inputSchema": {
+        "$defs": {
+          "TaskType": {
+            "description": "Prediction task (spec §18 scopes).",
+            "enum": [
+              "binary_classification",
+              "multiclass_classification",
+              "multilabel_classification",
+              "regression",
+              "forecasting",
+              "window_classification"
+            ],
+            "title": "TaskType",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "dataset_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "An authorized dataset ID, e.g. 'ds_main'. Omit for the dataset the run's experiment contract governs.",
+            "title": "Dataset Id"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Column to treat as the label for target-aware statistics. Omit to use the contract's target (or, before a contract exists, no target).",
+            "title": "Target"
+          },
+          "task_type": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TaskType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Required with `target`: binary/multiclass classification or regression."
+          }
+        },
+        "title": "inspect_datasetArguments",
+        "type": "object"
+      },
+      "name": "inspect_dataset",
+      "outputSchema": {
+        "$defs": {
+          "ChannelStat": {
+            "additionalProperties": false,
+            "properties": {
+              "channel": {
+                "minimum": 0,
+                "title": "Channel",
+                "type": "integer"
+              },
+              "mean": {
+                "title": "Mean",
+                "type": "number"
+              },
+              "std": {
+                "minimum": 0,
+                "title": "Std",
+                "type": "number"
+              }
+            },
+            "required": [
+              "channel",
+              "mean",
+              "std"
+            ],
+            "title": "ChannelStat",
+            "type": "object"
+          },
+          "ColumnProfile": {
+            "additionalProperties": false,
+            "description": "Per-column summary (spec §5.2 Profile).",
+            "properties": {
+              "dtype": {
+                "description": "Storage dtype as loaded, e.g. 'float64'.",
+                "minLength": 1,
+                "title": "Dtype",
+                "type": "string"
+              },
+              "inferred_type": {
+                "$ref": "#/$defs/InferredType"
+              },
+              "missing_fraction": {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "title": "Missing Fraction",
+                "type": "number"
+              },
+              "n_missing": {
+                "minimum": 0,
+                "title": "N Missing",
+                "type": "integer"
+              },
+              "n_unique": {
+                "minimum": 0,
+                "title": "N Unique",
+                "type": "integer"
+              },
+              "name": {
+                "minLength": 1,
+                "title": "Name",
+                "type": "string"
+              },
+              "numeric": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/NumericSummary"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              },
+              "top_values": {
+                "items": {
+                  "$ref": "#/$defs/ValueCount"
+                },
+                "maxItems": 20,
+                "title": "Top Values",
+                "type": "array"
+              },
+              "unique_fraction": {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "title": "Unique Fraction",
+                "type": "number"
+              }
+            },
+            "required": [
+              "name",
+              "dtype",
+              "inferred_type",
+              "n_missing",
+              "missing_fraction",
+              "n_unique",
+              "unique_fraction"
+            ],
+            "title": "ColumnProfile",
+            "type": "object"
+          },
+          "DatasetModality": {
+            "enum": [
+              "tabular",
+              "image",
+              "timeseries"
+            ],
+            "title": "DatasetModality",
+            "type": "string"
+          },
+          "FeatureAssociation": {
+            "additionalProperties": false,
+            "description": "Single-feature association with the target, for any feature (spec §5.2 \"per-feature\ntarget-association statistics\"). Flagged ones are also listed as LeakageCandidate.",
+            "properties": {
+              "column": {
+                "minLength": 1,
+                "title": "Column",
+                "type": "string"
+              },
+              "method": {
+                "description": "e.g. 'single_feature_cv_decision_tree'.",
+                "minLength": 1,
+                "title": "Method",
+                "type": "string"
+              },
+              "score": {
+                "title": "Score",
+                "type": "number"
+              },
+              "score_metric": {
+                "$ref": "#/$defs/MetricName"
+              }
+            },
+            "required": [
+              "column",
+              "score",
+              "score_metric",
+              "method"
+            ],
+            "title": "FeatureAssociation",
+            "type": "object"
+          },
+          "GroupKeyCandidate": {
+            "additionalProperties": false,
+            "description": "A column whose rows share targets more than chance (spec §5.2, PLAN.md S1.1).",
+            "properties": {
+              "chance_level": {
+                "description": "The same statistic under random grouping.",
+                "title": "Chance Level",
+                "type": "number"
+              },
+              "column": {
+                "minLength": 1,
+                "title": "Column",
+                "type": "string"
+              },
+              "max_group_size": {
+                "exclusiveMinimum": 0,
+                "title": "Max Group Size",
+                "type": "integer"
+              },
+              "mean_group_size": {
+                "minimum": 1.0,
+                "title": "Mean Group Size",
+                "type": "number"
+              },
+              "n_groups": {
+                "exclusiveMinimum": 0,
+                "title": "N Groups",
+                "type": "integer"
+              },
+              "target_sharing": {
+                "description": "Within-group target agreement statistic.",
+                "title": "Target Sharing",
+                "type": "number"
+              }
+            },
+            "required": [
+              "column",
+              "n_groups",
+              "mean_group_size",
+              "max_group_size",
+              "target_sharing",
+              "chance_level"
+            ],
+            "title": "GroupKeyCandidate",
+            "type": "object"
+          },
+          "IdLikeColumn": {
+            "additionalProperties": false,
+            "properties": {
+              "column": {
+                "minLength": 1,
+                "title": "Column",
+                "type": "string"
+              },
+              "reasons": {
+                "items": {
+                  "$ref": "#/$defs/IdLikeReason"
+                },
+                "minItems": 1,
+                "title": "Reasons",
+                "type": "array"
+              },
+              "unique_fraction": {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "title": "Unique Fraction",
+                "type": "number"
+              }
+            },
+            "required": [
+              "column",
+              "reasons",
+              "unique_fraction"
+            ],
+            "title": "IdLikeColumn",
+            "type": "object"
+          },
+          "IdLikeReason": {
+            "enum": [
+              "near_unique",
+              "monotone_integer",
+              "uuid_pattern"
+            ],
+            "title": "IdLikeReason",
+            "type": "string"
+          },
+          "InferredType": {
+            "enum": [
+              "numeric",
+              "categorical",
+              "boolean",
+              "datetime",
+              "text",
+              "unknown"
+            ],
+            "title": "InferredType",
+            "type": "string"
+          },
+          "LeakageCandidate": {
+            "additionalProperties": false,
+            "description": "A feature that alone predicts the target suspiciously well (a candidate, not a verdict).",
+            "properties": {
+              "column": {
+                "minLength": 1,
+                "title": "Column",
+                "type": "string"
+              },
+              "method": {
+                "description": "e.g. 'single_feature_cv_decision_tree'.",
+                "minLength": 1,
+                "title": "Method",
+                "type": "string"
+              },
+              "score": {
+                "title": "Score",
+                "type": "number"
+              },
+              "score_metric": {
+                "$ref": "#/$defs/MetricName"
+              },
+              "threshold": {
+                "title": "Threshold",
+                "type": "number"
+              }
+            },
+            "required": [
+              "column",
+              "score",
+              "score_metric",
+              "threshold",
+              "method"
+            ],
+            "title": "LeakageCandidate",
+            "type": "object"
+          },
+          "MetricName": {
+            "description": "Metrics computed by platform code (spec §18; PLAN.md S1.3).",
+            "enum": [
+              "accuracy",
+              "balanced_accuracy",
+              "precision",
+              "recall",
+              "f1",
+              "precision_macro",
+              "recall_macro",
+              "f1_macro",
+              "roc_auc",
+              "pr_auc",
+              "log_loss",
+              "brier_score",
+              "mae",
+              "rmse",
+              "r2"
+            ],
+            "title": "MetricName",
+            "type": "string"
+          },
+          "NumericSummary": {
+            "additionalProperties": false,
+            "description": "Distribution summary of a numeric column (data-firewall safe: no rows).",
+            "properties": {
+              "max": {
+                "title": "Max",
+                "type": "number"
+              },
+              "mean": {
+                "title": "Mean",
+                "type": "number"
+              },
+              "min": {
+                "title": "Min",
+                "type": "number"
+              },
+              "p25": {
+                "title": "P25",
+                "type": "number"
+              },
+              "p50": {
+                "title": "P50",
+                "type": "number"
+              },
+              "p75": {
+                "title": "P75",
+                "type": "number"
+              },
+              "std": {
+                "minimum": 0,
+                "title": "Std",
+                "type": "number"
+              }
+            },
+            "required": [
+              "min",
+              "max",
+              "mean",
+              "std",
+              "p25",
+              "p50",
+              "p75"
+            ],
+            "title": "NumericSummary",
+            "type": "object"
+          },
+          "TabularProfile": {
+            "additionalProperties": false,
+            "properties": {
+              "candidate_group_keys": {
+                "items": {
+                  "$ref": "#/$defs/GroupKeyCandidate"
+                },
+                "title": "Candidate Group Keys",
+                "type": "array"
+              },
+              "columns": {
+                "items": {
+                  "$ref": "#/$defs/ColumnProfile"
+                },
+                "title": "Columns",
+                "type": "array"
+              },
+              "duplicate_fraction": {
+                "default": 0.0,
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "title": "Duplicate Fraction",
+                "type": "number"
+              },
+              "feature_associations": {
+                "items": {
+                  "$ref": "#/$defs/FeatureAssociation"
+                },
+                "title": "Feature Associations",
+                "type": "array"
+              },
+              "id_like_columns": {
+                "items": {
+                  "$ref": "#/$defs/IdLikeColumn"
+                },
+                "title": "Id Like Columns",
+                "type": "array"
+              },
+              "leakage_candidates": {
+                "items": {
+                  "$ref": "#/$defs/LeakageCandidate"
+                },
+                "title": "Leakage Candidates",
+                "type": "array"
+              },
+              "leakage_screen_skipped_reason": {
+                "anyOf": [
+                  {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Why leakage CV was skipped; null alone does not prove screening occurred.",
+                "title": "Leakage Screen Skipped Reason"
+              },
+              "n_columns": {
+                "minimum": 0,
+                "title": "N Columns",
+                "type": "integer"
+              },
+              "n_duplicate_rows": {
+                "default": 0,
+                "minimum": 0,
+                "title": "N Duplicate Rows",
+                "type": "integer"
+              },
+              "n_rows": {
+                "minimum": 0,
+                "title": "N Rows",
+                "type": "integer"
+              },
+              "statistics_sample_size": {
+                "anyOf": [
+                  {
+                    "maximum": 20000,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Seeded sample rows used for expensive statistics; null for older profiles.",
+                "title": "Statistics Sample Size"
+              },
+              "target": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/TargetProfile"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              },
+              "timestamp_columns": {
+                "items": {
+                  "$ref": "#/$defs/TimestampColumn"
+                },
+                "title": "Timestamp Columns",
+                "type": "array"
+              }
+            },
+            "required": [
+              "n_rows",
+              "n_columns",
+              "columns"
+            ],
+            "title": "TabularProfile",
+            "type": "object"
+          },
+          "TargetProfile": {
+            "additionalProperties": false,
+            "properties": {
+              "class_counts": {
+                "items": {
+                  "$ref": "#/$defs/ValueCount"
+                },
+                "title": "Class Counts",
+                "type": "array"
+              },
+              "column": {
+                "minLength": 1,
+                "title": "Column",
+                "type": "string"
+              },
+              "imbalance_ratio": {
+                "anyOf": [
+                  {
+                    "minimum": 1.0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Majority-class count / minority-class count.",
+                "title": "Imbalance Ratio"
+              },
+              "n_classes": {
+                "anyOf": [
+                  {
+                    "exclusiveMinimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "N Classes"
+              },
+              "n_missing": {
+                "minimum": 0,
+                "title": "N Missing",
+                "type": "integer"
+              },
+              "numeric": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/NumericSummary"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              }
+            },
+            "required": [
+              "column",
+              "n_missing"
+            ],
+            "title": "TargetProfile",
+            "type": "object"
+          },
+          "TimeSeriesProfile": {
+            "additionalProperties": false,
+            "description": "Time-series summary (spec §18.3).",
+            "properties": {
+              "end": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "End"
+              },
+              "entity_column": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Entity Column"
+              },
+              "inferred_frequency": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "e.g. '1h', '15min'.",
+                "title": "Inferred Frequency"
+              },
+              "max_gap_seconds": {
+                "anyOf": [
+                  {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Max Gap Seconds"
+              },
+              "median_interval_seconds": {
+                "anyOf": [
+                  {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Median Interval Seconds"
+              },
+              "mixed_frequencies": {
+                "default": false,
+                "title": "Mixed Frequencies",
+                "type": "boolean"
+              },
+              "n_entities": {
+                "default": 1,
+                "exclusiveMinimum": 0,
+                "title": "N Entities",
+                "type": "integer"
+              },
+              "n_gaps": {
+                "default": 0,
+                "minimum": 0,
+                "title": "N Gaps",
+                "type": "integer"
+              },
+              "n_timestamps": {
+                "minimum": 0,
+                "title": "N Timestamps",
+                "type": "integer"
+              },
+              "start": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Start"
+              },
+              "timestamp_column": {
+                "minLength": 1,
+                "title": "Timestamp Column",
+                "type": "string"
+              },
+              "timezone": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Timezone"
+              }
+            },
+            "required": [
+              "timestamp_column",
+              "n_timestamps"
+            ],
+            "title": "TimeSeriesProfile",
+            "type": "object"
+          },
+          "TimestampColumn": {
+            "additionalProperties": false,
+            "properties": {
+              "column": {
+                "minLength": 1,
+                "title": "Column",
+                "type": "string"
+              },
+              "is_monotonic_increasing": {
+                "title": "Is Monotonic Increasing",
+                "type": "boolean"
+              },
+              "max": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "ISO 8601 latest value.",
+                "title": "Max"
+              },
+              "median_interval_seconds": {
+                "anyOf": [
+                  {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Median Interval Seconds"
+              },
+              "min": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "ISO 8601 earliest value.",
+                "title": "Min"
+              },
+              "n_duplicate_timestamps": {
+                "default": 0,
+                "minimum": 0,
+                "title": "N Duplicate Timestamps",
+                "type": "integer"
+              },
+              "parse_fraction": {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "title": "Parse Fraction",
+                "type": "number"
+              }
+            },
+            "required": [
+              "column",
+              "parse_fraction",
+              "is_monotonic_increasing"
+            ],
+            "title": "TimestampColumn",
+            "type": "object"
+          },
+          "ValueCount": {
+            "additionalProperties": false,
+            "properties": {
+              "count": {
+                "minimum": 0,
+                "title": "Count",
+                "type": "integer"
+              },
+              "value": {
+                "title": "Value",
+                "type": "string"
+              }
+            },
+            "required": [
+              "value",
+              "count"
+            ],
+            "title": "ValueCount",
+            "type": "object"
+          },
+          "VisionProfile": {
+            "additionalProperties": false,
+            "description": "Image-dataset summary (spec §18.2 Phase A checks).",
+            "properties": {
+              "channel_stats": {
+                "items": {
+                  "$ref": "#/$defs/ChannelStat"
+                },
+                "title": "Channel Stats",
+                "type": "array"
+              },
+              "channels": {
+                "items": {
+                  "$ref": "#/$defs/ValueCount"
+                },
+                "title": "Channels",
+                "type": "array"
+              },
+              "class_counts": {
+                "items": {
+                  "$ref": "#/$defs/ValueCount"
+                },
+                "title": "Class Counts",
+                "type": "array"
+              },
+              "formats": {
+                "items": {
+                  "$ref": "#/$defs/ValueCount"
+                },
+                "title": "Formats",
+                "type": "array"
+              },
+              "height": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/NumericSummary"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              },
+              "manifest_columns": {
+                "description": "e.g. specimen_id, acquisition_batch (spec §18.2).",
+                "items": {
+                  "type": "string"
+                },
+                "title": "Manifest Columns",
+                "type": "array"
+              },
+              "n_corrupt": {
+                "default": 0,
+                "minimum": 0,
+                "title": "N Corrupt",
+                "type": "integer"
+              },
+              "n_exact_duplicates": {
+                "default": 0,
+                "minimum": 0,
+                "title": "N Exact Duplicates",
+                "type": "integer"
+              },
+              "n_images": {
+                "minimum": 0,
+                "title": "N Images",
+                "type": "integer"
+              },
+              "width": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/NumericSummary"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              }
+            },
+            "required": [
+              "n_images"
+            ],
+            "title": "VisionProfile",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Deterministic dataset summary (spec §5.2 stage 2). Summaries only, never raw rows.",
+        "properties": {
+          "dataset_ref": {
+            "minLength": 1,
+            "title": "Dataset Ref",
+            "type": "string"
+          },
+          "fingerprint": {
+            "description": "SHA-256 of the dataset content.",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "modality": {
+            "$ref": "#/$defs/DatasetModality"
+          },
+          "run_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "tabular": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TabularProfile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "timeseries": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TimeSeriesProfile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "vision": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/VisionProfile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "run_id",
+          "dataset_ref",
+          "fingerprint",
+          "modality"
+        ],
+        "title": "DatasetProfile",
+        "type": "object"
+      },
+      "tier": "read",
+      "title": "Profile a dataset"
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Write a trial's files"
+      },
+      "description": "Create a trial, or replace its files, in the run's own trial directory.\n\nA trial tests ONE hypothesis. Its pipeline.py is model code that the platform runs in a\nsandbox: `fit(train, ctx)` receives `train.X` / `train.y` (pandas; training rows only)\nand must do all learned preprocessing (imputation, scaling, encoding) inside fit;\n`predict(model, X)` returns `runtime.Predictions(values, probabilities, classes)`, with\nclass probabilities in sorted-label order for classification. Import `Predictions` from\n`runtime`. The platform, never this code, splits the data and computes the metrics.\n\nUse it to start a trial (omit trial_id), or to fix a trial after reading its logs\n(pass trial_id and only the files that change). Then call submit_experiment.\n\nDo not use it to read files or to write anywhere but this trial: paths are fixed. Do not\nprint data from pipeline.py; output that shows dataset values is withheld from logs.\n\nReturns the trial_id, the files written (SHA-256, size), the files the trial now has,\nand `submit_defaults`: the values submit_experiment uses for omitted arguments.\n\nExample: write_trial_files(idempotency_key=\"run_104:wr_0001\", design={\"kind\":\n\"baseline\", \"operation\": \"fit\", \"hypothesis\": \"A majority-class predictor sets the\nfloor\", \"model_family\": \"dummy\", \"expected_effect\": \"f1_macro near 0.4\",\n\"estimated_cost\": {\"compute_seconds\": 30}}, pipeline_py=\"...\")",
+      "inputSchema": {
+        "$defs": {
+          "CostEstimate": {
+            "additionalProperties": false,
+            "description": "Estimated cost of running something (`estimate_experiment`, spec §8.3).",
+            "properties": {
+              "assumptions": {
+                "default": [],
+                "items": {
+                  "type": "string"
+                },
+                "title": "Assumptions",
+                "type": "array"
+              },
+              "compute_seconds": {
+                "minimum": 0,
+                "title": "Compute Seconds",
+                "type": "number"
+              },
+              "gpu": {
+                "default": false,
+                "title": "Gpu",
+                "type": "boolean"
+              },
+              "peak_memory_gb": {
+                "anyOf": [
+                  {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Peak Memory Gb"
+              },
+              "usd": {
+                "default": 0.0,
+                "minimum": 0,
+                "title": "Usd",
+                "type": "number"
+              }
+            },
+            "required": [
+              "compute_seconds"
+            ],
+            "title": "CostEstimate",
+            "type": "object"
+          },
+          "JsonValue": {},
+          "Operation": {
+            "description": "Job operation (spec §12 `submit_experiment`).",
+            "enum": [
+              "fit",
+              "eval_as_is",
+              "finetune",
+              "optimize",
+              "profile"
+            ],
+            "title": "Operation",
+            "type": "string"
+          },
+          "ShortBudget": {
+            "additionalProperties": false,
+            "description": "Reduced budget for a successive-halving round (spec §8.4).",
+            "properties": {
+              "data_fraction": {
+                "anyOf": [
+                  {
+                    "exclusiveMinimum": 0.0,
+                    "maximum": 1.0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Data Fraction"
+              },
+              "max_epochs": {
+                "anyOf": [
+                  {
+                    "exclusiveMinimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Max Epochs"
+              },
+              "max_wall_seconds": {
+                "anyOf": [
+                  {
+                    "exclusiveMinimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Max Wall Seconds"
+              }
+            },
+            "title": "ShortBudget",
+            "type": "object"
+          },
+          "TrialDesign": {
+            "additionalProperties": false,
+            "description": "One hypothesis (spec §8.1 `trial.yaml`: hypothesis, model family, config, expected effect,\nestimated cost), plus the operation and model it needs.",
+            "properties": {
+              "config": {
+                "additionalProperties": {
+                  "$ref": "#/$defs/JsonValue"
+                },
+                "title": "Config",
+                "type": "object"
+              },
+              "estimated_cost": {
+                "$ref": "#/$defs/CostEstimate"
+              },
+              "expected_effect": {
+                "minLength": 1,
+                "title": "Expected Effect",
+                "type": "string"
+              },
+              "hypothesis": {
+                "minLength": 1,
+                "title": "Hypothesis",
+                "type": "string"
+              },
+              "kind": {
+                "$ref": "#/$defs/TrialKind"
+              },
+              "model_family": {
+                "description": "e.g. 'hist_gradient_boosting', 'resnet18'.",
+                "minLength": 1,
+                "title": "Model Family",
+                "type": "string"
+              },
+              "model_ref": {
+                "anyOf": [
+                  {
+                    "maxLength": 320,
+                    "pattern": "^[^\\s@]+@[^\\s@]+$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Pretrained weights, pinned.",
+                "title": "Model Ref"
+              },
+              "operation": {
+                "$ref": "#/$defs/Operation"
+              },
+              "parent_trial_id": {
+                "anyOf": [
+                  {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Set for optimization variants.",
+                "title": "Parent Trial Id"
+              },
+              "short_budget": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ShortBudget"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              }
+            },
+            "required": [
+              "kind",
+              "operation",
+              "hypothesis",
+              "model_family",
+              "expected_effect",
+              "estimated_cost"
+            ],
+            "title": "TrialDesign",
+            "type": "object"
+          },
+          "TrialKind": {
+            "description": "`trials.kind`, spec §15.1.",
+            "enum": [
+              "baseline",
+              "candidate",
+              "eval_as_is",
+              "finetune",
+              "optimization"
+            ],
+            "title": "TrialKind",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "design": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TrialDesign"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The trial's hypothesis and plan, saved as trial.yaml. Required when creating a trial. For a fit trial: kind 'baseline' or 'candidate', operation 'fit'."
+          },
+          "idempotency_key": {
+            "description": "'{run_id}:{unique id}', e.g. 'run_104:wr_0001'. Use a NEW key for every new write; resend the SAME key only to retry a write whose reply you did not receive (it returns the original result and writes nothing again).",
+            "maxLength": 260,
+            "pattern": "^[^:\\s]+:[^:\\s]+$",
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "pipeline_py": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Full source of pipeline.py, defining fit(train, ctx) -> model and predict(model, X) -> Predictions (see the tool description). Required when creating a trial. At most 1 MiB.",
+            "title": "Pipeline Py"
+          },
+          "requirements_lock": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional requirements.lock: 'name==version' lines, each already installed in the sandbox image. New packages need user approval.",
+            "title": "Requirements Lock"
+          },
+          "trial_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Omit to create a new trial; pass the trial_id from an earlier call to replace that trial's files, e.g. 'trl_4f2a9c1e'.",
+            "title": "Trial Id"
+          }
+        },
+        "required": [
+          "idempotency_key"
+        ],
+        "title": "write_trial_filesArguments",
+        "type": "object"
+      },
+      "name": "write_trial_files",
+      "outputSchema": {
+        "$defs": {
+          "Family": {
+            "description": "Model family route (spec §5.2 Route, §18).",
+            "enum": [
+              "tabular",
+              "vision",
+              "timeseries",
+              "experimental"
+            ],
+            "title": "Family",
+            "type": "string"
+          },
+          "JobLimits": {
+            "additionalProperties": false,
+            "description": "Per-job sandbox limits (spec §12 `submit_experiment.limits`, §9.2, §14.3).",
+            "properties": {
+              "cpu_threads": {
+                "anyOf": [
+                  {
+                    "exclusiveMinimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Cpu Threads"
+              },
+              "gpu": {
+                "default": false,
+                "title": "Gpu",
+                "type": "boolean"
+              },
+              "max_memory_gb": {
+                "exclusiveMinimum": 0,
+                "title": "Max Memory Gb",
+                "type": "number"
+              },
+              "max_wall_seconds": {
+                "exclusiveMinimum": 0,
+                "title": "Max Wall Seconds",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "max_wall_seconds",
+              "max_memory_gb"
+            ],
+            "title": "JobLimits",
+            "type": "object"
+          },
+          "SubmitDefaults": {
+            "additionalProperties": false,
+            "description": "The values `submit_experiment` uses when its optional arguments are omitted.",
+            "properties": {
+              "approval_ref": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "title": "Approval Ref",
+                "type": "string"
+              },
+              "contract_version": {
+                "exclusiveMinimum": 0,
+                "title": "Contract Version",
+                "type": "integer"
+              },
+              "family": {
+                "$ref": "#/$defs/Family"
+              },
+              "limits": {
+                "$ref": "#/$defs/JobLimits",
+                "description": "The contract's default (and maximum) job limits."
+              },
+              "run_id": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "title": "Run Id",
+                "type": "string"
+              }
+            },
+            "required": [
+              "run_id",
+              "family",
+              "contract_version",
+              "approval_ref",
+              "limits"
+            ],
+            "title": "SubmitDefaults",
+            "type": "object"
+          },
+          "WrittenFile": {
+            "additionalProperties": false,
+            "properties": {
+              "bytes": {
+                "minimum": 0,
+                "title": "Bytes",
+                "type": "integer"
+              },
+              "name": {
+                "enum": [
+                  "trial.yaml",
+                  "pipeline.py",
+                  "requirements.lock"
+                ],
+                "title": "Name",
+                "type": "string"
+              },
+              "sha256": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Sha256",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "sha256",
+              "bytes"
+            ],
+            "title": "WrittenFile",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "created": {
+            "description": "True if this call created the trial (a retry with the same idempotency_key returns this original result).",
+            "title": "Created",
+            "type": "boolean"
+          },
+          "files": {
+            "description": "Files this call wrote.",
+            "items": {
+              "$ref": "#/$defs/WrittenFile"
+            },
+            "maxItems": 3,
+            "title": "Files",
+            "type": "array"
+          },
+          "next_step": {
+            "maxLength": 400,
+            "title": "Next Step",
+            "type": "string"
+          },
+          "present": {
+            "description": "Files the trial now has.",
+            "items": {
+              "enum": [
+                "trial.yaml",
+                "pipeline.py",
+                "requirements.lock"
+              ],
+              "type": "string"
+            },
+            "maxItems": 3,
+            "title": "Present",
+            "type": "array"
+          },
+          "submit_defaults": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SubmitDefaults"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Null until the run has an approved experiment contract."
+          },
+          "trial_dir": {
+            "description": "The trial's own directory, relative to the repository.",
+            "maxLength": 400,
+            "title": "Trial Dir",
+            "type": "string"
+          },
+          "trial_id": {
+            "description": "Pass this to write_trial_files and submit_experiment.",
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Trial Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "trial_id",
+          "created",
+          "trial_dir",
+          "files",
+          "present",
+          "next_step"
+        ],
+        "title": "TrialFilesResult",
+        "type": "object"
+      },
+      "tier": "reversible",
+      "title": "Write a trial's files"
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Queue a trial for validation"
+      },
+      "description": "Queue one trial for platform-run validation; returns a job_id at once.\n\nThe platform freezes the trial's current files, then (in a sandbox, without network)\nfits pipeline.py on each validation fold of the contract's split and scores the\npredictions itself. Held-out test labels are never used here.\n\nUse it after write_trial_files, and again after fixing a failed trial (with a NEW\nidempotency_key). Then poll get_experiment_status until `finished` is true.\n\nDo not use it to change the split, metric, features, or budget: they come from the\napproved contract. Limits above the contract's are refused; only the user can extend\nthem.\n\nReturns the job_id, its state (normally QUEUED), and whether the key was a duplicate.\n\nExample: submit_experiment(trial_id=\"trl_4f2a9c1e\", idempotency_key=\"run_104:sub_0001\")",
+      "inputSchema": {
+        "$defs": {
+          "Family": {
+            "description": "Model family route (spec §5.2 Route, §18).",
+            "enum": [
+              "tabular",
+              "vision",
+              "timeseries",
+              "experimental"
+            ],
+            "title": "Family",
+            "type": "string"
+          },
+          "JobLimits": {
+            "additionalProperties": false,
+            "description": "Per-job sandbox limits (spec §12 `submit_experiment.limits`, §9.2, §14.3).",
+            "properties": {
+              "cpu_threads": {
+                "anyOf": [
+                  {
+                    "exclusiveMinimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Cpu Threads"
+              },
+              "gpu": {
+                "default": false,
+                "title": "Gpu",
+                "type": "boolean"
+              },
+              "max_memory_gb": {
+                "exclusiveMinimum": 0,
+                "title": "Max Memory Gb",
+                "type": "number"
+              },
+              "max_wall_seconds": {
+                "exclusiveMinimum": 0,
+                "title": "Max Wall Seconds",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "max_wall_seconds",
+              "max_memory_gb"
+            ],
+            "title": "JobLimits",
+            "type": "object"
+          },
+          "JsonValue": {},
+          "Operation": {
+            "description": "Job operation (spec §12 `submit_experiment`).",
+            "enum": [
+              "fit",
+              "eval_as_is",
+              "finetune",
+              "optimize",
+              "profile"
+            ],
+            "title": "Operation",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "approval_ref": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Omit to use the contract's approval; if given, it must match.",
+            "title": "Approval Ref"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/$defs/JsonValue"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Passed to fit/predict as ctx.config, e.g. {'max_depth': 6}.",
+            "title": "Config"
+          },
+          "contract_version": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Omit to use the current contract; if given, it must match.",
+            "title": "Contract Version"
+          },
+          "family": {
+            "$ref": "#/$defs/Family",
+            "default": "tabular",
+            "description": "Only 'tabular' is supported in this version."
+          },
+          "idempotency_key": {
+            "description": "'{run_id}:{unique id}', e.g. 'run_104:sub_0001'. Use a NEW key for every new submission; resend the SAME key only to retry a submission whose reply you did not receive.",
+            "maxLength": 260,
+            "pattern": "^[^:\\s]+:[^:\\s]+$",
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "limits": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/JobLimits"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Sandbox limits per stage; omit for the contract's defaults. They can be lowered but never raised above the contract's defaults."
+          },
+          "model_ref": {
+            "anyOf": [
+              {
+                "maxLength": 320,
+                "pattern": "^[^\\s@]+@[^\\s@]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Pretrained weights; not used by 'fit'.",
+            "title": "Model Ref"
+          },
+          "operation": {
+            "$ref": "#/$defs/Operation",
+            "default": "fit",
+            "description": "Only 'fit' is supported in this version."
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Omit; defaults to this session's run.",
+            "title": "Run Id"
+          },
+          "trial_id": {
+            "description": "The trial to run, from write_trial_files.",
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Trial Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "trial_id",
+          "idempotency_key"
+        ],
+        "title": "submit_experimentArguments",
+        "type": "object"
+      },
+      "name": "submit_experiment",
+      "outputSchema": {
+        "$defs": {
+          "JobLimits": {
+            "additionalProperties": false,
+            "description": "Per-job sandbox limits (spec §12 `submit_experiment.limits`, §9.2, §14.3).",
+            "properties": {
+              "cpu_threads": {
+                "anyOf": [
+                  {
+                    "exclusiveMinimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Cpu Threads"
+              },
+              "gpu": {
+                "default": false,
+                "title": "Gpu",
+                "type": "boolean"
+              },
+              "max_memory_gb": {
+                "exclusiveMinimum": 0,
+                "title": "Max Memory Gb",
+                "type": "number"
+              },
+              "max_wall_seconds": {
+                "exclusiveMinimum": 0,
+                "title": "Max Wall Seconds",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "max_wall_seconds",
+              "max_memory_gb"
+            ],
+            "title": "JobLimits",
+            "type": "object"
+          },
+          "JobState": {
+            "description": "Job state machine, spec §15.3.",
+            "enum": [
+              "DRAFT",
+              "VALIDATING",
+              "AWAITING_APPROVAL",
+              "QUEUED",
+              "LEASED",
+              "RUNNING",
+              "COMPLETED",
+              "FAILED",
+              "RETRY_WAIT",
+              "PAUSING",
+              "PAUSED",
+              "CANCEL_REQUESTED",
+              "CANCELLED",
+              "FAILED_TERMINAL"
+            ],
+            "title": "JobState",
+            "type": "string"
+          },
+          "Operation": {
+            "description": "Job operation (spec §12 `submit_experiment`).",
+            "enum": [
+              "fit",
+              "eval_as_is",
+              "finetune",
+              "optimize",
+              "profile"
+            ],
+            "title": "Operation",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "contract_version": {
+            "exclusiveMinimum": 0,
+            "title": "Contract Version",
+            "type": "integer"
+          },
+          "deduplicated": {
+            "description": "True if this idempotency_key was already used for this same submission: the existing job is returned and nothing new is queued.",
+            "title": "Deduplicated",
+            "type": "boolean"
+          },
+          "job_id": {
+            "description": "Pass this to the get_experiment_* tools.",
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "limits": {
+            "$ref": "#/$defs/JobLimits"
+          },
+          "next_step": {
+            "maxLength": 400,
+            "title": "Next Step",
+            "type": "string"
+          },
+          "operation": {
+            "$ref": "#/$defs/Operation"
+          },
+          "state": {
+            "$ref": "#/$defs/JobState"
+          },
+          "trial_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Trial Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "trial_id",
+          "state",
+          "deduplicated",
+          "operation",
+          "contract_version",
+          "limits",
+          "next_step"
+        ],
+        "title": "SubmitResult",
+        "type": "object"
+      },
+      "tier": "reversible",
+      "title": "Queue a trial for validation"
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Experiment status"
+      },
+      "description": "Report where a submitted experiment is: queued, running, completed, or failed.\n\nUse it to poll after submit_experiment (every few seconds) until `finished` is true;\nthen call get_experiment_metrics (if succeeded) or get_experiment_logs (if failed).\n\nDo not use it for metrics (get_experiment_metrics) or full logs (get_experiment_logs).\n\nReturns the job state, attempts, a platform-written error (code and message) if it\nfailed, the last log lines (lines that showed dataset values are withheld), the IDs of\nstored artifacts, and the suggested next step.\n\nExample: get_experiment_status(job_id=\"job_1761400000000000000_a1b2c3\")",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "description": "From submit_experiment, e.g. 'job_1761400000000000000_a1b2c3'.",
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Job Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "title": "get_experiment_statusArguments",
+        "type": "object"
+      },
+      "name": "get_experiment_status",
+      "outputSchema": {
+        "$defs": {
+          "ArtifactRef": {
+            "additionalProperties": false,
+            "properties": {
+              "artifact_id": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "title": "Artifact Id",
+                "type": "string"
+              },
+              "bytes": {
+                "minimum": 0,
+                "title": "Bytes",
+                "type": "integer"
+              },
+              "kind": {
+                "enum": [
+                  "metrics",
+                  "predictions",
+                  "manifest"
+                ],
+                "title": "Kind",
+                "type": "string"
+              },
+              "sha256": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Sha256",
+                "type": "string"
+              }
+            },
+            "required": [
+              "artifact_id",
+              "kind",
+              "sha256",
+              "bytes"
+            ],
+            "title": "ArtifactRef",
+            "type": "object"
+          },
+          "ExperimentError": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "maxLength": 64,
+                "title": "Code",
+                "type": "string"
+              },
+              "message": {
+                "description": "Platform-written; dataset values are never included.",
+                "maxLength": 400,
+                "title": "Message",
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "title": "ExperimentError",
+            "type": "object"
+          },
+          "JobState": {
+            "description": "Job state machine, spec §15.3.",
+            "enum": [
+              "DRAFT",
+              "VALIDATING",
+              "AWAITING_APPROVAL",
+              "QUEUED",
+              "LEASED",
+              "RUNNING",
+              "COMPLETED",
+              "FAILED",
+              "RETRY_WAIT",
+              "PAUSING",
+              "PAUSED",
+              "CANCEL_REQUESTED",
+              "CANCELLED",
+              "FAILED_TERMINAL"
+            ],
+            "title": "JobState",
+            "type": "string"
+          },
+          "Operation": {
+            "description": "Job operation (spec §12 `submit_experiment`).",
+            "enum": [
+              "fit",
+              "eval_as_is",
+              "finetune",
+              "optimize",
+              "profile"
+            ],
+            "title": "Operation",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "artifacts": {
+            "items": {
+              "$ref": "#/$defs/ArtifactRef"
+            },
+            "maxItems": 3,
+            "title": "Artifacts",
+            "type": "array"
+          },
+          "attempts": {
+            "minimum": 0,
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExperimentError"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "finished": {
+            "description": "True once the state can no longer change.",
+            "title": "Finished",
+            "type": "boolean"
+          },
+          "job_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "log_tail": {
+            "description": "Last log lines, after the data firewall.",
+            "items": {
+              "maxLength": 600,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Log Tail",
+            "type": "array"
+          },
+          "next_step": {
+            "maxLength": 400,
+            "title": "Next Step",
+            "type": "string"
+          },
+          "operation": {
+            "$ref": "#/$defs/Operation"
+          },
+          "state": {
+            "$ref": "#/$defs/JobState"
+          },
+          "succeeded": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Null until finished.",
+            "title": "Succeeded"
+          },
+          "trial_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Trial Id",
+            "type": "string"
+          },
+          "withheld_log_lines": {
+            "default": 0,
+            "description": "Tail lines withheld because they showed dataset values.",
+            "minimum": 0,
+            "title": "Withheld Log Lines",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "job_id",
+          "trial_id",
+          "operation",
+          "state",
+          "attempts",
+          "finished",
+          "log_tail",
+          "artifacts",
+          "next_step"
+        ],
+        "title": "ExperimentStatus",
+        "type": "object"
+      },
+      "tier": "read",
+      "title": "Experiment status"
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Experiment metrics"
+      },
+      "description": "Return the platform-computed validation scores of a completed experiment.\n\nEvery number is computed by platform code from the trial's saved predictions, never by\nthe trial itself. Use it once get_experiment_status reports `succeeded: true`, to compare\ntrials on the contract's primary metric and decide what to try next.\n\nDo not use it before the job finishes (you get EXPERIMENT_NOT_FINISHED) or for test-set\nscores: the held-out test split is scored only for a frozen final candidate.\n\nReturns the primary metric and its direction, a mean/std/min/max summary of every metric\nacross folds, per-fold scores (with confusion matrices for classification), per-class\nscores, and per-group spread for grouped splits (groups are unnamed: their labels are\ndata values).\n\nExample: get_experiment_metrics(job_id=\"job_1761400000000000000_a1b2c3\")",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "description": "A completed job from submit_experiment.",
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Job Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "title": "get_experiment_metricsArguments",
+        "type": "object"
+      },
+      "name": "get_experiment_metrics",
+      "outputSchema": {
+        "$defs": {
+          "ClassScore": {
+            "additionalProperties": false,
+            "properties": {
+              "f1": {
+                "title": "F1",
+                "type": "number"
+              },
+              "index": {
+                "description": "The class's position in class_labels and in every confusion matrix.",
+                "minimum": 0,
+                "title": "Index",
+                "type": "integer"
+              },
+              "label": {
+                "maxLength": 40,
+                "title": "Label",
+                "type": "string"
+              },
+              "precision": {
+                "title": "Precision",
+                "type": "number"
+              },
+              "recall": {
+                "title": "Recall",
+                "type": "number"
+              },
+              "support": {
+                "description": "Validation rows of this class, all folds.",
+                "minimum": 0,
+                "title": "Support",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "index",
+              "label",
+              "precision",
+              "recall",
+              "f1",
+              "support"
+            ],
+            "title": "ClassScore",
+            "type": "object"
+          },
+          "FoldScore": {
+            "additionalProperties": false,
+            "properties": {
+              "confusion_matrix": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "items": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "type": "array"
+                    },
+                    "maxItems": 50,
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Rows: true class; columns: predicted; both in class_labels order (index). Null for a fold whose classes differ from class_labels.",
+                "title": "Confusion Matrix"
+              },
+              "fold": {
+                "minimum": 0,
+                "title": "Fold",
+                "type": "integer"
+              },
+              "groups": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/GroupSummary"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              },
+              "metrics": {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "propertyNames": {
+                  "$ref": "#/$defs/MetricName"
+                },
+                "title": "Metrics",
+                "type": "object"
+              },
+              "rows": {
+                "minimum": 0,
+                "title": "Rows",
+                "type": "integer"
+              },
+              "unavailable": {
+                "additionalProperties": {
+                  "maxLength": 400,
+                  "type": "string"
+                },
+                "description": "Why a metric is undefined on this fold.",
+                "propertyNames": {
+                  "$ref": "#/$defs/MetricName"
+                },
+                "title": "Unavailable",
+                "type": "object"
+              }
+            },
+            "required": [
+              "fold",
+              "rows",
+              "metrics"
+            ],
+            "title": "FoldScore",
+            "type": "object"
+          },
+          "GroupSummary": {
+            "additionalProperties": false,
+            "description": "Per-group scores of the primary metric, without group labels (they are data values).",
+            "properties": {
+              "best": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Best"
+              },
+              "mean": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Mean"
+              },
+              "n_groups": {
+                "minimum": 0,
+                "title": "N Groups",
+                "type": "integer"
+              },
+              "worst": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Worst"
+              }
+            },
+            "required": [
+              "n_groups",
+              "mean",
+              "worst",
+              "best"
+            ],
+            "title": "GroupSummary",
+            "type": "object"
+          },
+          "MetricDirection": {
+            "enum": [
+              "maximize",
+              "minimize"
+            ],
+            "title": "MetricDirection",
+            "type": "string"
+          },
+          "MetricName": {
+            "description": "Metrics computed by platform code (spec §18; PLAN.md S1.3).",
+            "enum": [
+              "accuracy",
+              "balanced_accuracy",
+              "precision",
+              "recall",
+              "f1",
+              "precision_macro",
+              "recall_macro",
+              "f1_macro",
+              "roc_auc",
+              "pr_auc",
+              "log_loss",
+              "brier_score",
+              "mae",
+              "rmse",
+              "r2"
+            ],
+            "title": "MetricName",
+            "type": "string"
+          },
+          "MetricSummary": {
+            "additionalProperties": false,
+            "description": "One metric across validation folds.",
+            "properties": {
+              "folds": {
+                "description": "Folds where the metric is defined.",
+                "exclusiveMinimum": 0,
+                "title": "Folds",
+                "type": "integer"
+              },
+              "max": {
+                "title": "Max",
+                "type": "number"
+              },
+              "mean": {
+                "title": "Mean",
+                "type": "number"
+              },
+              "min": {
+                "title": "Min",
+                "type": "number"
+              },
+              "std": {
+                "minimum": 0,
+                "title": "Std",
+                "type": "number"
+              }
+            },
+            "required": [
+              "mean",
+              "std",
+              "min",
+              "max",
+              "folds"
+            ],
+            "title": "MetricSummary",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "class_labels": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Class Labels"
+          },
+          "direction": {
+            "$ref": "#/$defs/MetricDirection"
+          },
+          "folds": {
+            "items": {
+              "$ref": "#/$defs/FoldScore"
+            },
+            "maxItems": 20,
+            "title": "Folds",
+            "type": "array"
+          },
+          "job_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 400,
+            "title": "Note",
+            "type": "string"
+          },
+          "per_class": {
+            "items": {
+              "$ref": "#/$defs/ClassScore"
+            },
+            "maxItems": 50,
+            "title": "Per Class",
+            "type": "array"
+          },
+          "primary": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/MetricSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Null if undefined on every fold."
+          },
+          "primary_metric": {
+            "$ref": "#/$defs/MetricName"
+          },
+          "split": {
+            "const": "validation",
+            "title": "Split",
+            "type": "string"
+          },
+          "summary": {
+            "additionalProperties": {
+              "$ref": "#/$defs/MetricSummary"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/MetricName"
+            },
+            "title": "Summary",
+            "type": "object"
+          },
+          "trial_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Trial Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "trial_id",
+          "split",
+          "primary_metric",
+          "direction",
+          "summary",
+          "folds",
+          "note"
+        ],
+        "title": "ExperimentMetrics",
+        "type": "object"
+      },
+      "tier": "read",
+      "title": "Experiment metrics"
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Experiment logs"
+      },
+      "description": "Read a submitted experiment's sandbox output (stdout and stderr), page by page.\n\nEach sandbox stage (fit or predict, per validation fold) has its own log; lines are\nnumbered within their stage. Use it to diagnose a failed or surprising trial: Python\ntracebacks, warnings, and training progress printed by pipeline.py.\n\nDo not use it to read data: every line that shows dataset values is replaced by a\n\"withheld by the data firewall\" marker, so printing rows from pipeline.py only hides\nyour own log lines.\n\nReturns one page of lines (oldest first), the total line count, how many lines on this\npage were withheld, and `next_page` (null on the last page).\n\nExample: get_experiment_logs(job_id=\"job_1761400000000000000_a1b2c3\", page=1)",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "description": "From submit_experiment.",
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "page": {
+            "default": 1,
+            "description": "1-based page number.",
+            "minimum": 1,
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "default": 50,
+            "description": "Lines per page.",
+            "maximum": 200,
+            "minimum": 1,
+            "title": "Page Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "title": "get_experiment_logsArguments",
+        "type": "object"
+      },
+      "name": "get_experiment_logs",
+      "outputSchema": {
+        "$defs": {
+          "LogLine": {
+            "additionalProperties": false,
+            "properties": {
+              "action": {
+                "maxLength": 16,
+                "title": "Action",
+                "type": "string"
+              },
+              "attempt": {
+                "minimum": 0,
+                "title": "Attempt",
+                "type": "integer"
+              },
+              "line": {
+                "description": "Line number within the stage's log.",
+                "minimum": 0,
+                "title": "Line",
+                "type": "integer"
+              },
+              "stage": {
+                "minimum": 0,
+                "title": "Stage",
+                "type": "integer"
+              },
+              "text": {
+                "maxLength": 600,
+                "title": "Text",
+                "type": "string"
+              }
+            },
+            "required": [
+              "attempt",
+              "stage",
+              "action",
+              "line",
+              "text"
+            ],
+            "title": "LogLine",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/$defs/LogLine"
+            },
+            "maxItems": 200,
+            "title": "Lines",
+            "type": "array"
+          },
+          "next_page": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Next Page"
+          },
+          "page": {
+            "exclusiveMinimum": 0,
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "exclusiveMinimum": 0,
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total_lines": {
+            "minimum": 0,
+            "title": "Total Lines",
+            "type": "integer"
+          },
+          "withheld_lines": {
+            "description": "Lines on this page withheld because they showed dataset values.",
+            "minimum": 0,
+            "title": "Withheld Lines",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "job_id",
+          "page",
+          "page_size",
+          "total_lines",
+          "lines",
+          "withheld_lines"
+        ],
+        "title": "ExperimentLogs",
+        "type": "object"
+      },
+      "tier": "read",
+      "title": "Experiment logs"
+    }
+  ]
+}

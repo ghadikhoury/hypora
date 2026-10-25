@@ -58,7 +58,9 @@ metrics = read_output_bytes(out_dir, "metrics.json", max_bytes=10 * 1024 * 1024)
 
 Never `open()`, `Path.read_*()`, `shutil.copy*()`, or `pandas.read_*()` a path inside a job's
 `/trial` or `/out` directly. The same holds for writes: the trial directory persists across a
-trial's jobs, so S1.4's `write_trial_files` must not follow links when it writes there either.
+trial's jobs, so S1.4's `write_trial_files` never follows links when it writes there
+(`hypora/mcp_server/trialfs.py`: every component opened with `O_NOFOLLOW`, files replaced by
+`rename`; a linked trial directory is refused with `UNSAFE_TRIAL_DIR`).
 
 ## Isolation applied to every container (`launcher.py`)
 

@@ -263,6 +263,21 @@ class Job(Base):
     limits_json: Mapped[JsonObject] = mapped_column(JSON)
 
 
+class IdempotencyRecord(Base):
+    """One write tool call per `{run_id}:{call_id}` key (spec §11, §15.5): the request it stands
+    for (hash), the IDs it planned, and its result once complete (S1.4 review, migration 0003)."""
+
+    __tablename__ = "idempotency_records"
+    idempotency_key: Mapped[str] = mapped_column(String(260), primary_key=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("runs.id"), index=True)
+    tool: Mapped[str] = mapped_column(String(64))
+    request_sha256: Mapped[str] = mapped_column(String(64))
+    plan_json: Mapped[JsonObject] = mapped_column(JSON)
+    result_json: Mapped[JsonObject | None] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now)
+    completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+
+
 class Result(Base):
     """Platform metrics and verdicts for one trial split."""
 

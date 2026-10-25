@@ -76,6 +76,7 @@ commits from WSL so the pre-commit hooks can run. All text files use LF line end
 | `make test-live` | Live LLM calls on the free Gemini tier only; needs `GEMINI_API_KEY` in `.env`. Run only when Ghadi says so. Paid tests (`-m "live and paid"`) run only on his explicit request |
 | `make secrets` | gitleaks over the full git history (needs Docker running) |
 | `make schemas` | Regenerate `docs/schemas/` after a schema change (a test fails if it is stale) |
+| `make mcp-tools` | Regenerate `docs/mcp/tools.json`, the frozen MCP tool contract, after an approved tool change (a test fails if it is stale) |
 | `make sandbox-image` | Build the hash-tagged tabular sandbox image (needs Docker) |
 | `make sandbox-lock` | Re-lock the sandbox image's packages (with hashes) after editing `requirements-tabular.in` |
 | `make check` | `lint` + `typecheck` + `test` + `secrets`; must pass before every PR |
