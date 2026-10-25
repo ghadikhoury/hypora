@@ -13,7 +13,7 @@ import pandas as pd  # type: ignore[import-untyped]
 import pyarrow.parquet as pq  # type: ignore[import-untyped]
 import yaml  # type: ignore[import-untyped]
 
-from hypora.core.schemas import ExperimentContract
+from hypora.core.schemas import ExperimentContract, JobLimits
 from hypora.execution.harness.data import PreparedData, prepare_data
 from hypora.execution.harness.metrics import score_predictions
 from hypora.execution.harness.planner import HarnessPlanner, HarnessTask
@@ -127,7 +127,8 @@ class TabularHarness:
     def _context(self, contract, config):
         return {"seed": contract.seed, "task_type": contract.task_type.value, "config": config}
 
-    def _fit(self, data, ids, pipeline, contract, config, validation=None):
+    def _fit(self, data, ids, pipeline, contract, config, validation=None, limits=None):
+        limits = limits or contract.default_job_limits
         inputs = {
             "train_features.parquet": parquet_bytes(data.features.iloc[ids]),
             "train_labels.parquet": parquet_bytes(pd.DataFrame({"target": data.target.iloc[ids]})),
@@ -143,14 +144,12 @@ class TabularHarness:
                 pipeline,
                 inputs,
                 self._context(contract, config),
-                contract.default_job_limits,
+                limits,
             )
         )
-        return read_output_bytes(
-            out, "model.joblib", int(contract.default_job_limits.max_memory_gb * 1024**3)
-        )
+        return read_output_bytes(out, "model.joblib", int(limits.max_memory_gb * 1024**3))
 
-    def _predict(self, features, model, pipeline, contract, config):
+    def _predict(self, features, model, pipeline, contract, config, limits=None):
         # Even if a model's pickle executes code during load, this stage has features only.
         inputs = {"features.parquet": parquet_bytes(features), "model.joblib": model}
         out = self._execute(
@@ -159,7 +158,7 @@ class TabularHarness:
                 pipeline,
                 inputs,
                 self._context(contract, config),
-                contract.default_job_limits,
+                limits or contract.default_job_limits,
             )
         )
         raw = read_output_bytes(out, "predictions.parquet", 512 * 1024**2)
@@ -207,8 +206,13 @@ class TabularHarness:
         trial_id: str,
         dataset_ref: str,
         config: dict | None = None,
+        limits: JobLimits | None = None,
     ) -> ValidationResult:
-        """Fit every validation fold and recompute scores from saved predictions on the worker."""
+        """Fit every validation fold and recompute scores from saved predictions on the worker.
+
+        `limits` are the submitted job's own sandbox limits, applied to every stage; by default
+        the contract's `default_job_limits`. The caller checks they stay within the contract.
+        """
         if isinstance(frame, Path):
             source = frame.read_bytes()
             fingerprint = digest(source)
@@ -224,9 +228,11 @@ class TabularHarness:
         fold_scores = []
         fold_classes = []
         for number, fold in enumerate(data.folds):
-            model = self._fit(data, fold.train, pipeline, contract, config or {}, fold.validation)
+            model = self._fit(
+                data, fold.train, pipeline, contract, config or {}, fold.validation, limits
+            )
             predictions, classes = self._predict(
-                data.features.iloc[fold.validation], model, pipeline, contract, config or {}
+                data.features.iloc[fold.validation], model, pipeline, contract, config or {}, limits
             )
             fold_classes.append(classes)
             predictions.insert(0, "row_id", fold.validation)

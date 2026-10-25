@@ -336,3 +336,50 @@ one it supersedes.
   to recompute metrics. Trial code supplies predictions, never authoritative scores.
   Model artifacts remain in the execution plane; joblib deserialization happens only inside
   a sandbox, never in the control plane.
+
+## D-018 — MCP server v1: SDK, experiment execution, data firewall, Inspector setup
+- Date: 2026-10-25
+- Step: S1.4
+- Decided by: Ghadi ("1a 2a 3a 4a", plus the defaults proposed with them and two additions)
+- Options considered and decisions:
+  1. SDK: (a, chosen) `mcp==2.3.0` and its `MCPServer`, FastMCP's renamed successor in 2.x (same
+     model: type hints are the input schema, docstrings the description), with `mcp[cli]` in the
+     dev group for `mcp dev`; (b) `mcp==1.30.0` to keep the `FastMCP` name on the 1.x line.
+  2. Running a submitted experiment: (a, chosen) `submit_experiment` freezes the trial's files and
+     a request in a platform-owned job folder and enqueues a `fit` job; a separate experiment
+     worker process (`python -m hypora.execution.worker.experiments`) leases it and runs S1.3's
+     `TabularHarness.validate` with the job's own limits (at most the contract's; `validate`
+     gained an optional `limits` argument); (b) enqueue only and defer execution to S1.5.
+  3. Data firewall (security, PLAN.md §0.3 trigger 3): (a, chosen) typed, bounded outputs plus one
+     boundary filter, at the server's single call boundary, that checks every string of every
+     result against the run's actual data and blocks rows (3 cells of a row on one line) and
+     column dumps (8 cells); trial-produced text is screened line by line with stricter rules
+     (2 cells, 4 cells, any distinctive text value); group labels are dropped from metrics and
+     class labels cut to 40 characters; the detector and the role allowlists live in
+     `hypora/core/policy/`; `defenses.firewall` and `defenses.allowlist` switch them;
+     (b) pattern heuristics for table-shaped text.
+  4. `mcp dev` needs Node.js inside WSL (only Windows Node was installed): (a, chosen) install
+     Node 22 LTS with nvm at user level, no sudo; (b) Ghadi installs it; (c) document the
+     Windows-side Inspector with `wsl.exe` as the server command.
+- Additions requested by Ghadi: every `FIREWALL_BLOCKED` decision is logged with the rule that
+  fired (a `policy_decision` event whose reasons include `rule=<rule>`, the error's
+  `details.rule`, and a WARNING log line); a test proves a deliberate `df.head()` dump is blocked.
+- Install record (4a): nvm `v0.40.8` (exact release tag, published 2026-09-21), installer
+  `https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh`, SHA-256
+  `48a0eee9a60e07422dce0eb5774754c83889570ca1ee2566c516acbe8af03a9e`; it cloned nvm into
+  `~/.nvm` at that tag and added its loader to `~/.bashrc`. `nvm install 22` installed Node
+  v22.23.4 (npm 10.9.9), set as the default.
+- Defaults accepted with these choices: the frozen contract in `docs/mcp/tools.json` includes
+  descriptions; tool output models live in `hypora/mcp_server/` (no change to
+  `hypora/core/schemas/`); `write_trial_files` takes a typed design and allocates trial IDs;
+  `submit_experiment` supports tabular `fit` only, defaults run/contract/approval to the session,
+  and requires a `{run_id}:{call_id}` idempotency key; the launcher fixes each session's role and
+  run; the Inspector dev workspace uses scikit-learn's bundled UCI Breast Cancer Wisconsin data.
+- Why: the official SDK's current line; a queue-backed bridge is the only way the tools can be
+  exercised end to end while keeping the worker a separate process (spec §4.1) and labels out of
+  the control plane; a filter that knows the data catches realistic leaks without blocking
+  profiles or logs, and one boundary means no tool can forget it; `mcp dev` runs where the code
+  runs.
+- Consequences: docs/notes/mcp-server.md documents the design, the firewall's measured behavior,
+  and its residual risks (for S3.D3/S3.D4). S1.5's controller launches the server with a
+  `SessionConfig` and runs the experiment worker; the tool contract is frozen once merged.

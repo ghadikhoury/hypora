@@ -13,7 +13,7 @@ GITLEAKS_IMAGE := ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79
 SANDBOX_EXCLUDE_NEWER := 2026-10-10
 SANDBOX_DIR := hypora/execution/sandbox
 
-.PHONY: help setup lint typecheck test test-live secrets schemas sandbox-image sandbox-lock check
+.PHONY: help setup lint typecheck test test-live secrets schemas mcp-tools sandbox-image sandbox-lock check
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' Makefile | awk -F ':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -40,6 +40,9 @@ secrets: ## gitleaks over the full git history (requires Docker)
 
 schemas: ## Regenerate docs/schemas/ from hypora.core.schemas
 	$(RUN) python scripts/export_schemas.py
+
+mcp-tools: ## Regenerate docs/mcp/tools.json, the frozen MCP tool contract (review the diff)
+	$(RUN) python scripts/export_mcp_tools.py
 
 sandbox-image: ## Build the tabular sandbox image (tag = hash of Dockerfile + lock; needs Docker)
 	$(RUN) python -m hypora.execution.sandbox.image
