@@ -321,3 +321,18 @@ one it supersedes.
   aligned. No model profile, model ID, runtime behavior, case, grading rule, or hidden split changes.
   Important owner decisions are recorded here; this log contains decisions only, with
   implementation notes and status reports kept elsewhere.
+
+
+## D-017 — PyArrow is the project's Parquet engine
+- Date: 2026-10-25
+- Step: S1.3
+- Decided by: Ghadi (explicit approval)
+- Options considered: PyArrow (chosen), or a different Parquet engine.
+- Decision: use PyArrow 26.0.0, pinned to the same exact version in the platform's
+  pyproject.toml/uv.lock and the sandbox's requirements-tabular.in/requirements-tabular.lock.
+- Why: the harness requires Parquet for predictions and split inputs. One engine in both
+  environments avoids incompatible serialization assumptions.
+- Consequences: predictions.parquet is read back by platform code in the execution worker
+  to recompute metrics. Trial code supplies predictions, never authoritative scores.
+  Model artifacts remain in the execution plane; joblib deserialization happens only inside
+  a sandbox, never in the control plane.
