@@ -79,13 +79,13 @@ Two model **profiles** live in `configs/models.yaml`:
 
 | Profile | Primary | Fallback | Used for |
 |---|---|---|---|
-| `dev` | Gemini (free tier) for all tiers (`lead`, `worker`, `cheap`) | OpenAI (same tier mapping as `eval`) on rate-limit (429), quota, or 5xx after bounded retries | All development, debugging, unrecorded test runs |
-| `eval` | OpenAI, **pinned exact model IDs** per tier, fixed temperature (or "not configurable") | **None — fallback disabled** | Every **recorded** evaluation: the first recorded dev eval (S2.6), all Stage 4–5 recorded runs, and the demo |
+| `dev` | Gemini (free tier) for all tiers (`lead`, `worker`, `cheap`): `gemini-3.5-flash-lite` (D-007) | OpenAI (same tier mapping as `eval`) on rate-limit (429), quota, or 5xx after bounded retries; **disabled until S2.6** (D-007) | All development, debugging, unrecorded test runs |
+| `eval` | **Pinned exact model IDs** per tier, fixed temperature (or "not configurable"); provider and model chosen at S2.6 by the cost-per-pass procedure in D-007 | **None — fallback disabled** | Every **recorded** evaluation: the first recorded dev eval (S2.6), all Stage 4–5 recorded runs, and the demo |
 
 Rules:
 - Every model call records provider, model ID, profile, and whether a fallback occurred (event log, spec §15.1).
 - **Recorded runs never mix models.** In the `eval` profile, a provider failure is retried with backoff and then recorded as a failure — never silently swapped.
-- **Stage gate:** the last step of Stages 1–4 includes running the dev case set on **both** profiles and committing both result sets. This catches Gemini-vs-OpenAI behavior differences at every stage instead of at the end.
+- **Stage gates (D-016):** S1.7 runs its smoke tasks on `dev` only; matching `eval` evidence is added at S2.6 after the eval model is pinned. The last step of Stages 2–4 runs the dev case set on **both** profiles and commits both result sets, catching profile-specific behavior differences.
 - Changing the `eval` profile after S2.6 invalidates recorded results; it requires `🧑 HUMAN · DECIDE` and a re-run of affected evals.
 - **D-007 (2026-10-24):** the dev profile is `gemini-3.5-flash-lite` for every tier, with self-imposed rate limits from `configs/models.yaml`; dev fallback stays disabled until S2.6; and the `eval` provider/model is no longer fixed to OpenAI: S2.6 chooses it by measured cost per passed trap (`docs/DECISIONS.md` D-007).
 - The two providers also serve as the "two models" required for the F5 MCP evaluation (S5.3).
@@ -222,9 +222,9 @@ Build in `core/llm/`:
 - Token and cost accounting per call (prices read from `configs/prices.yaml` with a `retrieved_on` date).
 - Emits a `model_call` event for every call (provider, model, profile, tokens, latency, cost, fallback flag, redacted input/output refs).
 - `FakeProvider` that replays scripted responses for deterministic tests.
-- Integration test (skipped in CI if no key) making one real call to each provider.
+- Integration tests making real provider calls (excluded from CI): Gemini locally; OpenAI is paid and explicit-only, deferred to S2.6 (D-008).
 
-Done when: unit tests pass with `FakeProvider`; one live call per provider succeeds locally; fallback triggers on a simulated 429 in `dev` and is refused in `eval`.
+Done when: unit tests pass with `FakeProvider`; a live Gemini call succeeds locally; the OpenAI live check is deferred to S2.6 (D-008); fallback triggers on a simulated 429 in `dev` and is refused in `eval`.
 
 ---
 
@@ -313,9 +313,9 @@ Done when: a fresh clone + README steps run a task end to end on an OpenML snaps
 ### S1.7 — Stage 1 gate
 **PR:** `s1.7-gate` · `→ SERIAL` · **Depends on:** S1.6
 
-Build: a smoke-test script running 2 fixture tasks on **both** `dev` and `eval` profiles; results committed under `results/stage1/`; event-log size and token usage per run reported (feeds the budget estimate).
+Build: a smoke-test script running 2 real OpenML/UCI snapshot tasks on the **`dev` profile only** (D-015, D-016); results committed under `results/stage1/`; event-log size and token usage per run reported (feeds the budget estimate). Retain the task and snapshot references so S2.6 can add matching `eval` evidence.
 
-Done when: both profiles complete both tasks; per-run token/cost numbers are recorded in `docs/notes/cost-estimate.md`.
+Done when: dev-profile run only; eval-profile evidence is added at S2.6 when the eval model is pinned (D-016). Both tasks complete, and per-run token/cost numbers are recorded in `docs/notes/cost-estimate.md`.
 
 ---
 
@@ -377,12 +377,12 @@ Done when: all cases validate; the baseline fails the trap cases it should fail 
 
 ### S2.6 — First recorded evaluation and model lock
 **PR:** `s2.6-first-eval` · `→ SERIAL` · **Depends on:** S2.5 · **Spec:** §17, §19.5
-`🧑 HUMAN · DECIDE` — Pin the exact OpenAI model IDs for each tier in the `eval` profile (and temperature). Recorded in `docs/DECISIONS.md`.
+`🧑 HUMAN · DECIDE` — Choose the winning provider/model by D-007's cost-per-pass procedure, then pin the exact model IDs for each tier in the `eval` profile (and temperature). Record the choice in `docs/DECISIONS.md`.
 `🧑 HUMAN · COURSE` — Check-in (Nov 4): record a 30 s–2 min video of `hypora run` and `make eval`; submit the one-page update and the repo link at the merge commit of this step.
 
-Build: run the dev set on agent + baseline with the **`eval` profile** (first recorded eval) and with the `dev` profile; commit both result sets; generate `docs/notes/checkin-summary.md` (what works, what is next, two biggest risks, dev-case pointers, first dev-eval date) as material for the update.
+Build: run the dev set on agent + baseline with the **`eval` profile** (first recorded eval) and with the `dev` profile; commit both result sets. After pinning the eval model, also run the same S1.7 smoke tasks and snapshots on `eval` and add the matching evidence under `results/stage1/` (D-016). Generate `docs/notes/checkin-summary.md` (what works, what is next, two biggest risks, dev-case pointers, first dev-eval date) as material for the update.
 
-Done when: both result sets are committed with summaries; the `eval` profile model IDs are pinned in config.
+Done when: both result sets are committed with summaries; the `eval` profile model IDs are pinned in config; matching S1.7 `eval` evidence is committed under `results/stage1/` (D-016).
 
 ---
 
