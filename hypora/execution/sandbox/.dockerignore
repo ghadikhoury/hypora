@@ -1,0 +1,4 @@
+# The image build context is this directory; only these two files go into the image.
+*
+!Dockerfile.tabular
+!requirements-tabular.lock

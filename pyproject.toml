@@ -5,6 +5,7 @@ description = "Agent-powered autonomous ML engineering platform (CIS 1990 final 
 requires-python = "==3.12.*"
 dependencies = [
     "alembic==1.20.1",
+    "docker==7.2.0",
     "google-genai==2.31.0",
     "numpy==2.5.4",
     "openai==3.35.1",
@@ -77,6 +78,12 @@ warn_return_any = true
 no_implicit_reexport = true
 extra_checks = true
 
+# The Docker SDK (and the requests library it is built on) ship no type information; the sandbox
+# wraps them behind typed functions instead of adding a stubs package.
+[[tool.mypy.overrides]]
+module = ["docker", "docker.*", "requests", "requests.*"]
+ignore_missing_imports = true
+
 [tool.pydantic-mypy]
 init_forbid_extra = true
 init_typed = true
@@ -92,4 +99,5 @@ markers = [
     "docker: integration tests requiring Docker and the pinned gitleaks image",
     "live: real LLM provider calls; skipped unless selected (make test-live)",
     "paid: live calls that spend money; run only on explicit request (-m 'live and paid')",
+    "sandbox: runs real containers; requires Docker and builds the sandbox image (S1.2)",
 ]
