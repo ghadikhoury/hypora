@@ -41,7 +41,8 @@ def models_data() -> dict[str, Any]:
 def test_profiles_match_the_model_policy() -> None:
     models = load_settings().models
     assert {models.dev.tiers.for_tier(t).provider for t in ModelTier} == {Provider.GEMINI}
-    assert models.dev.fallback.enabled and models.dev.fallback.tiers_from is ModelProfile.EVAL
+    # D-007: dev fallback to OpenAI stays disabled until S2.6; eval never falls back.
+    assert not models.dev.fallback.enabled
     assert not models.eval.fallback.enabled
 
 
@@ -54,7 +55,7 @@ def test_eval_profile_may_never_fall_back() -> None:
 
 def test_dev_falls_back_to_the_eval_mapping_only() -> None:
     data = models_data()
-    data["dev"]["fallback"]["tiers_from"] = "dev"
+    data["dev"]["fallback"] = {"enabled": True, "tiers_from": "dev", "triggers": ["quota"]}
     with pytest.raises(ValidationError, match=r"dev falls back to the eval tier mapping"):
         ModelsConfig.model_validate(data)
 
@@ -147,19 +148,19 @@ def test_run_config_records_the_active_profile() -> None:
     assert config.pools.cpu_slots == 7
 
 
-def test_run_config_refuses_placeholder_models_in_the_active_profile() -> None:
+def test_run_config_refuses_placeholder_models_in_the_active_profile(config_dir: Path) -> None:
     with pytest.raises(ConfigError, match=r"profile 'eval' still has placeholder model IDs"):
         RunConfig.build(load_settings_for_eval("default"), hardware=HARDWARE)
-    with pytest.raises(ConfigError, match=r"profile 'dev' still has placeholder"):
-        RunConfig.build(load_settings(), hardware=HARDWARE)
-
-
-def test_run_config_checks_only_the_active_profile(config_dir: Path) -> None:
     models = (config_dir / "models.yaml").read_text(encoding="utf-8")
-    real_dev = models.replace("placeholder-gemini-", "gemini-test-")
-    (config_dir / "models.yaml").write_text(real_dev, encoding="utf-8")
-    config = RunConfig.build(load_settings(config_dir), hardware=HARDWARE)  # eval unset: fine
-    assert config.active_profile.tiers.lead.model_id == "gemini-test-lead"
+    unset_dev = models.replace("model_id: gemini-3.5-flash-lite, ", "model_id: placeholder-x, ")
+    (config_dir / "models.yaml").write_text(unset_dev, encoding="utf-8")
+    with pytest.raises(ConfigError, match=r"profile 'dev' still has placeholder"):
+        RunConfig.build(load_settings(config_dir), hardware=HARDWARE)
+
+
+def test_run_config_checks_only_the_active_profile() -> None:
+    config = RunConfig.build(load_settings(), hardware=HARDWARE)  # eval unset: fine
+    assert config.active_profile.tiers.lead.model_id == "gemini-3.5-flash-lite"
 
 
 @pytest.mark.parametrize("source", ["yaml", "env"])

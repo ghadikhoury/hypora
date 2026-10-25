@@ -64,7 +64,8 @@ commits from WSL so the pre-commit hooks can run. All text files use LF line end
 | `make setup` | `uv sync --locked` (pinned Python 3.12 + locked dev deps) and install the pre-commit hooks |
 | `make lint` | `ruff check` + `ruff format --check` |
 | `make typecheck` | `mypy` (strict on `hypora/core/`) |
-| `make test` | `pytest` |
+| `make test` | `pytest` (live provider calls excluded) |
+| `make test-live` | Live LLM calls on the free Gemini tier only; needs `GEMINI_API_KEY` in `.env`. Run only when Ghadi says so. Paid tests (`-m "live and paid"`) run only on his explicit request |
 | `make secrets` | gitleaks over the full git history (needs Docker running) |
 | `make schemas` | Regenerate `docs/schemas/` after a schema change (a test fails if it is stale) |
 | `make check` | `lint` + `typecheck` + `test` + `secrets`; must pass before every PR |
@@ -137,8 +138,8 @@ Two model profiles live in `configs/models.yaml`:
 
 | Profile | Primary | Fallback | Used for |
 |---|---|---|---|
-| `dev` | Gemini (free tier) for all tiers (`lead`, `worker`, `cheap`) | OpenAI (same tier mapping as `eval`) on rate-limit (429), quota, or 5xx after bounded retries | All development, debugging, unrecorded test runs |
-| `eval` | OpenAI, **pinned exact model IDs** per tier, fixed temperature (or "not configurable") | **None — fallback disabled** | Every **recorded** evaluation: the first recorded dev eval (S2.6), all Stage 4–5 recorded runs, and the demo |
+| `dev` | Gemini (free tier) for all tiers (`lead`, `worker`, `cheap`): `gemini-3.5-flash-lite` (D-007) | OpenAI (same tier mapping as `eval`) on rate-limit (429), quota, or 5xx after bounded retries; **disabled until S2.6** (D-007) | All development, debugging, unrecorded test runs |
+| `eval` | **Pinned exact model IDs** per tier, fixed temperature (or "not configurable"); provider and model chosen at S2.6 by the cost-per-pass procedure in D-007 | **None — fallback disabled** | Every **recorded** evaluation: the first recorded dev eval (S2.6), all Stage 4–5 recorded runs, and the demo |
 
 - Every model call records provider, model ID, profile, and whether a fallback occurred.
 - **Recorded runs never mix models.** In `eval`, a provider failure is retried with backoff and then
@@ -148,3 +149,6 @@ Two model profiles live in `configs/models.yaml`:
 - Changing the `eval` profile after S2.6 invalidates recorded results; it requires
   `🧑 HUMAN · DECIDE` and a re-run of affected evals.
 - Only public or synthetic datasets are used in development (Gemini free-tier data-use terms).
+- Dev results on Flash-Lite answer "does the system work", not "how good is Hypora" (D-007).
+- The adapter enforces each model's published rate limits from `configs/models.yaml` and stops
+  cleanly at the daily cap; every model's price lives in `configs/prices.yaml` (source + date).

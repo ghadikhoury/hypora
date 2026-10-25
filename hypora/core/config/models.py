@@ -1,14 +1,24 @@
 """Model profiles (PLAN.md §1, spec §17): which provider/model serves each tier, and fallback.
 
-`dev` uses Gemini for every tier and may fall back to the `eval` tier mapping on rate limits, quota,
-or 5xx. `eval` is pinned and never falls back. Model IDs are placeholders until S0.5 (adapter) and
-S2.6 (`🧑 DECIDE`: pin the eval IDs); `placeholder_tiers()` lists the ones still unset.
+`dev` uses Gemini for every tier. It may fall back to the `eval` tier mapping on rate limits, quota,
+or 5xx, but that stays disabled until S2.6 (D-007). `eval` is pinned at S2.6 (`🧑 DECIDE`) and never
+falls back; `placeholder_tiers()` lists the IDs still unset. The same file holds the self-imposed
+rate limits (`rate_limits`) and the retry/backoff policy (`retry`) the LLM adapter enforces (S0.5).
 """
 
+from datetime import date
 from enum import StrEnum
 from typing import Literal, Self
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import Field, model_validator
+from pydantic import (
+    Field,
+    NonNegativeInt,
+    PositiveFloat,
+    PositiveInt,
+    field_validator,
+    model_validator,
+)
 
 from hypora.core.schemas.common import FrozenModel, NonEmptyStr
 from hypora.core.schemas.events import ModelProfile, ModelTier, Provider
@@ -73,11 +83,73 @@ class ProfileConfig(FrozenModel):
     fallback: FallbackPolicy
 
 
+class ModelRateLimit(FrozenModel):
+    """A provider's published limits for one model (D-007). `None` = unknown, not enforced."""
+
+    provider: Provider
+    model_id: NonEmptyStr
+    rpm: PositiveInt | None = Field(description="Requests per minute.")
+    tpm: PositiveInt | None = Field(description="Input tokens per minute.")
+    rpd: PositiveInt | None = Field(description="Requests per day (reset at daily_reset_timezone).")
+    source: NonEmptyStr = Field(description="Where the numbers were read.")
+    retrieved_on: date
+
+
+class RateLimitsConfig(FrozenModel):
+    """Self-imposed client-side limits: the adapter stays at `headroom` x each published limit."""
+
+    headroom: float = Field(0.9, gt=0.0, le=1.0, description="Fraction of each limit to use.")
+    daily_reset_timezone: NonEmptyStr = Field(
+        "America/Los_Angeles", description="Gemini RPD quotas reset at midnight Pacific time."
+    )
+    limits: tuple[ModelRateLimit, ...] = ()
+
+    @field_validator("daily_reset_timezone")
+    @classmethod
+    def _known_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError):
+            raise ValueError(f"unknown IANA timezone {value!r}") from None
+        return value
+
+    @model_validator(mode="after")
+    def _one_entry_per_model(self) -> Self:
+        keys = [(limit.provider, limit.model_id) for limit in self.limits]
+        if len(keys) != len(set(keys)):
+            raise ValueError("rate_limits.limits lists a provider/model pair more than once")
+        return self
+
+    def for_model(self, provider: Provider, model_id: str) -> ModelRateLimit | None:
+        """The configured limits for this model, or None if none are configured."""
+        for limit in self.limits:
+            if limit.provider is provider and limit.model_id == model_id:
+                return limit
+        return None
+
+
+class RetryConfig(FrozenModel):
+    """Bounded exponential backoff with jitter for transient provider errors (spec §9.4)."""
+
+    max_retries: NonNegativeInt = Field(3, le=10, description="Retries after the first attempt.")
+    base_delay_s: float = Field(2.0, ge=0.5, description="First backoff delay; never a tight loop.")
+    max_delay_s: PositiveFloat = Field(60.0, description="Cap on one backoff delay.")
+    request_timeout_s: PositiveFloat = Field(120.0, description="Per-attempt HTTP timeout.")
+
+    @model_validator(mode="after")
+    def _ordered(self) -> Self:
+        if self.max_delay_s < self.base_delay_s:
+            raise ValueError("retry.max_delay_s must be at least retry.base_delay_s")
+        return self
+
+
 class ModelsConfig(FrozenModel):
-    """`configs/models.yaml` (PLAN.md §1). Field names are the `ModelProfile` values."""
+    """`configs/models.yaml` (PLAN.md §1). Profile field names are the `ModelProfile` values."""
 
     dev: ProfileConfig
     eval: ProfileConfig
+    rate_limits: RateLimitsConfig = RateLimitsConfig()
+    retry: RetryConfig = RetryConfig()
 
     def profile(self, name: ModelProfile) -> ProfileConfig:
         config: ProfileConfig = getattr(self, name.value)
