@@ -150,11 +150,11 @@ Build:
 - GitHub Actions workflow: lint, type-check, unit tests, **gitleaks** secret scan over the full history.
 - `pre-commit` config running ruff, mypy, gitleaks.
 - `docs/PROJECT_SPEC.md` (copy of the spec), `docs/PLAN.md` (this file), `docs/DECISIONS.md` (decision log template).
-- `AGENTS.md` and `CLAUDE.md` (identical content): project summary, how to run tests, the Definition of Done, the label definitions from §0.2, the stop-and-ask triggers from §0.3, the model policy from §1, and the rule "read the step in PLAN.md and its spec sections before writing code."
+- `AGENTS.md`, with `CLAUDE.md` importing it (one source, D-014): project summary, how to run tests, the Definition of Done, the label definitions from §0.2, the stop-and-ask triggers from §0.3, the model policy from §1, and the rule "read the step in PLAN.md and its spec sections before writing code."
 - `.github/pull_request_template.md` from §2.
 - `Makefile` targets: `setup`, `lint`, `test`, `check`.
 
-Done when: `make setup && make check` passes locally and in CI; gitleaks runs in CI; AGENTS.md/CLAUDE.md contain the labels, triggers, and model policy.
+Done when: `make setup && make check` passes locally and in CI; gitleaks runs in CI; AGENTS.md contains the labels, triggers, and model policy.
 
 ### S0.2 — Core schemas
 **PR:** `s0.2-schemas` · `→ SERIAL` · **Spec:** §5.2, §6.4, §6.7, §7.2, §8.1, §12, §15.1

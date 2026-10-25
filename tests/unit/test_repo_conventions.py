@@ -94,10 +94,11 @@ def test_gitignore_keeps_env_example() -> None:
     assert not _is_ignored(".env.example")
 
 
-def test_agents_md_and_claude_md_are_identical() -> None:
-    agents = (REPO_ROOT / "AGENTS.md").read_bytes()
-    claude = (REPO_ROOT / "CLAUDE.md").read_bytes()
-    assert agents == claude, "AGENTS.md and CLAUDE.md must have identical content"
+def test_claude_md_only_imports_agents_md() -> None:
+    """AGENTS.md is the single source of agent instructions (D-014); CLAUDE.md imports it."""
+    lines = (REPO_ROOT / "CLAUDE.md").read_text(encoding="utf-8").splitlines()
+    content = [line for line in lines if line.strip() and not line.startswith("<!--")]
+    assert content == ["@AGENTS.md"], "CLAUDE.md must contain only the @AGENTS.md import"
 
 
 @pytest.mark.parametrize(
