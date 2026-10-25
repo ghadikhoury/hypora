@@ -7,18 +7,27 @@ the caller *waits* exactly until the oldest entry leaves it: no spinning, no tig
 requests/day cap counts requests since the last midnight in the provider's reset timezone; reaching
 it raises `DailyQuotaExhausted` immediately instead of waiting hours.
 
+`ProviderAdmission` is the one admission service per process: every adapter (every run) is built
+with the same instance, so the windows, daily counters, and per-provider concurrency permits are
+shared, and a new run cannot reset them. It admits a request only once it holds a concurrency
+permit, then charges the rate-limit windows immediately before the outbound attempt, so a request
+that waited in the concurrency queue is timestamped when it is actually sent.
+
 Limits are tracked in this process only. A second process sharing the same Google project is not
 seen; the server's own 429 is then classified (per-minute -> back off, per-day -> stop).
 """
 
 import asyncio
 import math
+import time
 from collections import deque
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from hypora.core.config.models import ModelRateLimit, RateLimitsConfig
+from hypora.core.config.resources import LlmConcurrency
 from hypora.core.llm.errors import DailyQuotaExhausted
 from hypora.core.schemas.events import Provider
 
@@ -204,3 +213,50 @@ class RateLimiter:
                 now=self._now,
             )
         return self._limiters[key]
+
+
+class ProviderAdmission:
+    """Process-wide admission control for model calls (spec §9.2 `llm_concurrency`, §9.4; D-007).
+
+    Create ONE per process (the controller/runtime owns it) and pass it to every `LLMAdapter`.
+    Its asyncio primitives belong to the event loop that runs the calls.
+    """
+
+    def __init__(
+        self,
+        rate_limits: RateLimitsConfig,
+        concurrency: LlmConcurrency | None = None,
+        *,
+        clock: Clock = time.monotonic,
+        sleep: Sleep = asyncio.sleep,
+        now: WallClock = _utc_now,
+    ) -> None:
+        self.rate_limits = rate_limits
+        self.concurrency = concurrency or LlmConcurrency()
+        self._limiter = RateLimiter(rate_limits, clock=clock, sleep=sleep, now=now)
+        self._permits = {
+            provider: asyncio.Semaphore(getattr(self.concurrency, provider.value))
+            for provider in Provider
+        }
+
+    def limiter_for(self, provider: Provider, model_id: str) -> ModelLimiter | None:
+        """The shared limiter for one model, or None if no limits are configured for it."""
+        return self._limiter.for_model(provider, model_id)
+
+    @asynccontextmanager
+    async def dispatch(
+        self, provider: Provider, model_id: str, estimated_tokens: int
+    ) -> AsyncIterator[Reservation]:
+        """Hold one provider concurrency permit and one rate-limit slot for a single attempt.
+
+        Order matters: the permit is taken first and the rate-limit windows are charged only after
+        it, right before the caller sends the request inside this block. Waiting for a minute
+        window happens while holding the permit, because no request may be sent then anyway.
+        Raises `DailyQuotaExhausted` (no request is sent) once the daily cap is reached.
+        """
+        async with self._permits[provider]:
+            limiter = self._limiter.for_model(provider, model_id)
+            if limiter is None:
+                yield Reservation(waited_s=0.0, token_entry=None)
+            else:
+                yield await limiter.acquire(estimated_tokens)

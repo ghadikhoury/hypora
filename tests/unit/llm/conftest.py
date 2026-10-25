@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 
 from hypora.core.config import ModelsConfig, load_settings
+from hypora.core.config.resources import LlmConcurrency
 from hypora.core.llm import (
     CallContext,
     FakeProvider,
@@ -19,6 +20,7 @@ from hypora.core.llm import (
     InMemoryModelIOStore,
     LLMAdapter,
     PriceTable,
+    ProviderAdmission,
     ProviderClient,
     load_price_table,
 )
@@ -89,8 +91,23 @@ def prices() -> PriceTable:
 AdapterFactory = Callable[..., tuple[LLMAdapter, InMemoryEventSink, InMemoryModelIOStore]]
 
 
+def fake_admission(
+    fake_time: FakeTime, models: ModelsConfig, concurrency: LlmConcurrency | None = None
+) -> ProviderAdmission:
+    """The process-wide admission service, on fake time."""
+    return ProviderAdmission(
+        models.rate_limits,
+        concurrency,
+        clock=fake_time.clock,
+        sleep=fake_time.sleep,
+        now=fake_time.wall,
+    )
+
+
 @pytest.fixture
 def make_adapter(fake_time: FakeTime, prices: PriceTable) -> AdapterFactory:
+    """Builds adapters; pass the same `admission` to model several runs in one process."""
+
     def build(
         clients: Mapping[Provider, ProviderClient] | FakeProvider,
         *,
@@ -98,24 +115,26 @@ def make_adapter(fake_time: FakeTime, prices: PriceTable) -> AdapterFactory:
         profile: ModelProfile = ModelProfile.DEV,
         secrets: tuple[str, ...] = (),
         seed: int = 7,
+        admission: ProviderAdmission | None = None,
     ) -> tuple[LLMAdapter, InMemoryEventSink, InMemoryModelIOStore]:
         import random
 
         if isinstance(clients, FakeProvider):
             clients = {clients.provider: clients}
+        models = models or repo_models()
         events, store = InMemoryEventSink(), InMemoryModelIOStore()
         adapter = LLMAdapter(
-            models=models or repo_models(),
+            models=models,
             profile=profile,
             prices=prices,
             clients=clients,
             events=events,
+            admission=admission or fake_admission(fake_time, models),
             io_store=store,
             secrets=secrets,
             clock=fake_time.clock,
             sleep=fake_time.sleep,
             rng=random.Random(seed),
-            now=fake_time.wall,
         )
         return adapter, events, store
 

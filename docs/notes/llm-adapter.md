@@ -39,9 +39,12 @@ recorded.
   (`inputSchema` → `input_schema`); `ToolSpec.from_mcp(tool)` converts one. Each provider client
   translates `ToolSpec` to its native tool type (Gemini `FunctionDeclaration` with
   `parameters_json_schema`; OpenAI Responses `function` tools).
-- The model's tool calls come back as `ToolCall(id, name, arguments)`. Arguments that are not a JSON
-  object become `arguments_error` instead of an exception, so the caller can hand the model an error
-  observation (spec §15.2 planning recovery).
+- The model's tool calls come back as `ToolCall(id, name, arguments)`. Normalization never raises:
+  arguments that are not JSON, not an object, or contain a non-finite number (`NaN`, `Infinity`,
+  or an overflow such as `1e309`, which Python parses to `inf`), and calls with no tool name,
+  become a bounded `arguments_error` (≤ 300 characters) with empty `arguments`. The caller hands the
+  model an error observation (spec §15.2 planning recovery), and the completed response keeps its
+  usage, cost, and `model_call` event.
 - A tool result is `Message.tool_result(call, content, is_error=...)`.
 - **Replay state.** Gemini 3 thought signatures and OpenAI encrypted reasoning items must be sent
   back unchanged on the next turn. `LLMResponse.message` carries them in `Message.replay`, and a
@@ -85,6 +88,17 @@ recorded.
   `max_retries` (3); delay `min(max, base × 2ⁿ)` × a random factor in [0.5, 1), so never below
   1 s. A server `Retry-After` longer than the computed delay is honored; one longer than
   `max_delay_s` stops the call instead of waiting.
+- **One `ProviderAdmission` per process, shared by every adapter.** It owns the windows, daily
+  counters, and per-provider concurrency permits (`llm_concurrency`). Every `LLMAdapter` requires
+  one, and the runtime builds it once and passes it to each run's adapter, so a second run cannot
+  reset the limits. An admission built for different `rate_limits` than the adapter's config is
+  refused.
+- **Charged at dispatch.** Each attempt first takes a provider concurrency permit, then a
+  rate-limit slot, then sends the request inside the same block. A request that waited in the
+  concurrency queue is therefore timestamped when it is actually sent, so an expired queued
+  reservation can never let dispatches exceed the window. The cost of this ordering: while a
+  request waits for its model's minute window, it holds its provider permit, which can delay a call
+  to a different model of the same provider. Dev uses one model, so this does not matter now.
 - Limits are tracked per process. A second process on the same Google project is not seen; the
   server's 429 then gets classified as above.
 
@@ -112,8 +126,13 @@ recorded.
 
 - One `model_call` event per final outcome of an attempt chain: success, schema failure, or failure
   after retries. A fallback adds a second event. Fields: provider, model, profile, tier, temperature,
-  prompt ref, tokens, latency (provider time) and rate-limit wait (limiter waits + backoff, kept
-  separate per spec §9.4), retries, cost, fallback flag/origin, status/error code, input/output refs.
+  prompt ref, tokens, latency (provider time) and `rate_limit_wait_ms` (all admission waiting:
+  the concurrency queue, the rate-limit windows, and backoff; kept separate from model time per
+  spec §9.4), retries, cost, fallback flag/origin, status/error code, input/output refs.
+- **Billed but undecodable.** If a provider completes a request but its response cannot be decoded,
+  the client raises a non-retryable `INVALID_RESPONSE` that carries the billed usage. The adapter
+  records that usage and its cost in an error event (`PROVIDER_RESPONSE_INVALID`) instead of
+  losing it, and does not resend the request.
 - `EventSink` matches `EventLog.append`; the adapter appends from a worker thread
   (`asyncio.to_thread`), because the SQLite event log is synchronous.
 - With a `ModelIOStore`, the input and output of each call are stored redacted, and the event

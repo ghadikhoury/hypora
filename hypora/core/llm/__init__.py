@@ -25,6 +25,7 @@ from hypora.core.llm.errors import (
 from hypora.core.llm.pricing import ModelPrice, PriceTable, TokenPrices, load_price_table
 from hypora.core.llm.providers.base import ProviderClient, ProviderRequest, ProviderResult
 from hypora.core.llm.providers.fake import FakeProvider
+from hypora.core.llm.rate_limit import ProviderAdmission
 from hypora.core.llm.sinks import (
     EventSink,
     FileModelIOStore,
@@ -66,6 +67,7 @@ __all__ = [
     "ModelPrice",
     "PriceTable",
     "PriceUnknownError",
+    "ProviderAdmission",
     "ProviderClient",
     "ProviderCredentials",
     "ProviderError",

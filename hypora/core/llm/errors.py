@@ -4,6 +4,7 @@ classified into a `ProviderError` with a `ProviderErrorKind`, which decides retr
 from enum import StrEnum
 
 from hypora.core.config.models import FallbackTrigger
+from hypora.core.llm.types import Usage
 
 
 class ProviderErrorKind(StrEnum):
@@ -18,6 +19,7 @@ class ProviderErrorKind(StrEnum):
     AUTHENTICATION = "authentication"
     PERMISSION = "permission"
     NOT_FOUND = "not_found"  # e.g. an unknown model ID
+    INVALID_RESPONSE = "invalid_response"  # completed (billed) but undecodable: never retried
     UNKNOWN = "unknown"
 
     @property
@@ -54,6 +56,7 @@ _ERROR_CODES = {
     ProviderErrorKind.AUTHENTICATION: "PROVIDER_AUTH_FAILED",
     ProviderErrorKind.PERMISSION: "PROVIDER_PERMISSION_DENIED",
     ProviderErrorKind.NOT_FOUND: "MODEL_NOT_FOUND",
+    ProviderErrorKind.INVALID_RESPONSE: "PROVIDER_RESPONSE_INVALID",
     ProviderErrorKind.UNKNOWN: "PROVIDER_ERROR",
 }
 
@@ -72,7 +75,11 @@ class LLMError(Exception):
 
 
 class ProviderError(LLMError):
-    """One failed provider attempt, classified. The message never contains credentials."""
+    """One failed provider attempt, classified. The message never contains credentials.
+
+    `usage` is set when the provider completed (and billed) the request but its response could
+    not be used, so the adapter still records those tokens and their cost.
+    """
 
     def __init__(
         self,
@@ -81,12 +88,14 @@ class ProviderError(LLMError):
         *,
         status_code: int | None = None,
         retry_after_s: float | None = None,
+        usage: Usage | None = None,
     ) -> None:
         super().__init__(f"{kind.value}: {message}")
         self.kind = kind
         self.detail = message
         self.status_code = status_code
         self.retry_after_s = retry_after_s
+        self.usage = usage
 
 
 class DailyQuotaExhausted(ProviderError):

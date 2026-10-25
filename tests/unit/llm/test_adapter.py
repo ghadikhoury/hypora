@@ -411,7 +411,7 @@ def test_a_missing_client_is_refused(make_adapter: AdapterFactory) -> None:
 
 @pytest.mark.asyncio
 async def test_events_land_in_the_real_event_log(tmp_path: Path, prices: Any) -> None:
-    from hypora.core.llm import LLMAdapter
+    from hypora.core.llm import LLMAdapter, ProviderAdmission
     from hypora.storage.database import Database
     from hypora.storage.events import EventLog
     from hypora.storage.migrate import migrate
@@ -423,12 +423,14 @@ async def test_events_land_in_the_real_event_log(tmp_path: Path, prices: Any) ->
         with database.write() as connection:
             connection.execute(insert(Run).values(id="run_1", workspace_id="ws_1"))
         log = EventLog(database)
+        models = repo_models()
         adapter = LLMAdapter(
-            models=repo_models(),
+            models=models,
             profile=ModelProfile.DEV,
             prices=prices,
             clients={Provider.GEMINI: FakeProvider([text_result("hi")])},
             events=log,
+            admission=ProviderAdmission(models.rate_limits),
         )
         await adapter.complete(HELLO, tier=ModelTier.LEAD, context=CONTEXT)
         [event] = log.read("run_1")

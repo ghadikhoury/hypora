@@ -23,6 +23,7 @@ from google.genai import types
 from hypora.core.llm.errors import ProviderError, ProviderErrorKind
 from hypora.core.llm.providers.base import ProviderRequest, ProviderResult
 from hypora.core.llm.providers.common import (
+    decode_completed,
     parse_retry_delay_s,
     safe_detail,
     status_kind,
@@ -85,7 +86,10 @@ class GeminiClient:
             if kind is None:
                 raise
             raise ProviderError(kind, safe_detail(str(exc))) from None
-        return parse_response(response, request.model_id)
+        return decode_completed(
+            lambda: parse_response(response, request.model_id),
+            lambda: parse_usage(response.usage_metadata),
+        )
 
 
 def build_config(request: ProviderRequest, system: str | None) -> types.GenerateContentConfig:

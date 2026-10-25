@@ -20,6 +20,7 @@ from openai import AsyncOpenAI
 from hypora.core.llm.errors import ProviderError, ProviderErrorKind
 from hypora.core.llm.providers.base import ProviderRequest, ProviderResult
 from hypora.core.llm.providers.common import (
+    decode_completed,
     is_strict_compatible,
     safe_detail,
     status_kind,
@@ -57,7 +58,10 @@ class OpenAIClient:
             if kind is None:
                 raise
             raise ProviderError(kind, safe_detail(str(exc))) from None
-        return parse_response(response, request.model_id)
+        return decode_completed(
+            lambda: parse_response(response, request.model_id),
+            lambda: parse_usage(response.usage),
+        )
 
 
 def build_request(request: ProviderRequest) -> dict[str, Any]:

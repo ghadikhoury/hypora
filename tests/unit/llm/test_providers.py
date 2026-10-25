@@ -407,7 +407,7 @@ def test_openai_timeout_is_a_timeout() -> None:
 def test_malformed_tool_arguments_become_an_error_observation() -> None:
     assert tool_call_from_json("1", "t", "{not json").arguments_error is not None
     assert tool_call_from_json("1", "t", "[1, 2]").arguments_error == (
-        "arguments must be a JSON object, got list"
+        "invalid arguments: arguments must be a JSON object, got list"
     )
     assert tool_call_from_json("1", "t", '{"a": 1}').arguments == {"a": 1}
     assert tool_call_from_json("1", "t", None).arguments == {}

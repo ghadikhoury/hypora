@@ -22,6 +22,7 @@ from hypora.core.llm import (
     InMemoryModelIOStore,
     LLMAdapter,
     Message,
+    ProviderAdmission,
     ToolSpec,
     load_credentials,
 )
@@ -60,7 +61,10 @@ def adapter_for(
     run_config = RunConfig.build(settings, hardware=HARDWARE, allow_placeholders=True)
     run_config = run_config.model_copy(update={"models": models})
     events = InMemoryEventSink()
-    adapter = LLMAdapter.from_run_config(run_config, events=events, io_store=InMemoryModelIOStore())
+    admission = ProviderAdmission(models.rate_limits, run_config.pools.llm_concurrency)
+    adapter = LLMAdapter.from_run_config(
+        run_config, events=events, admission=admission, io_store=InMemoryModelIOStore()
+    )
     return adapter, events
 
 

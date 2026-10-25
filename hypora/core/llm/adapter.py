@@ -1,20 +1,24 @@
 """`LLMAdapter`: the single entry point for every model call (spec §17, §9.4; PLAN.md §1, S0.5).
 
-    adapter = LLMAdapter.from_run_config(run_config, events=event_log)
+    admission = ProviderAdmission(models.rate_limits, pools.llm_concurrency)  # once per process
+    adapter = LLMAdapter.from_run_config(run_config, events=event_log, admission=admission)
     response = await adapter.complete(messages, tier=ModelTier.LEAD, context=ctx,
                                       tools=tools, output_schema=StrategyReport)
 
 One `complete` call, in order:
 1. Resolve the tier to a model through the run's profile (`dev` / `eval`).
 2. Refuse the call if the model's price is not confirmed (its cost could not be budgeted).
-3. Wait for the model's rate-limit windows (stop at once if the daily cap is reached), then make
-   one provider attempt; retry transient failures with bounded exponential backoff and jitter.
+3. Take a provider concurrency permit, then a slot in the model's rate-limit windows (stop at once
+   if the daily cap is reached), both from the process-wide `ProviderAdmission`, and send one
+   attempt; retry transient failures with bounded exponential backoff and jitter.
 4. If retries are exhausted and the profile allows it, fall back (dev only; never in eval).
 5. Validate structured output against the Pydantic schema; on failure, ask once more with the
    validation error in context, then give up with `StructuredOutputError`.
 6. Every attempt that reaches a final outcome (success, schema failure, or failure after
    retries) is recorded as one `model_call` event: provider, model, profile, tier, tokens,
-   latency, rate-limit wait, retries, cost, fallback flag/origin, redacted input/output refs.
+   latency, admission wait, retries, cost, fallback flag/origin, redacted input/output refs. A
+   response the provider completed but that could not be decoded still records its billed
+   tokens and cost (`PROVIDER_RESPONSE_INVALID`).
 """
 
 import asyncio
@@ -34,7 +38,6 @@ from hypora.core.config.models import (
     ProfileConfig,
     TierModel,
 )
-from hypora.core.config.resources import LlmConcurrency
 from hypora.core.config.run_config import RunConfig
 from hypora.core.config.settings import ConfigError
 from hypora.core.llm.credentials import ProviderCredentials, load_credentials
@@ -46,14 +49,7 @@ from hypora.core.llm.errors import (
 )
 from hypora.core.llm.pricing import PriceTable, load_price_table
 from hypora.core.llm.providers.base import ProviderClient, ProviderRequest, ProviderResult
-from hypora.core.llm.rate_limit import (
-    Clock,
-    RateLimiter,
-    Reservation,
-    Sleep,
-    WallClock,
-    estimate_tokens,
-)
+from hypora.core.llm.rate_limit import Clock, ProviderAdmission, Sleep, estimate_tokens
 from hypora.core.llm.retry import Backoff
 from hypora.core.llm.sinks import EventSink, IOKind, ModelIOStore, redact
 from hypora.core.llm.types import CallContext, LLMResponse, Message, MessageRole, ToolSpec
@@ -93,30 +89,32 @@ class LLMAdapter:
         prices: PriceTable,
         clients: Mapping[Provider, ProviderClient],
         events: EventSink,
+        admission: ProviderAdmission,
         io_store: ModelIOStore | None = None,
-        concurrency: LlmConcurrency | None = None,
         secrets: Iterable[str] = (),
         clock: Clock = time.monotonic,
         sleep: Sleep = asyncio.sleep,
         rng: random.Random | None = None,
-        now: WallClock | None = None,
     ) -> None:
+        """`admission` is the process-wide `ProviderAdmission` shared by every adapter, so rate
+        limits, daily caps, and concurrency caps hold across runs (it is required on purpose:
+        a private one per adapter would let each new run reset the limits)."""
+        if admission.rate_limits != models.rate_limits:
+            raise ConfigError(
+                "the shared ProviderAdmission was built with different rate_limits than this "
+                "run's models config; one process must enforce one set of limits"
+            )
         self._models = models
         self._profile = profile
         self._prices = prices
         self._clients = dict(clients)
         self._events = events
+        self._admission = admission
         self._io_store = io_store
         self._secrets = tuple(secrets)
         self._clock = clock
         self._sleep = sleep
         self._backoff = Backoff(models.retry, (rng or random.Random()).random)
-        limiter_kwargs: dict[str, Any] = {"clock": clock, "sleep": sleep}
-        if now is not None:
-            limiter_kwargs["now"] = now
-        self._limiter = RateLimiter(models.rate_limits, **limiter_kwargs)
-        limits = concurrency or LlmConcurrency()
-        self._semaphores = {p: asyncio.Semaphore(getattr(limits, p.value)) for p in Provider}
         self._check_ready()
 
     @classmethod
@@ -125,11 +123,17 @@ class LLMAdapter:
         run_config: RunConfig,
         *,
         events: EventSink,
+        admission: ProviderAdmission,
         io_store: ModelIOStore | None = None,
         credentials: ProviderCredentials | None = None,
         prices: PriceTable | None = None,
     ) -> "LLMAdapter":
-        """Build real SDK clients for exactly the providers this run's profile can use."""
+        """Build real SDK clients for exactly the providers this run's profile can use.
+
+        Pass the process's single `ProviderAdmission` (built once, e.g. with
+        `ProviderAdmission(run_config.models.rate_limits, run_config.pools.llm_concurrency)`)
+        to every run's adapter.
+        """
         credentials = credentials or load_credentials()
         timeout_s = run_config.models.retry.request_timeout_s
         targets = _targets(run_config.models, run_config.model_profile)
@@ -143,8 +147,8 @@ class LLMAdapter:
             prices=prices or load_price_table(),
             clients=clients,
             events=events,
+            admission=admission,
             io_store=io_store,
-            concurrency=run_config.pools.llm_concurrency,
             secrets=credentials.secret_values(),
         )
 
@@ -289,7 +293,6 @@ class LLMAdapter:
         )
         request_json = _request_payload(request)
         input_ref = self._store(context.run_id, call_id, "input", request_json)
-        limiter = self._limiter.for_model(target.provider, target.model_id)
         estimated = estimate_tokens(len(json.dumps(request_json)))
         retries, waited_s, latency_s = 0, 0.0, 0.0
 
@@ -313,17 +316,20 @@ class LLMAdapter:
             }
 
         while True:
-            reservation: Reservation | None = None
             try:
-                if limiter is not None:
-                    reservation = await limiter.acquire(estimated)
-                    waited_s += reservation.waited_s
-                async with self._semaphores[target.provider]:
+                # Permit first, then the rate-limit slot, then the request: the windows are
+                # charged at the moment of dispatch (rate_limit.ProviderAdmission.dispatch).
+                admitted_from = self._clock()
+                async with self._admission.dispatch(
+                    target.provider, target.model_id, estimated
+                ) as reservation:
                     started = self._clock()
+                    waited_s += started - admitted_from
                     try:
                         result = await client.generate(request)
                     finally:
                         latency_s += self._clock() - started
+                    reservation.settle(result.usage.input_tokens)
                 break
             except ProviderError as error:
                 if self._backoff.should_retry(error, retries):
@@ -332,13 +338,16 @@ class LLMAdapter:
                     waited_s += delay
                     retries += 1
                     continue
+                # A completed-but-undecodable response was billed: record its tokens and cost.
+                billed = error.usage
                 await self._emit(
                     context,
                     ModelCallPayload(
                         **event_fields(
-                            input_tokens=0,
-                            output_tokens=0,
-                            cost_usd=0.0,
+                            input_tokens=billed.input_tokens if billed else 0,
+                            output_tokens=billed.output_tokens if billed else 0,
+                            cached_input_tokens=billed.cached_input_tokens if billed else 0,
+                            cost_usd=price.cost_usd(billed) if billed else 0.0,
                             status=CallStatus.ERROR,
                             error_code=error.kind.error_code,
                         )
@@ -350,8 +359,6 @@ class LLMAdapter:
                     cause=error,
                     retries=retries,
                 ) from error
-        if reservation is not None:
-            reservation.settle(result.usage.input_tokens)
 
         cost = price.cost_usd(result.usage)
         parsed, validation_error = _validate(output_schema, result)

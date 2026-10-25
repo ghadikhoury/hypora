@@ -2,12 +2,14 @@
 
 import json
 import re
+from collections.abc import Callable
 
 from pydantic import JsonValue
 
-from hypora.core.llm.errors import ProviderErrorKind
+from hypora.core.llm.errors import ProviderError, ProviderErrorKind
+from hypora.core.llm.providers.base import ProviderResult
 from hypora.core.llm.sinks import redact
-from hypora.core.llm.types import ToolCall
+from hypora.core.llm.types import ToolCall, Usage
 
 _MAX_ERROR_DETAIL = 400
 
@@ -47,27 +49,83 @@ def safe_detail(text: str) -> str:
     return scrubbed[:_MAX_ERROR_DETAIL]
 
 
+def decode_completed(
+    parse: Callable[[], ProviderResult], read_usage: Callable[[], Usage]
+) -> ProviderResult:
+    """Decode a response the provider completed (and billed).
+
+    Decoding should never fail (tool arguments are normalized without raising), but if it does,
+    the failure is raised as a non-retryable `INVALID_RESPONSE` that carries the billed usage, so
+    the adapter still records the call's tokens, cost, and event instead of losing them.
+    """
+    try:
+        return parse()
+    except ProviderError as error:
+        if error.usage is None:
+            error.usage = _usage_or_none(read_usage)
+        raise
+    except Exception as exc:
+        raise ProviderError(
+            ProviderErrorKind.INVALID_RESPONSE,
+            safe_detail(f"could not decode the provider response: {type(exc).__name__}: {exc}"),
+            usage=_usage_or_none(read_usage),
+        ) from None
+
+
+def _usage_or_none(read_usage: Callable[[], Usage]) -> Usage | None:
+    try:
+        return read_usage()
+    except Exception:
+        return None
+
+
 def parse_retry_delay_s(text: str) -> float | None:
     """`"retryDelay": "17s"` (google.rpc.RetryInfo) -> 17.0."""
     match = re.search(r'"retryDelay"\s*:\s*"([0-9.]+)s"', text)
     return float(match.group(1)) if match else None
 
 
+MISSING_TOOL_NAME = "_missing_tool_name"
+_MAX_ARGUMENTS_ERROR = 300
+
+
+def _reject_constant(constant: str) -> object:
+    raise ValueError(f"non-finite number {constant}")
+
+
+def _finite_json(value: object) -> dict[str, JsonValue]:
+    """Round-trip through strict JSON: rejects NaN/Infinity, overflowing numbers such as 1e309
+    (which Python parses to inf), and anything that is not plain JSON."""
+    text = json.dumps(value, allow_nan=False)
+    result = json.loads(text, parse_constant=_reject_constant)
+    if not isinstance(result, dict):
+        raise ValueError(f"arguments must be a JSON object, got {type(result).__name__}")
+    return result
+
+
 def tool_call_from_json(call_id: str, name: str, raw: str | dict[str, object] | None) -> ToolCall:
-    """Normalize a model's tool arguments; a non-object becomes `arguments_error`, not a crash."""
-    if raw is None or raw == "":
-        return ToolCall(id=call_id, name=name)
-    try:
-        value: object = json.loads(raw) if isinstance(raw, str) else raw
-    except json.JSONDecodeError as exc:
-        return ToolCall(id=call_id, name=name, arguments_error=f"arguments are not JSON: {exc}")
-    if not isinstance(value, dict):
-        return ToolCall(
-            id=call_id,
-            name=name,
-            arguments_error=f"arguments must be a JSON object, got {type(value).__name__}",
-        )
-    arguments: dict[str, JsonValue] = json.loads(json.dumps(value))
+    """Normalize a model's tool call. Never raises: any problem with the arguments (not JSON, not
+    an object, a non-finite number) becomes a bounded `arguments_error` the caller can hand back
+    to the model as an observation, so a completed, billed response is never discarded."""
+    call_id = call_id or "missing-call-id"
+    problem: str | None = None
+    if not name:
+        name, problem = MISSING_TOOL_NAME, "the tool call has no tool name"
+    arguments: dict[str, JsonValue] = {}
+    if problem is None and raw not in (None, ""):
+        try:
+            value: object = (
+                json.loads(raw, parse_constant=_reject_constant) if isinstance(raw, str) else raw
+            )
+            if not isinstance(value, dict):
+                raise ValueError(f"arguments must be a JSON object, got {type(value).__name__}")
+            arguments = _finite_json(value)
+        except json.JSONDecodeError as exc:
+            problem = f"arguments are not JSON: {exc}"
+        except (ValueError, TypeError, RecursionError) as exc:
+            problem = f"invalid arguments: {exc}"
+    if problem is not None:
+        return ToolCall(id=call_id, name=name, arguments_error=problem[:_MAX_ARGUMENTS_ERROR])
     return ToolCall(id=call_id, name=name, arguments=arguments)
 
 
