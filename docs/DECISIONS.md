@@ -305,3 +305,19 @@ one it supersedes.
   wait for Ghadi. This supersedes the broader synthetic-data allowances in spec §17 and §19.2
   for these uses. No case, grading rule, hidden split, dependency, or runtime behavior changes.
   CLAUDE.md remains the D-014 import of AGENTS.md.
+
+## D-016 — Stage 1 runs on dev; matching eval evidence follows at S2.6
+- Date: 2026-10-25
+- Step: S1.7 and S2.6
+- Decided by: Ghadi (selected dev-only S1.7 and requested this entry)
+- Options considered: (a) run S1.7 on dev and add its eval evidence at S2.6 (recommended);
+  (b) move eval-model selection before S1.7.
+- Decision: (a). S1.7's Done-when is a dev-profile run only; eval-profile evidence is added
+  at S2.6 when the eval model is pinned. Reuse the same smoke tasks and real snapshot references
+  for that evidence. Stages 2–4 retain both-profile gates.
+- Why: D-007 leaves eval model IDs unset until S2.6, and the runtime correctly refuses active
+  placeholder models. Requiring eval at S1.7 would contradict that approved selection schedule.
+- Consequences: PLAN.md's model policy, S1.7, and S2.6 and AGENTS.md's stage-gate summary are
+  aligned. No model profile, model ID, runtime behavior, case, grading rule, or hidden split changes.
+  Important owner decisions are recorded here; this log contains decisions only, with
+  implementation notes and status reports kept elsewhere.

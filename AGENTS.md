@@ -27,6 +27,8 @@ splits, held-out labels, and metrics. Every step is recorded in an append-only e
 - **One step = one PR.** Use the step ID, branch name, and scope exactly as written in `docs/PLAN.md`.
   Implement nothing from future steps and drop nothing the step requires. If the plan seems wrong or
   impossible, stop and ask Ghadi instead of improvising.
+- **Decision log:** record important owner decisions in `docs/DECISIONS.md`. Keep it for decisions
+  only; put implementation notes in `docs/notes/` and status reports in PRs.
 - **Branching:** `git fetch`, then branch from the latest `origin/main`. **No one pushes to `main`**
   (branch protection enforces it: PR required, `make check` and `gitleaks` must pass, no
   force-push; D-013).
@@ -167,8 +169,9 @@ Two model profiles live in `configs/models.yaml`:
 - Every model call records provider, model ID, profile, and whether a fallback occurred.
 - **Recorded runs never mix models.** In `eval`, a provider failure is retried with backoff and then
   recorded as a failure, never silently swapped.
-- **Stage gate:** the last step of Stages 1–4 runs the dev case set on **both** profiles and commits
-  both result sets.
+- **Stage gates (D-016):** S1.7 runs on `dev` only; matching `eval` evidence is added at S2.6
+  when the eval model is pinned. The last step of Stages 2–4 runs the dev case set on **both**
+  profiles and commits both result sets.
 - Changing the `eval` profile after S2.6 invalidates recorded results; it requires
   `🧑 HUMAN · DECIDE` and a re-run of affected evals.
 - Development uses public datasets (Gemini free-tier data-use terms), subject to the Real-data
