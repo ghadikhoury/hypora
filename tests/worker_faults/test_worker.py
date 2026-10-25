@@ -1,6 +1,7 @@
 """Execution worker: pools, outcomes, heartbeats, lost leases, cancellation, and real containers."""
 
 import os
+import signal
 import sys
 import threading
 from collections.abc import Callable, Iterator
@@ -76,7 +77,7 @@ def queue(database: Database, clock: FakeClock) -> JobQueue:
     return JobQueue(database, lease_seconds=30, max_attempts=2, clock=clock)
 
 
-def pools(cpu: int = 4, memory: float = 8.0) -> ResourcePools:
+def make_pools(cpu: int = 4, memory: float = 8.0) -> ResourcePools:
     return ResourcePools(
         cpu_slots=cpu, gpu_slots=0, memory_budget_gb=memory, llm_concurrency=LlmConcurrency()
     )
@@ -130,19 +131,18 @@ class FakeLauncher:
 
 
 def make_worker(
-    queue: JobQueue, launcher: object, tmp_path: Path, **kwargs: object
+    queue: JobQueue, launcher: object, tmp_path: Path, *, pools: ResourcePools | None = None
 ) -> tuple[ExecutionWorker, list[JobOutcome]]:
     outcomes: list[JobOutcome] = []
     worker = ExecutionWorker(
         queue,
         launcher,  # type: ignore[arg-type]
         ScriptPlanner(tmp_path / "jobs", image="unused:tag"),
-        kwargs.pop("pools", pools()),  # type: ignore[arg-type]
+        pools or make_pools(),
         worker_id="w1",
         heartbeat_seconds=0.05,
         poll_seconds=0.05,
         on_outcome=outcomes.append,
-        **kwargs,
     )
     return worker, outcomes
 
@@ -153,7 +153,7 @@ def make_worker(
 def test_the_worker_never_runs_more_than_its_pools_allow(queue: JobQueue, tmp_path: Path) -> None:
     first, second = enqueue(queue, "k:1"), enqueue(queue, "k:2")
     launcher = FakeLauncher(block=True)
-    worker, outcomes = make_worker(queue, launcher, tmp_path, pools=pools(cpu=1))
+    worker, outcomes = make_worker(queue, launcher, tmp_path, pools=make_pools(cpu=1))
     assert worker.poll_once() == [first]  # one CPU slot: the second job stays queued
     assert queue.get(second).status is S.QUEUED
     launcher.release.set()
@@ -161,13 +161,15 @@ def test_the_worker_never_runs_more_than_its_pools_allow(queue: JobQueue, tmp_pa
     assert worker.poll_once() == [second]
     worker.wait(10)
     assert [o.final_state for o in outcomes] == [S.COMPLETED, S.COMPLETED]
+    assert worker.poll_once() == []
+    assert worker._threads == {}  # finished jobs are forgotten: a long-running worker stays flat
 
 
 def test_jobs_bigger_than_the_pools_are_left_for_other_workers(
     queue: JobQueue, tmp_path: Path
 ) -> None:
     big = enqueue(queue, "k:big", JobLimits(max_wall_seconds=60, max_memory_gb=64))
-    worker, _ = make_worker(queue, FakeLauncher(), tmp_path, pools=pools(memory=8))
+    worker, _ = make_worker(queue, FakeLauncher(), tmp_path, pools=make_pools(memory=8))
     assert worker.poll_once() == []
     assert queue.get(big).status is S.QUEUED
 
@@ -365,7 +367,7 @@ def test_a_queued_job_runs_in_a_real_sandbox(
         queue,
         SandboxLauncher(poll_seconds=0.25),
         TwoScripts(tmp_path / "jobs", image=sandbox_image),
-        pools(cpu=2),
+        make_pools(cpu=2),
         worker_id="w-e2e",
         on_outcome=outcomes.append,
         poll_seconds=0.1,
@@ -394,6 +396,7 @@ def test_the_worker_command_line_runs_a_job(
     # The worker moves its process to `/`; monkeypatch restores this test's directory and path.
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(sys, "path", list(sys.path))
+    handlers = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
     main(
         [
             "--db",
@@ -410,3 +413,4 @@ def test_the_worker_command_line_runs_a_job(
     assert os.getcwd() == "/"
     assert all(os.path.isabs(entry) for entry in sys.path)
     assert queue.get(job_id).status is S.COMPLETED
+    assert {sig: signal.getsignal(sig) for sig in handlers} == handlers  # restored on exit

@@ -12,6 +12,10 @@ through this module:
   is refused too, and only regular files can be opened.
 - `remove_unsafe(root, manifest)` unlinks rejected entries without following them.
 
+Walks are bounded: at most `max_entries` entries (files, directories, anything) and `MAX_DEPTH`
+directory levels, streamed with `scandir` so a huge directory is never loaded whole. Exceeding
+either raises `OutputLimitError` instead of exhausting memory, file descriptors, or the stack.
+
 Scans run after the container has been removed, so nothing can swap a file between the check and
 the read. Linux only (directory file descriptors); the worker runs on Linux/WSL2.
 """
@@ -30,9 +34,20 @@ _DIR_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | getattr(os, "O_CLOEX
 _FILE_FLAGS = os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
 _CHUNK = 1024 * 1024
 
+MAX_DEPTH = 32
+"""Deepest directory nesting a walk enters (well below Python's recursion limit)."""
+
+DEFAULT_MAX_ENTRIES = 100_000
+"""Default bound on entries per walk for callers without a job-specific limit."""
+
 
 class UnsafeOutputError(Exception):
-    """A path that is not a regular file reached only through real directories."""
+    """A job output that cannot be read safely: a link, a special file, a path that is not
+    reached through real directories, or a tree too large to walk."""
+
+
+class OutputLimitError(UnsafeOutputError):
+    """The tree has more entries than allowed or is nested deeper than `MAX_DEPTH`."""
 
 
 @dataclass(frozen=True)
@@ -52,6 +67,7 @@ class RejectedEntry:
 class OutputManifest:
     files: tuple[OutputFile, ...]
     rejected: tuple[RejectedEntry, ...]
+    entries: int = 0  # everything walked: files, rejected entries, and directories
 
     @property
     def safe(self) -> bool:
@@ -60,6 +76,12 @@ class OutputManifest:
     @property
     def total_bytes(self) -> int:
         return sum(f.size for f in self.files)
+
+
+@dataclass(frozen=True)
+class DirectoryUsage:
+    bytes: int  # apparent size of regular files
+    entries: int  # files, directories, links, everything
 
 
 def _require_dir_fd_support() -> None:
@@ -94,30 +116,56 @@ def _open_root(root: Path) -> Iterator[int]:
         os.close(fd)
 
 
-def _walk(dir_fd: int, prefix: PurePosixPath) -> Iterator[tuple[int, str, PurePosixPath, int]]:
-    """Yield (parent_fd, name, relative path, st_mode) for every entry, depth first.
+class _Budget:
+    """Entries left for one walk."""
 
-    Directories are entered through O_NOFOLLOW file descriptors only.
-    """
-    for name in sorted(os.listdir(dir_fd)):
+    def __init__(self, max_entries: int) -> None:
+        self.max_entries = max_entries
+        self.used = 0
+
+    def take(self) -> None:
+        self.used += 1
+        if self.used > self.max_entries:
+            raise OutputLimitError(f"more than {self.max_entries} files and directories")
+
+
+def _walk(
+    dir_fd: int, prefix: PurePosixPath, budget: _Budget, depth: int = 0
+) -> Iterator[tuple[int, str, PurePosixPath, int]]:
+    """Yield (parent_fd, name, relative path, st_mode) for every non-directory entry, depth
+    first, in sorted order. Directories are entered through O_NOFOLLOW file descriptors only."""
+    if depth > MAX_DEPTH:
+        raise OutputLimitError(f"{prefix} is nested deeper than {MAX_DEPTH} directories")
+    names = []
+    with os.scandir(dir_fd) as entries:  # streamed: a huge directory stops at the budget
+        for entry in entries:
+            budget.take()
+            names.append(entry.name)
+    for name in sorted(names):
         mode = os.stat(name, dir_fd=dir_fd, follow_symlinks=False).st_mode
         relative = prefix / name
         if stat.S_ISDIR(mode):
             child = os.open(name, _DIR_FLAGS, dir_fd=dir_fd)
             try:
-                yield from _walk(child, relative)
+                yield from _walk(child, relative, budget, depth + 1)
             finally:
                 os.close(child)
         else:
             yield dir_fd, name, relative, mode
 
 
-def scan_outputs(root: Path, *, hash_files: bool = True) -> OutputManifest:
-    """List regular files under `root` (size, SHA-256) and every entry that is not one."""
+def scan_outputs(
+    root: Path, *, hash_files: bool = True, max_entries: int = DEFAULT_MAX_ENTRIES
+) -> OutputManifest:
+    """List regular files under `root` (size, SHA-256) and every entry that is not one.
+
+    Raises `OutputLimitError` beyond `max_entries` entries or `MAX_DEPTH` levels.
+    """
     files: list[OutputFile] = []
     rejected: list[RejectedEntry] = []
+    budget = _Budget(max_entries)
     with _open_root(root) as root_fd:
-        for parent_fd, name, relative, mode in _walk(root_fd, PurePosixPath()):
+        for parent_fd, name, relative, mode in _walk(root_fd, PurePosixPath(), budget):
             if not stat.S_ISREG(mode):
                 rejected.append(RejectedEntry(str(relative), _kind(mode)))
                 continue
@@ -131,17 +179,21 @@ def scan_outputs(root: Path, *, hash_files: bool = True) -> OutputManifest:
                 files.append(OutputFile(str(relative), info.st_size, digest))
             finally:
                 os.close(fd)
-    return OutputManifest(tuple(files), tuple(rejected))
+    return OutputManifest(tuple(files), tuple(rejected), budget.used)
 
 
-def directory_bytes(root: Path) -> int:
-    """Total apparent size of regular files under `root`, without following links."""
+def directory_usage(root: Path, *, max_entries: int = DEFAULT_MAX_ENTRIES) -> DirectoryUsage:
+    """Size of regular files and count of all entries under `root`, without following links.
+
+    Raises `OutputLimitError` beyond `max_entries` entries or `MAX_DEPTH` levels.
+    """
     total = 0
+    budget = _Budget(max_entries)
     with _open_root(root) as root_fd:
-        for parent_fd, name, _, mode in _walk(root_fd, PurePosixPath()):
+        for parent_fd, name, _, mode in _walk(root_fd, PurePosixPath(), budget):
             if stat.S_ISREG(mode):
                 total += os.stat(name, dir_fd=parent_fd, follow_symlinks=False).st_size
-    return total
+    return DirectoryUsage(total, budget.used)
 
 
 def remove_unsafe(root: Path, manifest: OutputManifest) -> None:

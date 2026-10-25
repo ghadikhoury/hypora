@@ -26,6 +26,7 @@ class SandboxLimits:
     cpus: float
     pids: int = 256
     output_bytes: int = 1 * GIB  # total size of /trial + /out (checked during and after the run)
+    max_files: int = 20_000  # entries (files, dirs, links) in /trial + /out: host inode guard
     max_file_bytes: int = 512 * MIB  # RLIMIT_FSIZE: largest single file any process may write
     tmpfs_bytes: int = 512 * MIB
     log_bytes: int = 1 * MIB  # tail of stdout/stderr kept in the result
@@ -39,6 +40,7 @@ class SandboxLimits:
             "cpus": self.cpus,
             "pids": self.pids,
             "output_bytes": self.output_bytes,
+            "max_files": self.max_files,
             "max_file_bytes": self.max_file_bytes,
             "tmpfs_bytes": self.tmpfs_bytes,
             "log_bytes": self.log_bytes,

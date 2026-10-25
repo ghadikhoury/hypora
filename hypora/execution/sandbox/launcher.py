@@ -10,18 +10,22 @@ Isolation applied to every container (the image cannot enforce these on itself):
 | privileges | all capabilities dropped, `no-new-privileges`, not privileged, private IPC |
 | mounts | exactly /data (ro), /trial (rw), /harness (ro), /out (rw, fresh); nothing else |
 | limits | memory (= memory+swap, so no swap), CPUs, pids, open files, max file size, wall clock |
+| output | total bytes and total entries in /trial + /out (an inode guard for the host disk) |
 | environment | only platform defaults + the spec's `env`; the worker's environment never leaks |
 | devices | no GPUs unless the job asks; never the Docker socket |
 | init | tini as PID 1, so stray processes are reaped and signals delivered |
+| self-kill | the command runs under `timeout --signal=KILL` at wall limit + 30 s (crash backstop) |
 
-The wall clock, the output-size cap, and abort requests (lost lease, cancel) are enforced by
-polling while the container runs; on any of them the container is killed. After it exits, the
-container is removed and /trial and /out are scanned without following links: any symlink or
-special file fails the job (UNSAFE_OUTPUT) and is unlinked.
+The wall clock, the output caps (bytes and entries), and abort requests (lost lease, cancel) are
+enforced by polling while the container runs; on any of them the container is killed. After it
+exits, the container is removed and /trial and /out are scanned without following links: any
+symlink or special file fails the job (UNSAFE_OUTPUT) and is unlinked; a tree over the caps
+fails it with OUTPUT_LIMIT.
 """
 
 import contextlib
 import logging
+import math
 import os
 import time
 from collections.abc import Callable
@@ -36,9 +40,10 @@ from docker.types import DeviceRequest, LogConfig, Mount, Ulimit
 
 from hypora.execution.sandbox import layout
 from hypora.execution.sandbox.outputs import (
+    OutputLimitError,
     OutputManifest,
     UnsafeOutputError,
-    directory_bytes,
+    directory_usage,
     remove_unsafe,
     scan_outputs,
 )
@@ -50,6 +55,11 @@ LABEL = "hypora.sandbox"
 LABEL_WORKER = "hypora.worker"
 LABEL_JOB = "hypora.job"
 LABEL_DEADLINE = "hypora.deadline"  # epoch seconds after which the container must be gone
+
+SELF_KILL_GRACE_SECONDS = 30
+"""The container kills its own job this long after the wall limit (crashed-supervisor backstop)."""
+ORPHAN_GRACE_SECONDS = 60
+"""Past wall limit + this, a sandbox container is an orphan any worker may remove."""
 
 AbortCheck = Callable[[], str | None]
 """Returns a reason to stop the job now (lease lost, cancel requested), or None."""
@@ -122,7 +132,7 @@ class SandboxLauncher:
             container = self.client.containers.create(**self._create_args(spec, mounts, uid, gid))
         except DockerException as exc:
             return self._result(
-                SandboxStatus.START_FAILED, None, started, b"", spec, mounts, str(exc)
+                SandboxStatus.START_FAILED, None, started, b"", spec, mounts, str(exc), None
             )
         try:
             try:
@@ -155,10 +165,13 @@ class SandboxLauncher:
             **dict(spec.env),
         }
         read_only = {str(t) for t in layout.READ_ONLY}
-        deadline = time.time() + limits.wall_seconds + 60
+        deadline = time.time() + limits.wall_seconds + ORPHAN_GRACE_SECONDS
+        # The supervisor kills the job at the wall limit; `timeout` is the container's own backstop
+        # so a job outlives a crashed supervisor by at most SELF_KILL_GRACE_SECONDS.
+        self_kill = math.ceil(limits.wall_seconds) + SELF_KILL_GRACE_SECONDS
         args: dict[str, Any] = {
             "image": spec.image,
-            "command": list(spec.command),
+            "command": ["timeout", "--signal=KILL", str(self_kill), *spec.command],
             "user": f"{uid}:{gid}",
             "working_dir": str(layout.TRIAL),
             "environment": environment,
@@ -220,21 +233,26 @@ class SandboxLauncher:
                 return SandboxStatus.ABORTED, None, reason
             if now >= next_output_check:
                 next_output_check = now + self.output_check_seconds
-                size = self._written_bytes(mounts)
-                if size > spec.limits.output_bytes:
+                over = self._over_output_caps(mounts, spec)
+                if over:
                     self._kill(container)
-                    return (
-                        SandboxStatus.OUTPUT_LIMIT,
-                        None,
-                        f"/trial + /out reached {size} bytes (limit {spec.limits.output_bytes})",
-                    )
+                    return SandboxStatus.OUTPUT_LIMIT, None, over
 
     @staticmethod
-    def _written_bytes(mounts: SandboxMounts) -> int:
+    def _over_output_caps(mounts: SandboxMounts, spec: SandboxSpec) -> str | None:
+        """Why /trial + /out are over the byte or entry cap right now, or None."""
+        limits = spec.limits
         try:
-            return directory_bytes(mounts.trial) + directory_bytes(mounts.out)
+            trial = directory_usage(mounts.trial, max_entries=limits.max_files)
+            out = directory_usage(mounts.out, max_entries=limits.max_files - trial.entries)
+        except OutputLimitError as exc:
+            return f"/trial + /out: {exc} (limit {limits.max_files} entries)"
         except (OSError, UnsafeOutputError):
-            return 0  # checked again, strictly, after the run
+            return None  # e.g. a file vanished mid-walk; checked again, strictly, after the run
+        size = trial.bytes + out.bytes
+        if size > limits.output_bytes:
+            return f"/trial + /out reached {size} bytes (limit {limits.output_bytes})"
+        return None
 
     @staticmethod
     def _kill(container: Any) -> None:
@@ -264,7 +282,7 @@ class SandboxLauncher:
             status, detail = SandboxStatus.FAILED, f"exit code {exit_code}"
         with contextlib.suppress(DockerException):
             container.remove(force=True)  # before scanning: no process can still write
-        return self._result(status, exit_code, started, logs, spec, mounts, detail)
+        return self._result(status, exit_code, started, logs, spec, mounts, detail, container.id)
 
     def _result(
         self,
@@ -275,11 +293,16 @@ class SandboxLauncher:
         spec: SandboxSpec,
         mounts: SandboxMounts,
         detail: str,
+        container_id: str | None,
     ) -> SandboxResult:
+        limits = spec.limits
         outputs = trial_files = None
         try:
-            outputs = scan_outputs(mounts.out)
-            trial_files = scan_outputs(mounts.trial)
+            outputs = scan_outputs(mounts.out, max_entries=limits.max_files)
+            trial_files = scan_outputs(mounts.trial, max_entries=limits.max_files - outputs.entries)
+        except OutputLimitError as exc:  # trial's fault; the tree is left as it is
+            status = SandboxStatus.OUTPUT_LIMIT
+            detail = f"/trial + /out: {exc} (limit {limits.max_files} entries)"
         except (OSError, UnsafeOutputError) as exc:
             status, detail = SandboxStatus.UNSAFE_OUTPUT, f"outputs could not be scanned: {exc}"
         rejected: list[str] = []
@@ -295,10 +318,10 @@ class SandboxLauncher:
             detail = "links/special files are not allowed in /trial or /out: " + ", ".join(rejected)
         elif status is SandboxStatus.COMPLETED and outputs and trial_files:
             total = outputs.total_bytes + trial_files.total_bytes
-            if total > spec.limits.output_bytes:
+            if total > limits.output_bytes:
                 status = SandboxStatus.OUTPUT_LIMIT
-                detail = f"/trial + /out hold {total} bytes (limit {spec.limits.output_bytes})"
-        tail = logs[-spec.limits.log_bytes :]
+                detail = f"/trial + /out hold {total} bytes (limit {limits.output_bytes})"
+        tail = logs[-limits.log_bytes :]
         return SandboxResult(
             status=status,
             exit_code=exit_code,
@@ -308,6 +331,7 @@ class SandboxLauncher:
             detail=detail,
             outputs=outputs,
             trial_files=trial_files,
+            container_id=container_id,
         )
 
     # --- housekeeping -----------------------------------------------------------------------------
@@ -316,8 +340,10 @@ class SandboxLauncher:
         """Remove sandbox containers nobody is supervising; returns their IDs.
 
         Removed: any container of `worker_id` (call this when that worker starts, before it runs
-        anything, so leftovers can only be from a crashed previous instance); any sandbox container
-        that is not running; and any whose deadline (wall limit + 60 s) has passed.
+        anything, so leftovers can only be from a crashed previous instance), and any sandbox
+        container whose deadline (wall limit + 60 s) has passed. Another worker's container is
+        never touched before its deadline, whatever its state: "created" (about to start) and
+        "exited" (logs and OOM flag not yet collected) belong to a live supervisor.
         """
         removed = []
         now = time.time()
@@ -325,7 +351,7 @@ class SandboxLauncher:
             labels = container.labels or {}
             deadline = float(labels.get(LABEL_DEADLINE, "0") or 0)
             mine = worker_id is not None and labels.get(LABEL_WORKER) == worker_id
-            if mine or container.status != "running" or now > deadline:
+            if mine or now > deadline:
                 with contextlib.suppress(DockerException):
                     container.remove(force=True)
                     removed.append(container.id)

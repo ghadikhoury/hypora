@@ -1,8 +1,8 @@
 # Tabular sandbox image (PLAN.md S1.2, spec §14.3). Trial code runs here; platform code never does
 # anything but launch it. Build context: this directory (see sandbox/image.py / `make sandbox-image`).
 #
-# Hardening that lives in the image: pinned base by digest, hash-locked packages, no compilers or
-# package managers' caches, a non-root default user. Everything else (read-only root filesystem,
+# Hardening that lives in the image: pinned base by digest, hash-locked Python packages, no
+# compilers or package caches, a non-root default user. Everything else (read-only root filesystem,
 # no network, dropped capabilities, no-new-privileges, limits, mounts) is applied by the launcher
 # at `docker run` time, because an image cannot enforce it on itself.
 
@@ -14,12 +14,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# LightGBM's wheel links against the system OpenMP runtime.
+# LightGBM's wheel links against the system OpenMP runtime. Not hash-pinned: apt installs the
+# current libgomp1 of the base image's Debian release at build time (the one unpinned input).
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Only hash-verified wheels/sdists from the lock; no dependency resolution at build time.
+# Only hash-verified wheels from the lock (no source builds); no dependency resolution at build time.
 COPY requirements-tabular.lock /tmp/requirements.lock
 RUN pip install --no-deps --require-hashes --only-binary=:all: -r /tmp/requirements.lock \
     && rm /tmp/requirements.lock

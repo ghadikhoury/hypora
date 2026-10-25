@@ -10,6 +10,7 @@ import json
 import os
 import time
 from pathlib import Path
+from typing import Any
 
 import docker
 import pytest
@@ -305,6 +306,59 @@ for i in range(200):
     assert result.status is SandboxStatus.OUTPUT_LIMIT, result.detail
 
 
+def test_file_count_is_capped(run_script: RunScript, tmp_path: Path) -> None:
+    # Empty files cost no bytes but each one is a host inode: the entry cap catches them.
+    code = r"""
+import os
+for i in range(3000):
+    open(f"/out/empty{i}", "w").close()
+"""
+    _, result = run_script(code, tmp_path, max_files=500)
+    assert result.status is SandboxStatus.OUTPUT_LIMIT, result.detail
+    assert "500 entries" in result.detail
+    assert result.container_id is not None
+    assert result.container_id not in {c.id for c in docker.from_env().containers.list(all=True)}
+
+
+def test_deep_nesting_fails_the_job_cleanly(run_script: RunScript, tmp_path: Path) -> None:
+    # Deeper than the scanner walks: the job fails with OUTPUT_LIMIT, the worker never crashes.
+    code = r"""
+import os
+os.makedirs("/out/" + "/".join(f"d{i}" for i in range(60)))
+"""
+    _, result = run_script(code, tmp_path)
+    assert result.status is SandboxStatus.OUTPUT_LIMIT, result.detail
+    assert "nested deeper than" in result.detail
+
+
+def test_the_container_kills_itself_without_a_supervisor(
+    sandbox_image: str, launcher: SandboxLauncher, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A crashed worker cannot enforce the wall clock; the container's own `timeout` does.
+    import hypora.execution.sandbox.launcher as launcher_module
+
+    monkeypatch.setattr(launcher_module, "SELF_KILL_GRACE_SECONDS", 1)
+    mounts = make_mounts(tmp_path).validated()
+    spec = SandboxSpec(
+        job_id="job_unsupervised",
+        worker_id="w-test",
+        image=sandbox_image,
+        command=("python", "-c", "import time; time.sleep(300)"),
+        mounts=mounts,
+        limits=SandboxLimits(wall_seconds=2, memory_bytes=128 * 1024**2, cpus=1),
+    )
+    args = launcher._create_args(spec, mounts, os.getuid(), os.getgid())
+    assert args["command"][:3] == ["timeout", "--signal=KILL", "3"]
+    container = launcher.client.containers.create(**args)  # started, then never supervised
+    try:
+        started = time.monotonic()
+        container.start()
+        exit_code = container.wait(timeout=60)["StatusCode"]
+        assert exit_code == 137 and time.monotonic() - started < 30  # SIGKILL at ~3 s
+    finally:
+        container.remove(force=True)
+
+
 def test_abort_request_kills_the_job(run_script: RunScript, tmp_path: Path) -> None:
     deadline = time.monotonic() + 2
     _, result = run_script(
@@ -382,27 +436,44 @@ def test_out_must_be_fresh_and_paths_must_exist(tmp_path: Path, launcher: Sandbo
 # --- housekeeping ---------------------------------------------------------------------------------
 
 
-def test_orphaned_containers_are_cleaned_up(sandbox_image: str, launcher: SandboxLauncher) -> None:
+def labelled(sandbox_image: str, worker: str, deadline: float, *, start: bool) -> Any:
+    """A sandbox-labelled container as another worker would have left it."""
     client = docker.from_env()
-    orphan = client.containers.run(
+    container = client.containers.create(
         sandbox_image,
         ["sleep", "300"],
-        detach=True,
         network_mode="none",
         labels={
             "hypora.sandbox": "1",
-            "hypora.worker": "w-crashed",
-            "hypora.job": "job_orphan",
-            "hypora.deadline": str(int(time.time()) + 3600),
+            "hypora.worker": worker,
+            "hypora.job": f"job_{worker}",
+            "hypora.deadline": str(int(deadline)),
         },
     )
+    if start:
+        container.start()
+    return container
+
+
+def test_orphan_cleanup_removes_only_unsupervised_containers(
+    sandbox_image: str, launcher: SandboxLauncher
+) -> None:
+    now = time.time()
+    crashed_me = labelled(sandbox_image, "w-restarting", now + 3600, start=True)
+    stale = labelled(sandbox_image, "w-dead", now - 1, start=True)  # past its deadline
+    live_created = labelled(sandbox_image, "w-live", now + 3600, start=False)  # about to start
+    live_exited = labelled(sandbox_image, "w-live2", now + 3600, start=True)
+    live_exited.kill()  # exited; its worker has not collected logs and the OOM flag yet
+    live_exited.wait(timeout=30)
     try:
-        removed = launcher.cleanup_orphans("w-crashed")
-        assert orphan.id in removed
-        assert client.containers.list(all=True, filters={"id": orphan.id}) == []
+        removed = set(launcher.cleanup_orphans("w-restarting"))
+        assert {crashed_me.id, stale.id} <= removed
+        # Another worker's container is untouched before its deadline, whatever its state.
+        assert live_created.id not in removed and live_exited.id not in removed
     finally:
-        with contextlib.suppress(docker.errors.NotFound):
-            orphan.remove(force=True)
+        for container in (crashed_me, stale, live_created, live_exited):
+            with contextlib.suppress(docker.errors.NotFound):
+                container.remove(force=True)
 
 
 def test_no_sandbox_container_outlives_its_run(

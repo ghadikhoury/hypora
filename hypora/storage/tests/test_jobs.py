@@ -254,6 +254,23 @@ def test_requeue_expired_without_a_lease_call(queue: JobQueue, clock: FakeClock)
     assert queue.get(job_id).status is S.QUEUED and queue.get(job_id).lease_owner is None
 
 
+def test_a_job_that_keeps_losing_its_lease_stops_after_max_attempts(
+    queue: JobQueue, clock: FakeClock, database: Database
+) -> None:
+    # E.g. a job that crashes its worker every time: it must not cycle through the queue forever.
+    job_id = enqueue(queue)
+    for attempt in range(1, 4):
+        leased = queue.lease(f"w{attempt}", BIG)
+        assert leased is not None and leased.attempts == attempt
+        clock.advance(31)
+    assert queue.requeue_expired() == [job_id]
+    record = queue.get(job_id)
+    assert record.status is S.FAILED_TERMINAL and record.lease_owner is None
+    last = transitions(database, job_id)[-1]
+    assert last.to_state is S.FAILED_TERMINAL and "all 3 attempts used" in last.reason
+    assert queue.lease("w9", BIG) is None
+
+
 # --- failure and retry ----------------------------------------------------------------------------
 
 
@@ -280,6 +297,22 @@ def test_non_retryable_failure_is_terminal(queue: JobQueue) -> None:
     job_id = enqueue(queue)
     assert run_and_fail(queue, job_id, "w1", retryable=False) is S.FAILED_TERMINAL
     assert queue.lease("w1", BIG) is None
+
+
+def test_a_failure_before_the_sandbox_starts_honors_retryable(
+    queue: JobQueue, database: Database
+) -> None:
+    retried, doomed = enqueue(queue, "k:retried"), enqueue(queue, "k:doomed")
+    assert queue.lease("w1", BIG) is not None  # `retried` (older)
+    record = queue.fail(retried, "w1", code="WORKER_ERROR", message="hiccup", retryable=True)
+    assert record.status is S.QUEUED and record.lease_owner is None  # lease given back
+    assert states(database, retried)[-2:] == [S.LEASED, S.QUEUED]
+    assert "released before start" in transitions(database, retried)[-1].reason
+    leased = queue.lease("w1", BIG)
+    assert leased is not None and leased.id == retried and leased.attempts == 2
+    assert queue.lease("w1", BIG) is not None  # `doomed`
+    record = queue.fail(doomed, "w1", code="PLANNING_FAILED", message="no data", retryable=False)
+    assert record.status is S.FAILED_TERMINAL
 
 
 # --- cancellation ---------------------------------------------------------------------------------

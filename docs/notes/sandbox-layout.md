@@ -45,6 +45,9 @@ host file. So:
   - `open_output(root, relpath)` and `read_output_bytes(root, relpath, max_bytes)` open each path
     component through `O_NOFOLLOW` directory file descriptors. They accept only plain relative paths
     (no `/`, `..`, or `.`) and only regular files.
+  - Every walk is bounded: at most `max_entries` entries and `MAX_DEPTH` (32) directory levels,
+    streamed with `scandir`. Beyond either it raises `OutputLimitError`, rather than exhausting
+    memory, file descriptors, or the stack on a hostile tree.
 
 ```python
 from hypora.execution.sandbox.outputs import read_output_bytes, scan_outputs
@@ -74,11 +77,14 @@ trial's jobs, so S1.4's `write_trial_files` must not follow links when it writes
 | CPU | `nano_cpus`; thread variables match | — |
 | One file's size | `RLIMIT_FSIZE` (write fails with EFBIG) | `test_single_file_size_is_capped` |
 | Total output | `/trial` + `/out` size polled during the run and checked after it | `test_total_output_is_capped` |
+| File count | `max_files` entries (files, dirs, links) in `/trial` + `/out`: a host inode guard | `test_file_count_is_capped` |
+| Nesting | scans stop at 32 levels: the job fails with `OUTPUT_LIMIT`; the worker never crashes | `test_deep_nesting_fails_the_job_cleanly` |
 | Wall clock | polled; kill at the limit | `test_timeout_kills_the_job` |
+| Self-kill | the command runs under `timeout --signal=KILL` (wall + 30 s), so the job dies even if its worker crashed | `test_the_container_kills_itself_without_a_supervisor` |
 | Lost lease / cancel | polled `should_abort`; kill | `test_abort_request_kills_the_job` |
 | Output links | no-symlink rule above | `test_symlink_escape_through_outputs_is_refused` |
 | Unsafe specs | refused before start | `test_overlapping_mounts_are_refused` and 2 more |
-| Orphans | labelled containers; `cleanup_orphans()` at worker start | `test_orphaned_containers_are_cleaned_up` |
+| Orphans | labelled containers. A worker removes its own ID's leftovers at start, and any container past its deadline (wall + 60 s) every minute; never another worker's live container | `test_orphan_cleanup_removes_only_unsupervised_containers` |
 | GPUs | none visible unless `limits.gpu` (device request) | — (no GPU in S1.2) |
 | PID 1 | `tini` (`init=True`) reaps stray processes | — |
 
@@ -111,6 +117,8 @@ microVMs. S3.D4's threat model expands on this.
   `requirements-tabular.lock`. The lock is universal (all platforms) and hash-pinned, with releases
   no newer than `SANDBOX_EXCLUDE_NEWER` in the Makefile. The libraries are pandas, NumPy,
   scikit-learn, XGBoost (the CPU-only `xgboost-cpu` build), LightGBM, and Optuna.
+- **The one unpinned input:** LightGBM's OpenMP runtime `libgomp1`, installed by apt from the base
+  image's Debian release at build time.
 - **Build context:** only the Dockerfile and the lock (`.dockerignore`).
 - **User:** default non-root UID 10001, a second line of defense.
 - **Tag:** `hypora-sandbox-tabular:<hash of Dockerfile + lock>`, so a changed recipe is never served
@@ -131,11 +139,13 @@ microVMs. S3.D4's threat model expands on this.
 - **`lease`:** one atomic `UPDATE … WHERE id = (oldest QUEUED job that fits the worker's free
   CPU/GPU/memory) AND status = 'QUEUED' … RETURNING`. Two workers can never lease the same job;
   tested with 6 threads and 4 processes. Job IDs are time-ordered, so "lowest ID" means oldest.
-  Expired leases are requeued first, in the same transaction.
+  Expired leases are resolved first, in the same transaction: back to QUEUED, or `FAILED_TERMINAL`
+  once `max_attempts` leases are used (a job that keeps killing its worker can't cycle forever).
 - **`heartbeat`:** extends the lease. It returns `LOST` (stop, leave the job alone) or
   `CANCEL_REQUESTED` (stop, then `confirm_cancelled`).
 - **`complete` / `fail`:** by the lease holder only. A retryable failure is requeued while attempts
-  remain (`max_attempts`); otherwise the job goes to `FAILED_TERMINAL`. Backoff per error class,
+  remain (`max_attempts`), whether it happened while RUNNING or before the sandbox started
+  (LEASED → QUEUED); otherwise the job goes to `FAILED_TERMINAL`. Backoff per error class,
   idempotent duplicate completions, and crash detection are S3.E2.
 
 ## The worker (`hypora/execution/worker/`)
@@ -151,8 +161,11 @@ python -m hypora.execution.worker --db hypora.sqlite --planner package.module:pl
   heartbeat thread → `complete` / `fail` / `confirm_cancelled`.
 - **Failure codes:** trial-caused failures are terminal: `EXIT_<n>`, `TIMEOUT`, `OOM_KILLED`,
   `OUTPUT_LIMIT`, `UNSAFE_OUTPUT`, `PLANNING_FAILED`. Infrastructure failures are retryable:
-  `SANDBOX_START_FAILED`, `WORKER_ERROR`.
+  `SANDBOX_START_FAILED`, `HEARTBEAT_FAILED`, `WORKER_ERROR`.
 - **Planner:** a `JobPlanner` decides what runs (image, command, host directories); the worker
   decides how. S1.3 supplies the harness planner. A planner must give each job a fresh `/out`.
-- **Startup:** at start the worker removes containers left by a crashed previous instance of
-  itself.
+- **Orphans:**
+  - At start, the worker removes containers left under its own `worker_id` by a crashed
+    predecessor. Give a long-lived worker a stable `--worker-id` for this; the default includes the
+    process ID.
+  - Every minute it removes any sandbox container past its deadline, whoever started it.

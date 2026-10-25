@@ -9,12 +9,18 @@ One thread per running job (the Docker API is blocking). For each job:
 A heartbeat that comes back LOST (the lease expired or moved) or CANCEL_REQUESTED stops the
 sandbox at the next poll. After a LOST lease the worker never touches the job again: another
 worker may already own it (at-least-once delivery, spec §14.2).
+
+Every `cleanup_seconds` the worker also removes sandbox containers past their deadline, whichever
+worker started them, so a crashed worker's containers never linger (they also kill themselves
+shortly after their wall limit). Give a worker a stable `worker_id` to have it remove its own
+crashed predecessor's containers immediately at startup.
 """
 
 import logging
 import os
 import socket
 import threading
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -62,6 +68,7 @@ class ExecutionWorker:
         worker_id: str | None = None,
         heartbeat_seconds: float | None = None,
         poll_seconds: float = 2.0,
+        cleanup_seconds: float = 60.0,
         on_outcome: Callable[[JobOutcome], None] | None = None,
     ) -> None:
         self.queue = queue
@@ -73,20 +80,29 @@ class ExecutionWorker:
         if self.heartbeat_seconds >= queue.lease_seconds:
             raise ValueError("heartbeats must be more frequent than the lease duration")
         self.poll_seconds = poll_seconds
+        self.cleanup_seconds = cleanup_seconds
         self.on_outcome = on_outcome
         self._threads: dict[str, threading.Thread] = {}
         self._lock = threading.Lock()
+        self._next_cleanup = 0.0
 
     # --- the loop ---------------------------------------------------------------------------------
 
     def start(self) -> None:
-        """Call once before polling: removes containers left by a crashed previous instance."""
-        removed = self.launcher.cleanup_orphans(self.worker_id)
+        """Call once before polling: removes this worker ID's leftover containers (a crashed
+        predecessor with the same ID) and every sandbox container past its deadline."""
+        self._cleanup(self.worker_id)
+
+    def _cleanup(self, worker_id: str | None = None) -> None:
+        self._next_cleanup = time.monotonic() + self.cleanup_seconds
+        removed = self.launcher.cleanup_orphans(worker_id)
         if removed:
             log.warning("removed %d orphaned sandbox container(s)", len(removed))
 
     def poll_once(self) -> list[str]:
         """Lease and start as many jobs as the free pools allow; returns the started job IDs."""
+        with self._lock:  # forget finished jobs, so a long-running worker does not grow
+            self._threads = {k: t for k, t in self._threads.items() if t.is_alive()}
         started = []
         while True:
             capacity = self.pools.free()
@@ -96,6 +112,7 @@ class ExecutionWorker:
             if job is None:
                 break
             if not self.pools.reserve(job.limits):  # cannot happen: lease filtered by capacity
+                # Retryable, so the queue gives the job back (LEASED -> QUEUED) if attempts remain.
                 self._fail(job, "POOL_ACCOUNTING", "leased job does not fit the pools", True)
                 break
             thread = threading.Thread(target=self._run_job, args=(job,), name=f"job-{job.id}")
@@ -123,8 +140,10 @@ class ExecutionWorker:
         self.start()
         while not stop.is_set():
             try:
+                if time.monotonic() >= self._next_cleanup:
+                    self._cleanup()  # orphans of any worker, once past their deadline
                 started = self.poll_once()
-            except Exception:  # e.g. the database is briefly locked: try again next poll
+            except Exception:  # e.g. the database or Docker is briefly unavailable: next poll
                 log.exception("polling the job queue failed")
                 started = []
             if exit_when_idle and not started and self.running() == 0:

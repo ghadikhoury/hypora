@@ -65,7 +65,8 @@ def main(argv: list[str] | None = None) -> None:
     )
     detach_from_start_directory()
     stop = threading.Event()
-    for signum in (signal.SIGINT, signal.SIGTERM):
+    previous = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
+    for signum in previous:
         signal.signal(signum, lambda *_: stop.set())
     logging.getLogger(__name__).info(
         "worker %s started in %s with pools %s", worker.worker_id, os.getcwd(), pools
@@ -73,6 +74,8 @@ def main(argv: list[str] | None = None) -> None:
     try:
         worker.run(stop, exit_when_idle=args.once)
     finally:
+        for signum, handler in previous.items():  # leave an embedding process as we found it
+            signal.signal(signum, handler)
         database.close()
 
 

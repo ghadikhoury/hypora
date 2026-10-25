@@ -16,8 +16,10 @@ so two workers can never lease the same job. (SQLite also serializes writers wit
 IMMEDIATE; the `status = 'QUEUED'` guard keeps the statement safe on PostgreSQL too.)
 
 Delivery is at-least-once: a lease that is not extended by heartbeats expires, and the job returns
-to QUEUED for another worker. Bounded retries with per-error-class backoff, idempotent completion,
-and crash detection are S3.E2; here a retryable failure is requeued at once while attempts remain.
+to QUEUED for another worker, until `max_attempts` leases have been used (then FAILED_TERMINAL, so
+a job that keeps killing its worker cannot cycle forever). Bounded retries with per-error-class
+backoff, idempotent completion, and crash detection are S3.E2; here a retryable failure is
+requeued at once while attempts remain.
 """
 
 import secrets
@@ -56,7 +58,8 @@ ALLOWED_TRANSITIONS: dict[JobState, frozenset[JobState]] = {
     S.VALIDATING: frozenset({S.AWAITING_APPROVAL, S.FAILED_TERMINAL, S.CANCEL_REQUESTED}),
     S.AWAITING_APPROVAL: frozenset({S.QUEUED, S.CANCEL_REQUESTED}),
     S.QUEUED: frozenset({S.LEASED, S.CANCEL_REQUESTED}),
-    # LEASED/RUNNING -> QUEUED is lease expiry; -> FAILED_TERMINAL is an unrecoverable failure.
+    # LEASED/RUNNING -> QUEUED: lease expiry, or a lease given back before start (LEASED only).
+    # -> FAILED_TERMINAL: an unrecoverable failure, including all attempts used.
     S.LEASED: frozenset({S.RUNNING, S.QUEUED, S.CANCEL_REQUESTED, S.FAILED_TERMINAL}),
     S.RUNNING: frozenset(
         {S.COMPLETED, S.FAILED, S.PAUSING, S.QUEUED, S.CANCEL_REQUESTED, S.FAILED_TERMINAL}
@@ -303,22 +306,22 @@ class JobQueue:
     def fail(
         self, job_id: str, worker_id: str, *, code: str, message: str, retryable: bool
     ) -> JobRecord:
-        """RUNNING (or LEASED) -> FAILED -> RETRY_WAIT -> QUEUED while attempts remain and the
-        failure is retryable; otherwise -> FAILED_TERMINAL. Returns the job's final record."""
+        """Record a failure by the lease holder; returns the job's final record.
+
+        RUNNING: -> FAILED -> RETRY_WAIT -> QUEUED while the failure is retryable and attempts
+        remain, otherwise -> FAILED_TERMINAL. LEASED (failed before the sandbox started):
+        -> QUEUED under the same rule (the lease is given back), otherwise -> FAILED_TERMINAL.
+        """
         with self.database.write() as connection:
             record = self._held(connection, job_id, worker_id, {S.RUNNING, S.LEASED})
             detail = f"{code}: {message}"[:500]
             actor = ActorRole.EXECUTION_WORKER
+            retry = retryable and record.attempts < self.max_attempts
             if record.status is S.LEASED:  # failed before the sandbox started
+                to = S.QUEUED if retry else S.FAILED_TERMINAL
+                reason = f"released before start: {detail}" if retry else detail
                 return self._transition(
-                    connection,
-                    record,
-                    S.FAILED_TERMINAL,
-                    worker_id,
-                    actor,
-                    detail,
-                    owner=worker_id,
-                    release=True,
+                    connection, record, to, worker_id, actor, reason, owner=worker_id, release=True
                 )
             record = self._transition(
                 connection,
@@ -330,7 +333,7 @@ class JobQueue:
                 owner=worker_id,
                 release=True,
             )
-            if not retryable or record.attempts >= self.max_attempts:
+            if not retry:
                 why = "not retryable" if not retryable else f"{record.attempts} attempts used"
                 return self._transition(
                     connection, record, S.FAILED_TERMINAL, worker_id, actor, f"{why}: {detail}"
@@ -379,7 +382,8 @@ class JobQueue:
             )
 
     def requeue_expired(self, observer: str = "scheduler") -> list[str]:
-        """Return every job whose lease expired to QUEUED (spec §14.2); returns their IDs."""
+        """Resolve every expired lease (spec §14.2): back to QUEUED, or FAILED_TERMINAL when all
+        attempts are used, or CANCELLED if a cancel was pending. Returns the job IDs."""
         with self.database.write() as connection:
             return self._requeue_expired(connection, self._clock(), observer=observer)
 
@@ -396,16 +400,19 @@ class JobQueue:
         moved = []
         for row in expired:
             record = self._load(connection, str(row.id))
-            # Nobody is running a cancelled job any more; anything else goes back to the queue.
-            to = S.CANCELLED if record.status is S.CANCEL_REQUESTED else S.QUEUED
+            reason = f"lease of {record.lease_owner} expired at {record.lease_expires_at}"
+            # Nobody is running a cancelled job any more. A job whose every attempt ended in a
+            # lost lease (e.g. it crashes its worker) stops here instead of cycling forever;
+            # anything else goes back to the queue.
+            if record.status is S.CANCEL_REQUESTED:
+                to = S.CANCELLED
+            elif record.attempts >= self.max_attempts:
+                to = S.FAILED_TERMINAL
+                reason += f"; all {record.attempts} attempts used"
+            else:
+                to = S.QUEUED
             self._transition(
-                connection,
-                record,
-                to,
-                observer,
-                ActorRole.SCHEDULER,
-                f"lease of {record.lease_owner} expired at {record.lease_expires_at}",
-                release=True,
+                connection, record, to, observer, ActorRole.SCHEDULER, reason, release=True
             )
             moved.append(record.id)
         return moved

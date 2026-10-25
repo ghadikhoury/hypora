@@ -7,8 +7,10 @@ from pathlib import Path
 import pytest
 
 from hypora.execution.sandbox.outputs import (
+    MAX_DEPTH,
+    OutputLimitError,
     UnsafeOutputError,
-    directory_bytes,
+    directory_usage,
     open_output,
     read_output_bytes,
     remove_unsafe,
@@ -40,7 +42,9 @@ def test_regular_files_are_listed_with_size_and_hash(out: Path) -> None:
         ("nested/preds.csv", 4),
     ]
     assert manifest.files[0].sha256 == hashlib.sha256(b'{"mae": 1.5}').hexdigest()
-    assert manifest.total_bytes == directory_bytes(out) == 16
+    usage = directory_usage(out)
+    assert manifest.total_bytes == usage.bytes == 16
+    assert manifest.entries == usage.entries == 3  # metrics.json, nested/, nested/preds.csv
 
 
 def test_symlinks_are_rejected_and_never_followed(out: Path, secret: Path) -> None:
@@ -55,7 +59,32 @@ def test_symlinks_are_rejected_and_never_followed(out: Path, secret: Path) -> No
         ("nested/rel", "symlink"),
     ]
     assert all(f.sha256 != hashlib.sha256(b"HOST SECRET").hexdigest() for f in manifest.files)
-    assert directory_bytes(out) == 16  # links are not counted (or followed) either
+    assert directory_usage(out).bytes == 16  # links are not followed (or sized)
+
+
+def test_walks_stop_at_the_entry_limit(out: Path) -> None:
+    for i in range(50):
+        (out / f"empty{i}").touch()
+    assert scan_outputs(out, max_entries=53).entries == 53  # 3 + 50: exactly at the limit
+    with pytest.raises(OutputLimitError, match="more than 52 files and directories"):
+        scan_outputs(out, max_entries=52)
+    with pytest.raises(OutputLimitError):
+        directory_usage(out, max_entries=10)
+
+
+def test_walks_stop_at_the_depth_limit(tmp_path: Path) -> None:
+    root = tmp_path / "deep"
+    path = root
+    for level in range(MAX_DEPTH + 5):
+        path = path / f"d{level}"
+    path.mkdir(parents=True)
+    with pytest.raises(OutputLimitError, match="nested deeper than"):
+        scan_outputs(root)
+    with pytest.raises(OutputLimitError, match="nested deeper than"):
+        directory_usage(root)
+    shallow = tmp_path / "shallow"
+    (shallow / "a" / "b").mkdir(parents=True)
+    assert directory_usage(shallow).entries == 2  # directories count as entries
 
 
 def test_special_files_are_rejected(out: Path) -> None:
