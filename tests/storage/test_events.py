@@ -20,7 +20,7 @@ from hypora.storage.database import Database
 from hypora.storage.events import EventFilters, EventLog
 from hypora.storage.models import EventRow
 
-FIXTURES = Path(__file__).resolve().parents[3] / "tests/fixtures/schemas/Event"
+FIXTURES = Path(__file__).resolve().parents[2] / "tests/fixtures/schemas/Event"
 ERROR = {"component": "storage_test", "code": "TEST_FAULT", "message": "synthetic fault"}
 
 
