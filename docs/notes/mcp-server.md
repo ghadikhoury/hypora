@@ -58,12 +58,22 @@ contents by hash) and the IDs it plans to create (`trial_id` or `job_id`):
 |---|---|
 | a different request, another tool, or another run | `IDEMPOTENCY_KEY_REUSED`; nothing happens |
 | the same request, first call finished | the original result (`write_trial_files`: verbatim; `submit_experiment`: the same job, `deduplicated: true`) |
-| the same request, first call still running or crashed | the same plan, redone: the same trial or job ID; every step is safe to repeat |
+| the same request, first call still running | waits, then gets the original result (see below) |
+| the same request, first call crashed | the same plan, finished: the same trial or job ID |
 
 The reservation serializes concurrent calls, so two different requests are never both accepted
-under one key (the PR #15 review's race), and identical ones always share one trial or job. A
-late duplicate of an old write returns its original result and writes nothing, so it cannot undo
-a later write. `submit_experiment` publishes its job folder by renaming a fully written private
+under one key (the PR #15 review's race), and identical ones always share one trial or job.
+
+`write_trial_files` overwrites files, so its effects also run in an exclusive window
+(`IdempotencyLedger.execute_once`): checking for a recorded result, writing the files and the
+trial row, and recording the result are one SQLite write transaction, exclusive across threads
+and processes. A duplicate paused anywhere before that window (even after it read "pending")
+enters it only after the original commits, finds the original result, and returns it without
+writing; so a late duplicate can never undo a newer write (PR #15 re-review, regression test
+`test_a_paused_duplicate_never_replays_over_a_newer_update`). If the effect fails or the process
+dies, the database part rolls back and nothing is recorded; the retry finishes the same plan.
+`submit_experiment` needs no such window: its replay effects never overwrite (the first published
+job folder stands; enqueueing the same key returns the same job). `submit_experiment` publishes its job folder by renaming a fully written private
 staging directory into place: the worker never sees a partial folder, and when two identical
 calls race, the first published snapshot is the one that runs.
 

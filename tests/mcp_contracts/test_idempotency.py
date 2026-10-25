@@ -5,6 +5,8 @@ Serial retries, concurrent retries, and key reuse with different content, for bo
 instant at the reservation itself, the interleaving the review reproduced.
 """
 
+import errno
+import hashlib
 import threading
 from collections.abc import Callable
 from functools import partial
@@ -14,6 +16,7 @@ import pytest
 from sqlalchemy import func, select
 
 from hypora.core.schemas.trials import TrialDesign
+from hypora.mcp_server import tools as tools_module
 from hypora.mcp_server.errors import ToolFailure
 from hypora.mcp_server.tools import HyporaTools
 from hypora.storage.idempotency import IdempotencyLedger
@@ -208,3 +211,77 @@ def test_a_submission_interrupted_before_enqueue_completes_on_retry(session, mon
     retried = tools.submit_experiment(trial_id=trial, idempotency_key=KEY)
     assert retried.state.value == "QUEUED" and count(session, Job) == 1
     assert tools.submit_experiment(trial_id=trial, idempotency_key=KEY).job_id == retried.job_id
+
+
+def test_a_paused_duplicate_never_replays_over_a_newer_update(session, monkeypatch):
+    """The PR #15 re-review's sequence, step for step:
+
+    1. update A reserves key K for pipeline v2 (and pauses);
+    2. duplicate A' reserves the same K while A is pending, and pauses after reading "pending";
+    3. A finishes and records its result;
+    4. update B, under a new key, writes v3;
+    5. A' resumes: it must return A's original v2 result and write nothing.
+    """
+    tools = HyporaTools(session)
+    trial = trial_for(tools)
+    pipeline = session.runs_root / RUN_ID / "trials" / trial / "pipeline.py"
+    v2, v3 = LINEAR + "# v2\n", LINEAR + "# v3\n"
+    reserve = IdempotencyLedger.reserve
+    reserved = {"A": threading.Event(), "A'": threading.Event()}
+    resume = {"A": threading.Event(), "A'": threading.Event()}
+    seen: dict[str, Any] = {}
+
+    def paused_after_reserving(self, **kwargs):
+        reservation = reserve(self, **kwargs)
+        name = threading.current_thread().name
+        if name in resume:
+            seen[name] = reservation
+            reserved[name].set()
+            assert resume[name].wait(timeout=30)
+        return reservation
+
+    monkeypatch.setattr(IdempotencyLedger, "reserve", paused_after_reserving)
+    results: dict[str, Any] = {}
+
+    def update(name: str) -> None:
+        results[name] = tools.write_trial_files(idempotency_key=KEY, trial_id=trial, pipeline_py=v2)
+
+    original = threading.Thread(target=update, args=("A",), name="A")
+    duplicate = threading.Thread(target=update, args=("A'",), name="A'")
+    original.start()
+    assert reserved["A"].wait(timeout=30)  # 1
+    duplicate.start()
+    assert reserved["A'"].wait(timeout=30)  # 2
+    assert seen["A'"].result is None and not seen["A'"].fresh  # A' really read "pending"
+    resume["A"].set()
+    original.join(timeout=30)  # 3
+    assert pipeline.read_text() == v2
+    tools.write_trial_files(idempotency_key=fresh_key(), trial_id=trial, pipeline_py=v3)  # 4
+    assert pipeline.read_text() == v3
+    resume["A'"].set()
+    duplicate.join(timeout=30)  # 5
+
+    assert pipeline.read_text() == v3  # the newer update was not undone
+    assert results["A'"] == results["A"]  # the duplicate returns the original result
+    assert [f.name for f in results["A"].files] == ["pipeline.py"]
+    assert results["A"].files[0].sha256 == hashlib.sha256(v2.encode()).hexdigest()
+
+
+def test_an_effect_that_fails_records_nothing_and_its_retry_finishes_the_plan(session, monkeypatch):
+    """Crash recovery: a write that dies inside the exclusive window leaves the key pending;
+    the identical retry finishes the same plan (same trial ID) and records the result."""
+    tools = HyporaTools(session)
+    design = TrialDesign.model_validate(DESIGN)
+    written = tools_module.write_file
+
+    def fail_once(*args, **kwargs):
+        monkeypatch.setattr(tools_module, "write_file", written)
+        raise OSError(errno.EIO, "disk went away")
+
+    monkeypatch.setattr(tools_module, "write_file", fail_once)
+    with pytest.raises(OSError):
+        tools.write_trial_files(idempotency_key=KEY, design=design, pipeline_py=LINEAR)
+    assert count(session, Trial) == 0  # the database part rolled back
+    retried = tools.write_trial_files(idempotency_key=KEY, design=design, pipeline_py=LINEAR)
+    again = tools.write_trial_files(idempotency_key=KEY, design=design, pipeline_py=LINEAR)
+    assert retried == again and count(session, Trial) == 1

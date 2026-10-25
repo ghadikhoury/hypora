@@ -27,6 +27,7 @@ from typing import Annotated, Any, Final
 
 import yaml  # type: ignore[import-untyped]
 from pydantic import Field, JsonValue, ValidationError
+from sqlalchemy.engine import Connection
 
 from hypora.core.hashing import canonical_hash
 from hypora.core.policy.firewall import DataFirewall
@@ -425,39 +426,48 @@ class HyporaTools:
 
         parts = self._trial_dir_parts(trial_id)
         directory = TRIAL_DIR_TEMPLATE.format(run_id=session.run_id, trial_id=trial_id)
-        try:
-            for name, content in files.items():
-                write_file(session.runs_root, parts, name, content)
-        except OSError as exc:
-            if exc.errno not in (errno.ELOOP, errno.ENOTDIR):
-                raise
-            raise errors.policy(
-                "UNSAFE_TRIAL_DIR",
-                "The trial directory contains a link; nothing was written.",
-                "Report this to the user: platform directories must never contain links.",
-                decided_by=PolicyRule.CONTRACT_SCOPE,
-            ) from None
-        if trial_file is not None:
-            upsert_trial(session.database, session.run_id, trial_file, directory)
-        contract = self._contract()
-        result = TrialFilesResult.model_validate(
-            {
-                "trial_id": trial_id,
-                "created": created,
-                "trial_dir": directory,
-                "files": [
-                    WrittenFile.model_validate(
-                        {"name": name, "sha256": _sha256(content), "bytes": len(content)}
-                    )
-                    for name, content in files.items()
-                ],
-                "present": existing_files(session.runs_root, parts, TRIAL_FILES),
-                "submit_defaults": self._submit_defaults(contract),
-                "next_step": self._after_write(trial_id, contract),
-            }
-        )
-        recorded = self._ledger.complete(idempotency_key, result.model_dump(mode="json"))
-        return TrialFilesResult.model_validate(recorded)  # concurrent twins return one result
+
+        def effect(connection: Connection) -> dict[str, Any]:
+            """Runs only while this key has no result, exclusively (`execute_once`)."""
+            try:
+                for name, content in files.items():
+                    write_file(session.runs_root, parts, name, content)
+            except OSError as exc:
+                if exc.errno not in (errno.ELOOP, errno.ENOTDIR):
+                    raise
+                raise errors.policy(
+                    "UNSAFE_TRIAL_DIR",
+                    "The trial directory contains a link; nothing was written.",
+                    "Report this to the user: platform directories must never contain links.",
+                    decided_by=PolicyRule.CONTRACT_SCOPE,
+                ) from None
+            if trial_file is not None:
+                upsert_trial(
+                    session.database, session.run_id, trial_file, directory, connection=connection
+                )
+            contract = self._contract()
+            return TrialFilesResult.model_validate(
+                {
+                    "trial_id": trial_id,
+                    "created": created,
+                    "trial_dir": directory,
+                    "files": [
+                        WrittenFile.model_validate(
+                            {"name": name, "sha256": _sha256(content), "bytes": len(content)}
+                        )
+                        for name, content in files.items()
+                    ],
+                    "present": existing_files(session.runs_root, parts, TRIAL_FILES),
+                    "submit_defaults": self._submit_defaults(contract),
+                    "next_step": self._after_write(trial_id, contract),
+                }
+            ).model_dump(mode="json")
+
+        # A duplicate that read "pending" above may get here after the original finished (and
+        # after newer writes): inside the exclusive window it finds the original result and
+        # returns it without writing anything.
+        recorded = self._ledger.execute_once(idempotency_key, effect)
+        return TrialFilesResult.model_validate(recorded)
 
     # --- idempotency (spec §11, §15.5) ------------------------------------------------------------
 

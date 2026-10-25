@@ -12,6 +12,7 @@ from typing import Any
 
 from sqlalchemy import insert, select, update
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.engine import Connection
 
 from hypora.core.schemas import (
     ApprovalDecision,
@@ -114,8 +115,18 @@ class StoredTrial:
     status: str
 
 
-def upsert_trial(database: Database, run_id: str, trial: TrialFile, directory: str) -> None:
-    """Create or update a `trials` row from the trial's `trial.yaml` design (status `draft`)."""
+def upsert_trial(
+    database: Database,
+    run_id: str,
+    trial: TrialFile,
+    directory: str,
+    *,
+    connection: Connection | None = None,
+) -> None:
+    """Create or update a `trials` row from the trial's `trial.yaml` design (status `draft`).
+
+    Pass `connection` (from an open `Database.write()` block) to write inside that transaction.
+    """
     values = {
         "run_id": run_id,
         "batch_id": None,
@@ -125,14 +136,21 @@ def upsert_trial(database: Database, run_id: str, trial: TrialFile, directory: s
         "est_cost": trial.estimated_cost.model_dump(mode="json"),
         "dir": directory,
     }
-    with database.write() as connection:
-        existing = connection.scalar(select(Trial.run_id).where(Trial.id == trial.trial_id))
-        if existing is None:
-            connection.execute(insert(Trial).values(id=trial.trial_id, status="draft", **values))
-        elif existing != run_id:
-            raise ValueError(f"trial {trial.trial_id} belongs to another run")
-        else:
-            connection.execute(update(Trial).where(Trial.id == trial.trial_id).values(**values))
+    if connection is not None:  # inside the caller's write transaction
+        _upsert_trial(connection, run_id, trial.trial_id, values)
+        return
+    with database.write() as own:
+        _upsert_trial(own, run_id, trial.trial_id, values)
+
+
+def _upsert_trial(connection: Connection, run_id: str, trial_id: str, values: dict) -> None:
+    existing = connection.scalar(select(Trial.run_id).where(Trial.id == trial_id))
+    if existing is None:
+        connection.execute(insert(Trial).values(id=trial_id, status="draft", **values))
+    elif existing != run_id:
+        raise ValueError(f"trial {trial_id} belongs to another run")
+    else:
+        connection.execute(update(Trial).where(Trial.id == trial_id).values(**values))
 
 
 def load_trial(database: Database, trial_id: str) -> StoredTrial:
