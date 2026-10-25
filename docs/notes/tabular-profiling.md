@@ -26,6 +26,11 @@ calls or state transitions happen here: this is a pure library, called by later 
 - Unscorable CV: fewer than six labeled rows, a constant target, or fewer than three examples
   in any class produces no associations. Nonfinite regression fold scores are omitted,
   never replaced with a fabricated score. Structural and target summaries remain available.
+  `leakage_screen_skipped_reason` records the explicit reason when no CV scores are produced.
+  The `leakage_screen_summary` report helper emits "leakage not screened" and the reason,
+  including for older profiles without recorded scores. A completed screen with no candidates
+  instead says "No leakage candidates flagged among N screened features"; it never claims
+  that leakage is absent. The future S1.5 Reporter must preserve this wording and coverage.
 - Group keys: compare the probability that two distinct rows in the same group have the
   same target against the chance probability for two distinct rows drawn globally from
   rows with a nonmissing group key. Sum `count * (count - 1)` over groups/classes and divide

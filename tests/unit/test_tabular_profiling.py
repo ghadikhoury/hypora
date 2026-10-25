@@ -11,7 +11,12 @@ from pydantic import ValidationError
 
 from hypora.core.schemas import DatasetProfile, MetricName, TaskType
 from hypora.core.schemas.task import IdLikeReason, TabularProfile
-from hypora.profiling.tabular import ProfilingConfig, profile_csv, profile_tabular
+from hypora.profiling.tabular import (
+    ProfilingConfig,
+    leakage_screen_summary,
+    profile_csv,
+    profile_tabular,
+)
 from tests.fixtures.tabular import make_tabular_traps
 
 
@@ -93,6 +98,9 @@ def test_seeded_sampling_and_configurable_threshold() -> None:
     )
     assert strict.feature_associations == first.feature_associations
     assert not strict.leakage_candidates
+    assert strict.leakage_screen_skipped_reason is None
+    assert leakage_screen_summary(strict).startswith("No leakage candidates flagged")
+    assert "no leakage found" not in leakage_screen_summary(strict).lower()
     different = profile(
         data,
         TaskType.BINARY_CLASSIFICATION,
@@ -132,12 +140,66 @@ def test_truncated_labels_merge_counts() -> None:
     assert result.columns[0].top_values[0].count == 2
 
 
-@pytest.mark.parametrize("target", [[0] * 12, [0] * 11 + [1], [None] * 12])
-def test_degenerate_classification_omits_undefined_scores(target: list) -> None:
+@pytest.mark.parametrize(
+    ("target", "reason"),
+    [
+        ([0] * 12, "fewer than two distinct values"),
+        ([0] * 11 + [1], "fewer than three observations"),
+        ([None] * 12, "Fewer than six usable target observations"),
+        ([0, 1, 0, 1, 0], "Fewer than six usable target observations"),
+    ],
+)
+def test_degenerate_classification_records_skip_reason(target: list, reason: str) -> None:
     result = profile(
-        pd.DataFrame({"x": np.arange(12), "target": target}), TaskType.BINARY_CLASSIFICATION
+        pd.DataFrame({"x": np.arange(len(target)), "target": target}),
+        TaskType.BINARY_CLASSIFICATION,
     )
     assert not result.feature_associations and not result.leakage_candidates
+    assert result.leakage_screen_skipped_reason is not None
+    assert reason in result.leakage_screen_skipped_reason
+    restored = TabularProfile.model_validate_json(result.model_dump_json())
+    summary = leakage_screen_summary(restored)
+    assert summary.startswith("leakage not screened:")
+    assert reason in summary and "no leakage found" not in summary.lower()
+
+
+def test_missing_target_and_legacy_profiles_are_not_reported_clean() -> None:
+    result = profile(pd.DataFrame({"x": [1, 2, 3]}))
+    assert result.leakage_screen_skipped_reason == "No target was provided."
+    legacy = TabularProfile(n_rows=0, n_columns=0, columns=[])
+    assert legacy.leakage_screen_skipped_reason is None
+    for item in (result, legacy):
+        assert leakage_screen_summary(item).startswith("leakage not screened:")
+
+
+def test_no_features_records_skip_reason() -> None:
+    result = profile(pd.DataFrame({"target": [0, 1] * 6}), TaskType.BINARY_CLASSIFICATION)
+    assert result.leakage_screen_skipped_reason == "No feature columns are available."
+    assert leakage_screen_summary(result).startswith("leakage not screened:")
+
+
+def test_nonfinite_regression_cv_records_skip_reason(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("hypora.profiling.tabular.r2_score", lambda *args, **kwargs: np.nan)
+    result = profile(make_tabular_traps(regression=True), TaskType.REGRESSION)
+    assert result.leakage_screen_skipped_reason == (
+        "No feature has a finite score in all three CV folds."
+    )
+    assert leakage_screen_summary(result).startswith("leakage not screened:")
+
+
+def test_completed_screen_report_identifies_candidates() -> None:
+    result = profile(make_tabular_traps(), TaskType.BINARY_CLASSIFICATION)
+    assert result.leakage_screen_skipped_reason is None
+    assert leakage_screen_summary(result).startswith("Leakage candidates flagged:")
+    legacy = TabularProfile.model_validate({**result.model_dump(), "feature_associations": []})
+    assert "overall screening coverage was not recorded" in leakage_screen_summary(legacy)
+    with pytest.raises(ValidationError, match="skipped leakage screen"):
+        TabularProfile.model_validate(
+            {
+                **result.model_dump(),
+                "leakage_screen_skipped_reason": "Insufficient targets.",
+            }
+        )
 
 
 def test_multiclass_auc_numeric_missing_and_unknown_categories() -> None:

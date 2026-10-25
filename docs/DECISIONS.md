@@ -184,3 +184,15 @@ one it supersedes.
   cheap counts and distributions use full data. The existing schema permits larger label
   lists, so S1.1 enforces the stricter output bound in profiling code without changing those
   shared fields. No raw-row sharing grant is introduced by this decision.
+
+## D-010 — Record skipped leakage screening explicitly
+- Date: 2026-10-24
+- Step: S1.1
+- Decided by: Ghadi (requested an explicit profile reason and "leakage not screened" reporting)
+- Decision: add optional `TabularProfile.leakage_screen_skipped_reason`, populated whenever
+  no CV scores can be computed. A skipped screen cannot contain CV scores or candidates.
+- Why: empty score/candidate lists must not be mistaken for evidence that leakage was absent.
+- Consequences: regenerated JSON Schema and spec updated; the profiling report-summary helper
+  explicitly labels skipped and legacy/unknown screens as "leakage not screened". Completed
+  screens with no candidates report only that none were flagged among the screened features.
+  S1.5's future Reporter must preserve the same distinction.

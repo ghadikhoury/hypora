@@ -214,6 +214,13 @@ are aggregates. Group candidates include group count, mean/max size, within-grou
 agreement, and chance agreement. Feature associations use 3-fold CV of depth-3 decision trees
 (ROC-AUC for classification, R² for regression). Leakage candidates are outliers above the
 median feature score plus a configurable margin and report the score and absolute threshold.
+`leakage_screen_skipped_reason: str | None = None` records why CV was not computed, including
+insufficient usable targets, a constant target, insufficient examples per class, missing target
+or features, or no finite CV scores. Reports must say **"leakage not screened"** with that reason,
+never "no leakage found" based on an empty candidate list. Older profiles with no reason and
+no scores have unknown coverage and must also be described as unscreened. Completed screens
+with no candidates say "no leakage candidates flagged" and state the number of screened features;
+this is not proof that leakage is absent.
 
 ### 5.3 Phase B entry and skip rules
 

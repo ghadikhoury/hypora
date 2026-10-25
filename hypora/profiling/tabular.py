@@ -240,14 +240,23 @@ def _associations(
     task_type: TaskType,
     columns: list[ColumnProfile],
     config: ProfilingConfig,
-) -> tuple[list[FeatureAssociation], list[LeakageCandidate]]:
+) -> tuple[list[FeatureAssociation], list[LeakageCandidate], str | None]:
     classification = task_type in _CLASSIFICATION
     labeled, y = _labels(sample, target, classification)
-    if len(y) < 6 or len(np.unique(y)) < 2:
-        return [], []
+    if len(y) < 6:
+        return [], [], "Fewer than six usable target observations in the statistics sample."
+    if len(np.unique(y)) < 2:
+        return [], [], "Target has fewer than two distinct values in the statistics sample."
     if classification:
         if np.bincount(y).min() < 3:
-            return [], []  # A genuine 3-fold AUC needs every class in every fold.
+            return (
+                [],
+                [],
+                (
+                    "A class has fewer than three observations in the statistics sample; "
+                    "3-fold ROC-AUC cannot be computed."
+                ),
+            )
         splitter = StratifiedKFold(3, shuffle=True, random_state=config.seed)
     else:
         splitter = KFold(3, shuffle=True, random_state=config.seed)
@@ -301,7 +310,12 @@ def _associations(
                 )
             )
     if not associations:
-        return [], []
+        reason = (
+            "No feature columns are available."
+            if len(columns) == 1
+            else "No feature has a finite score in all three CV folds."
+        )
+        return [], [], reason
     threshold = (
         float(np.median([item.score for item in associations])) + config.leakage_score_margin
     )
@@ -316,7 +330,7 @@ def _associations(
         for item in associations
         if item.score > threshold
     ]
-    return associations, candidates
+    return associations, candidates, None
 
 
 def _group_candidates(
@@ -407,13 +421,16 @@ def profile_tabular(
     ]
     associations: list[FeatureAssociation] = []
     leakage: list[LeakageCandidate] = []
+    skipped_reason: str | None = "No target was provided."
     groups = []
     target_profile = None
     if target is not None and task_type is not None:
         if task_type is TaskType.REGRESSION and not is_numeric_dtype(data[target].dtype):
             raise ValueError("regression target must be numeric")
         target_profile = _target(data[target], task_type)
-        associations, leakage = _associations(sample, target, task_type, columns, config)
+        associations, leakage, skipped_reason = _associations(
+            sample, target, task_type, columns, config
+        )
         groups = _group_candidates(sample, target, task_type, config)
     duplicates = int(data.duplicated().sum())
     return DatasetProfile(
@@ -434,7 +451,35 @@ def profile_tabular(
             timestamp_columns=timestamps,
             leakage_candidates=leakage,
             feature_associations=associations,
+            leakage_screen_skipped_reason=skipped_reason,
         ),
+    )
+
+
+def leakage_screen_summary(profile: TabularProfile) -> str:
+    """Return report wording that distinguishes skipped CV from no flagged candidates.
+
+    Older profiles with neither a reason nor scores are treated as unscreened, never clean.
+    Reports should use this wording; an empty candidate list alone says nothing about coverage.
+    """
+    if profile.leakage_screen_skipped_reason is not None:
+        return f"leakage not screened: {profile.leakage_screen_skipped_reason}"
+    n_screened = len(profile.feature_associations)
+    if profile.leakage_candidates:
+        if not n_screened:
+            return (
+                f"Leakage candidates flagged: {len(profile.leakage_candidates)}; "
+                "overall screening coverage was not recorded."
+            )
+        return (
+            f"Leakage candidates flagged: {len(profile.leakage_candidates)} "
+            f"among {n_screened} screened features; methodological review is required."
+        )
+    if not n_screened:
+        return "leakage not screened: no screening results were recorded."
+    return (
+        f"No leakage candidates flagged among {n_screened} screened features; "
+        "this does not prove that leakage is absent."
     )
 
 
