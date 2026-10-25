@@ -32,6 +32,7 @@ one it supersedes.
   backend is configured with `module-root = ""` in `pyproject.toml`.
 
 ## D-002 — Public repository, no enforced branch protection
+- **Superseded in part by D-013:** `main` is now protected. The rest of D-002 stands.
 - Date: 2026-10-23
 - Step: S0.1
 - Decided by: Ghadi
@@ -259,3 +260,30 @@ one it supersedes.
     also be one of the F6 attack cases when S3.D4 builds the attack suite.
 - Consequences: PLAN.md S1.3 and S3.D4 carry these requirements. Sandbox tests run on both
   filesystems locally; the FIFO case is asserted wherever FIFOs can exist (everywhere except `/mnt/c`).
+
+## D-013 — `main` is protected (supersedes D-002's "no enforced branch protection")
+- Date: recorded 2026-10-25 (applied during Stage 1)
+- Step: repository settings
+- Decided by: Ghadi
+- Options considered: (a) keep "no one pushes to `main`" as a team rule only (D-002); (b) enforce it
+  with branch protection, now available because the repository is public.
+- Decision: (b). `main` requires a pull request (0 approving reviews), the `make check` and
+  `gitleaks` checks must pass, admins are included, and force-pushes and deletion are blocked.
+- Why: the team rule is now enforced by GitHub instead of trust, while the Reviewer can still merge
+  every PR that passes review and CI without waiting for a human approval.
+- Consequences: merges go through `gh pr merge` once both checks are green; nobody, including
+  admins, can push to `main` directly. Everything else in D-002 (public repo, secret scanning with
+  push protection, read-only Actions token, gitleaks) stands.
+
+## D-014 — One agent-instructions file: `AGENTS.md`
+- Date: 2026-10-25
+- Step: repository consistency follow-up
+- Decided by: Ghadi
+- Options considered: (a) keep byte-identical `AGENTS.md` and `CLAUDE.md`, enforced by a test;
+  (b) keep `AGENTS.md` as the single source and reduce `CLAUDE.md` to an `@AGENTS.md` import.
+- Decision: (b).
+- Why: two full copies invite edits to one but not the other. `AGENTS.md` is the tool-neutral name
+  that coding agents read; Claude Code loads only `CLAUDE.md`, whose `@AGENTS.md` import pulls in
+  the same text.
+- Consequences: edit only `AGENTS.md`. A test checks that `CLAUDE.md` contains nothing but the
+  import (and an HTML comment pointing to `AGENTS.md`).

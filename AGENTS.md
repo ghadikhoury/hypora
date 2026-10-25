@@ -1,6 +1,7 @@
 # Hypora — instructions for coding agents
 
-> `AGENTS.md` and `CLAUDE.md` have identical content (a test enforces this). Edit both together.
+> This is the only agent-instructions file. `CLAUDE.md` just imports it (`@AGENTS.md`) so Claude
+> Code loads the same text; edit this file, never `CLAUDE.md` (D-014).
 
 **Rule zero: before writing any code, read your step in `docs/PLAN.md` and every spec section it
 references in `docs/PROJECT_SPEC.md`.** The spec defines *what* Hypora is; the plan defines *how and in
@@ -26,7 +27,9 @@ splits, held-out labels, and metrics. Every step is recorded in an append-only e
 - **One step = one PR.** Use the step ID, branch name, and scope exactly as written in `docs/PLAN.md`.
   Implement nothing from future steps and drop nothing the step requires. If the plan seems wrong or
   impossible, stop and ask Ghadi instead of improvising.
-- **Branching:** `git fetch`, then branch from the latest `origin/main`. **No one pushes to `main`.**
+- **Branching:** `git fetch`, then branch from the latest `origin/main`. **No one pushes to `main`**
+  (branch protection enforces it: PR required, `make check` and `gitleaks` must pass, no
+  force-push; D-013).
 - **Parallel work:** stay inside your step's directories. If you must touch a shared file
   (`hypora/core/schemas/`, `configs/flags.yaml`, tool registries), keep the change minimal, rebase on
   `main` right before opening the PR, and resolve conflicts without overwriting the other agent's work.
