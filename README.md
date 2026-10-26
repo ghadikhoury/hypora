@@ -87,7 +87,7 @@ make eval
 ```
 
 Placeholder: the evaluation runner arrives in PLAN.md S2.4. Until then `make eval` says so and
-exits 1.
+fails.
 
 ## The Docker Compose stack (Mode 1)
 
