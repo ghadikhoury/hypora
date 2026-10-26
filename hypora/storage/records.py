@@ -224,6 +224,7 @@ class StoredResult:
 
 
 def load_result(database: Database, trial_id: str, split: str) -> StoredResult | None:
+    """Load one trial's stored metrics and verification verdict for a split."""
     statement = select(Result.metrics_json, Result.verification_json).where(
         Result.trial_id == trial_id, Result.split == split
     )
@@ -344,6 +345,7 @@ def list_trials(database: Database, run_id: str) -> list[TrialRecord]:
 
 
 def count_trials(database: Database, run_id: str) -> int:
+    """Count the trials already created for one run."""
     with database.engine.connect() as connection:
         return int(
             connection.scalar(select(func.count()).select_from(Trial).where(Trial.run_id == run_id))

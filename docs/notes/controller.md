@@ -16,6 +16,11 @@ final trial, limits that fired, and the report path. It needs Docker and the pro
 
 ## The run
 
+Before intake, the controller saves a private copy of the exact input bytes. Profiling records
+that file's SHA-256, and every MCP session and worker uses that same copy. Edits to the user's
+original file cannot change an active run. Caller-supplied run IDs must satisfy the shared
+Identifier contract before directories are created.
+
 | State (stage/status) | What happens | Who decides |
 |---|---|---|
 | `INTAKE/INTAKE` | One structured call drafts the `TaskSpecification` from the goal and the column names and dtypes (never values); form fields override it; code fixes the task type from the target's values and the metric from the task | LLM drafts, code settles |
@@ -49,14 +54,16 @@ Until the Data Lead (S3.A2) and the plan + budget gate (S3.D2) exist:
 `RunGuard` (`limits.py`) is checked by every role **before** every model call and every tool
 call: steps (model calls + tool calls), spend, LLM tokens, wall clock, sandbox compute, and, before
 a `write_trial_files` that creates a trial, the trial count. The controller also checks wall clock
-and compute before it queues the final job. The single agent has its own turn cap
+and compute before it queues the final job and while it waits for jobs. The single agent has its
+own turn cap
 (`max_agent_turns`, 60). A refusal records **one** `error` event per limit, code
 `RUN_LIMIT_REACHED`, with `details = {limit, used, maximum, steps}`, and raises `RunLimitReached`;
 the role stops, the controller drains or cancels jobs, and the run reports.
 
-- Spend is charged to `budget_ledger` per model call (`model_call:<call_id>`, including the billed
-  attempts of a call that failed for good); sandbox time per finished job (`job:<job_id>`, the sum
-  of its stage durations). Both are deduplicated by reference.
+- Token usage includes every recorded attempt, including schema retries and calls that fail.
+  Spend is charged to `budget_ledger` per model call (including billed failed attempts), and
+  compute per completed sandbox stage, even while its job is running. Charges are deduplicated
+  by their model-call or job/attempt/stage references.
 - **User cancel:** a file `runs/<run_id>/CANCEL` stops the next call with `RunCancelled`
   (`RUN_CANCELLED`, recorded once); the run reports and ends `CANCELLED`. S1.6 gives it a command.
 
@@ -87,11 +94,15 @@ there; its code lives in `hypora/core/verification/verifier.py`.
 
 Verifier v1 checks, each `passed`/`failed` (a check that crashes is `error`, never a pass):
 allowed features, split respected (disjoint, complete, groups and time order when the split has
-them), test labels not accessed (every predict stage saw only features, model, context; no stage
+them), validation predictions covering every planned scoring row exactly once, test labels not
+accessed (every predict stage saw only features, model, context; no stage
 saw a `test*` file; the last stage is the test predict), output shape, finite outputs, metric
-recomputation (test primary + secondary, and the validation primary per fold with the fold's own
-training classes, all with scikit-learn called directly), artifact loads (the frozen model's hash
-is unchanged and its predict stage completed), and resource limits. The learned-transform leakage
+recomputation (primary + secondary on test and every validation fold, using the actual planned
+training/scoring IDs and training classes, all with scikit-learn called directly), artifact loads
+(the frozen model's hash
+is unchanged and its predict stage completed), and each stage's effective limits against the
+submitted job's limits. Validation, final refit, and test prediction use those same limits. The
+learned-transform leakage
 check is `skipped` until verifier v2 (S3.C4). The verdict is stored with the test result
 (`results.verification_json`) and the trial becomes `verified` or `verification_failed`.
 

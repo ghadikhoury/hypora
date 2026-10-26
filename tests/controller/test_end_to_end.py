@@ -5,6 +5,7 @@ as a stdio subprocess, the experiment worker as a subprocess, the S1.2 sandbox i
 harness, verifier v1, and the event log.
 """
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -15,10 +16,11 @@ from sqlalchemy import select
 from hypora.core.controller.controller import RunRequest
 from hypora.core.controller.states import DONE
 from hypora.core.schemas import RunStatus
+from hypora.storage.artifacts import ArtifactStore
 from hypora.storage.database import Database
 from hypora.storage.events import EventLog
 from hypora.storage.models import ApprovalRow, Result, Run
-from hypora.storage.records import list_trials, run_jobs
+from hypora.storage.records import list_trials, load_dataset_profile, run_jobs
 from tests.controller.conftest import ControllerFactory
 from tests.controller.scripted import ScriptedRun
 
@@ -32,7 +34,14 @@ async def test_a_run_ends_with_a_verified_model_and_a_report(
     dataset: Path,
     sandbox_image: str,  # built (or found) before the worker subprocess needs it
 ) -> None:
-    script = ScriptedRun(RUN_ID)
+    limits = {"max_wall_seconds": 120, "max_memory_gb": 1.5, "gpu": False, "cpu_threads": 1}
+    original = dataset.read_bytes()
+    original_sha256 = hashlib.sha256(original).hexdigest()
+
+    def change_source_during_intake() -> None:
+        dataset.write_bytes(original + b"\n")
+
+    script = ScriptedRun(RUN_ID, job_limits=limits, on_intake=change_source_during_intake)
     controller = make_controller(script)
     result = await controller.run(
         RunRequest(dataset=dataset, goal="Predict malignant tumours", run_id=RUN_ID)
@@ -40,6 +49,9 @@ async def test_a_run_ends_with_a_verified_model_and_a_report(
 
     assert result.state == DONE, result.notes
     assert result.verified and result.final_trial_id == script.trial_id
+    assert dataset.read_bytes() != original  # the user's file really changed during intake
+    _, profile = load_dataset_profile(database, RUN_ID)
+    assert profile.fingerprint == original_sha256
     with database.engine.connect() as connection:
         assert connection.scalar(select(Run.status).where(Run.id == RUN_ID)) is RunStatus.DONE
         tested = connection.execute(
@@ -103,6 +115,13 @@ async def test_a_run_ends_with_a_verified_model_and_a_report(
     # Two jobs: the agent's validation job, then the controller's final job.
     jobs = run_jobs(database, RUN_ID)
     assert [job.status.value for job in jobs] == ["COMPLETED", "COMPLETED"]
+    import yaml  # type: ignore[import-untyped]
+
+    store = ArtifactStore(database, controller.runs_root / RUN_ID / "artifacts")
+    for job in jobs:
+        manifest = yaml.safe_load(store.get(f"{job.job_id}.manifest").path.read_text())
+        assert all(stage["limits"] == limits for stage in manifest["resources"])
+        assert manifest["dataset_fingerprint"] == original_sha256
     assert [trial.status for trial in list_trials(database, RUN_ID)] == ["verified"]
     every_prompt = {e.payload.prompt_ref for e in events if e.type.value == "model_call"}
     assert every_prompt == {

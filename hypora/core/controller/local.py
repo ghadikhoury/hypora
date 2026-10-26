@@ -30,11 +30,17 @@ DATASET_ID: Final = "ds_main"
 class WorkerHandle(Protocol):
     """What the controller needs from the run's experiment worker."""
 
-    def start(self) -> None: ...
+    def start(self) -> None:
+        """Start the run's experiment worker."""
+        ...
 
-    def alive(self) -> bool: ...
+    def alive(self) -> bool:
+        """Return whether the worker process is still running."""
+        ...
 
-    def stop(self) -> int | None: ...
+    def stop(self) -> int | None:
+        """Stop the worker and return its process exit code."""
+        ...
 
 
 class WorkerFactory(Protocol):
@@ -123,6 +129,7 @@ class WorkerProcess:
         self._log_file: IO[bytes] | None = None
 
     def start(self) -> None:
+        """Start the run's experiment worker."""
         self.log.parent.mkdir(parents=True, exist_ok=True)
         self._log_file = self.log.open("ab")
         self._process = subprocess.Popen(
@@ -134,6 +141,7 @@ class WorkerProcess:
         )
 
     def alive(self) -> bool:
+        """Return whether the worker process is still running."""
         return self._process is not None and self._process.poll() is None
 
     def stop(self) -> int | None:

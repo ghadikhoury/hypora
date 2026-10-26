@@ -29,6 +29,7 @@ class RunState:
 
     @property
     def terminal(self) -> bool:
+        """Return whether the run has reached a terminal status."""
         return self.status in (RunStatus.DONE, RunStatus.FAILED, RunStatus.CANCELLED)
 
     def __str__(self) -> str:

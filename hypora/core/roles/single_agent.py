@@ -61,12 +61,14 @@ class McpToolChannel:
         self.client = client
 
     async def specs(self) -> list[ToolSpec]:
+        """Return the typed tools exposed by this MCP session."""
         listed = await self.client.list_tools()
         return [
             ToolSpec.from_mcp(tool.model_dump(mode="json", by_alias=True)) for tool in listed.tools
         ]
 
     async def call(self, name: str, arguments: Mapping[str, JsonValue]) -> tuple[bool, str]:
+        """Call a tool and return a bounded observation, including errors."""
         try:
             result = await self.client.call_tool(name, dict(arguments))
         except MCPError as exc:  # a protocol-level failure: still an observation for the model

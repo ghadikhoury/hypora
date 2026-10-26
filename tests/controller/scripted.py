@@ -44,10 +44,14 @@ class ScriptedRun:
         run_id: str,
         *,
         poll_seconds: float = 2.0,
+        job_limits: dict[str, Any] | None = None,
+        on_intake: Callable[[], None] | None = None,
         on_tool_result: Callable[[str, dict[str, Any]], None] | None = None,
     ) -> None:
         self.run_id = run_id
         self.poll_seconds = poll_seconds
+        self.job_limits = job_limits
+        self.on_intake = on_intake
         self.on_tool_result = on_tool_result
         self.requests: list[ProviderRequest] = []
         self.tool_calls: list[ToolCall] = []
@@ -62,6 +66,8 @@ class ScriptedRun:
         self.requests.append(request)
         schema = request.output_schema_name
         if schema == "IntakeDraft":
+            if self.on_intake is not None:
+                self.on_intake()
             return json_result(
                 {
                     "objective": "Predict whether a breast tumour is malignant",
@@ -103,6 +109,7 @@ class ScriptedRun:
                 "submit_experiment",
                 trial_id=self.trial_id,
                 idempotency_key=f"{self.run_id}:submit_1",
+                **({"limits": self.job_limits} if self.job_limits is not None else {}),
             )
         if last.tool_name == "submit_experiment":
             self.job_id = result["job_id"]

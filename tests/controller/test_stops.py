@@ -111,3 +111,129 @@ async def test_an_unknown_target_fails_intake_and_still_reports(
     statuses = [e.payload.status.value for e in _events(database, "run_bad", "stage_transition")]
     assert statuses == ["INTAKE", "REPORTING", "FAILED"]
     assert "stopped before its experiment contract" in result.report_md.read_text()
+
+
+@pytest.mark.parametrize("waiting", ["drain", "final"])
+async def test_user_cancel_is_checked_while_waiting_for_jobs(
+    make_controller: ControllerFactory,
+    database: Database,
+    dataset: Path,
+    runs_root: Path,
+    waiting: str,
+) -> None:
+    import anyio
+
+    from hypora.core.controller.controller import _Run
+    from hypora.core.schemas import JobLimits, Operation, TrialFile
+    from hypora.storage.jobs import JobQueue
+    from hypora.storage.records import upsert_trial
+
+    run_id = f"run_wait_{waiting}"
+    controller = make_controller(ScriptedRun(run_id), worker_factory=NoWorker)
+    controller.poll_seconds = 0.01
+    run = _Run(controller, RunRequest(dataset=dataset, goal="x", run_id=run_id))
+    run._create()
+    run.worker.start()
+    trial = TrialFile.model_validate(
+        {
+            "trial_id": "trl_wait",
+            "kind": "baseline",
+            "operation": "fit",
+            "hypothesis": "baseline",
+            "model_family": "linear",
+            "expected_effect": "better",
+            "estimated_cost": {"compute_seconds": 1},
+        }
+    )
+    upsert_trial(database, run_id, trial, f"runs/{run_id}/trials/trl_wait")
+    queue = JobQueue(database)
+    job = queue.enqueue(
+        trial_id="trl_wait",
+        operation=Operation.FIT,
+        limits=JobLimits(max_wall_seconds=60, max_memory_gb=1),
+        idempotency_key=f"{run_id}:wait",
+        approval_ref="appr_wait",
+        initiator="test",
+    )
+
+    async def cancel() -> None:
+        await anyio.sleep(0.03)
+        (runs_root / run_id / CANCEL_FILE).touch()
+
+    with anyio.fail_after(5):
+        async with anyio.create_task_group() as tasks:
+            tasks.start_soon(cancel)
+            if waiting == "drain":
+                await run._drain(cancel=False)
+            else:
+                await run._await_job(job, timeout=60)
+    assert queue.get(job).status.value == "CANCELLED"
+    assert tuple(run.guard.fired) == ("user_cancel",)
+    assert len(_events(database, run_id, "error")) == 1
+    run.worker.stop()
+
+
+async def test_a_stored_verdict_cannot_publish_an_uncompleted_final_job(
+    make_controller: ControllerFactory,
+    database: Database,
+    dataset: Path,
+) -> None:
+    import hashlib
+    import json
+
+    import pandas as pd  # type: ignore[import-untyped]
+
+    from hypora.core.controller.controller import _Run
+    from hypora.core.schemas import TrialFile
+    from hypora.profiling.tabular import profile_tabular
+    from hypora.storage.records import (
+        save_dataset_profile,
+        save_task_spec,
+        upsert_result,
+        upsert_trial,
+    )
+    from tests.unit.controller.helpers import spec
+
+    run_id = "run_stale_final"
+    controller = make_controller(ScriptedRun(run_id), worker_factory=NoWorker)
+    run = _Run(controller, RunRequest(dataset=dataset, goal="x", run_id=run_id))
+    run._create()
+    task = spec(run_id=run_id, target="target")
+    save_task_spec(database, task)
+    frame = pd.read_csv(dataset)
+    profile = profile_tabular(
+        frame,
+        run_id=run_id,
+        dataset_ref="dataset:ds_main",
+        target="target",
+        task_type=task.task_type,
+    )
+    profile.fingerprint = hashlib.sha256(dataset.read_bytes()).hexdigest()
+    save_dataset_profile(database, profile)
+    run._contract(task, list(frame.columns))
+    trial = TrialFile.model_validate(
+        {
+            "trial_id": "trl_stale",
+            "kind": "baseline",
+            "operation": "fit",
+            "hypothesis": "baseline",
+            "model_family": "linear",
+            "expected_effect": "better",
+            "estimated_cost": {"compute_seconds": 1},
+        }
+    )
+    upsert_trial(database, run_id, trial, f"runs/{run_id}/trials/trl_stale")
+    # The worker may persist a verdict just before cancellation/lease loss prevents completion.
+    upsert_result(
+        database,
+        "trl_stale",
+        "test",
+        {"metrics": {"roc_auc": 0.99}},
+        {},
+        verification={"passed": True, "checks": []},
+    )
+    run.final_trial_id = "trl_stale"
+    assert not run.final_job_completed
+    assert not await run._report()
+    report = json.loads((run.run_dir / "report.json").read_text())
+    assert report["outcome"] == "no_verified_model" and report["final"] is None

@@ -19,6 +19,7 @@ ends with a report that says what happened.
 """
 
 import contextlib
+import hashlib
 import json
 import uuid
 from dataclasses import dataclass, field
@@ -30,7 +31,7 @@ from typing import Final
 import anyio
 import pandas as pd  # type: ignore[import-untyped]
 from mcp import Client
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
 from hypora.core.config.flags import AgentMode, FeatureFlags
 from hypora.core.config.run_config import RunConfig
@@ -78,6 +79,7 @@ from hypora.core.schemas import (
     Family,
     Handoff,
     HandoffStatus,
+    Identifier,
     JobState,
     MetricDirection,
     MetricName,
@@ -145,6 +147,10 @@ class RunRequest:
     budget: Budget | None = None  # None: the configured run budget (configs/budgets.yaml)
     run_id: str | None = None
 
+    def __post_init__(self) -> None:
+        if self.run_id is not None:
+            TypeAdapter(Identifier).validate_python(self.run_id)
+
 
 @dataclass(frozen=True)
 class RunResult:
@@ -168,6 +174,7 @@ class Selection:
 
 
 def new_run_id() -> str:
+    """Allocate a path-safe ID for a new run."""
     return f"run_{uuid.uuid4().hex[:12]}"
 
 
@@ -319,6 +326,7 @@ class _Run:
             poll_seconds=min(c.poll_seconds, 2.0),
         )
         self.final_trial_id: str | None = None
+        self.final_job_completed = False
 
     # --- the run ----------------------------------------------------------------------------------
 
@@ -326,6 +334,13 @@ class _Run:
         self._create()
         try:
             source = self.dataset.read_bytes()
+            # Every role and worker uses one private copy of the bytes read at run start.
+            # Editing the user's source during a model call cannot change this run's data.
+            snapshot = self.run_dir / "data" / f"dataset{self.dataset.suffix.lower()}"
+            snapshot.parent.mkdir(parents=True, exist_ok=True)
+            protocol.write_once(snapshot, source)
+            self.dataset = snapshot
+            self.dataset_fingerprint = hashlib.sha256(source).hexdigest()
             frame = load_tabular(self.dataset, source=source)
             spec = await self._intake(frame)
             self._advance(RunEvent.INTAKE_DONE, f"task spec v{spec.version}: {spec.task_type}")
@@ -424,6 +439,7 @@ class _Run:
             target=spec.target,
             task_type=spec.task_type,
         )
+        profile.fingerprint = self.dataset_fingerprint
         save_dataset_profile(self.database, profile)
         return profile
 
@@ -622,7 +638,14 @@ class _Run:
         deadline = anyio.current_time() + wait
         cancelled = False
         notes: list[str] = []
+        stop_reason = None
         while True:
+            if not cancelled:
+                try:
+                    self.guard.before_job()
+                except RunLimitReached as reached:
+                    cancel = True
+                    stop_reason = str(reached)
             pending = [
                 job
                 for job in run_jobs(self.database, self.run_id)
@@ -633,7 +656,11 @@ class _Run:
             now = anyio.current_time()
             stuck = not self.worker.alive()
             if not cancelled and (cancel or stuck or now >= deadline):
-                why = "a run limit fired" if cancel else "the drain timed out or the worker exited"
+                why = (
+                    (stop_reason or "a run limit fired")
+                    if cancel
+                    else ("the drain timed out or the worker exited")
+                )
                 for job in pending:
                     self._cancel(job.job_id, why)
                 notes.append(f"Cancelled {len(pending)} unfinished job(s): {why}.")
@@ -667,7 +694,8 @@ class _Run:
         folder = protocol.job_dir(self.controller.runs_root, self.run_id, job_id)
         outcome = protocol.read_outcome(folder)
         verification = outcome.verification if outcome else None
-        passed = verification is not None and verification.passed
+        self.final_job_completed = status is JobState.COMPLETED and outcome is not None
+        passed = self.final_job_completed and verification is not None and verification.passed
         if status is not JobState.COMPLETED or outcome is None:
             code = outcome.error_code if outcome else None
             self.notes.append(
@@ -694,7 +722,16 @@ class _Run:
 
     async def _await_job(self, job_id: str, timeout: float) -> JobState:
         deadline = anyio.current_time() + timeout
+        cancelled = False
         while True:
+            if not cancelled:
+                try:
+                    self.guard.before_job()
+                except RunLimitReached as reached:
+                    self._cancel(job_id, str(reached))
+                    self.notes.append(f"Stopped the final job: {reached}.")
+                    cancelled = True
+                    deadline = anyio.current_time() + CANCEL_TIMEOUT_S
             status = self.queue.get(job_id).status
             if status in TERMINAL_STATES:
                 return status
@@ -706,9 +743,15 @@ class _Run:
     async def _report(self) -> bool:
         """Write report.json and report.md; returns whether the final model was verified."""
         json_path, md_path = self.run_dir / "report.json", self.run_dir / "report.md"
+        self._notice_cancel()
+        final = (
+            self.final_trial_id
+            if self.final_job_completed and USER_CANCEL not in self.guard.fired
+            else None
+        )
         try:
             report = build_report(
-                self.database, self.run_id, final_trial_id=self.final_trial_id, notes=self.notes
+                self.database, self.run_id, final_trial_id=final, notes=self.notes
             )
         except RecordNotFound:  # stopped before the contract: nothing was measured
             early = EarlyStopReport(run_id=self.run_id, notes=self.notes)
@@ -720,6 +763,17 @@ class _Run:
         md_path.write_text(render_markdown(report), encoding="utf-8")
         instance = self._role_started(ActorRole.REPORTER, ModelTier.CHEAP)
         report = await write_narrative(self.controller.adapter, self.guard, report)
+        self._notice_cancel()
+        if USER_CANCEL in self.guard.fired:
+            report = report.model_copy(
+                update={
+                    "outcome": "no_verified_model",
+                    "final": None,
+                    "narrative": None,
+                    "narrative_note": "No narrative: cancelled by the user.",
+                    "notes": self.notes,
+                }
+            )
         json_path.write_text(report.model_dump_json(indent=2), encoding="utf-8")
         md_path.write_text(render_markdown(report), encoding="utf-8")
         self._handoff(
@@ -729,6 +783,14 @@ class _Run:
             output_ref=f"report:{self.run_id}",
         )
         return report.outcome == "verified_model"
+
+    def _notice_cancel(self) -> None:
+        try:
+            self.guard.check_cancel()
+        except RunLimitReached as reached:
+            note = f"Run stopped: {reached}."
+            if note not in self.notes:
+                self.notes.append(note)
 
     # --- state, events --------------------------------------------------------------------------
 

@@ -358,6 +358,7 @@ class EarlyStopReport(StrictModel):
 
 
 def render_early_stop(report: EarlyStopReport) -> str:
+    """Render the report of a run that stopped before contract creation."""
     lines = [f"# Hypora run report: {report.run_id}", "", "**Outcome:** no verified model.", ""]
     lines += ["The run stopped before its experiment contract was approved.", ""]
     lines += ["## Run notes", *(f"- {note}" for note in report.notes), ""]

@@ -33,7 +33,12 @@ import pandas as pd  # type: ignore[import-untyped]
 
 from hypora.core.policy.firewall import DataFirewall
 from hypora.core.schemas import ExperimentContract, JobState, Operation, VerificationResult
-from hypora.core.verification.verifier import FinalEvidence, StageRecord, verify_final
+from hypora.core.verification.verifier import (
+    FinalEvidence,
+    StageRecord,
+    ValidationFold,
+    verify_final,
+)
 from hypora.execution.harness.data import apply_contract
 from hypora.execution.harness.runner import (
     HarnessFailure,
@@ -143,7 +148,7 @@ class _RecordingLauncher(SandboxLauncher):
                 inputs=inputs,
             ),
         )
-        self.records.append(StageRecord(action, result.status.value, tuple(inputs)))
+        self.records.append(StageRecord(action, result.status.value, tuple(inputs), spec.limits))
         self.stages += 1
         if not result.ok:
             self.last_failure, self.last_action = result, action
@@ -367,8 +372,8 @@ class ExperimentWorker:
         job: JobRecord,
     ) -> "_Final":
         """FINAL phase (D-019): refit on development rows, score the test split once, verify."""
-        frozen = harness.freeze_candidate(result, contract)
-        harness.score_test(frozen, contract)
+        frozen = harness.freeze_candidate(result, contract, limits=job.limits)
+        harness.score_test(frozen, contract, limits=job.limits)
         directory = result.artifacts
 
         def read(name: str, cap: int = 512 * 1024**2) -> bytes:
@@ -381,10 +386,12 @@ class ExperimentWorker:
             run_id=job.run_id,
             trial_id=job.trial_id,
             contract=contract,
+            job_limits=job.limits,
             feature_columns=tuple(data.features.columns),
             target=data.target,
             development_ids=data.development,
             test_ids=data.test,
+            validation_folds=tuple(ValidationFold(f.train, f.validation) for f in data.folds),
             group_values=data.frame[split.group_key] if split.group_key else None,
             time_values=data.frame[split.time_key] if split.time_key else None,
             validation_predictions=pd.read_parquet(

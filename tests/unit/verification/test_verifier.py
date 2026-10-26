@@ -31,15 +31,25 @@ from hypora.core.verification.verifier import (
     PREDICT_INPUTS,
     FinalEvidence,
     StageRecord,
+    ValidationFold,
     recompute,
     verify_final,
 )
 from hypora.execution.harness.metrics import score_predictions
+from hypora.execution.sandbox.spec import SandboxLimits
 from tests.unit.controller.helpers import spec
 
 V = VerificationCheck
-FIT = StageRecord("fit", "completed", ("context.json", "features.parquet", "labels.parquet"))
-PREDICT = StageRecord("predict", "completed", tuple(sorted(PREDICT_INPUTS)))
+LIMITS = JobLimits(max_wall_seconds=60, max_memory_gb=1)
+FIT = StageRecord(
+    "fit",
+    "completed",
+    ("context.json", "features.parquet", "labels.parquet"),
+    SandboxLimits.from_job(LIMITS),
+)
+PREDICT = StageRecord(
+    "predict", "completed", tuple(sorted(PREDICT_INPUTS)), SandboxLimits.from_job(LIMITS)
+)
 
 
 def contract(task: TaskType, metric: MetricName) -> ExperimentContract:
@@ -85,10 +95,11 @@ def evidence(
     classes = sorted(target.iloc[development].unique()) if classification else []
     terms = contract(task, metric)
 
-    folds, fold_scores = [], []
+    folds, fold_scores, planned_folds = [], [], []
     for number in range(3):
         rows = development[(development // 3) % 3 == number]
         train = np.setdiff1d(development, rows)
+        planned_folds.append(ValidationFold(train, rows))
         fold_classes = sorted(target.iloc[train].unique()) if classification else []
         y = target.iloc[rows].to_numpy()
         frame = predictions(y, fold_classes, task, seed=number)
@@ -103,10 +114,12 @@ def evidence(
         run_id="run_v",
         trial_id="trl_v",
         contract=terms,
+        job_limits=terms.default_job_limits,
         feature_columns=("a", "b"),
         target=target,
         development_ids=development,
         test_ids=test,
+        validation_folds=planned_folds,
         group_values=None,
         time_values=None,
         validation_predictions=pd.concat(folds, ignore_index=True),
@@ -250,3 +263,92 @@ def test_a_check_that_cannot_run_is_an_error_never_a_pass() -> None:
     assert found[V.FINITE_OUTPUTS] is CheckStatus.ERROR
     assert found[V.OUTPUT_SHAPE] is CheckStatus.FAILED
     assert not verify_final(broken).passed
+
+
+def test_missing_validation_evidence_never_passes() -> None:
+    e = evidence()
+    damaged = dataclasses.replace(
+        e,
+        validation_predictions=e.validation_predictions.iloc[:0],
+        validation_scores={"folds": []},
+    )
+    result = verify_final(damaged)
+    assert not result.passed
+    assert statuses(damaged)[V.OUTPUT_SHAPE] is CheckStatus.FAILED
+    assert statuses(damaged)[V.METRIC_RECOMPUTATION] is CheckStatus.FAILED
+
+
+def test_secondary_validation_metrics_are_recomputed() -> None:
+    from copy import deepcopy
+
+    e = evidence()
+    scores = deepcopy(e.validation_scores)
+    scores["folds"][0]["metrics"]["f1_macro"] = 0.123
+    damaged = dataclasses.replace(e, validation_scores=scores)
+    assert statuses(damaged)[V.METRIC_RECOMPUTATION] is CheckStatus.FAILED
+    assert not verify_final(damaged).passed
+
+
+@pytest.mark.parametrize("damage", ["missing", "duplicate", "unknown_fold"])
+def test_validation_predictions_must_match_the_planned_rows(damage: str) -> None:
+    e = evidence()
+    rows = e.validation_predictions.copy()
+    if damage == "missing":
+        rows = rows.iloc[:-1]
+    elif damage == "duplicate":
+        rows.iloc[-1] = rows.iloc[-2]
+    else:
+        rows.loc[0, "fold"] = len(e.validation_folds)
+    damaged = dataclasses.replace(e, validation_predictions=rows)
+    assert statuses(damaged)[V.OUTPUT_SHAPE] is CheckStatus.FAILED
+    assert not verify_final(damaged).passed
+
+
+def test_validation_training_rows_must_not_overlap_the_scoring_rows() -> None:
+    e = evidence()
+    first = e.validation_folds[0]
+    folds = [
+        ValidationFold(
+            np.concatenate([first.train_ids, first.validation_ids[:1]]), first.validation_ids
+        ),
+        *e.validation_folds[1:],
+    ]
+    damaged = dataclasses.replace(e, validation_folds=folds)
+    assert statuses(damaged)[V.SPLIT_RESPECTED] is CheckStatus.FAILED
+    assert not verify_final(damaged).passed
+
+
+def test_stage_success_does_not_prove_the_requested_resource_limits_were_used() -> None:
+    e = evidence()
+    stage = dataclasses.replace(
+        e.stages[-1],
+        limits=SandboxLimits.from_job(
+            JobLimits(
+                max_wall_seconds=300,
+                max_memory_gb=2,
+            )
+        ),
+    )
+    damaged = dataclasses.replace(e, stages=(*e.stages[:-1], stage))
+    assert statuses(damaged)[V.RESOURCE_LIMITS] is CheckStatus.FAILED
+    assert not verify_final(damaged).passed
+
+
+def test_missing_stage_records_never_pass_resource_verification() -> None:
+    e = evidence()
+    damaged = dataclasses.replace(e, stages=e.stages[-2:])
+    assert statuses(damaged)[V.RESOURCE_LIMITS] is CheckStatus.FAILED
+    assert not verify_final(damaged).passed
+
+
+def test_a_fold_missing_from_both_scores_and_predictions_still_fails() -> None:
+    e = evidence()
+    damaged = dataclasses.replace(
+        e,
+        validation_folds=e.validation_folds[:-1],
+        validation_predictions=e.validation_predictions[e.validation_predictions["fold"] < 2],
+        validation_scores={"folds": e.validation_scores["folds"][:-1]},
+        stages=e.stages[:-2],
+    )
+    assert statuses(damaged)[V.SPLIT_RESPECTED] is CheckStatus.FAILED
+    assert not verify_final(damaged).passed

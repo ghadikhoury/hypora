@@ -23,15 +23,14 @@ from typing import Final
 from pydantic import JsonValue
 
 from hypora.core.llm.errors import LLMError
-from hypora.core.llm.types import LLMResponse
+from hypora.core.llm.types import LLMResponse, Usage
 from hypora.core.roles.base import USER_CANCEL, RunCancelled, RunLimitReached
 from hypora.core.schemas import ActorRole, Budget, ErrorClass, EventType, ToolName
-from hypora.core.schemas.events import ErrorPayload
+from hypora.core.schemas.events import ErrorPayload, ModelCallPayload
 from hypora.execution.protocol import experiments as protocol
 from hypora.storage.budget import BudgetLedger
 from hypora.storage.database import Database
 from hypora.storage.events import EventLog
-from hypora.storage.jobs import TERMINAL_STATES
 from hypora.storage.records import count_trials, run_jobs
 
 CANCEL_FILE: Final = "CANCEL"
@@ -80,36 +79,48 @@ class RunGuard:
         self.tokens = 0
         self.usd = 0.0
         self.compute_s = 0.0
-        self._charged_jobs: set[str] = set()
+        self._charged_stages: set[tuple[str, int, int]] = set()
+        self._charged_token_calls: set[str] = set()
         self.fired: dict[str, RunLimitReached] = {}
         """Each limit that stopped a call, in order; its event was recorded once."""
 
     # --- accounting -------------------------------------------------------------------------------
 
     def elapsed(self) -> float:
+        """Return seconds since this run's guard was created."""
         return self._clock() - self._started
 
     def sync_compute(self) -> None:
-        """Charge every finished job's sandbox time to the ledger (once per job)."""
+        """Charge each completed sandbox stage once, even while its job is still running."""
         for job in run_jobs(self.database, self.run_id):
-            if job.status not in TERMINAL_STATES or job.job_id in self._charged_jobs:
-                continue
             folder = protocol.job_dir(self.runs_root, self.run_id, job.job_id)
-            seconds = sum(stage.duration_s for stage in protocol.read_stage_logs(folder))
-            self.ledger.charge(
-                self.run_id, "sandbox", Decimal(f"{seconds:.6f}"), "compute_s", f"job:{job.job_id}"
-            )
-            self._charged_jobs.add(job.job_id)
-            self.compute_s += seconds
+            for stage in protocol.read_stage_logs(folder):
+                key = (job.job_id, stage.attempt, stage.stage)
+                if key in self._charged_stages:
+                    continue
+                self.ledger.charge(
+                    self.run_id,
+                    "sandbox",
+                    Decimal(f"{stage.duration_s:.6f}"),
+                    "compute_s",
+                    f"job:{job.job_id}:attempt:{stage.attempt}:stage:{stage.stage}",
+                )
+                self._charged_stages.add(key)
+                self.compute_s += stage.duration_s
 
     # --- CallGuard --------------------------------------------------------------------------------
 
     def cancel_requested(self) -> bool:
+        """Return whether the user has requested cancellation."""
         return (self.runs_root / self.run_id / CANCEL_FILE).exists()
 
-    def _check(self, limits: tuple[Limit, ...]) -> None:
+    def check_cancel(self) -> None:
+        """Record and raise a user cancellation independently of the other run limits."""
         if self.cancel_requested():
             raise self._cancelled()
+
+    def _check(self, limits: tuple[Limit, ...]) -> None:
+        self.check_cancel()
         b = self.budget
         self.sync_compute()
         usage: dict[Limit, tuple[float, float | None]] = {
@@ -129,15 +140,22 @@ class RunGuard:
         self._check((Limit.MAX_WALL_CLOCK, Limit.MAX_COMPUTE))
 
     def remaining_wall_clock(self) -> float | None:
+        """Return the remaining run time, or None when no deadline is configured."""
         maximum = self.budget.max_wall_clock_seconds
         return None if maximum is None else max(0.0, maximum - self.elapsed())
 
     def before_model_call(self) -> None:
+        """Check every run limit before sending a model request."""
         self._check(_CALL_LIMITS)
 
     def after_model_call(self, response: LLMResponse) -> None:
+        """Charge all attempts of a completed logical model call."""
         self.steps += 1
-        self.tokens += response.usage.input_tokens + response.usage.output_tokens
+        self._account_tokens(
+            response.call_ids or (response.call_id,),
+            fallback_id=response.call_id,
+            fallback_usage=response.usage,
+        )
         self.usd += response.total_cost_usd
         if response.total_cost_usd > 0:
             self.ledger.charge(
@@ -149,7 +167,9 @@ class RunGuard:
             )
 
     def after_model_error(self, error: LLMError) -> None:
+        """Account for attempts of a model call that ultimately failed."""
         self.steps += 1
+        self._account_tokens(error.call_ids)
         self.usd += error.total_cost_usd
         if error.total_cost_usd > 0 and error.call_ids:
             self.ledger.charge(
@@ -160,7 +180,33 @@ class RunGuard:
                 f"model_call:{error.call_ids[-1]}",
             )
 
+    def _account_tokens(
+        self,
+        call_ids: tuple[str, ...],
+        *,
+        fallback_id: str | None = None,
+        fallback_usage: Usage | None = None,
+    ) -> None:
+        """Count every recorded attempt, including schema retries and failed provider calls."""
+        pending = set(call_ids) - self._charged_token_calls
+        if not pending:
+            return
+        for event in self.events.read(self.run_id):
+            payload = event.payload
+            if isinstance(payload, ModelCallPayload) and payload.call_id in pending:
+                self.tokens += payload.input_tokens + payload.output_tokens
+                self._charged_token_calls.add(payload.call_id)
+                pending.remove(payload.call_id)
+        # A single response's usage is complete even when an isolated unit test has no sink.
+        if pending == {fallback_id} and fallback_id is not None and fallback_usage is not None:
+            self.tokens += fallback_usage.input_tokens + fallback_usage.output_tokens
+            self._charged_token_calls.add(fallback_id)
+            pending.clear()
+        if pending:
+            raise RuntimeError("model token accounting is missing recorded attempts")
+
     def before_tool_call(self, name: str, arguments: Mapping[str, JsonValue]) -> None:
+        """Check run limits and the trial cap before executing a tool."""
         self._check(_CALL_LIMITS)
         creating = name == ToolName.WRITE_TRIAL_FILES.value and arguments.get("trial_id") is None
         maximum = self.budget.max_trials
@@ -170,6 +216,7 @@ class RunGuard:
                 raise self.stop(Limit.MAX_TRIALS.value, trials, maximum)
 
     def after_tool_call(self, name: str) -> None:
+        """Count an executed tool call as one run step."""
         self.steps += 1
 
     def _cancelled(self) -> RunCancelled:

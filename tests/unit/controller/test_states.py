@@ -55,3 +55,15 @@ def test_pairs_outside_the_table_are_refused() -> None:
         assert terminal.terminal
         assert not [pair for pair in TRANSITIONS if pair[0] == terminal]
     assert next_state(REPORT, E.FAIL) == FAILED
+
+
+@pytest.mark.parametrize("run_id", ["../outside", "/tmp/outside", "run/x", ".."])
+def test_run_ids_cannot_escape_the_run_directory(run_id: str) -> None:
+    from pathlib import Path
+
+    from pydantic import ValidationError
+
+    from hypora.core.controller.controller import RunRequest
+
+    with pytest.raises(ValidationError):
+        RunRequest(dataset=Path("data.csv"), goal="Predict y", run_id=run_id)

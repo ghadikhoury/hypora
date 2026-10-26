@@ -30,6 +30,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
+    """Read the developer entry point arguments."""
     parser = argparse.ArgumentParser(prog="python -m hypora.core.controller")
     parser.add_argument("--data", type=Path, required=True, help="CSV or Parquet dataset")
     parser.add_argument("--goal", required=True, help="the objective, in plain language")
@@ -44,6 +45,7 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
 
 
 async def run(args: argparse.Namespace) -> int:
+    """Execute the developer entry point and return its process exit code."""
     settings = load_settings()
     run_config = RunConfig.build(settings)
     args.runs_root.mkdir(parents=True, exist_ok=True)
@@ -85,6 +87,7 @@ async def run(args: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> None:
+    """Run the developer entry point from a POSIX terminal."""
     logging.basicConfig(
         stream=sys.stderr, level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s"
     )

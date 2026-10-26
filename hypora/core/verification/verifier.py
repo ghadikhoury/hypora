@@ -24,12 +24,14 @@ from hypora.core.schemas import (
     CheckResult,
     CheckStatus,
     ExperimentContract,
+    JobLimits,
     MetricName,
     TaskType,
     VerificationCheck,
     VerificationResult,
 )
 from hypora.core.schemas.contracts import SplitStrategy
+from hypora.execution.sandbox.spec import SandboxLimits
 
 PREDICT_INPUTS: Final = frozenset({"features.parquet", "model.joblib", "context.json"})
 """What a predict stage may see: features and the model, never a label file (spec §8.1)."""
@@ -43,6 +45,15 @@ class StageRecord:
     action: str  # "fit" or "predict"
     status: str  # SandboxStatus value
     inputs: tuple[str, ...]  # file names mounted at /data
+    limits: SandboxLimits | None = None
+
+
+@dataclass(frozen=True)
+class ValidationFold:
+    """The platform's actual training and scoring row IDs for one validation fold."""
+
+    train_ids: np.ndarray
+    validation_ids: np.ndarray
 
 
 @dataclass(frozen=True)
@@ -52,10 +63,12 @@ class FinalEvidence:
     run_id: str
     trial_id: str
     contract: ExperimentContract
+    job_limits: JobLimits
     feature_columns: tuple[str, ...]  # the columns trial code received
     target: pd.Series  # every row's label, by positional row ID
     development_ids: np.ndarray
     test_ids: np.ndarray
+    validation_folds: Sequence[ValidationFold]
     group_values: pd.Series | None  # the split's group key per row, if grouped
     time_values: pd.Series | None  # the split's time key per row, if temporal
     validation_predictions: pd.DataFrame  # fold, row_id, prediction[, p_i]
@@ -100,7 +113,7 @@ def recompute(
         return regression[metric]() if metric in regression else None
     labels = list(classes)
     probs = _probabilities(predictions, labels)
-    complete = len(set(y.tolist())) == len(labels)
+    complete = set(y.tolist()) == set(labels)
     binary = task is TaskType.BINARY_CLASSIFICATION
     positive = labels[1] if len(labels) > 1 else None
 
@@ -180,37 +193,71 @@ class _Checks:
         )
 
     def split_respected(self) -> CheckResult:
-        development, test = set(self.e.development_ids.tolist()), set(self.e.test_ids.tolist())
         problems = []
+        development = set(self.e.development_ids.tolist())
+        test = set(self.e.test_ids.tolist())
+        pairs = [("development/test", self.e.development_ids, self.e.test_ids)]
+        for name, ids in (("development", self.e.development_ids), ("test", self.e.test_ids)):
+            if len(ids) != len(set(ids.tolist())):
+                problems.append(f"{name}: duplicate row IDs")
+            if not len(ids) or (ids < 0).any() or (ids >= len(self.e.target)).any():
+                problems.append(f"{name}: missing or out-of-range row IDs")
         if development & test:
             problems.append("rows in both development and test")
-        if len(development | test) != len(self.e.target):
+        if development | test != set(range(len(self.e.target))):
             problems.append("development and test do not cover every row")
+        scheme = self.e.contract.data_contract.split.validation
+        expected_folds = 1 if scheme == "holdout" else int(scheme.rsplit("_", 1)[1])
+        if len(self.e.validation_folds) != expected_folds:
+            problems.append("validation fold count differs from the contract")
+        scored_rows: list[int] = []
+        for number, fold in enumerate(self.e.validation_folds):
+            train, validation = set(fold.train_ids.tolist()), set(fold.validation_ids.tolist())
+            scored_rows.extend(fold.validation_ids.tolist())
+            if not train or not validation:
+                problems.append(f"fold {number}: empty training or validation rows")
+            if len(train) != len(fold.train_ids) or len(validation) != len(fold.validation_ids):
+                problems.append(f"fold {number}: duplicate row IDs")
+            if train & validation or not (train | validation).issubset(development):
+                problems.append(f"fold {number}: overlapping or non-development rows")
+            pairs.append((f"fold {number}", fold.train_ids, fold.validation_ids))
+        if len(scored_rows) != len(set(scored_rows)):
+            problems.append("validation scoring rows overlap across folds")
+        if "kfold_" in scheme and set(scored_rows) != development:
+            problems.append("K-fold validation does not score every development row")
         split = self.e.contract.data_contract.split
-        if split.strategy in (SplitStrategy.GROUP, SplitStrategy.GROUP_TEMPORAL):
-            groups = self.e.group_values
-            if groups is None:
-                problems.append("grouped split without group values")
-            else:
-                shared = set(groups.iloc[self.e.development_ids]) & set(
-                    groups.iloc[self.e.test_ids]
-                )
-                if shared:
-                    problems.append(f"{len(shared)} groups in both development and test")
-        if split.strategy in (SplitStrategy.TEMPORAL, SplitStrategy.GROUP_TEMPORAL):
-            times = self.e.time_values
-            if times is None:
-                problems.append("temporal split without time values")
-            else:
-                parsed = pd.to_datetime(times, utc=True)
-                if parsed.iloc[self.e.development_ids].max() >= parsed.iloc[self.e.test_ids].min():
-                    problems.append("test rows are not strictly later than development rows")
+        for name, train_ids, held_out_ids in pairs:
+            if split.strategy in (SplitStrategy.GROUP, SplitStrategy.GROUP_TEMPORAL):
+                groups = self.e.group_values
+                if groups is None:
+                    problems.append(f"{name}: grouped split without group values")
+                elif set(groups.iloc[train_ids]) & set(groups.iloc[held_out_ids]):
+                    problems.append(f"{name}: groups overlap")
+            if split.strategy in (SplitStrategy.TEMPORAL, SplitStrategy.GROUP_TEMPORAL):
+                times = self.e.time_values
+                if times is None:
+                    problems.append(f"{name}: temporal split without time values")
+                else:
+                    parsed = pd.to_datetime(times, utc=True)
+                    if parsed.iloc[train_ids].max() >= parsed.iloc[held_out_ids].min():
+                        problems.append(f"{name}: held-out rows are not strictly later")
         return _result(
             VerificationCheck.SPLIT_RESPECTED,
             not problems,
             "; ".join(problems) or f"{split.strategy.value} split: disjoint, complete",
             {"development_rows": len(development), "test_rows": len(test)},
         )
+
+    def _fold_classes(self, number: int) -> list[Any]:
+        if not _classification(self.task):
+            return []
+        return sorted(
+            self.e.target.iloc[self.e.validation_folds[number].train_ids].unique().tolist()
+        )
+
+    def _fold_predictions(self, number: int) -> pd.DataFrame:
+        rows = self.e.validation_predictions
+        return rows[rows["fold"] == number]
 
     def test_labels_not_accessed(self) -> CheckResult:
         predicts = [stage for stage in self.e.stages if stage.action == "predict"]
@@ -242,37 +289,65 @@ class _Checks:
         if set(self.e.test_predictions.columns) != expected:
             problems.append("test prediction columns differ from the task's")
         validation = self.e.validation_predictions
-        if set(validation.columns) != expected | {"fold", "row_id"}:
+        folds = self.e.validation_folds
+        width = max((len(self._fold_classes(i)) for i in range(len(folds))), default=0)
+        expected_validation = {"prediction", "fold", "row_id"} | {f"p_{i}" for i in range(width)}
+        if set(validation.columns) != expected_validation:
             problems.append("validation prediction columns differ from the task's")
-        elif not set(validation["row_id"]).issubset(set(self.e.development_ids.tolist())):
-            problems.append("validation predictions outside the development rows")
+        elif not (
+            pd.api.types.is_integer_dtype(validation["fold"])
+            and pd.api.types.is_integer_dtype(validation["row_id"])
+        ):
+            problems.append("validation fold and row IDs must be integers")
+        else:
+            if not set(validation["fold"]).issubset(set(range(len(folds)))):
+                problems.append("predictions name an unknown validation fold")
+            for number, fold in enumerate(folds):
+                ids = self._fold_predictions(number)["row_id"].to_numpy()
+                if not np.array_equal(np.sort(ids), np.sort(fold.validation_ids)):
+                    problems.append(f"fold {number}: missing, duplicated, or unexpected rows")
+        if not folds or len(self.e.validation_scores.get("folds", [])) != len(folds):
+            problems.append("validation scores do not cover the planned folds")
         return _result(
             VerificationCheck.OUTPUT_SHAPE,
             not problems,
-            "; ".join(problems) or "one prediction per row, task-shaped columns",
+            "; ".join(problems) or "one prediction per planned row, task-shaped columns",
             {"test_rows": len(self.e.test_ids)},
         )
 
     def finite_outputs(self) -> CheckResult:
         problems = []
-        for name, frame in (
-            ("test", self.e.test_predictions),
-            ("validation", self.e.validation_predictions),
-        ):
+        frames = [("test", self.e.test_predictions, self.classes)]
+        for number in range(len(self.e.validation_folds)):
+            frames.append(
+                (
+                    f"validation fold {number}",
+                    self._fold_predictions(number),
+                    self._fold_classes(number),
+                )
+            )
+        for name, frame, classes in frames:
             if self.task is TaskType.REGRESSION:
                 values = pd.to_numeric(frame["prediction"], errors="coerce").to_numpy(float)
                 if not np.isfinite(values).all():
                     problems.append(f"{name}: non-finite predictions")
                 continue
             if frame["prediction"].isna().any() or not set(frame["prediction"]).issubset(
-                set(self.classes)
+                set(classes)
             ):
                 problems.append(f"{name}: predictions outside the training classes")
-            probs = _probabilities(frame, self.classes)
+            probs = _probabilities(frame, classes)
             if not np.isfinite(probs).all() or (probs < 0).any() or (probs > 1).any():
                 problems.append(f"{name}: probabilities not finite in [0, 1]")
             elif not np.allclose(probs.sum(axis=1), 1, atol=1e-6, rtol=0):
                 problems.append(f"{name}: probabilities do not sum to one")
+            unused = [
+                c
+                for c in frame
+                if c.startswith("p_") and c not in {f"p_{i}" for i in range(len(classes))}
+            ]
+            if unused and frame[unused].notna().any().any():
+                problems.append(f"{name}: probabilities for classes absent from training")
         return _result(
             VerificationCheck.FINITE_OUTPUTS,
             not problems,
@@ -287,22 +362,22 @@ class _Checks:
         reported = self.e.test_scores.get("metrics", {})
         for metric in wanted:
             ours = recompute(metric, y_test, self.e.test_predictions, self.task, self.classes)
-            if not _agrees(ours, reported.get(metric.value)):
+            if metric.value not in reported or not _agrees(ours, reported[metric.value]):
                 mismatches.append(f"test.{metric.value}")
-        folds = self.e.validation_scores.get("folds", [])
-        for number, fold in enumerate(folds):
-            rows = self.e.validation_predictions[self.e.validation_predictions["fold"] == number]
+        scores = self.e.validation_scores.get("folds", [])
+        if not self.e.validation_folds or len(scores) != len(self.e.validation_folds):
+            mismatches.append("validation.folds")
+        for number in range(len(self.e.validation_folds)):
+            if number >= len(scores):
+                continue
+            rows = self._fold_predictions(number)
             y = self.e.target.iloc[rows["row_id"].to_numpy()].to_numpy()
-            fold_classes = sorted(
-                self.e.target.iloc[np.setdiff1d(self.e.development_ids, rows["row_id"].to_numpy())]
-                .unique()
-                .tolist()
-            )
-            classes = fold_classes if _classification(self.task) else []
             predictions = rows.drop(columns=["fold", "row_id"])
-            ours = recompute(contract.primary_metric, y, predictions, self.task, classes)
-            if not _agrees(ours, fold.get("metrics", {}).get(contract.primary_metric.value)):
-                mismatches.append(f"validation.fold{number}.{contract.primary_metric.value}")
+            reported = scores[number].get("metrics", {})
+            for metric in wanted:
+                ours = recompute(metric, y, predictions, self.task, self._fold_classes(number))
+                if metric.value not in reported or not _agrees(ours, reported[metric.value]):
+                    mismatches.append(f"validation.fold{number}.{metric.value}")
         return _result(
             VerificationCheck.METRIC_RECOMPUTATION,
             not mismatches,
@@ -311,7 +386,7 @@ class _Checks:
             else "recomputed metrics differ from the harness",
             {
                 "test_metrics": len(wanted),
-                "validation_folds": len(folds),
+                "validation_folds": len(scores),
                 "mismatches": mismatches[:20],
             },
         )
@@ -331,14 +406,26 @@ class _Checks:
         )
 
     def resource_limits(self) -> CheckResult:
-        failed = [stage.status for stage in self.e.stages if stage.status != "completed"]
+        failures = [stage.status for stage in self.e.stages if stage.status != "completed"]
+        wrong_limits = [
+            index
+            for index, stage in enumerate(self.e.stages)
+            if stage.limits != SandboxLimits.from_job(self.e.job_limits)
+        ]
+        expected_actions = ["fit", "predict"] * (len(self.e.validation_folds) + 1)
+        complete = [stage.action for stage in self.e.stages] == expected_actions
+        ok = not failures and not wrong_limits and complete
         return _result(
             VerificationCheck.RESOURCE_LIMITS,
-            not failed,
-            "every stage completed inside its sandbox limits"
-            if not failed
-            else f"stages ended {sorted(set(failed))}",
-            {"stages": len(self.e.stages)},
+            ok,
+            "every stage completed inside the submitted job's limits"
+            if ok
+            else "a stage failed, is missing, or used different resource limits",
+            {
+                "stages": len(self.e.stages),
+                "wrong_limits": wrong_limits,
+                "complete_stage_sequence": complete,
+            },
         )
 
 
