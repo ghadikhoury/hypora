@@ -16,6 +16,7 @@ jobs:
   check:
     # Runs exactly what developers run locally (PLAN.md S0.1: `make setup && make check`):
     # ruff, mypy, pytest, and a full-history gitleaks scan (`make secrets`, Docker).
+    # The job name is the required status check on main (D-013); keep it.
     name: make check
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -28,7 +29,19 @@ jobs:
         with:
           version: "0.12.17"
           enable-cache: true
+      # `make setup` installs the pre-commit hook environments; the gitleaks hook is a Go hook,
+      # so without this cache every run downloads Go and compiles gitleaks (~25 s).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
       - name: make setup
         run: make setup
+      # The same build the first sandbox test would trigger, as its own step so its time is
+      # visible (the image is then found by tag; `make check` itself is unchanged).
+      - name: make sandbox-image
+        run: make sandbox-image
       - name: make check
+        env:
+          PYTEST_ADDOPTS: --durations=15 # list the slowest tests in the log
         run: make check
