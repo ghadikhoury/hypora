@@ -1,0 +1,566 @@
+{
+  "schema": "hypora.stage1_smoke/v1",
+  "step": "S1.7",
+  "recorded": false,
+  "label": "dev/unrecorded smoke run (D-016, D-027); not an evaluation or model selection",
+  "variant": "luna",
+  "profile": "dev",
+  "models": [
+    "openai/gpt-6-luna"
+  ],
+  "billing": "paid: list price is what OpenAI bills",
+  "code": {
+    "commit": "f09645fcb68a6f0ec501eda100ba061c1b1efed5",
+    "dirty": false
+  },
+  "collected_with": {
+    "commit": "de391898d8f31460207e54aa8db401393e04d73c",
+    "dirty": false
+  },
+  "config_hash": "494ffb288490ee7235fff4482e0241a13bac7012590dd5e5455857fa296cb901",
+  "task": {
+    "task_id": "credit-g",
+    "goal": "Predict whether a loan applicant is a good or bad credit risk",
+    "target": "good_or_bad_customer"
+  },
+  "dataset": {
+    "snapshot": "openml-46918-credit-g",
+    "source": "openml",
+    "dataset_id": 46918,
+    "title": "credit-g",
+    "version": "5",
+    "license": "CC-BY-4.0",
+    "source_url": "https://www.openml.org/d/46918",
+    "rows": 1000,
+    "columns": 21,
+    "sha256": "ef789622335b73bbe9f26f06a5557cec6f29118cb88bb58d82ba234e4a1d5270",
+    "profiled_fingerprint_matches": true
+  },
+  "run": {
+    "run_id": "run_s17_luna_credit_g_1793034159",
+    "status": "DONE",
+    "last_stage": null,
+    "verified": true,
+    "final_trial_id": "trl_71813aea",
+    "test_metric": "roc_auc",
+    "test_value": 0.7671428571428572,
+    "trials": {
+      "submitted": 1,
+      "verified": 1,
+      "validated": 1
+    },
+    "jobs": {
+      "COMPLETED": 3,
+      "CANCELLED": 1
+    },
+    "wall_clock_s": 224.5,
+    "sandbox_compute_s": 212.176842,
+    "budget_usd": 0.45,
+    "limits_fired": [
+      "max_llm_tokens"
+    ],
+    "errors": {
+      "RUN_LIMIT_REACHED": 1
+    },
+    "narrative_written": false,
+    "notes": [
+      "Stage-1 placeholder (D-019): contract built by code, plan approved by policy; replaced by the Data Lead (S3.A2) and the plan gate (S3.D2).",
+      "flags.agent_mode is 'multi', but Stage 1 has only the single agent (spec \u00a76.9), which this run used; the multi-agent roles arrive in S4.1.",
+      "The agent was stopped after 53 model turns, 84 tool calls: max_llm_tokens reached (1.00996e+06 of 1e+06).",
+      "Cancelled 1 unfinished job(s): a run limit fired.",
+      "Final candidate trl_71813aea: best mean validation roc_auc.",
+      "Final job job_1793034312176695695_bcb283: test split scored once; verifier v1 passed."
+    ]
+  },
+  "llm": {
+    "calls": 54,
+    "calls_failed": 0,
+    "failed_by_code": {},
+    "schema_retries": 0,
+    "retries": 0,
+    "input_tokens": 1004017,
+    "cached_input_tokens": 974225,
+    "output_tokens": 5940,
+    "cost_usd": 0.016416,
+    "spent_usd_ledger": 0.01641629,
+    "latency_s": 128.2,
+    "rate_limit_wait_s": 0.0,
+    "by_role": {
+      "intake": {
+        "calls": 1,
+        "input_tokens": 640,
+        "output_tokens": 79,
+        "cost_usd": 0.000103
+      },
+      "single_agent": {
+        "calls": 53,
+        "input_tokens": 1003377,
+        "output_tokens": 5861,
+        "cost_usd": 0.016313
+      }
+    },
+    "per_call": [
+      {
+        "role": "intake",
+        "tier": "cheap",
+        "input_tokens": 640,
+        "cached_input_tokens": 0,
+        "output_tokens": 79,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 5032,
+        "cached_input_tokens": 0,
+        "output_tokens": 33,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 8799,
+        "cached_input_tokens": 5029,
+        "output_tokens": 509,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 9631,
+        "cached_input_tokens": 8796,
+        "output_tokens": 48,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 9820,
+        "cached_input_tokens": 9628,
+        "output_tokens": 847,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 10986,
+        "cached_input_tokens": 9817,
+        "output_tokens": 46,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 11169,
+        "cached_input_tokens": 10983,
+        "output_tokens": 537,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 12032,
+        "cached_input_tokens": 11166,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 12217,
+        "cached_input_tokens": 12029,
+        "output_tokens": 122,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 12700,
+        "cached_input_tokens": 12214,
+        "output_tokens": 119,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 13180,
+        "cached_input_tokens": 12697,
+        "output_tokens": 49,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 13351,
+        "cached_input_tokens": 13177,
+        "output_tokens": 131,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 13843,
+        "cached_input_tokens": 13348,
+        "output_tokens": 53,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 14018,
+        "cached_input_tokens": 13840,
+        "output_tokens": 130,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 14509,
+        "cached_input_tokens": 14015,
+        "output_tokens": 42,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 14673,
+        "cached_input_tokens": 14506,
+        "output_tokens": 127,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 15161,
+        "cached_input_tokens": 14670,
+        "output_tokens": 60,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 15343,
+        "cached_input_tokens": 15158,
+        "output_tokens": 124,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 15828,
+        "cached_input_tokens": 15340,
+        "output_tokens": 66,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 16016,
+        "cached_input_tokens": 15825,
+        "output_tokens": 130,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 16507,
+        "cached_input_tokens": 16013,
+        "output_tokens": 60,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 16689,
+        "cached_input_tokens": 16504,
+        "output_tokens": 144,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 17194,
+        "cached_input_tokens": 16686,
+        "output_tokens": 62,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 17378,
+        "cached_input_tokens": 17191,
+        "output_tokens": 123,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 17862,
+        "cached_input_tokens": 17375,
+        "output_tokens": 102,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 18337,
+        "cached_input_tokens": 17859,
+        "output_tokens": 90,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 18666,
+        "cached_input_tokens": 18334,
+        "output_tokens": 34,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 20372,
+        "cached_input_tokens": 18663,
+        "output_tokens": 92,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 20703,
+        "cached_input_tokens": 20369,
+        "output_tokens": 41,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 20863,
+        "cached_input_tokens": 20700,
+        "output_tokens": 86,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 21188,
+        "cached_input_tokens": 20860,
+        "output_tokens": 46,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 21353,
+        "cached_input_tokens": 21185,
+        "output_tokens": 86,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 21678,
+        "cached_input_tokens": 21350,
+        "output_tokens": 86,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 21883,
+        "cached_input_tokens": 21675,
+        "output_tokens": 91,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 22213,
+        "cached_input_tokens": 21880,
+        "output_tokens": 46,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 22378,
+        "cached_input_tokens": 22210,
+        "output_tokens": 101,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 22718,
+        "cached_input_tokens": 22375,
+        "output_tokens": 49,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 22886,
+        "cached_input_tokens": 22715,
+        "output_tokens": 95,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 23220,
+        "cached_input_tokens": 22883,
+        "output_tokens": 96,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 23386,
+        "cached_input_tokens": 23217,
+        "output_tokens": 45,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 23550,
+        "cached_input_tokens": 23383,
+        "output_tokens": 86,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 23875,
+        "cached_input_tokens": 23547,
+        "output_tokens": 50,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 24044,
+        "cached_input_tokens": 23872,
+        "output_tokens": 106,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 24389,
+        "cached_input_tokens": 24041,
+        "output_tokens": 65,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 24573,
+        "cached_input_tokens": 24386,
+        "output_tokens": 89,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 24901,
+        "cached_input_tokens": 24570,
+        "output_tokens": 77,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 25097,
+        "cached_input_tokens": 24898,
+        "output_tokens": 94,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 25430,
+        "cached_input_tokens": 25094,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 25596,
+        "cached_input_tokens": 25427,
+        "output_tokens": 96,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 25931,
+        "cached_input_tokens": 25593,
+        "output_tokens": 65,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 26115,
+        "cached_input_tokens": 25928,
+        "output_tokens": 96,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 26692,
+        "cached_input_tokens": 26112,
+        "output_tokens": 44,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 28406,
+        "cached_input_tokens": 26689,
+        "output_tokens": 109,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 28996,
+        "cached_input_tokens": 28403,
+        "output_tokens": 42,
+        "status": "ok"
+      }
+    ]
+  },
+  "tools": {
+    "calls": 84,
+    "by_tool": {
+      "get_experiment_logs": 1,
+      "get_experiment_metrics": 2,
+      "get_experiment_status": 74,
+      "inspect_dataset": 1,
+      "submit_experiment": 3,
+      "write_trial_files": 3
+    },
+    "failed": {}
+  },
+  "events": {
+    "count": 435,
+    "bytes": 255289,
+    "by_type": {
+      "approval_granted": 1,
+      "approval_requested": 1,
+      "error": 1,
+      "handoff": 4,
+      "job_transition": 29,
+      "model_call": 54,
+      "policy_decision": 168,
+      "role_started": 3,
+      "stage_transition": 6,
+      "tool_call": 84,
+      "tool_result": 84
+    }
+  }
+}

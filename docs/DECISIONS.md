@@ -609,3 +609,33 @@ one it supersedes.
 - Consequences: AGENTS.md separates coding-agent checks from reviewer verification; PLAN.md's
   review flow agrees; README defers local-check requirements to AGENTS.md. No runtime, model,
   schema, tool, event, or grading behavior changes.
+
+## D-027 — S1.7 adds a one-off gpt-6-luna smoke comparison; not a model selection
+- Date: 2026-10-26
+- Step: S1.7. Partly supersedes D-016 (S1.7 runs on dev only) and D-008 (no OpenAI calls before
+  S2.6), for this step only
+- Decided by: Ghadi (option B of the S1.7 stop-and-ask: "Run the 2 smoke tasks on Gemini first,
+  then on OpenAI gpt-6-luna only")
+- Options considered: (a) dev-only S1.7 as D-016 states, projecting OpenAI costs only;
+  (b, chosen) also run the two smoke tasks once on gpt-6-luna, unpinned; (c) pin the eval model
+  now.
+- Decision:
+  - The two S1.7 smoke tasks run on the `dev` profile as configured (gemini-3.5-flash-lite), then
+    once more with every `dev` tier mapped to `openai/gpt-6-luna` **in memory** by
+    `scripts/stage1_smoke.py`. No config file changes. The `eval` profile is not pinned, edited,
+    or used, and the script checks that it is unchanged.
+  - Every run is labeled **dev / unrecorded**. It is a smoke comparison, not an evaluation and
+    not a model selection: S2.6 still chooses the eval model by cost per passed trap (D-007).
+  - The Luna runs start only after Ghadi has seen a dollar estimate from the Gemini token counts
+    and said "go". Their total OpenAI spend has a **hard cap of $1.00**, enforced by the script
+    from the spend recorded in its state database: each run's budget is the remaining cap minus
+    a $0.05 margin, split over the runs left, and at most $0.45.
+  - `docs/notes/cost-estimate.md` keeps the measured Gemini and Luna numbers separate from the
+    projections for the other S2.6 candidates.
+- Why: an early, cheap look at how the system behaves on an OpenAI model and what a run costs
+  there helps budget the final evaluation and gives early warning for the model policy
+  (PLAN.md §1), without spending more than $1 or deciding S2.6 in advance.
+- Consequences: S1.7's Done-when (both tasks complete on `dev`; per-run token and cost numbers in
+  `docs/notes/cost-estimate.md`) is unchanged; the Luna records are extra evidence under
+  `results/stage1/luna/`. D-016's matching `eval` evidence still follows at S2.6. No schema,
+  tool, event, model-profile, case, grading-rule, or hidden-split change.

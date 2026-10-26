@@ -1,0 +1,563 @@
+{
+  "schema": "hypora.stage1_smoke/v1",
+  "step": "S1.7",
+  "recorded": false,
+  "label": "dev/unrecorded smoke run (D-016, D-027); not an evaluation or model selection",
+  "variant": "gemini",
+  "profile": "dev",
+  "models": [
+    "gemini/gemini-3.5-flash-lite"
+  ],
+  "billing": "free tier: actual spend $0; cost_usd is the paid-tier list price",
+  "code": {
+    "commit": "f09645fcb68a6f0ec501eda100ba061c1b1efed5",
+    "dirty": false
+  },
+  "collected_with": {
+    "commit": "de391898d8f31460207e54aa8db401393e04d73c",
+    "dirty": false
+  },
+  "config_hash": "ffa13b75395054d4985529ae87f4877246853ed5af6902c6488dd74703f1da88",
+  "task": {
+    "task_id": "fish-toxicity",
+    "goal": "Predict a chemical's acute toxicity to fish (LC50) from its molecular descriptors",
+    "target": "LC50"
+  },
+  "dataset": {
+    "snapshot": "openml-46954-qsar-fish-toxicity",
+    "source": "openml",
+    "dataset_id": 46954,
+    "title": "QSAR_fish_toxicity",
+    "version": "8",
+    "license": "CC-BY-4.0",
+    "source_url": "https://www.openml.org/d/46954",
+    "rows": 907,
+    "columns": 7,
+    "sha256": "3b6dba16ff93c7edb9d63cf23c44be5ea26e76faedbe0d4db9250284f240d98e",
+    "profiled_fingerprint_matches": true
+  },
+  "run": {
+    "run_id": "run_s17_gemini_fish_toxicity_1793032413",
+    "status": "DONE",
+    "last_stage": null,
+    "verified": true,
+    "final_trial_id": "trl_bf0f8322",
+    "test_metric": "mae",
+    "test_value": 0.6097134493284491,
+    "trials": {
+      "validated": 6,
+      "verified": 1
+    },
+    "jobs": {
+      "COMPLETED": 8
+    },
+    "wall_clock_s": 1245.3,
+    "sandbox_compute_s": 476.803817,
+    "budget_usd": null,
+    "limits_fired": [],
+    "errors": {},
+    "narrative_written": true,
+    "notes": [
+      "Stage-1 placeholder (D-019): contract built by code, plan approved by policy; replaced by the Data Lead (S3.A2) and the plan gate (S3.D2).",
+      "flags.agent_mode is 'multi', but Stage 1 has only the single agent (spec \u00a76.9), which this run used; the multi-agent roles arrive in S4.1.",
+      "The agent finished after 52 model turns, 50 tool calls; it nominated trl_bf0f8322.",
+      "Final candidate trl_bf0f8322: nominated by the agent.",
+      "Final job job_1793033567561696046_489a9d: test split scored once; verifier v1 passed."
+    ]
+  },
+  "llm": {
+    "calls": 54,
+    "calls_failed": 0,
+    "failed_by_code": {},
+    "schema_retries": 0,
+    "retries": 1,
+    "input_tokens": 988799,
+    "cached_input_tokens": 781522,
+    "output_tokens": 5570,
+    "cost_usd": 0.099554,
+    "spent_usd_ledger": 0.09955376,
+    "latency_s": 940.9,
+    "rate_limit_wait_s": 1.6,
+    "by_role": {
+      "intake": {
+        "calls": 1,
+        "input_tokens": 347,
+        "output_tokens": 65,
+        "cost_usd": 0.000267
+      },
+      "reporter": {
+        "calls": 1,
+        "input_tokens": 2103,
+        "output_tokens": 215,
+        "cost_usd": 0.001168
+      },
+      "single_agent": {
+        "calls": 52,
+        "input_tokens": 986349,
+        "output_tokens": 5290,
+        "cost_usd": 0.098119
+      }
+    },
+    "per_call": [
+      {
+        "role": "intake",
+        "tier": "cheap",
+        "input_tokens": 347,
+        "cached_input_tokens": 0,
+        "output_tokens": 65,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 6129,
+        "cached_input_tokens": 0,
+        "output_tokens": 36,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 8357,
+        "cached_input_tokens": 6092,
+        "output_tokens": 375,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 9184,
+        "cached_input_tokens": 6090,
+        "output_tokens": 63,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 9432,
+        "cached_input_tokens": 6085,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 9625,
+        "cached_input_tokens": 6080,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 9818,
+        "cached_input_tokens": 0,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 10011,
+        "cached_input_tokens": 6071,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 10568,
+        "cached_input_tokens": 8092,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 11463,
+        "cached_input_tokens": 8093,
+        "output_tokens": 355,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 12266,
+        "cached_input_tokens": 10116,
+        "output_tokens": 63,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 12513,
+        "cached_input_tokens": 10110,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 12705,
+        "cached_input_tokens": 10104,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 12897,
+        "cached_input_tokens": 10099,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 13089,
+        "cached_input_tokens": 10093,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 13654,
+        "cached_input_tokens": 10092,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 14543,
+        "cached_input_tokens": 12113,
+        "output_tokens": 390,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 15379,
+        "cached_input_tokens": 12114,
+        "output_tokens": 64,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 15627,
+        "cached_input_tokens": 12109,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 15819,
+        "cached_input_tokens": 12104,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 16011,
+        "cached_input_tokens": 12099,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 16203,
+        "cached_input_tokens": 14109,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 16771,
+        "cached_input_tokens": 14108,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 17654,
+        "cached_input_tokens": 0,
+        "output_tokens": 354,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 18450,
+        "cached_input_tokens": 16130,
+        "output_tokens": 62,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 18696,
+        "cached_input_tokens": 16125,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 18888,
+        "cached_input_tokens": 16119,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 19080,
+        "cached_input_tokens": 16113,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 19272,
+        "cached_input_tokens": 16108,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 19845,
+        "cached_input_tokens": 16108,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 20734,
+        "cached_input_tokens": 18126,
+        "output_tokens": 355,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 21535,
+        "cached_input_tokens": 18128,
+        "output_tokens": 63,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 21783,
+        "cached_input_tokens": 18124,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 21976,
+        "cached_input_tokens": 18118,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 22169,
+        "cached_input_tokens": 20125,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 22362,
+        "cached_input_tokens": 20120,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 22932,
+        "cached_input_tokens": 20120,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 23821,
+        "cached_input_tokens": 20125,
+        "output_tokens": 391,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 24659,
+        "cached_input_tokens": 22141,
+        "output_tokens": 63,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 24904,
+        "cached_input_tokens": 22136,
+        "output_tokens": 46,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 25094,
+        "cached_input_tokens": 22131,
+        "output_tokens": 46,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 25284,
+        "cached_input_tokens": 22125,
+        "output_tokens": 46,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 25474,
+        "cached_input_tokens": 22119,
+        "output_tokens": 46,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 26036,
+        "cached_input_tokens": 22120,
+        "output_tokens": 46,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 26924,
+        "cached_input_tokens": 24136,
+        "output_tokens": 409,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 27783,
+        "cached_input_tokens": 24141,
+        "output_tokens": 62,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 28028,
+        "cached_input_tokens": 24136,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 28219,
+        "cached_input_tokens": 26142,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 28410,
+        "cached_input_tokens": 26136,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 28601,
+        "cached_input_tokens": 26130,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 29162,
+        "cached_input_tokens": 26131,
+        "output_tokens": 47,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 30052,
+        "cached_input_tokens": 26136,
+        "output_tokens": 512,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 26458,
+        "cached_input_tokens": 0,
+        "output_tokens": 33,
+        "status": "ok"
+      },
+      {
+        "role": "reporter",
+        "tier": "cheap",
+        "input_tokens": 2103,
+        "cached_input_tokens": 0,
+        "output_tokens": 215,
+        "status": "ok"
+      }
+    ]
+  },
+  "tools": {
+    "calls": 50,
+    "by_tool": {
+      "get_experiment_metrics": 7,
+      "get_experiment_status": 28,
+      "inspect_dataset": 1,
+      "submit_experiment": 7,
+      "write_trial_files": 7
+    },
+    "failed": {}
+  },
+  "events": {
+    "count": 325,
+    "bytes": 203946,
+    "by_type": {
+      "approval_granted": 1,
+      "approval_requested": 1,
+      "handoff": 4,
+      "job_transition": 56,
+      "model_call": 54,
+      "policy_decision": 100,
+      "role_started": 3,
+      "stage_transition": 6,
+      "tool_call": 50,
+      "tool_result": 50
+    }
+  }
+}
