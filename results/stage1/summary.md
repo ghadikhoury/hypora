@@ -5,12 +5,12 @@ run is **dev / unrecorded** (D-016, D-027): a check that the system works end to
 an evaluation and not a model selection. Costs are list prices; Gemini free-tier runs
 cost $0.
 
-| Variant | Task | Model | Status | Verified | Test metric | Trials | Model calls | Tokens in / out | Cost (list) | Tool calls / failed | Events (bytes) | Wall clock |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| gemini | credit-g | gemini/gemini-3.5-flash-lite | DONE | yes | roc_auc 0.7348 | 4 | 26 | 496,640 / 4,871 | $0.0570 | 22 / 0 | 172 (106,695) | 815 s |
-| gemini | fish-toxicity | gemini/gemini-3.5-flash-lite | DONE | yes | mae 0.6097 | 7 | 54 | 988,799 / 5,570 | $0.0996 | 50 / 0 | 325 (203,946) | 1245 s |
-| luna | credit-g | openai/gpt-6-luna | DONE | yes | roc_auc 0.7671 | 3 | 54 | 1,004,017 / 5,940 | $0.0164 | 84 / 0 | 435 (255,289) | 224 s |
-| luna | fish-toxicity | openai/gpt-6-luna | DONE | yes | mae 0.6458 | 3 | 56 | 1,010,643 / 6,095 | $0.0160 | 110 / 0 | 541 (316,339) | 234 s |
+| Variant | Task | Model | Status | Verified | Test metric | Limits fired | Trials | Model calls | Tokens in (cached) / out | Cost (list) | Tool calls / failed | Events (bytes) | Wall clock |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| gemini | credit-g | gemini/gemini-3.5-flash-lite | DONE | yes | roc_auc 0.7348 | none | 4 | 26 | 496,640 (385,860) / 4,871 | $0.0570 | 22 / 0 | 172 (106,695) | 815 s |
+| gemini | fish-toxicity | gemini/gemini-3.5-flash-lite | DONE | yes | mae 0.6097 | none | 7 | 54 | 988,799 (781,522) / 5,570 | $0.0996 | 50 / 0 | 325 (203,946) | 1245 s |
+| luna | credit-g | openai/gpt-6-luna | DONE | yes | roc_auc 0.7671 | max_llm_tokens | 3 | 54 | 1,004,017 (974,225) / 5,940 | $0.0164 | 84 / 0 | 435 (255,289) | 224 s |
+| luna | fish-toxicity | openai/gpt-6-luna | DONE | yes | mae 0.6458 | max_llm_tokens | 3 | 56 | 1,010,643 (985,981) / 6,095 | $0.0160 | 110 / 0 | 541 (316,339) | 234 s |
 
 Run IDs (inspect with `hypora trace <id> --db runs/stage1/hypora.sqlite`):
 

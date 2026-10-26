@@ -13,6 +13,10 @@
     "commit": "f09645fcb68a6f0ec501eda100ba061c1b1efed5",
     "dirty": false
   },
+  "collected_with": {
+    "commit": "de391898d8f31460207e54aa8db401393e04d73c",
+    "dirty": false
+  },
   "config_hash": "494ffb288490ee7235fff4482e0241a13bac7012590dd5e5455857fa296cb901",
   "task": {
     "task_id": "fish-toxicity",
@@ -29,7 +33,8 @@
     "source_url": "https://www.openml.org/d/46954",
     "rows": 907,
     "columns": 7,
-    "sha256": "3b6dba16ff93c7edb9d63cf23c44be5ea26e76faedbe0d4db9250284f240d98e"
+    "sha256": "3b6dba16ff93c7edb9d63cf23c44be5ea26e76faedbe0d4db9250284f240d98e",
+    "profiled_fingerprint_matches": true
   },
   "run": {
     "run_id": "run_s17_luna_fish_toxicity_1793034385",
@@ -50,11 +55,27 @@
     },
     "wall_clock_s": 234.3,
     "sandbox_compute_s": 226.478807,
-    "budget_usd": 0.45
+    "budget_usd": 0.45,
+    "limits_fired": [
+      "max_llm_tokens"
+    ],
+    "errors": {
+      "RUN_LIMIT_REACHED": 1
+    },
+    "narrative_written": false,
+    "notes": [
+      "Stage-1 placeholder (D-019): contract built by code, plan approved by policy; replaced by the Data Lead (S3.A2) and the plan gate (S3.D2).",
+      "flags.agent_mode is 'multi', but Stage 1 has only the single agent (spec \u00a76.9), which this run used; the multi-agent roles arrive in S4.1.",
+      "The agent was stopped after 55 model turns, 110 tool calls: max_llm_tokens reached (1.01674e+06 of 1e+06).",
+      "Cancelled 1 unfinished job(s): a run limit fired.",
+      "Final candidate trl_ee93e58c: best mean validation mae.",
+      "Final job job_1793034548168864568_aaad62: test split scored once; verifier v1 passed."
+    ]
   },
   "llm": {
     "calls": 56,
     "calls_failed": 0,
+    "failed_by_code": {},
     "schema_retries": 0,
     "retries": 0,
     "input_tokens": 1010643,
@@ -531,6 +552,14 @@
   },
   "tools": {
     "calls": 110,
+    "by_tool": {
+      "get_experiment_logs": 1,
+      "get_experiment_metrics": 2,
+      "get_experiment_status": 100,
+      "inspect_dataset": 1,
+      "submit_experiment": 3,
+      "write_trial_files": 3
+    },
     "failed": {}
   },
   "events": {

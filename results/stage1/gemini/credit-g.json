@@ -13,6 +13,10 @@
     "commit": "f09645fcb68a6f0ec501eda100ba061c1b1efed5",
     "dirty": false
   },
+  "collected_with": {
+    "commit": "de391898d8f31460207e54aa8db401393e04d73c",
+    "dirty": false
+  },
   "config_hash": "ffa13b75395054d4985529ae87f4877246853ed5af6902c6488dd74703f1da88",
   "task": {
     "task_id": "credit-g",
@@ -29,7 +33,8 @@
     "source_url": "https://www.openml.org/d/46918",
     "rows": 1000,
     "columns": 21,
-    "sha256": "ef789622335b73bbe9f26f06a5557cec6f29118cb88bb58d82ba234e4a1d5270"
+    "sha256": "ef789622335b73bbe9f26f06a5557cec6f29118cb88bb58d82ba234e4a1d5270",
+    "profiled_fingerprint_matches": true
   },
   "run": {
     "run_id": "run_s17_gemini_credit_g_1793031597",
@@ -49,11 +54,22 @@
     },
     "wall_clock_s": 815.2,
     "sandbox_compute_s": 309.704306,
-    "budget_usd": null
+    "budget_usd": null,
+    "limits_fired": [],
+    "errors": {},
+    "narrative_written": true,
+    "notes": [
+      "Stage-1 placeholder (D-019): contract built by code, plan approved by policy; replaced by the Data Lead (S3.A2) and the plan gate (S3.D2).",
+      "flags.agent_mode is 'multi', but Stage 1 has only the single agent (spec \u00a76.9), which this run used; the multi-agent roles arrive in S4.1.",
+      "The agent finished after 24 model turns, 22 tool calls; it nominated trl_fed9330a.",
+      "Final candidate trl_fed9330a: nominated by the agent.",
+      "Final job job_1793032323214169504_4d41d6: test split scored once; verifier v1 passed."
+    ]
   },
   "llm": {
     "calls": 26,
     "calls_failed": 0,
+    "failed_by_code": {},
     "schema_retries": 0,
     "retries": 0,
     "input_tokens": 496640,
@@ -296,6 +312,13 @@
   },
   "tools": {
     "calls": 22,
+    "by_tool": {
+      "get_experiment_metrics": 4,
+      "get_experiment_status": 7,
+      "inspect_dataset": 1,
+      "submit_experiment": 5,
+      "write_trial_files": 5
+    },
     "failed": {}
   },
   "events": {
