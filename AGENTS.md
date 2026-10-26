@@ -113,7 +113,8 @@ Items marked **planned** do not exist yet: never call or rely on them until thei
   runs are the exception, not the default.
 - **Now:** while iterating, run only the tests for what you changed plus `make lint` and
   `make typecheck`. Run the full `make check` once before opening the PR and once after the last
-  review fix.
+  review fix. Docs-only PRs (Markdown only) skip the full run: run the tests that read the changed
+  files (e.g. `tests/unit/test_repo_conventions.py` for AGENTS.md) and let CI cover the rest.
 - **Planned, `make check-fast`:** ruff, mypy, gitleaks, and every test that starts no container. Once
   it exists, run `make check-fast` plus the specific tests for what you changed (their Docker-based
   ones included) before opening a PR, instead of the full `make check`. Run the full `make check`
