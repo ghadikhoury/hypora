@@ -80,6 +80,13 @@ commits from WSL so the pre-commit hooks can run. All text files use LF line end
 | `make sandbox-image` | Build the hash-tagged tabular sandbox image (needs Docker) |
 | `make sandbox-lock` | Re-lock the sandbox image's packages (with hashes) after editing `requirements-tabular.in` |
 | `make check` | `lint` + `typecheck` + `test` + `secrets`; must pass before every PR |
+| `make run` | Run the agent end to end (`hypora run`): the demo task on OpenML 46918, or `DATA=<file> GOAL="..." [TARGET=<col>]`. Makes live model calls on the active profile, so like `make test-live` it runs only when Ghadi says so |
+| `make snapshot SOURCE=openml\|uci ID=<id>` | Fetch a real dataset into `data/snapshots/` with its manifest entry (D-015, D-021) |
+| `make eval` | Placeholder until the evaluation runner (S2.4) |
+| `make up` / `make worker-up` / `make down` | Mode 1 compose stack: the API placeholder; the opt-in compose experiment worker (D-020); stop both |
+
+The `hypora` CLI (`uv run hypora run | status | trace | cancel | approve`) is documented in
+`docs/notes/cli.md`.
 
 **Layout:** all Python code lives in the top-level `hypora/` package, which mirrors spec §22.1
 (`hypora/core/...`, `hypora/execution/...`), so imports look like `hypora.core.schemas`. `web/`,

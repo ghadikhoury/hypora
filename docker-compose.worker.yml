@@ -1,0 +1,58 @@
+# Opt-in experiment worker service (PLAN.md S1.6; D-020), layered on docker-compose.yml:
+#
+#   make worker-up     builds and starts it; then `hypora run --worker compose ...`
+#
+# make supplies the five variables (REPO_DIR, RUNS_DIR, WORKER_UID, WORKER_GID, DOCKER_GID);
+# without them compose refuses to start, rather than guessing paths or running as root.
+#
+# PLATFORM-ONLY PRIVILEGE: this is the one Hypora container given the host's Docker socket,
+# because the worker launches the sandbox containers that run LLM-written trial code. Whoever holds
+# the socket controls the host's Docker, so only platform code (the worker) gets it; sandboxes never
+# do (hypora/execution/sandbox/launcher.py), and the worker has no network. See
+# docs/notes/docker-compose.md for the threat model.
+#
+# Same paths on both sides: Docker resolves every sandbox mount the worker requests on the HOST.
+# So the job folders (runs/) and the platform code the sandbox mounts read-only (the harness,
+# hypora/execution/harness) are mounted here at their host paths, and the worker imports the
+# checkout's code from that mount (PYTHONPATH, working directory /tmp) rather than the image's
+# copy in /app, which exists only in the image. The checkout's .env is not mounted.
+
+services:
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: hypora-platform:local
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    # The host user, so the files it writes in runs/ stay the host user's, plus the group that owns
+    # the Docker socket (needed to use it as a non-root user).
+    user: "${WORKER_UID:?run make worker-up}:${WORKER_GID:?run make worker-up}"
+    group_add:
+      - "${DOCKER_GID:?run make worker-up}"
+    working_dir: /tmp
+    environment:
+      HOME: /tmp
+      PYTHONPATH: ${REPO_DIR:?run make worker-up}
+    # No network: the worker only talks to Docker, over the socket. Image builds and pulls are done
+    # by the Docker daemon, not by this container.
+    network_mode: none
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # the platform-only privilege (see above)
+      - ${REPO_DIR:?run make worker-up}/hypora:${REPO_DIR:?run make worker-up}/hypora:ro
+      - ${REPO_DIR:?run make worker-up}/configs:${REPO_DIR:?run make worker-up}/configs:ro
+      - ${RUNS_DIR:?run make worker-up}:${RUNS_DIR:?run make worker-up}
+    command:
+      - python
+      - -m
+      - hypora.execution.worker.experiments
+      - --db
+      - ${RUNS_DIR:?run make worker-up}/hypora.sqlite
+      - --runs-root
+      - ${RUNS_DIR:?run make worker-up}
+      - --worker-id
+      - compose-worker

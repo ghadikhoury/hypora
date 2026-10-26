@@ -1,0 +1,40 @@
+# Hypora Mode 1 stack, Stage 1 skeleton (PLAN.md S1.6; spec §4.1; D-020). S4.4 completes it (web,
+# API, controller, MCP server, worker, DB).
+#
+#   make up          (or `docker compose up -d`)  the API placeholder on 127.0.0.1:8000 + state volume
+#   make worker-up   opt-in: adds docker-compose.worker.yml, the experiment worker service
+#   make down        stop everything
+#
+# The agent itself runs on the host (`make run` / `hypora run`). Mode 1's default experiment worker
+# is a host process started per run (D-019, D-020); the opt-in compose worker is the alternative
+# for `hypora run --worker compose`. This default file grants no container the Docker socket.
+#
+# State volume: the host's runs/ folder (SQLite state database + run folders), bind-mounted rather
+# than a named volume, because the host CLI, the host worker, and these services share one SQLite
+# file, and SQLite's WAL mode needs them on one host filesystem (docs/notes/docker-compose.md).
+
+name: hypora
+
+services:
+  api:
+    # Placeholder until S3.G1: GET /health only (hypora/api/placeholder.py).
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: hypora-platform:local
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    command: ["python", "-m", "hypora.api", "--host", "0.0.0.0", "--port", "8000", "--state-dir", "/state"]
+    ports:
+      - "127.0.0.1:8000:8000" # localhost only
+    volumes:
+      - ${RUNS_DIR:-./runs}:/state:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 3

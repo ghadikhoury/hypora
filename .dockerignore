@@ -1,0 +1,10 @@
+# Build context of the platform image (Dockerfile): an allowlist. Everything else, above all
+# .env (API keys), runs/, data/, .venv/, and .git/, stays out of the image.
+*
+!pyproject.toml
+!uv.lock
+!.python-version
+!configs/
+!hypora/
+**/__pycache__
+**/*.pyc

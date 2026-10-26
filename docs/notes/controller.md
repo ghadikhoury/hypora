@@ -12,7 +12,8 @@ uv run --locked python -m hypora.core.controller --data data.csv --goal "..." [-
 
 runs one dataset and goal end to end on the active model profile and prints the run's state,
 final trial, limits that fired, and the report path. It needs Docker and the provider key in
-`.env`. The user-facing CLI is S1.6.
+`.env`. The user-facing CLI, `hypora run` (S1.6, docs/notes/cli.md), runs the same controller with
+preflight checks and live progress.
 
 ## The run
 
@@ -69,7 +70,8 @@ partially failed worker start, so queued work cannot escape a failed run.
   compute per completed sandbox stage, even while its job is running. Charges are deduplicated
   by their model-call or job/attempt/stage references.
 - **User cancel:** a file `runs/<run_id>/CANCEL` stops the next call with `RunCancelled`
-  (`RUN_CANCELLED`, recorded once); the run reports and ends `CANCELLED`. S1.6 gives it a command.
+  (`RUN_CANCELLED`, recorded once); the run reports and ends `CANCELLED`. `hypora cancel <run_id>`
+  (S1.6) writes it.
 
 ## The single agent over MCP (spec §6.9)
 

@@ -13,10 +13,57 @@ GITLEAKS_IMAGE := ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79
 SANDBOX_EXCLUDE_NEWER := 2026-10-10
 SANDBOX_DIR := hypora/execution/sandbox
 
-.PHONY: help setup lint typecheck test test-live secrets schemas mcp-tools sandbox-image sandbox-lock check
+# `make run` with no DATA runs the demo task on a real OpenML snapshot (D-015), fetched on first use:
+# credit-g, OpenML 46918, CC BY 4.0 (D-021). DATA=<file> GOAL="<text>" [TARGET=<column>] runs your own.
+DEMO_OPENML_ID := 46918
+DEMO_DATA := data/snapshots/openml-46918-credit-g.parquet
+DEMO_GOAL := Predict whether a loan applicant is a good or bad credit risk
+DEMO_TARGET := good_or_bad_customer
+DATA ?=
+GOAL ?=
+TARGET ?=
+ARGS ?=
+
+# Mode 1 compose stack (D-020). The worker file is the opt-in service holding the Docker socket.
+COMPOSE := docker compose
+WORKER_COMPOSE := $(COMPOSE) -f docker-compose.yml -f docker-compose.worker.yml
+
+.PHONY: help setup lint typecheck test test-live secrets schemas mcp-tools sandbox-image sandbox-lock \
+	check run snapshot eval up worker-up down
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' Makefile | awk -F ':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
+
+run: ## Run the agent: the demo task, or DATA=<file> GOAL="<text>" [TARGET=<col>] [ARGS=...]
+ifeq ($(strip $(DATA)),)
+	$(RUN) python scripts/snapshot_dataset.py openml $(DEMO_OPENML_ID)
+	$(RUN) hypora run --data "$(DEMO_DATA)" --goal "$(DEMO_GOAL)" --target "$(DEMO_TARGET)" $(ARGS)
+else
+	@test -n "$(GOAL)" || { echo 'make run DATA=... also needs GOAL="<the objective>"' >&2; exit 2; }
+	$(RUN) hypora run --data "$(DATA)" --goal "$(GOAL)" $(if $(TARGET),--target "$(TARGET)") $(ARGS)
+endif
+
+snapshot: ## Fetch a real dataset into data/snapshots/: make snapshot SOURCE=openml|uci ID=<id>
+	@test -n "$(SOURCE)" && test -n "$(ID)" \
+		|| { echo 'usage: make snapshot SOURCE=openml|uci ID=<dataset id>' >&2; exit 2; }
+	$(RUN) python scripts/snapshot_dataset.py $(SOURCE) $(ID)
+
+eval: ## Placeholder: the evaluation runner arrives in PLAN.md S2.4
+	@echo 'make eval: the evaluation runner (hypora eval, spec §19.6) arrives in PLAN.md S2.4.' >&2
+	@exit 1
+
+up: ## Mode 1 compose stack: the API placeholder on http://127.0.0.1:8000/health (needs Docker)
+	mkdir -p runs
+	RUNS_DIR="$(CURDIR)/runs" $(COMPOSE) up -d --build --wait
+
+worker-up: ## Opt-in compose experiment worker, for `hypora run --worker compose` (D-020)
+	mkdir -p runs
+	$(RUN) python -m hypora.storage.migrate runs/hypora.sqlite
+	REPO_DIR="$(CURDIR)" RUNS_DIR="$(CURDIR)/runs" WORKER_UID="$$(id -u)" WORKER_GID="$$(id -g)" \
+		DOCKER_GID="$$(stat -c %g /var/run/docker.sock)" $(WORKER_COMPOSE) up -d --build --wait worker
+
+down: ## Stop the compose stack, the opt-in worker included
+	$(COMPOSE) down --remove-orphans
 
 setup: ## Install pinned Python + locked dev deps, install pre-commit hooks
 	$(UV) sync --locked
