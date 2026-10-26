@@ -4,6 +4,7 @@
     uv run --locked python scripts/stage1_smoke.py estimate                  # gpt-6-luna dollars
     uv run --locked python scripts/stage1_smoke.py run luna --confirm-paid   # PAID, capped
     uv run --locked python scripts/stage1_smoke.py summary                   # summary.md
+    uv run --locked python scripts/stage1_smoke.py refresh                   # rebuild records
 
 Each task runs through the same path as `hypora run` (preflight, controller, MCP server, worker,
 sandbox, verifier, reporter) on the `dev` profile, with plan approval by policy. Every run here is
@@ -16,11 +17,15 @@ Variants:
   one-off comparison only (D-027). No config file changes. It spends real money, so it needs
   `--confirm-paid`, and the total OpenAI spend recorded in this script's state database is
   capped at `--max-total-usd` (default $1.00, the owner's hard cap): each run's budget is the
-  remaining cap minus a safety margin, split over the runs still to do.
+  remaining cap minus a safety margin, split over the runs still to do. The cap counts every
+  OpenAI call in that database, across invocations; deleting the database resets the count.
 
 State lives in `runs/stage1/` (git-ignored); `hypora status|trace --db runs/stage1/hypora.sqlite`
-inspect a run. Per-run records (token counts, cost, event-log size, outcome) and each run's
-report are written to `results/stage1/<variant>/`, and `summary` writes `results/stage1/summary.md`.
+inspect a run. Per-run records (token counts, cost, limits fired, event-log size, outcome) and
+each run's report are written to `results/stage1/<variant>/`; `summary` writes
+`results/stage1/summary.md`. `refresh` derives the records again from the same runs' event logs
+with the current collector, keeping what only the run's start knew (profile, config hash, budget,
+the code that ran).
 """
 
 import argparse
@@ -49,8 +54,10 @@ from hypora.core.llm.types import Usage
 from hypora.core.schemas import ApprovalPolicy, EventType, ModelProfile, ModelTier, Provider
 from hypora.core.schemas.events import (
     CallStatus,
+    ErrorPayload,
     ModelCallPayload,
     StageTransitionPayload,
+    ToolCallPayload,
     ToolResultPayload,
     ToolResultStatus,
 )
@@ -61,6 +68,7 @@ from hypora.storage.records import (
     RecordNotFound,
     list_runs,
     list_trials,
+    load_dataset_profile,
     load_experiment_contract,
     load_run,
     run_jobs,
@@ -77,6 +85,8 @@ SAFETY_MARGIN_USD: Final = 0.05
 it still completes. One gpt-6-luna call at these prompt sizes costs well under a cent."""
 MAX_RUN_USD: Final = 0.45
 """Upper bound on one paid run's budget, so the first run cannot use the whole cap."""
+RUN_LIMIT_REACHED_CODE: Final = "RUN_LIMIT_REACHED"
+"""The `error` code `RunGuard` records when a run limit stops a role (controller/limits.py)."""
 
 
 @dataclass(frozen=True)
@@ -228,27 +238,84 @@ def _git(*args: str) -> str:
     return done.stdout.strip()
 
 
+def code_state() -> dict[str, Any]:
+    """The checked-out commit, and whether tracked or new files differ from it (results aside)."""
+    status = _git("status", "--porcelain", "--", ".", ":(exclude)results/stage1")
+    return {"commit": _git("rev-parse", "HEAD"), "dirty": bool(status)}
+
+
+@dataclass(frozen=True)
+class RunContext:
+    """What a record keeps from the moment the run started: not derivable from the event log."""
+
+    profile: str
+    config_hash: str
+    budget_usd: float | None
+    code: dict[str, Any]
+    """The code the run executed: `code_state()` when the run started."""
+
+
+def _report_json(runs_root: Path, run_id: str) -> dict[str, Any]:
+    path = runs_root / run_id / "report.json"
+    if not path.is_file():
+        return {}
+    report: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    return report
+
+
+def dataset_block(snapshot: SnapshotEntry) -> dict[str, Any]:
+    """The snapshot facts a record carries (D-015 manifest fields)."""
+    return {
+        "snapshot": snapshot.name,
+        "source": snapshot.source.value,
+        "dataset_id": snapshot.dataset_id,
+        "title": snapshot.title,
+        "version": snapshot.version,
+        "license": snapshot.license,
+        "source_url": snapshot.source_url,
+        "rows": snapshot.rows,
+        "columns": snapshot.columns,
+        "sha256": snapshot.sha256,
+    }
+
+
 def collect_record(
     database: Database,
     runs_root: Path,
     run_id: str,
     *,
     task: SmokeTask,
-    snapshot: SnapshotEntry,
+    dataset: dict[str, Any],
     variant: Variant,
-    run_config: RunConfig,
-    budget_usd: float | None,
-    code: dict[str, Any],
+    context: RunContext,
 ) -> dict[str, Any]:
-    """Everything S1.7 reports about one run, read back from the event log and the records."""
+    """Everything S1.7 reports about one run, read back from the event log, the records, and the
+    run's `report.json`; only `dataset` and `context` come from elsewhere.
+
+    Raises SmokeError if the run profiled a different file than `dataset` names.
+    """
     events = EventLog(database).read(run_id)
     run = load_run(database, run_id)
+    fingerprint = None
+    with contextlib.suppress(RecordNotFound):  # a run that failed before profiling has none
+        fingerprint = load_dataset_profile(database, run_id)[1].fingerprint
+    if fingerprint is not None and fingerprint != dataset["sha256"]:
+        raise SmokeError(
+            f"run {run_id} profiled a file with SHA-256 {fingerprint}, not the snapshot "
+            f"{dataset['snapshot']} ({dataset['sha256']})"
+        )
     calls = [
         (e.actor_role.value, e.payload) for e in events if isinstance(e.payload, ModelCallPayload)
     ]
     payloads = [payload for _, payload in calls]
     results = [e.payload for e in events if isinstance(e.payload, ToolResultPayload)]
     stages = [e.payload for e in events if isinstance(e.payload, StageTransitionPayload)]
+    errors = [e.payload for e in events if isinstance(e.payload, ErrorPayload)]
+    limits = sorted(
+        {str(e.details.get("limit")) for e in errors if e.code == RUN_LIMIT_REACHED_CODE}
+    )
+    tool_names = Counter(e.payload.tool for e in events if isinstance(e.payload, ToolCallPayload))
+    report = _report_json(runs_root, run_id)
     metric = None
     with contextlib.suppress(RecordNotFound):
         metric = load_experiment_contract(database, run_id).primary_metric.value
@@ -277,26 +344,16 @@ def collect_record(
         "recorded": False,
         "label": "dev/unrecorded smoke run (D-016, D-027); not an evaluation or model selection",
         "variant": variant.name,
-        "profile": run_config.model_profile.value,
+        "profile": context.profile,
         "models": sorted({f"{p.provider.value}/{p.model_id}" for p in payloads}),
         "billing": "paid: list price is what OpenAI bills"
         if variant.paid
         else "free tier: actual spend $0; cost_usd is the paid-tier list price",
-        "code": code,
-        "config_hash": run_config.hash,
+        "code": context.code,
+        "collected_with": code_state(),
+        "config_hash": context.config_hash,
         "task": {"task_id": task.task_id, "goal": task.goal, "target": task.target},
-        "dataset": {
-            "snapshot": snapshot.name,
-            "source": snapshot.source.value,
-            "dataset_id": snapshot.dataset_id,
-            "title": snapshot.title,
-            "version": snapshot.version,
-            "license": snapshot.license,
-            "source_url": snapshot.source_url,
-            "rows": snapshot.rows,
-            "columns": snapshot.columns,
-            "sha256": snapshot.sha256,
-        },
+        "dataset": {**dataset, "profiled_fingerprint_matches": fingerprint is not None},
         "run": {
             "run_id": run_id,
             "status": run.status.value,
@@ -309,11 +366,18 @@ def collect_record(
             "jobs": dict(Counter(j.status.value for j in jobs)),
             "wall_clock_s": round(span, 1),
             "sandbox_compute_s": float(run.spent_compute_s),
-            "budget_usd": budget_usd,
+            "budget_usd": context.budget_usd,
+            "limits_fired": limits,
+            "errors": dict(sorted(Counter(e.code for e in errors).items())),
+            "narrative_written": bool(report.get("narrative")),
+            "notes": report.get("notes", []),
         },
         "llm": {
             "calls": len(payloads),
             "calls_failed": sum(p.status is CallStatus.ERROR for p in payloads),
+            "failed_by_code": dict(
+                sorted(Counter(p.error_code for p in payloads if p.error_code).items())
+            ),
             "schema_retries": sum(p.error_code == OUTPUT_SCHEMA_INVALID for p in payloads),
             "retries": sum(p.retries for p in payloads),
             "input_tokens": sum(p.input_tokens for p in payloads),
@@ -340,7 +404,8 @@ def collect_record(
             ],
         },
         "tools": {
-            "calls": sum(e.type is EventType.TOOL_CALL for e in events),
+            "calls": sum(tool_names.values()),
+            "by_tool": dict(sorted(tool_names.items())),
             "failed": dict(sorted(failed_tools.items())),
         },
         "events": {
@@ -427,8 +492,7 @@ async def _run_variant(variant: Variant, cap_usd: float, out: Callable[[str], No
     snapshots = [snapshot_for(task) for task in TASKS]
     STATE_ROOT.mkdir(parents=True, exist_ok=True)
     db_path = STATE_ROOT / "hypora.sqlite"
-    status = _git("status", "--porcelain", "--", ".", ":(exclude)results/stage1")
-    code = {"commit": _git("rev-parse", "HEAD"), "dirty": bool(status)}
+    code = code_state()
     failures = 0
     for index, (task, snapshot) in enumerate(zip(TASKS, snapshots, strict=True)):
         budget = None
@@ -466,11 +530,14 @@ async def _run_variant(variant: Variant, cap_usd: float, out: Callable[[str], No
                 STATE_ROOT,
                 result.run_id,
                 task=task,
-                snapshot=snapshot,
+                dataset=dataset_block(snapshot),
                 variant=variant,
-                run_config=run_config,
-                budget_usd=budget,
-                code=code,
+                context=RunContext(
+                    profile=run_config.model_profile.value,
+                    config_hash=run_config.hash,
+                    budget_usd=budget,
+                    code=code,
+                ),
             )
         finally:
             database.close()
@@ -485,8 +552,51 @@ async def _run_variant(variant: Variant, cap_usd: float, out: Callable[[str], No
     return 1 if failures else 0
 
 
+def refresh_records(root: Path = RESULTS_ROOT, state_root: Path = STATE_ROOT) -> list[Path]:
+    """Collect every stored record again from the state database, with the current collector.
+
+    Each record keeps its run-time context (profile, config hash, budget, the code that ran);
+    everything else is derived again from that same run's event log and records.
+    """
+    db_path = state_root / "hypora.sqlite"
+    if not db_path.is_file():
+        raise SmokeError(f"no state database at {db_path}; refresh needs the runs' event logs")
+    tasks = {task.task_id: task for task in TASKS}
+    paths = []
+    database = Database(db_path)
+    try:
+        for name, variant in VARIANTS.items():
+            for old in load_records(name, root):
+                task = tasks[old["task"]["task_id"]]
+                dataset = {
+                    k: v for k, v in old["dataset"].items() if k != "profiled_fingerprint_matches"
+                }
+                context = RunContext(
+                    profile=old["profile"],
+                    config_hash=old["config_hash"],
+                    budget_usd=old["run"]["budget_usd"],
+                    code=old["code"],
+                )
+                try:
+                    record = collect_record(
+                        database,
+                        state_root,
+                        old["run"]["run_id"],
+                        task=task,
+                        dataset=dataset,
+                        variant=variant,
+                        context=context,
+                    )
+                except RecordNotFound:
+                    raise SmokeError(f"run {old['run']['run_id']} is not in {db_path}") from None
+                paths.append(write_record(record, None, root))
+    finally:
+        database.close()
+    return paths
+
+
 def summary_markdown(by_variant: dict[str, list[dict[str, Any]]]) -> str:
-    """`results/stage1/summary.md`: one row per run, then the per-task comparison."""
+    """`results/stage1/summary.md`: one row per run, then the run IDs."""
     lines = [
         "# Stage 1 gate smoke runs (S1.7)",
         "",
@@ -495,9 +605,10 @@ def summary_markdown(by_variant: dict[str, list[dict[str, Any]]]) -> str:
         "an evaluation and not a model selection. Costs are list prices; Gemini free-tier runs",
         "cost $0.",
         "",
-        "| Variant | Task | Model | Status | Verified | Test metric | Trials | Model calls"
-        " | Tokens in / out | Cost (list) | Tool calls / failed | Events (bytes) | Wall clock |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "| Variant | Task | Model | Status | Verified | Test metric | Limits fired | Trials"
+        " | Model calls | Tokens in (cached) / out | Cost (list) | Tool calls / failed"
+        " | Events (bytes) | Wall clock |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for variant, records in by_variant.items():
         for r in records:
@@ -510,8 +621,10 @@ def summary_markdown(by_variant: dict[str, list[dict[str, Any]]]) -> str:
             lines.append(
                 f"| {variant} | {r['task']['task_id']} | {', '.join(r['models'])} | "
                 f"{run['status']} | {'yes' if run['verified'] else 'no'} | {metric} | "
+                f"{', '.join(run['limits_fired']) or 'none'} | "
                 f"{sum(run['trials'].values())} | {llm['calls']} | "
-                f"{llm['input_tokens']:,} / {llm['output_tokens']:,} | ${llm['cost_usd']:.4f} | "
+                f"{llm['input_tokens']:,} ({llm['cached_input_tokens']:,}) / "
+                f"{llm['output_tokens']:,} | ${llm['cost_usd']:.4f} | "
                 f"{r['tools']['calls']} / {sum(r['tools']['failed'].values())} | "
                 f"{r['events']['count']} ({r['events']['bytes']:,}) | {run['wall_clock_s']:.0f} s |"
             )
@@ -535,6 +648,7 @@ def main(argv: list[str] | None = None) -> int:
     estimate = commands.add_parser("estimate", help="price the gemini runs' tokens for a model")
     estimate.add_argument("--model", default="openai/gpt-6-luna", help="provider/model_id")
     commands.add_parser("summary", help="write results/stage1/summary.md")
+    commands.add_parser("refresh", help="derive the stored records again from the event logs")
     args = parser.parse_args(argv)
     try:
         if args.command == "run":
@@ -548,6 +662,10 @@ def main(argv: list[str] | None = None) -> int:
             provider, _, model_id = args.model.partition("/")
             price = load_price_table().require(Provider(provider), model_id)
             print("\n".join(estimate_lines(load_records("gemini"), price)))
+            return 0
+        if args.command == "refresh":
+            for written in refresh_records():
+                print(f"refreshed {written.relative_to(REPO_ROOT)}")
             return 0
         by_variant = {name: load_records(name) for name in VARIANTS}
         path = RESULTS_ROOT / "summary.md"

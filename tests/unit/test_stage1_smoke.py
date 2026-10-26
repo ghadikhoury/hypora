@@ -20,11 +20,11 @@ from hypora.core.config.resources import DetectedResources, GpuDetection
 from hypora.core.config.run_config import RunConfig
 from hypora.core.hashing import sha256_hex
 from hypora.core.llm.pricing import ModelPrice
-from hypora.core.schemas import ModelProfile, ModelTier, Provider
+from hypora.core.schemas import DatasetProfile, ModelProfile, ModelTier, Provider
 from hypora.storage.database import Database
 from hypora.storage.events import EventLog
 from hypora.storage.migrate import migrate
-from hypora.storage.records import create_run
+from hypora.storage.records import create_run, save_dataset_profile
 from hypora.storage.snapshots import SnapshotEntry, save_entry
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures/schemas/Event"
@@ -195,32 +195,59 @@ def test_a_task_needs_its_exact_snapshot(tmp_path: Path) -> None:
 # --- records, estimates, summary ----------------------------------------------------------------
 
 
-def seeded_record(tmp_path: Path) -> dict[str, Any]:
+RUN_ID = "run_s17"
+TASK = smoke.TASKS[0]
+DATASET = smoke.dataset_block(_entry(TASK, b"x")) | {"sha256": TASK.sha256}
+CONTEXT = smoke.RunContext(
+    profile="dev", config_hash="c" * 64, budget_usd=0.45, code={"commit": "0" * 40, "dirty": False}
+)
+LIMIT_REACHED = {
+    "component": "controller",
+    "code": "RUN_LIMIT_REACHED",
+    "message": "run stopped: max_llm_tokens reached",
+    "error_class": "policy_quota",
+    "details": {"limit": "max_llm_tokens", "used": 1_009_960, "maximum": 1_000_000},
+}
+
+
+def seed_run(tmp_path: Path, fingerprint: str = TASK.sha256) -> Database:
+    """A run with a profile, two model calls (one schema retry), a failed tool call, a limit
+    that fired, and a report.json; the caller closes the database."""
     database = Database(tmp_path / "hypora.sqlite")
     migrate(database)
+    create_run(database, RUN_ID, "ws_test", spent_usd=Decimal("0.0042"))
+    profile = json.loads((FIXTURES.parent / "DatasetProfile/yield.json").read_text())
+    profile.update(run_id=RUN_ID, fingerprint=fingerprint)
+    save_dataset_profile(database, DatasetProfile.model_validate(profile))
+    log = EventLog(database)
+    log.append(RUN_ID, "model_call", "intake", fixture_payload("model_call", tier="cheap"))
+    schema_retry = fixture_payload("model_call", status="error", error_code="OUTPUT_SCHEMA_INVALID")
+    log.append(RUN_ID, "model_call", "single_agent", schema_retry)
+    log.append(RUN_ID, "tool_call", "mcp_server", fixture_payload("tool_call"))
+    log.append(RUN_ID, "tool_result", "mcp_server", fixture_payload("tool_result_error"))
+    log.append(RUN_ID, "error", "controller", LIMIT_REACHED)
+    (tmp_path / RUN_ID).mkdir()
+    report = {"notes": ["The agent was stopped: max_llm_tokens reached."], "narrative": None}
+    (tmp_path / RUN_ID / "report.json").write_text(json.dumps(report), encoding="utf-8")
+    return database
+
+
+def collect(database: Database, tmp_path: Path) -> dict[str, Any]:
+    return smoke.collect_record(
+        database,
+        tmp_path,
+        RUN_ID,
+        task=TASK,
+        dataset=DATASET,
+        variant=smoke.VARIANTS["gemini"],
+        context=CONTEXT,
+    )
+
+
+def seeded_record(tmp_path: Path) -> dict[str, Any]:
+    database = seed_run(tmp_path)
     try:
-        create_run(database, "run_s17", "ws_test", spent_usd=Decimal("0.0042"))
-        log = EventLog(database)
-        log.append("run_s17", "model_call", "intake", fixture_payload("model_call", tier="cheap"))
-        schema_retry = fixture_payload(
-            "model_call", status="error", error_code="OUTPUT_SCHEMA_INVALID"
-        )
-        log.append("run_s17", "model_call", "single_agent", schema_retry)
-        log.append("run_s17", "tool_call", "mcp_server", fixture_payload("tool_call"))
-        log.append("run_s17", "tool_result", "mcp_server", fixture_payload("tool_result_error"))
-        task = smoke.TASKS[0]
-        settings = smoke.settings_for(smoke.VARIANTS["gemini"])
-        return smoke.collect_record(
-            database,
-            tmp_path,
-            "run_s17",
-            task=task,
-            snapshot=_entry(task, b"x"),
-            variant=smoke.VARIANTS["gemini"],
-            run_config=RunConfig.build(settings, hardware=HARDWARE),
-            budget_usd=None,
-            code={"commit": "0" * 40, "dirty": False},
-        )
+        return collect(database, tmp_path)
     finally:
         database.close()
 
@@ -228,21 +255,68 @@ def seeded_record(tmp_path: Path) -> dict[str, Any]:
 def test_a_record_adds_up_the_runs_event_log(tmp_path: Path) -> None:
     record = seeded_record(tmp_path)
     assert record["recorded"] is False and record["profile"] == "dev"
+    assert record["config_hash"] == "c" * 64 and record["code"] == CONTEXT.code
     assert record["models"] == ["gemini/gemini-2.5-flash"]
+    assert record["dataset"]["profiled_fingerprint_matches"] is True
     llm = record["llm"]
     assert (llm["calls"], llm["calls_failed"], llm["schema_retries"]) == (2, 1, 1)
+    assert llm["failed_by_code"] == {"OUTPUT_SCHEMA_INVALID": 1}
     assert (llm["input_tokens"], llm["output_tokens"]) == (2 * 6120, 2 * 1418)
     assert llm["spent_usd_ledger"] == pytest.approx(0.0042)
     assert set(llm["by_role"]) == {"intake", "single_agent"}
     assert [c["tier"] for c in llm["per_call"]] == ["cheap", "lead"]
     assert record["tools"] == {
         "calls": 1,
+        "by_tool": {"submit_experiment": 1},
         "failed": {"submit_experiment:INSUFFICIENT_GPU_MEMORY": 1},
     }
-    assert record["events"]["count"] == 4
-    assert record["events"]["by_type"] == {"model_call": 2, "tool_call": 1, "tool_result": 1}
+    run = record["run"]
+    assert run["limits_fired"] == ["max_llm_tokens"]
+    assert run["errors"] == {"RUN_LIMIT_REACHED": 1}
+    assert run["notes"] == ["The agent was stopped: max_llm_tokens reached."]
+    assert run["narrative_written"] is False and run["budget_usd"] == 0.45
+    assert run["verified"] is False and run["final_trial_id"] is None
+    assert record["events"]["count"] == 5
+    assert record["events"]["by_type"] == {
+        "error": 1,
+        "model_call": 2,
+        "tool_call": 1,
+        "tool_result": 1,
+    }
     assert record["events"]["bytes"] > 0
-    assert record["run"]["verified"] is False and record["run"]["final_trial_id"] is None
+
+
+def test_a_record_refuses_a_run_that_profiled_another_file(tmp_path: Path) -> None:
+    database = seed_run(tmp_path, fingerprint="f" * 64)
+    try:
+        with pytest.raises(smoke.SmokeError, match="profiled a file"):
+            collect(database, tmp_path)
+    finally:
+        database.close()
+
+
+def test_refresh_derives_records_again_and_keeps_the_run_time_context(tmp_path: Path) -> None:
+    database = seed_run(tmp_path)
+    try:
+        stale = collect(database, tmp_path)
+        stale["run"]["limits_fired"] = []  # as if collected by an older collector
+        smoke.write_record(stale, None, tmp_path / "results")
+        EventLog(database).append(RUN_ID, "tool_call", "mcp_server", fixture_payload("tool_call"))
+    finally:
+        database.close()
+    paths = smoke.refresh_records(tmp_path / "results", tmp_path)
+    assert paths == [tmp_path / "results/gemini/credit-g.json"]
+    fresh = smoke.load_records("gemini", tmp_path / "results")[0]
+    assert fresh["run"]["limits_fired"] == ["max_llm_tokens"]
+    assert fresh["tools"]["calls"] == 2
+    assert fresh["code"] == stale["code"] and fresh["config_hash"] == stale["config_hash"]
+    assert fresh["run"]["budget_usd"] == stale["run"]["budget_usd"]
+    assert fresh["dataset"] == stale["dataset"]
+
+
+def test_refresh_needs_the_state_database(tmp_path: Path) -> None:
+    with pytest.raises(smoke.SmokeError, match="no state database"):
+        smoke.refresh_records(tmp_path / "results", tmp_path)
 
 
 def test_records_round_trip_and_feed_the_summary(tmp_path: Path) -> None:
@@ -256,7 +330,9 @@ def test_records_round_trip_and_feed_the_summary(tmp_path: Path) -> None:
     assert loaded == [record]
     summary = smoke.summary_markdown({"gemini": loaded, "luna": []})
     status = record["run"]["status"]
-    assert f"| gemini | credit-g | gemini/gemini-2.5-flash | {status} | no |" in summary
+    row = f"| gemini | credit-g | gemini/gemini-2.5-flash | {status} | no | - | max_llm_tokens |"
+    assert row in summary
+    assert "12,240 (0) / 2,836" in summary
     assert "`run_s17`" in summary
 
 
