@@ -22,7 +22,7 @@ splits, held-out labels, and metrics. Every step is recorded in an append-only e
 |---|---|---|
 | **Ghadi** (project owner) | Sends one step at a time, relays PR numbers, handles every 🧑 item | — |
 | **Coding Agent A**, **Coding Agent B** | Implement steps, one PR per step, often in parallel on different steps | Push to `main`, merge their own PR, edit the other agent's branches |
-| **Reviewer** (separate agent) | Reviews every PR with comments; merges PRs that pass review and CI | Write or push code |
+| **Reviewer** (separate agent) | Reviews every PR with comments, starting as soon as it opens (no waiting for CI); merges once the review passes and every required check is green on the reviewed commit ("Reviewer flow" below) | Write or push code; merge on a red or pending check |
 
 - **One step = one PR.** Use the step ID, branch name, and scope exactly as written in `docs/PLAN.md`.
   Implement nothing from future steps and drop nothing the step requires. If the plan seems wrong or
@@ -32,16 +32,31 @@ splits, held-out labels, and metrics. Every step is recorded in an append-only e
 - **Branching:** `git fetch`, then branch from the latest `origin/main`. **No one pushes to `main`**
   (branch protection enforces it: PR required, `make check` and `gitleaks` must pass, no
   force-push; D-013).
-- **Parallel work:** stay inside your step's directories. If you must touch a shared file
-  (`hypora/core/schemas/`, `configs/flags.yaml`, tool registries), keep the change minimal, rebase on
-  `main` right before opening the PR, and resolve conflicts without overwriting the other agent's work.
-- **Opening a PR:** run `make check`, verify every "Done when" criterion yourself, fill in
-  `.github/pull_request_template.md` completely (including a genuine Explain-it check), then report the
-  PR number, link, a 3–5 line summary, anything surprising or deferred, and "Ready for review."
+- **Parallel work (D-025):** prefer running independent steps at the same time across Agent A and
+  Agent B; no agent sits idle waiting on another PR's checks when an independent step is available.
+  Steps in the same group of `docs/PLAN.md` Appendix B may always run together, and S1.7 and S2.1 may
+  run together once S1.6 has merged (S2.1 still stops under trigger 4). Stay inside your step's
+  directories. If you must touch a shared file (`hypora/core/schemas/`, `configs/flags.yaml`, tool
+  registries), keep the change minimal, rebase on `main` right before opening the PR, and resolve
+  conflicts without overwriting the other agent's work.
+- **Opening a PR:** run the pre-PR checks ("Checks before a PR and in CI" below), verify every "Done
+  when" criterion yourself, fill in `.github/pull_request_template.md` completely (including a genuine
+  Explain-it check), then report the PR number, link, a 3–5 line summary, anything surprising or
+  deferred, and "Ready for review."
 - **Review comments:** read all of them (`gh pr view <N> --comments` plus inline comments via
   `gh api repos/{owner}/{repo}/pulls/<N>/comments`). Fix every blocking comment on the same branch
   and reply to each saying what changed. If you disagree, reply with your reasoning; if still contested
   after one round, tell Ghadi. Push, then say "Ready for re-review."
+
+### Reviewer flow (D-024)
+
+- **Start reviewing as soon as the PR is open.** Do not wait for CI or anything else.
+- If CI is red, still finish the whole review, so the author gets all feedback in one round.
+- If commits are pushed after your review, re-review only the changes since the commit you reviewed
+  (`git diff <reviewed>..<head>`).
+- **Before merging**, confirm that the PR's head commit (`gh pr view <N> --json headRefOid`) is the
+  one you reviewed and that `gh pr checks <N>` shows every required check passed on it. Never merge
+  on a red or pending check.
 
 ### The "🧑 ACTION NEEDED FROM GHADI" convention
 
@@ -87,6 +102,29 @@ commits from WSL so the pre-commit hooks can run. All text files use LF line end
 
 **Dependencies:** anything named in spec §22 or in the current step is pre-approved; pin it in
 `pyproject.toml` and commit `uv.lock`. Anything else triggers stop-and-ask.
+
+### Checks before a PR and in CI (D-022, D-023)
+
+Items marked **planned** do not exist yet: never call or rely on them until their PR has merged.
+
+- **CI is the merge gate.** It runs the full `make check` (ruff, mypy, every test including the
+  Docker-based ones, gitleaks) on every PR; the required checks are `make check` and `gitleaks`. A full
+  local `make check` takes about 22 min under Docker Desktop and WSL (about 6 min on CI), so local full
+  runs are the exception, not the default.
+- **Now:** while iterating, run only the tests for what you changed plus `make lint` and
+  `make typecheck`. Run the full `make check` once before opening the PR and once after the last
+  review fix. Docs-only PRs (Markdown only) skip the full run: run the tests that read the changed
+  files (e.g. `tests/unit/test_repo_conventions.py` for AGENTS.md) and let CI cover the rest.
+- **Planned, `make check-fast`:** ruff, mypy, gitleaks, and every test that starts no container. Once
+  it exists, run `make check-fast` plus the specific tests for what you changed (their Docker-based
+  ones included) before opening a PR, instead of the full `make check`. Run the full `make check`
+  locally only when the step touches the sandbox, the data firewall, the policy engine, auth, or
+  secret handling (trigger 3).
+- **Planned, CI split:** two parallel required jobs (`lint-types-unit`, `docker-tests`), Docker layer
+  caching of the sandbox image, and no pre-commit hook install in CI, in one PR with its own decision
+  entry. Whoever renames the jobs updates branch protection's required checks in the same PR, verifies
+  them, and reports wall time before and after.
+- **No parallel test execution** (`pytest-xdist`) for now.
 
 ## Definition of Done (every PR)
 

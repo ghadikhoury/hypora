@@ -437,3 +437,105 @@ one it supersedes.
   in its notes rather than appearing to honour it. User cancel (spec §6.8) is a
   `runs/<run_id>/CANCEL` file until S1.6 gives it a command; a cancelled run reports and ends
   `CANCELLED`. docs/notes/controller.md documents the design.
+
+<!-- D-020 and D-021 are recorded by the S1.6 PR (#17), open when D-022 to D-025 were written. -->
+
+## D-022 — Pre-PR checks: CI is the gate; a fast local check is planned; no parallel pytest
+- Date: 2026-10-26
+- Step: process; applies to every step
+- Decided by: Ghadi
+- Options considered: (a) the full `make check` locally before every PR (the rule until now);
+  (b, chosen) a fast local check before the PR, with CI's full run as the required gate;
+  (c) run the test suite in parallel (`pytest-xdist`) to shorten the full run.
+- Decision: (b).
+  - Planned: `make check-fast`, which runs ruff, mypy, gitleaks, and every test that starts no
+    container. Once it exists, agents run it plus the specific tests for what they changed before
+    opening a PR. They run the full `make check` locally only when the step touches the sandbox,
+    the data firewall, the policy engine, auth, or secrets (trigger 3).
+  - Until it exists: while iterating, targeted tests plus ruff and mypy; the full `make check`
+    once before opening the PR and once after the last review fix.
+  - CI still runs everything before merge and remains the required gate (D-013).
+  - No `pytest-xdist` for now. Revisit only if the full suite exceeds 10 min on CI after this
+    entry and D-023 are in place.
+  - Agents work from the WSL clone (`~/hypora`), never `/mnt/c`.
+- Why:
+  - A full local `make check` took about 22 min under Docker Desktop and WSL (S1.6), against about
+    6 min on CI. The difference is almost all Docker-backed tests, which CI runs anyway before
+    merge.
+  - Running them once locally per PR, plus their targeted runs, keeps feedback without making
+    every PR wait 22 min. Trigger-3 areas get the full local run because a regression there is
+    a security problem, not just a red check.
+  - `pytest-xdist` would add a dependency and new failure modes: parallel workers would race to
+    build the sandbox image, the timing-sensitive lease and heartbeat tests would flake, and
+    sandbox containers would compete for CPU.
+- Consequences: AGENTS.md's "Checks before a PR and in CI" holds the rules. A small PR adds
+  `make check-fast`; until it merges, the interim rule applies and no agent calls the target.
+
+## D-023 — CI structure: planned split into two parallel jobs, with caching
+- Date: 2026-10-26
+- Step: process (planned CI change; nothing is changed by this entry)
+- Decided by: Ghadi
+- Measured on the last completed CI run (S1.5 merge on `main`, run 40254421454; about 6 min in
+  total):
+
+  | Step | Time |
+  |---|---|
+  | pytest | 4 min 59 s |
+  | ↳ first sandbox test, which builds the sandbox image | 65 s |
+  | ↳ harness integration tests (real containers) | 2 min 12 s |
+  | ↳ MCP end-to-end tests | 31 s |
+  | ↳ about 900 unit tests | about 40 s |
+  | `make setup` | 37 s |
+  | ↳ pre-commit hook install (compiles the Go gitleaks hook) | 26 s |
+  | mypy | 14 s |
+  | ruff | 0.1 s |
+  | gitleaks | 1 s |
+
+- Options considered: (a) keep one job; (b, chosen as planned work) split and cache; (c) drop
+  tests from CI.
+- Decision (planned, as one small PR with its own decision entry):
+  - Split CI into two parallel required jobs, `lint-types-unit` and `docker-tests`.
+  - Cache the sandbox image build with Docker layer caching.
+  - Skip the pre-commit hook install in CI.
+  - Whoever changes the job names updates branch protection's required status checks in the same
+    PR and verifies them (otherwise every PR blocks on checks that no longer exist).
+  - The PR reports wall time before and after.
+- Why:
+  - Lint, types, and unit tests finish in about a minute, so a split reports most failures early.
+  - The Docker tests are the long pole, and they can start without waiting for the other job.
+  - CI never runs the hooks, so their environments are wasted setup.
+- Consequences: until that PR merges, CI is unchanged: the `make check` and `gitleaks` jobs are the
+  required checks (D-013). An earlier CI PR (#18: hook cache, separate image-build step) was closed
+  unmerged in favor of this plan.
+
+## D-024 — Reviewer flow: review at once, merge only on green checks for the reviewed commit
+- Date: 2026-10-26
+- Step: process; applies to every PR
+- Decided by: Ghadi
+- Decision:
+  - The Reviewer starts reviewing as soon as a PR opens and does not wait for CI.
+  - If CI is red, the Reviewer still completes the review, so the author gets all feedback in one
+    round.
+  - If new commits are pushed after the review, the Reviewer re-reviews only the changes since the
+    reviewed commit.
+  - Before merging, the Reviewer confirms with `gh pr checks` that every required check passed on
+    the exact commit it reviewed. It never merges on a red or pending check.
+- Why: review and CI are independent, so running them at the same time removes CI's duration from
+  every PR's turnaround. Tying the merge to the reviewed commit keeps the guarantee that what merged
+  is what was reviewed and tested.
+- Consequences: AGENTS.md's team table and its "Reviewer flow" section hold the rules.
+
+## D-025 — Independent steps run in parallel; S1.7 and S2.1 may overlap
+- Date: 2026-10-26
+- Step: process; S1.7 and S2.1
+- Decided by: Ghadi
+- Decision:
+  - Agents A and B run independent steps in parallel whenever possible. No agent sits idle waiting
+    on another PR's checks when an independent step is available.
+  - Steps in the same parallel group of PLAN.md Appendix B may always run together.
+  - S1.7 and S2.1 may run in parallel after S1.6 merges, since S2.1 depends only on S1.6.
+  - S2.1 still stops for approval under trigger 4 (eval cases and hidden splits).
+- Why: the check-in on Nov 4 needs Stages 0–2 merged, and serial waiting on checks and reviews was
+  the main delay.
+- Consequences: this relaxes PLAN.md's stage ordering only for S1.7 and S2.1. Within Stage 2,
+  S2.1 still precedes S2.2–S2.4, which form one parallel group, and S2.5 and S2.6 stay serial.
