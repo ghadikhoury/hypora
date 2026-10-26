@@ -1,0 +1,553 @@
+{
+  "schema": "hypora.stage1_smoke/v1",
+  "step": "S1.7",
+  "recorded": false,
+  "label": "dev/unrecorded smoke run (D-016, D-027); not an evaluation or model selection",
+  "variant": "luna",
+  "profile": "dev",
+  "models": [
+    "openai/gpt-6-luna"
+  ],
+  "billing": "paid: list price is what OpenAI bills",
+  "code": {
+    "commit": "f09645fcb68a6f0ec501eda100ba061c1b1efed5",
+    "dirty": false
+  },
+  "config_hash": "494ffb288490ee7235fff4482e0241a13bac7012590dd5e5455857fa296cb901",
+  "task": {
+    "task_id": "fish-toxicity",
+    "goal": "Predict a chemical's acute toxicity to fish (LC50) from its molecular descriptors",
+    "target": "LC50"
+  },
+  "dataset": {
+    "snapshot": "openml-46954-qsar-fish-toxicity",
+    "source": "openml",
+    "dataset_id": 46954,
+    "title": "QSAR_fish_toxicity",
+    "version": "8",
+    "license": "CC-BY-4.0",
+    "source_url": "https://www.openml.org/d/46954",
+    "rows": 907,
+    "columns": 7,
+    "sha256": "3b6dba16ff93c7edb9d63cf23c44be5ea26e76faedbe0d4db9250284f240d98e"
+  },
+  "run": {
+    "run_id": "run_s17_luna_fish_toxicity_1793034385",
+    "status": "DONE",
+    "last_stage": null,
+    "verified": true,
+    "final_trial_id": "trl_ee93e58c",
+    "test_metric": "mae",
+    "test_value": 0.6458162586900469,
+    "trials": {
+      "submitted": 1,
+      "verified": 1,
+      "validated": 1
+    },
+    "jobs": {
+      "COMPLETED": 3,
+      "CANCELLED": 1
+    },
+    "wall_clock_s": 234.3,
+    "sandbox_compute_s": 226.478807,
+    "budget_usd": 0.45
+  },
+  "llm": {
+    "calls": 56,
+    "calls_failed": 0,
+    "schema_retries": 0,
+    "retries": 0,
+    "input_tokens": 1010643,
+    "cached_input_tokens": 985981,
+    "output_tokens": 6095,
+    "cost_usd": 0.015972,
+    "spent_usd_ledger": 0.01597208,
+    "latency_s": 135.2,
+    "rate_limit_wait_s": 0.0,
+    "by_role": {
+      "intake": {
+        "calls": 1,
+        "input_tokens": 557,
+        "output_tokens": 77,
+        "cost_usd": 9.4e-05
+      },
+      "single_agent": {
+        "calls": 55,
+        "input_tokens": 1010086,
+        "output_tokens": 6018,
+        "cost_usd": 0.015878
+      }
+    },
+    "per_call": [
+      {
+        "role": "intake",
+        "tier": "cheap",
+        "input_tokens": 557,
+        "cached_input_tokens": 0,
+        "output_tokens": 77,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 4993,
+        "cached_input_tokens": 4018,
+        "output_tokens": 25,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 6637,
+        "cached_input_tokens": 4990,
+        "output_tokens": 336,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 7302,
+        "cached_input_tokens": 6634,
+        "output_tokens": 50,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 7490,
+        "cached_input_tokens": 7299,
+        "output_tokens": 626,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 8786,
+        "cached_input_tokens": 7487,
+        "output_tokens": 130,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 9193,
+        "cached_input_tokens": 8783,
+        "output_tokens": 117,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 9673,
+        "cached_input_tokens": 9190,
+        "output_tokens": 117,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 10153,
+        "cached_input_tokens": 9670,
+        "output_tokens": 118,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 10634,
+        "cached_input_tokens": 10150,
+        "output_tokens": 117,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 11114,
+        "cached_input_tokens": 10631,
+        "output_tokens": 43,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 11277,
+        "cached_input_tokens": 11111,
+        "output_tokens": 131,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 11771,
+        "cached_input_tokens": 11274,
+        "output_tokens": 125,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 12259,
+        "cached_input_tokens": 11768,
+        "output_tokens": 133,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 12755,
+        "cached_input_tokens": 12256,
+        "output_tokens": 141,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 13259,
+        "cached_input_tokens": 12752,
+        "output_tokens": 125,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 13747,
+        "cached_input_tokens": 13256,
+        "output_tokens": 57,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 13924,
+        "cached_input_tokens": 13744,
+        "output_tokens": 115,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 14402,
+        "cached_input_tokens": 13921,
+        "output_tokens": 146,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 14911,
+        "cached_input_tokens": 14399,
+        "output_tokens": 108,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 15089,
+        "cached_input_tokens": 14908,
+        "output_tokens": 116,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 15568,
+        "cached_input_tokens": 15086,
+        "output_tokens": 138,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 16069,
+        "cached_input_tokens": 15565,
+        "output_tokens": 127,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 16559,
+        "cached_input_tokens": 16066,
+        "output_tokens": 139,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 17061,
+        "cached_input_tokens": 16556,
+        "output_tokens": 134,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 17800,
+        "cached_input_tokens": 17058,
+        "output_tokens": 122,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 18737,
+        "cached_input_tokens": 17797,
+        "output_tokens": 87,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 19067,
+        "cached_input_tokens": 18734,
+        "output_tokens": 86,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 19396,
+        "cached_input_tokens": 19064,
+        "output_tokens": 86,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 19725,
+        "cached_input_tokens": 19393,
+        "output_tokens": 88,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 20056,
+        "cached_input_tokens": 19722,
+        "output_tokens": 90,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 20389,
+        "cached_input_tokens": 20053,
+        "output_tokens": 103,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 20735,
+        "cached_input_tokens": 20386,
+        "output_tokens": 87,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 21065,
+        "cached_input_tokens": 20732,
+        "output_tokens": 96,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 21404,
+        "cached_input_tokens": 21062,
+        "output_tokens": 102,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 21749,
+        "cached_input_tokens": 21401,
+        "output_tokens": 93,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 22085,
+        "cached_input_tokens": 21746,
+        "output_tokens": 111,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 22439,
+        "cached_input_tokens": 22082,
+        "output_tokens": 101,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 22783,
+        "cached_input_tokens": 22436,
+        "output_tokens": 96,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 23122,
+        "cached_input_tokens": 22780,
+        "output_tokens": 45,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 23288,
+        "cached_input_tokens": 23119,
+        "output_tokens": 97,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 23628,
+        "cached_input_tokens": 23285,
+        "output_tokens": 122,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 23993,
+        "cached_input_tokens": 23625,
+        "output_tokens": 108,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 24344,
+        "cached_input_tokens": 23990,
+        "output_tokens": 86,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 24673,
+        "cached_input_tokens": 24341,
+        "output_tokens": 116,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 25032,
+        "cached_input_tokens": 24670,
+        "output_tokens": 189,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 25696,
+        "cached_input_tokens": 25029,
+        "output_tokens": 93,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 26479,
+        "cached_input_tokens": 25693,
+        "output_tokens": 59,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 26644,
+        "cached_input_tokens": 26476,
+        "output_tokens": 41,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 26807,
+        "cached_input_tokens": 26641,
+        "output_tokens": 41,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 26970,
+        "cached_input_tokens": 26804,
+        "output_tokens": 53,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 27145,
+        "cached_input_tokens": 26967,
+        "output_tokens": 40,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 27307,
+        "cached_input_tokens": 27142,
+        "output_tokens": 42,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 27471,
+        "cached_input_tokens": 27304,
+        "output_tokens": 41,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 27634,
+        "cached_input_tokens": 27304,
+        "output_tokens": 41,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "input_tokens": 27797,
+        "cached_input_tokens": 27631,
+        "output_tokens": 42,
+        "status": "ok"
+      }
+    ]
+  },
+  "tools": {
+    "calls": 110,
+    "failed": {}
+  },
+  "events": {
+    "count": 541,
+    "bytes": 316339,
+    "by_type": {
+      "approval_granted": 1,
+      "approval_requested": 1,
+      "error": 1,
+      "handoff": 4,
+      "job_transition": 29,
+      "model_call": 56,
+      "policy_decision": 220,
+      "role_started": 3,
+      "stage_transition": 6,
+      "tool_call": 110,
+      "tool_result": 110
+    }
+  }
+}
