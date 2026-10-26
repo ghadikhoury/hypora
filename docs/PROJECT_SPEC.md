@@ -1073,7 +1073,7 @@ class Role:
 - Web app, CLI, HTTP API, and external MCP access share one core.
 
 **Open (decided during implementation, justified by tests):**
-- Final evaluation/demo model and provider (Claude or GPT family) and per-tier model mapping.
+- Final evaluation/demo provider and exact per-tier model IDs, selected at S2.6 (D-007).
 - Exact architectures per family; embedding model; vector index library.
 - Default resource-pool sizes, token budgets, and stop-condition thresholds.
 - Confidence threshold for Phase A early exit; successive-halving budgets.

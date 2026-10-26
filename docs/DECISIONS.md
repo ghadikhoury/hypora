@@ -435,7 +435,66 @@ one it supersedes.
   `runs/<run_id>/CANCEL` file until S1.6 gives it a command; a cancelled run reports and ends
   `CANCELLED`. docs/notes/controller.md documents the design.
 
-<!-- D-020 and D-021 are recorded by the S1.6 PR (#17), open when D-022 to D-025 were written. -->
+## D-020 — Mode 1 experiment worker: host process by default, opt-in compose service
+- Date: 2026-10-26
+- Step: S1.6
+- Decided by: Ghadi (S1.6 instructions: default to a host-process worker in Mode 1; make the compose
+  service variant opt-in, with the Docker-socket mount documented as a platform-only privilege)
+- Options considered: (a, chosen) the worker stays a host process started per run (D-019), and a
+  compose `worker` service holding the host's Docker socket is an opt-in alternative; (b) the
+  worker always runs as a compose service with the socket; (c) no compose worker before S4.4.
+- Decision: (a).
+  - `hypora run --worker host` (default) keeps D-019's per-run worker process.
+  - `hypora run --worker compose` uses the `worker` service of `docker-compose.worker.yml`, started
+    with `make worker-up`. The run checks the service serves the same state database and runs
+    folder, never starts or stops it, and treats it stopping as the worker exiting.
+  - The default `docker-compose.yml` is the S1.6 skeleton: the API placeholder (`GET /health`,
+    localhost only) and the state volume. The state volume is a bind mount of `runs/`, because
+    the host CLI, the host worker, and the containers share one SQLite file in WAL mode.
+  - The Docker socket is a platform-only privilege. Only the opt-in worker gets it. The worker
+    has no network, runs as the host user plus the socket's group, has a read-only root
+    filesystem, drops all capabilities, and sets `no-new-privileges`. It mounts `runs/` and the
+    checkout's `hypora/` and `configs/` (read-only) at their host paths, never `.env`.
+  - Sandboxes never get the socket (S1.2).
+- Why: the worker launches sandbox containers, so it needs the Docker API. On the host it uses
+  the user's own Docker access, so there is nothing new to grant. In a container it needs the
+  socket, which is equivalent to root on the host, so that variant must be explicit, minimal,
+  and documented. The host default also keeps `make run` free of image builds and path mapping.
+- Consequences:
+  - docs/notes/docker-compose.md has the threat model and the same-path rule. Docker resolves
+    sandbox mounts on the host, so the compose worker uses the checkout's code at its host path.
+    With the image's copy, Docker silently created an empty host directory and the harness was
+    missing.
+  - `tests/unit/test_compose.py` pins which service holds the socket and how each service is
+    hardened.
+  - S4.4 completes the stack (web, API, controller, MCP server) and revisits which worker mode is
+    the default.
+
+## D-021 — Dataset snapshots require a clearly named license
+- Date: 2026-10-26
+- Step: S1.6 (applies to every later dataset choice: S1.7, S2.5, S5.1, demos)
+- Decided by: Ghadi (S1.6 instructions: record each dataset's license and refuse datasets without
+  a clear license); the interpretation below was applied by the implementing agent and flagged for
+  confirmation in the PR
+- Options considered: (a, applied) store a dataset only if the license its source declares is
+  recognized (a named license with its version), recording the declaration and where it was read;
+  (b) also accept OpenML's generic `Public` declaration; (c) let the operator assert a license.
+- Decision: (a), implemented in `scripts/snapshot_dataset.py` and `hypora/storage/snapshots.py`.
+  - Recognized licenses: CC0, the CC licenses with a version, explicit "Public Domain", PDDL,
+    ODbL, ODC-By, DbCL, MIT, Apache-2.0.
+  - Refused: OpenML's `Public` (most older OpenML uploads, including iris 61, breast-w 15, adult
+    1590, credit-g 31), `See source`, versionless CC names, and anything unrecognized.
+  - UCI datasets are licensed through the License section of the dataset page (all sampled pages:
+    CC BY 4.0).
+  - Non-commercial CC licenses are accepted, because they are clear. Their ID shows NC.
+- Why: `Public` says a dataset is publicly visible, not under which terms it may be used. Guessing
+  a license would contradict "clear". Many classic datasets remain available through their UCI
+  originals, and curated OpenML uploads (e.g. TabArena, IDs 46904-46958) name their licenses.
+- Consequences:
+  - The S1.6 demo task uses OpenML 46918 (credit-g, CC BY 4.0) rather than 31.
+  - Later steps choose datasets from licensed OpenML uploads or UCI. If a required dataset has no
+    clear license, the agent stops and asks Ghadi (PLAN.md §0.3 trigger 9).
+  - docs/notes/datasets.md lists the rules and the manifest fields.
 
 ## D-022 — Pre-PR checks: CI is the gate; a fast local check is planned; no parallel pytest
 - Date: 2026-10-26
@@ -536,3 +595,17 @@ one it supersedes.
   the main delay.
 - Consequences: this relaxes PLAN.md's stage ordering only for S1.7 and S2.1. Within Stage 2,
   S2.1 still precedes S2.2–S2.4, which form one parallel group, and S2.5 and S2.6 stay serial.
+
+## D-026 — Reviewer validation relies on CI
+- Date: 2026-10-26
+- Step: process; updates D-022 for reviewers and supplements D-024
+- Decided by: Ghadi
+- Decision: reviewers inspect the diff and use targeted tests only to verify specific claims.
+  They do not run full local validation, duplicate CI-covered checks, or manually rerun CI jobs.
+  Markdown-only fixes need diff review without local checks or a manual CI run unless a specific
+  claim needs verification. Existing required checks must still be green on the reviewed head
+  before merging.
+- Why: duplicate local and CI runs delay reviews without adding useful evidence.
+- Consequences: AGENTS.md separates coding-agent checks from reviewer verification; PLAN.md's
+  review flow agrees; README defers local-check requirements to AGENTS.md. No runtime, model,
+  schema, tool, event, or grading behavior changes.

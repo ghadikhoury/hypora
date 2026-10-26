@@ -88,7 +88,7 @@ Rules:
 - **Recorded runs never mix models.** In the `eval` profile, a provider failure is retried with backoff and then recorded as a failure — never silently swapped.
 - **Stage gates (D-016):** S1.7 runs its smoke tasks on `dev` only; matching `eval` evidence is added at S2.6 after the eval model is pinned. The last step of Stages 2–4 runs the dev case set on **both** profiles and commits both result sets, catching profile-specific behavior differences.
 - Changing the `eval` profile after S2.6 invalidates recorded results; it requires `🧑 HUMAN · DECIDE` and a re-run of affected evals.
-- **D-007 (2026-10-24):** the dev profile is `gemini-3.5-flash-lite` for every tier, with self-imposed rate limits from `configs/models.yaml`; dev fallback stays disabled until S2.6; and the `eval` provider/model is no longer fixed to OpenAI: S2.6 chooses it by measured cost per passed trap (`docs/DECISIONS.md` D-007).
+- **Model selection (D-007):** S2.6 chooses the `eval` provider/model by measured cost per passed trap (`docs/DECISIONS.md` D-007).
 - The two providers also serve as the "two models" required for the F5 MCP evaluation (S5.3).
 
 ---
@@ -119,7 +119,7 @@ Explain-it check: 3 questions a TA might ask about this PR, with short answers
 ```
 The "explain-it check" exists so Ghadi can verify his understanding of every merged PR before the demo.
 
-**Review flow:** coding agent opens PR → AI reviewer (a different model/tool from the author) reviews → CI green → merge. The reviewing agent merges when review and CI pass; there is no human merge approval.
+**Review flow (D-024, D-026):** coding agent opens PR → AI reviewer (a different model/tool from the author) reviews the diff immediately → required CI green on the reviewed commit → merge. Reviewers rely on CI for full validation and run a targeted test only to verify a specific claim; see `AGENTS.md` for the procedure. There is no human merge approval.
 
 ---
 

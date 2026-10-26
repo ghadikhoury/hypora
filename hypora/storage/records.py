@@ -9,11 +9,13 @@ the MCP dev workspace and tests seed them through the same functions.
 
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import func, insert, select, update
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.engine import Connection
+from sqlalchemy.orm import Session
 
 from hypora.core.schemas import (
     ApprovalDecision,
@@ -49,6 +51,55 @@ def create_run(database: Database, run_id: str, workspace_id: str, **fields: Any
     """Insert a `runs` row (spec §15.1); `fields` are optional columns such as `family`."""
     with database.write() as connection:
         connection.execute(insert(Run).values(id=run_id, workspace_id=workspace_id, **fields))
+
+
+@dataclass(frozen=True)
+class StoredRun:
+    """A `runs` row (spec §15.1): status, budget and its materialized spend, config snapshot."""
+
+    run_id: str
+    workspace_id: str
+    status: RunStatus
+    approval_policy: str
+    budget_usd: Decimal | None
+    spent_usd: Decimal
+    budget_compute_s: Decimal | None
+    spent_compute_s: Decimal
+    model_config: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+
+def _stored_run(row: Run) -> StoredRun:
+    return StoredRun(
+        run_id=row.id,
+        workspace_id=row.workspace_id,
+        status=RunStatus(row.status),
+        approval_policy=str(row.approval_policy),
+        budget_usd=row.budget_usd,
+        spent_usd=row.spent_usd,
+        budget_compute_s=row.budget_compute_s,
+        spent_compute_s=row.spent_compute_s,
+        model_config=dict(row.model_config or {}),
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def load_run(database: Database, run_id: str) -> StoredRun:
+    """One run's `runs` row; raises RecordNotFound."""
+    with Session(database.engine) as session:
+        row = session.get(Run, run_id)
+        if row is None:
+            raise RecordNotFound(f"no run {run_id}")
+        return _stored_run(row)
+
+
+def list_runs(database: Database, limit: int = 20) -> list[StoredRun]:
+    """The most recently created runs, newest first."""
+    statement = select(Run).order_by(Run.created_at.desc(), Run.id.desc()).limit(limit)
+    with Session(database.engine) as session:
+        return [_stored_run(row) for row in session.scalars(statement)]
 
 
 def set_run_status(connection: Connection, run_id: str, status: RunStatus) -> None:

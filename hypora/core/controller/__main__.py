@@ -5,8 +5,9 @@
 
 Uses the active model profile (`HYPORA_MODEL_PROFILE`, default `dev`) and the provider keys in
 `.env`. It needs Docker for the sandbox. The state database and run folders go under `runs/`
-(git-ignored) unless --db / --runs-root say otherwise. The user-facing CLI is S1.6; this entry
-point is for development and the S1.5 live check.
+(git-ignored) unless --db / --runs-root say otherwise. The user-facing CLI is `hypora run`
+(hypora/cli/, S1.6), which adds preflight checks and live progress; this entry point remains for
+development.
 """
 
 import argparse
