@@ -13,12 +13,9 @@ import errno
 import hashlib
 import json
 import math
-import os
 import re
 import secrets
-import shutil
 import statistics
-import tempfile
 import threading
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -90,6 +87,7 @@ MAX_PIPELINE_BYTES: Final = 1024 * 1024
 MAX_LOCK_BYTES: Final = 64 * 1024
 TRIAL_FILES: Final = ("trial.yaml", "pipeline.py", "requirements.lock")
 WITHHELD_LINE: Final = "[line withheld by the data firewall: it showed dataset values]"
+_STATUS_ARTIFACT_KINDS: Final = frozenset({"metrics", "predictions", "manifest"})
 _SANDBOX_LOCK: Final = Path(__file__).parents[1] / "execution/sandbox/requirements-tabular.lock"
 _REQUIREMENT = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*==\s*([A-Za-z0-9._+!-]+)\s*$")
 _PROFILED_TASKS = frozenset(
@@ -751,12 +749,9 @@ class HyporaTools:
             return None
 
     def _publish_job(self, job_id: str, request: SubmitExperimentRequest) -> None:
-        """Freeze the trial's files and the request as the job folder, atomically.
-
-        Everything is written into a private staging directory, then renamed into place in one
-        step: the worker can only ever see a complete folder, and if an identical call already
-        published this job, its snapshot stands (the original submission is what runs).
-        """
+        """Freeze the trial's files and the request as the job folder, atomically
+        (`protocol.publish_job`): if an identical call already published this job, its snapshot
+        stands (the original submission is what runs)."""
         session = self.session
         final = protocol.job_dir(session.runs_root, session.run_id, job_id)
         if (final / protocol.REQUEST_FILE).exists():
@@ -779,29 +774,17 @@ class HyporaTools:
                 "The dataset file changed after this session loaded and indexed it.",
                 "Report this to the user: the session must be restarted on the new data.",
             )
-        final.parent.mkdir(parents=True, exist_ok=True)
-        staging = Path(tempfile.mkdtemp(prefix=f".{job_id}.", dir=final.parent))
-        try:
-            (staging / protocol.TRIAL_SNAPSHOT_DIR).mkdir()
-            for name, content in snapshot.items():
-                protocol.write_once(staging / protocol.TRIAL_SNAPSHOT_DIR / name, content)
-            protocol.write_json_once(
-                staging / protocol.REQUEST_FILE,
-                protocol.ExperimentRequest(
-                    request=request,
-                    dataset_id=dataset_id,
-                    dataset_path=str(dataset_path),
-                    dataset_sha256=dataset_sha256,
-                    trial_files={name: _sha256(content) for name, content in snapshot.items()},
-                ),
-            )
-            try:
-                os.rename(staging, final)
-            except OSError as exc:  # an identical call published this job first
-                if exc.errno not in (errno.EEXIST, errno.ENOTEMPTY):
-                    raise
-        finally:
-            shutil.rmtree(staging, ignore_errors=True)
+        protocol.publish_job(
+            final,
+            protocol.ExperimentRequest(
+                request=request,
+                dataset_id=dataset_id,
+                dataset_path=str(dataset_path),
+                dataset_sha256=dataset_sha256,
+                trial_files={name: _sha256(content) for name, content in snapshot.items()},
+            ),
+            snapshot,
+        )
 
     def _check_approval(self, contract: ExperimentContract, approval_ref: str) -> None:
         recovery = "Omit approval_ref; experiments run under the contract's own approval."
@@ -928,6 +911,7 @@ class HyporaTools:
             artifacts=[
                 ArtifactRef.model_validate(artifact.model_dump())
                 for artifact in (outcome.artifacts if outcome else [])
+                if artifact.kind in _STATUS_ARTIFACT_KINDS  # a final job's model stays internal
             ],
             next_step=_next_step(job, finished, succeeded),
         )

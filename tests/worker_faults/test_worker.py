@@ -4,6 +4,7 @@ import os
 import signal
 import sys
 import threading
+import time
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -282,7 +283,14 @@ def test_heartbeats_keep_a_long_job_leased(
     def long_job(spec: SandboxSpec, should_abort: Callable[[], str | None]) -> None:
         for _ in range(10):  # 10 x 20 s of fake time > the 30 s lease, with heartbeats between
             clock.advance(20)
-            threading.Event().wait(0.15)
+            expected_expiry = clock() + timedelta(seconds=queue.lease_seconds)
+            deadline = time.monotonic() + 5
+            # Wait for the real heartbeat, rather than assuming the OS schedules it
+            # within a fixed sleep before fake time advances past the lease again.
+            while queue.get(job_id).lease_expires_at != expected_expiry:
+                assert should_abort() is None
+                assert time.monotonic() < deadline, "heartbeat did not extend the lease"
+                threading.Event().wait(0.01)
             assert should_abort() is None
 
     worker, outcomes = make_worker(queue, FakeLauncher(during=long_job), tmp_path)

@@ -279,6 +279,7 @@ class TabularHarness:
         contract: ExperimentContract,
         *,
         config: dict | None = None,
+        limits: JobLimits | None = None,
     ) -> FrozenCandidate:
         """Refit on development only; freeze the candidate before any test scoring."""
         self._check_contract(validation, contract)
@@ -296,6 +297,7 @@ class TabularHarness:
             validation.pipeline,
             contract,
             validation.config,
+            limits=limits,
         )
         validation.resources.extend(self.resources[resource_start:])
         frozen = FrozenCandidate(
@@ -321,6 +323,7 @@ class TabularHarness:
         contract: ExperimentContract,
         *,
         config: dict | None = None,
+        limits: JobLimits | None = None,
     ) -> dict:
         """Score one frozen final candidate once; the container receives test features only."""
         validation = candidate.validation
@@ -350,6 +353,7 @@ class TabularHarness:
             validation.pipeline,
             contract,
             validation.config,
+            limits=limits,
         )
         validation.resources.extend(self.resources[resource_start:])
         self._write(validation.artifacts / "test-predictions.parquet", parquet_bytes(predictions))
