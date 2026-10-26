@@ -16,6 +16,18 @@ the data in parallel, recommend an evidence-backed strategy, and, after the user
 budget, run bounded experiments in sandboxed local workers. Platform code (never LLM code) owns data
 splits, held-out labels, and metrics. Every step is recorded in an append-only event log.
 
+## Where things live
+
+| Need | File |
+|---|---|
+| What Hypora is (behavior, contracts, tool and event definitions) | `docs/PROJECT_SPEC.md` |
+| How and in what order it is built (steps, labels, triggers) | `docs/PLAN.md` |
+| Owner decisions, newest last | `docs/DECISIONS.md` |
+| Design notes per step | `docs/notes/` |
+| Frozen schemas and MCP tool contract (generated; never hand-edit) | `docs/schemas/`, `docs/mcp/tools.json` |
+
+`AGENTS.md` summarizes the working rules in `docs/PLAN.md`; keep shared rules consistent.
+
 ## Team and workflow
 
 | Who | Does | Never does |
@@ -48,10 +60,15 @@ splits, held-out labels, and metrics. Every step is recorded in an append-only e
   and reply to each saying what changed. If you disagree, reply with your reasoning; if still contested
   after one round, tell Ghadi. Push, then say "Ready for re-review."
 
-### Reviewer flow (D-024)
+### Reviewer flow (D-024, D-026)
 
 - **Start reviewing as soon as the PR is open.** Do not wait for CI or anything else.
 - If CI is red, still finish the whole review, so the author gets all feedback in one round.
+- **Review the diff; rely on CI for full validation.** Do not run `make check`, the full test suite,
+  other checks already covered by CI, or manually rerun CI jobs. Run a targeted test only when it
+  is needed to verify a specific review claim.
+- **Markdown-only fixes:** review the diff; no local checks or manual CI run are needed unless a
+  specific claim needs verification. Existing required GitHub checks still govern merging.
 - If commits are pushed after your review, re-review only the changes since the commit you reviewed
   (`git diff <reviewed>..<head>`).
 - **Before merging**, confirm that the PR's head commit (`gh pr view <N> --json headRefOid`) is the
@@ -94,7 +111,7 @@ commits from WSL so the pre-commit hooks can run. All text files use LF line end
 | `make mcp-tools` | Regenerate `docs/mcp/tools.json`, the frozen MCP tool contract, after an approved tool change (a test fails if it is stale) |
 | `make sandbox-image` | Build the hash-tagged tabular sandbox image (needs Docker) |
 | `make sandbox-lock` | Re-lock the sandbox image's packages (with hashes) after editing `requirements-tabular.in` |
-| `make check` | `lint` + `typecheck` + `test` + `secrets`; must pass before every PR |
+| `make check` | Full validation: `lint` + `typecheck` + `test` + `secrets`; local usage below |
 | `make run` | Run the agent end to end (`hypora run`): the demo task on OpenML 46918, or `DATA=<file> GOAL="..." [TARGET=<col>]`. Makes live model calls on the active profile, so like `make test-live` it runs only when Ghadi says so |
 | `make snapshot SOURCE=openml\|uci ID=<id>` | Fetch a real dataset into `data/snapshots/` with its manifest entry (D-015, D-021) |
 | `make eval` | Placeholder until the evaluation runner (S2.4) |
@@ -110,8 +127,9 @@ The `hypora` CLI (`uv run hypora run | status | trace | cancel | approve`) is do
 **Dependencies:** anything named in spec §22 or in the current step is pre-approved; pin it in
 `pyproject.toml` and commit `uv.lock`. Anything else triggers stop-and-ask.
 
-### Checks before a PR and in CI (D-022, D-023)
+### Coding-agent checks before a PR and in CI (D-022, D-023)
 
+This section applies to implementing agents. Reviewers follow "Reviewer flow" above (D-026).
 Items marked **planned** do not exist yet: never call or rely on them until their PR has merged.
 
 - **CI is the merge gate.** It runs the full `make check` (ruff, mypy, every test including the
@@ -200,8 +218,7 @@ Everything else proceeds without asking.
 - If a required real dataset cannot be obtained, stop, list the OpenML/UCI dataset IDs, and
   ask Ghadi how to proceed (trigger 9). Kaggle is not an evaluation source.
 
-This owner decision supersedes the broader public/synthetic dataset allowances in spec §17
-and §19.2 for these uses.
+Spec §17 and §19.2 state the same rule.
 
 ## Model policy (PLAN.md §1)
 

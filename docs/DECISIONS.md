@@ -319,9 +319,6 @@ one it supersedes.
   placeholder models. Requiring eval at S1.7 would contradict that approved selection schedule.
 - Consequences: PLAN.md's model policy, S1.7, and S2.6 and AGENTS.md's stage-gate summary are
   aligned. No model profile, model ID, runtime behavior, case, grading rule, or hidden split changes.
-  Important owner decisions are recorded here; this log contains decisions only, with
-  implementation notes and status reports kept elsewhere.
-
 
 ## D-017 — PyArrow is the project's Parquet engine
 - Date: 2026-10-25
@@ -598,3 +595,17 @@ one it supersedes.
   the main delay.
 - Consequences: this relaxes PLAN.md's stage ordering only for S1.7 and S2.1. Within Stage 2,
   S2.1 still precedes S2.2–S2.4, which form one parallel group, and S2.5 and S2.6 stay serial.
+
+## D-026 — Reviewer validation relies on CI
+- Date: 2026-10-26
+- Step: process; updates D-022 for reviewers and supplements D-024
+- Decided by: Ghadi
+- Decision: reviewers inspect the diff and use targeted tests only to verify specific claims.
+  They do not run full local validation, duplicate CI-covered checks, or manually rerun CI jobs.
+  Markdown-only fixes need diff review without local checks or a manual CI run unless a specific
+  claim needs verification. Existing required checks must still be green on the reviewed head
+  before merging.
+- Why: duplicate local and CI runs delay reviews without adding useful evidence.
+- Consequences: AGENTS.md separates coding-agent checks from reviewer verification; PLAN.md's
+  review flow agrees; README defers local-check requirements to AGENTS.md. No runtime, model,
+  schema, tool, event, or grading behavior changes.

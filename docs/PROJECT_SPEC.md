@@ -4,7 +4,7 @@
 >
 > **Status:** Architecture specification. Describes the intended system precisely enough to implement from. It is not proof that any component exists — always verify against the repository.
 >
-> **Course context:** This is also the CIS 1990 (Designing LLM Agents, Penn) final project, completed solo. The official handout (`CIS1990 Final Project Handout.pdf`, same folder) is authoritative for grading, deadlines, and evaluation rules. Section 20 maps the system onto it.
+> **Course context:** This is also the CIS 1990 (Designing LLM Agents, Penn) final project, completed solo. The official handout (`CIS1990 Final Project Handout.pdf`, kept outside this repository) is authoritative for grading, deadlines, and evaluation rules. Section 20 maps the system onto it.
 >
 > **How to read this document:** Sections 1–3 are principles and vocabulary. Sections 4–11 define the runtime architecture (the core of the system). Sections 12–19 define the supporting subsystems. Sections 20–24 cover evaluation, course mapping, interfaces, and technology.
 
@@ -787,10 +787,10 @@ Config: `durable_mode ∈ {on, off}` (off disables checkpoint-resume for compari
 
 ## 17. LLM providers
 
-- **Provider adapter:** one interface (`complete(messages, tools, output_schema, tier) → response`) with Gemini, Claude, and OpenAI implementations using native SDKs, so every prompt and token is inspectable.
+- **Provider adapter:** one interface (`complete(messages, tools, output_schema, tier) → response`) with Gemini and OpenAI implementations using native SDKs, so every prompt and token is inspectable; another provider plugs into the same interface.
 - **Model tiers:** `lead` (strong model for Leads, Supervisor, Reviewer), `worker` (capable, cheaper model for research/diagnostic/trial workers), `cheap` (intake parsing, summarization). Mapped to providers/models in config.
-- **Development:** free-tier Gemini. Only public/synthetic datasets are used, consistent with free-tier data-use terms.
-- **Final evaluation and demo:** run on the same configured model(s). Results describe the agent as configured; changing the model requires re-running the evaluation.
+- **Development (`dev` profile):** free-tier Gemini, with the model IDs and self-imposed rate limits in `configs/models.yaml` (D-007). Only real public OpenML/UCI datasets are used (D-015), consistent with free-tier data-use terms.
+- **Final evaluation and demo (`eval` profile):** pinned exact model IDs, chosen at S2.6 by measured cost per passed trap (D-007), with no fallback. Recorded runs never mix models. Results describe the agent as configured; changing the model requires re-running the evaluation.
 - Every run records provider, model identifier/version, temperature (or "not configurable"), and run date.
 
 ---
@@ -843,7 +843,7 @@ A new verified backend registers: family name and tasks, dataset schema/validati
 
 ### 19.2 Benchmark cases
 
-A case = request + public/synthetic dataset (or documented snapshot from OpenML/Hugging Face/UCI) + family + permitted tools + budget + pre-approved contract policy + grading rules + injected faults if applicable.
+A case = request + a real public dataset (a documented OpenML or UCI snapshot with a manifest entry, D-015; a trap may be planted by a script that modifies it) + family + permitted tools + budget + pre-approved contract policy + grading rules + injected faults if applicable.
 
 **Planted-trap cases** test methodology directly:
 
@@ -959,7 +959,7 @@ Choose the simplest adequate tool; pin exact versions; use existing components f
 | Schemas | Pydantic (JSON Schema export) | TaskSpec, contracts, briefs, findings, tool I/O, events |
 | Controller & scheduler | Plain Python asyncio | Full control of state, replay, approvals; explainable |
 | Agent framework | **None** — native provider SDKs behind our adapter | Inspectable prompts/tokens, no second state model, immediate access to provider features |
-| LLM providers | Gemini, Claude, OpenAI SDKs | Tiered, configurable |
+| LLM providers | Gemini and OpenAI SDKs | Tiered, configurable |
 | MCP | Official MCP Python SDK | Typed tools, stdio + Streamable HTTP |
 | Model research | `huggingface_hub` | Catalog + model cards |
 | Retrieval | `rank_bm25` / scikit-learn TF-IDF + sentence-embedding model + persisted vector index | Hybrid retrieval with metadata filters |
@@ -1073,7 +1073,7 @@ class Role:
 - Web app, CLI, HTTP API, and external MCP access share one core.
 
 **Open (decided during implementation, justified by tests):**
-- Final evaluation/demo model and provider (Claude or GPT family) and per-tier model mapping.
+- Final evaluation/demo provider and exact per-tier model IDs, selected at S2.6 (D-007).
 - Exact architectures per family; embedding model; vector index library.
 - Default resource-pool sizes, token budgets, and stop-condition thresholds.
 - Confidence threshold for Phase A early exit; successive-halving budgets.

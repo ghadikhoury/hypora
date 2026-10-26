@@ -105,8 +105,9 @@ explains why this is a platform-only privilege.
 
 ## Development
 
-`make check` (lint, types, tests, secret scan) must pass before every PR; `make help` lists every
-target. Conventions, the step-by-step workflow, and the model policy are in [AGENTS.md](AGENTS.md).
+CI runs `make check` (lint, types, tests, secret scan) on every PR. Local checks depend on your
+role and the change; follow [AGENTS.md](AGENTS.md), which also holds the workflow and model policy.
+`make help` lists every target.
 
 ## Troubleshooting
 
