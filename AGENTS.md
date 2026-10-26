@@ -16,6 +16,18 @@ the data in parallel, recommend an evidence-backed strategy, and, after the user
 budget, run bounded experiments in sandboxed local workers. Platform code (never LLM code) owns data
 splits, held-out labels, and metrics. Every step is recorded in an append-only event log.
 
+## Where things live
+
+| Need | File |
+|---|---|
+| What Hypora is (behavior, contracts, tool and event definitions) | `docs/PROJECT_SPEC.md` |
+| How and in what order it is built (steps, labels, triggers) | `docs/PLAN.md` |
+| Owner decisions, newest last | `docs/DECISIONS.md` |
+| Design notes per step | `docs/notes/` |
+| Frozen schemas and MCP tool contract (generated; never hand-edit) | `docs/schemas/`, `docs/mcp/tools.json` |
+
+`AGENTS.md` summarizes `docs/PLAN.md` §0.2–§1; when the two differ, change both in the same PR.
+
 ## Team and workflow
 
 | Who | Does | Never does |
@@ -193,8 +205,7 @@ Everything else proceeds without asking.
 - If a required real dataset cannot be obtained, stop, list the OpenML/UCI dataset IDs, and
   ask Ghadi how to proceed (trigger 9). Kaggle is not an evaluation source.
 
-This owner decision supersedes the broader public/synthetic dataset allowances in spec §17
-and §19.2 for these uses.
+Spec §17 and §19.2 state the same rule.
 
 ## Model policy (PLAN.md §1)
 

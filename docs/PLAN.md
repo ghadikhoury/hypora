@@ -3,6 +3,8 @@
 > **Project name: Hypora.** The Python package, CLI, Docker images, and docs all use the name `hypora`.
 >
 > Companion to `docs/PROJECT_SPEC.md` (the "spec"). The spec defines **what** the system is; this plan defines **how and in what order** it is built. When they disagree on behavior, the spec wins; when they disagree on order or process, this plan wins. Section references like "spec §8.1" point into the spec.
+>
+> **Paths:** Python module paths in this plan and the spec (`core/…`, `execution/…`, `mcp_server/…`, `profiling/…`) are relative to the top-level `hypora/` package (D-001). Paths starting with `docs/`, `configs/`, `scripts/`, `tests/`, `web/`, or `migrations/` are relative to the repository root.
 
 ---
 
@@ -68,8 +70,7 @@ Everything else proceeds without asking.
 - If a required real dataset cannot be obtained, stop, list the OpenML/UCI dataset IDs, and
   ask Ghadi how to proceed (trigger 9). Kaggle is not an evaluation source.
 
-This owner decision supersedes the broader public/synthetic dataset allowances in spec §17
-and §19.2 for the uses above; it changes no evaluation cases or grading rules.
+Spec §17 and §19.2 state the same rule. It changes no evaluation cases or grading rules.
 
 ---
 
@@ -213,7 +214,7 @@ Done when: configs load and validate; invalid flag values fail fast with clear e
 
 ### S0.5 — LLM provider adapter
 **PR:** `s0.5-llm-adapter` · `⇉ PARALLEL · S0-core` · **Depends on:** S0.2 · **Spec:** §17, §9.4
-`🧑 HUMAN · SECRET` — Add `GEMINI_API_KEY` and `OPENAI_API_KEY` to local `.env` and to GitHub Actions secrets. Set a monthly spend limit on the OpenAI account.
+`🧑 HUMAN · SECRET` — Add `GEMINI_API_KEY` (the dedicated Hypora Google project's free-tier key, D-007) to local `.env` and to GitHub Actions secrets. `OPENAI_API_KEY` and its spend limit are deferred to S2.6 (D-007, D-008).
 
 Build in `core/llm/`:
 - `LLMProvider.complete(messages, tools, output_schema, tier) -> LLMResponse` with normalized tool-call and structured-output handling.
@@ -291,13 +292,13 @@ Done when: MCP Inspector lists and calls every tool; a pytest MCP client exercis
 **PR:** `s1.5-controller-v1` · `→ SERIAL` · **Depends on:** S1.4, S0.5 · **Spec:** §5, §6.8, §6.9, §8.6
 
 Build:
-- `core/controller/`: run state machine (`INTAKE → PROFILE → PHASE_B → REPORTING → DONE/FAILED`, simplified; `PROFILE` is a `Stage`, recorded alongside the spec §15.1 `RunStatus` per D-005), budget checks before every model/tool call, step limit, stop conditions from spec §6.8.
+- `core/controller/`: run state machine as an explicit `(state, event) → next state` table over the stages `INTAKE → PROFILE → CONTRACT → PHASE_B → REPORT`, each recorded alongside the spec §15.1 `RunStatus` (D-005, D-019), budget checks before every model/tool call, step limit, stop conditions from spec §6.8.
 - `core/roles/single_agent.py`: one agent with the MCP tools, the run's TaskSpec, profile summary, and a system prompt; tool loop with errors returned as observations; iteration cap.
 - Minimal intake: parse the goal into a `TaskSpecification` with one structured-output call (full Intake role comes in S4.1).
 - `core/verification/` v1: allowed-features check, metric recomputation from saved predictions, finite outputs, artifact loads.
 - `core/roles/reporter.py` v1: report generated from DB records; every number pulled from stored metrics.
 
-Done when: on a fixture CSV, a run completes end to end with the `dev` profile, produces a verified model and report, and every step appears in the event log.
+Done when: on a real UCI/OpenML dataset (D-015; the deterministic test uses the UCI Breast Cancer data bundled with scikit-learn), a run completes end to end with the `dev` profile, produces a verified model and report, and every step appears in the event log.
 
 ### S1.6 — CLI, real data sources, Docker Compose
 **PR:** `s1.6-cli-data-compose` · `→ SERIAL` · **Depends on:** S1.5 · **Spec:** §4.1, §21, §20 (real tools)
@@ -315,7 +316,7 @@ Done when: a fresh clone + README steps run a task end to end on an OpenML snaps
 
 Build: a smoke-test script running 2 real OpenML/UCI snapshot tasks on the **`dev` profile only** (D-015, D-016); results committed under `results/stage1/`; event-log size and token usage per run reported (feeds the budget estimate). Retain the task and snapshot references so S2.6 can add matching `eval` evidence.
 
-Done when: dev-profile run only; eval-profile evidence is added at S2.6 when the eval model is pinned (D-016). Both tasks complete, and per-run token/cost numbers are recorded in `docs/notes/cost-estimate.md`.
+Done when: both tasks complete on the `dev` profile, and per-run token/cost numbers are recorded in `docs/notes/cost-estimate.md`. Matching `eval`-profile evidence is added at S2.6, once the eval model is pinned (D-016).
 
 ---
 
@@ -377,6 +378,7 @@ Done when: all cases validate; the baseline fails the trap cases it should fail 
 
 ### S2.6 — First recorded evaluation and model lock
 **PR:** `s2.6-first-eval` · `→ SERIAL` · **Depends on:** S2.5 · **Spec:** §17, §19.5
+`🧑 HUMAN · SECRET` — Before the comparison: add `OPENAI_API_KEY` to local `.env` and GitHub Actions secrets, fund the OpenAI account, and set its monthly spend limit; enable billing on the Hypora Google project only if the full-Flash candidate is compared (D-007).
 `🧑 HUMAN · DECIDE` — Choose the winning provider/model by D-007's cost-per-pass procedure, then pin the exact model IDs for each tier in the `eval` profile (and temperature). Record the choice in `docs/DECISIONS.md`.
 `🧑 HUMAN · COURSE` — Check-in (Nov 4): record a 30 s–2 min video of `hypora run` and `make eval`; submit the one-page update and the repo link at the merge commit of this step.
 
@@ -681,8 +683,8 @@ No step requires human approval to merge. Human involvement is limited to:
 | Step | Label | What |
 |---|---|---|
 | S0.1 | SETUP | Docker Desktop + WSL2, `uv`, Node; branch protection; AI review app |
-| S0.5 | SECRET | `GEMINI_API_KEY`, `OPENAI_API_KEY`; OpenAI spend limit |
-| S2.6 | DECIDE · COURSE | Pin `eval` model IDs; check-in submission |
+| S0.5 | SECRET | `GEMINI_API_KEY` (Hypora project; D-007) |
+| S2.6 | SECRET · DECIDE · COURSE | `OPENAI_API_KEY` + funding + spend limit (and Gemini billing on the Hypora project if compared); pin `eval` model IDs; check-in submission |
 | S3.B1 | SECRET | `HF_TOKEN` |
 | S4.2 | DECIDE | Thresholds and limits |
 | S5.2 | DECIDE | API spend for the core run |
