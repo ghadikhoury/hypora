@@ -60,7 +60,9 @@ and compute before it queues the final job and while it waits for jobs. The sing
 own turn cap
 (`max_agent_turns`, 60). A refusal records **one** `error` event per limit, code
 `RUN_LIMIT_REACHED`, with `details = {limit, used, maximum, steps}`, and raises `RunLimitReached`;
-the role stops, the controller drains or cancels jobs, and the run reports.
+the role stops, the controller drains or cancels jobs, and the run reports. Worker shutdown
+always requests cancellation of unfinished jobs, including after a transport failure or a
+partially failed worker start, so queued work cannot escape a failed run.
 
 - Token usage includes every recorded attempt, including schema retries and calls that fail.
   Spend is charged to `budget_ledger` per model call (including billed failed attempts), and
@@ -133,7 +135,7 @@ inlining them. Changing a prompt's text means bumping its version.
   calls as `tool_call` events from the MCP server, approvals, role starts and handoffs, two
   COMPLETED jobs, a verified trial, and a report whose numbers are the stored ones.
 - `tests/controller/test_stops.py`: step limit, zero spend, user cancel, and a bad target, with a
-  real MCP server and no sandbox.
+  real MCP server and no sandbox, plus transport/startup failure cleanup.
 - Unit tests for the state table, the Stage-1 contract, every guard limit, final selection,
   intake, the agent loop, prompts, the reporter, and every verifier check (with the harness's own
   scorer producing the numbers the verifier recomputes).

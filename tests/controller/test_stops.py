@@ -1,7 +1,7 @@
 """Stops and failures without the sandbox: a run limit, a user cancel, and a bad request.
 
 The MCP server is real (a stdio subprocess); the experiment worker is a stub because no job is
-ever queued in these runs.
+run by the stub worker in these tests.
 """
 
 from pathlib import Path
@@ -237,3 +237,58 @@ async def test_a_stored_verdict_cannot_publish_an_uncompleted_final_job(
     assert not await run._report()
     report = json.loads((run.run_dir / "report.json").read_text())
     assert report["outcome"] == "no_verified_model" and report["final"] is None
+
+
+async def test_a_transport_failure_cancels_jobs_before_stopping_the_worker(
+    make_controller: ControllerFactory,
+    database: Database,
+    dataset: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from hypora.core.roles.single_agent import McpToolChannel
+    from hypora.storage.jobs import JobQueue, WorkerCapacity
+    from hypora.storage.records import run_jobs
+
+    original_call = McpToolChannel.call
+
+    async def lose_transport(self: McpToolChannel, name: str, arguments: Any) -> tuple[bool, str]:
+        result = await original_call(self, name, arguments)
+        if name == "submit_experiment":
+            raise RuntimeError("transport lost after accepting the job")
+        return result
+
+    monkeypatch.setattr(McpToolChannel, "call", lose_transport)
+    controller = make_controller(ScriptedRun("run_transport"), worker_factory=NoWorker)
+    result = await controller.run(
+        RunRequest(dataset=dataset, goal="x", target="target", run_id="run_transport")
+    )
+
+    assert result.state == FAILED and not result.verified
+    jobs = run_jobs(database, "run_transport")
+    assert len(jobs) == 1
+    assert jobs[0].status.value == "CANCELLED"
+    assert (
+        JobQueue(database).lease(
+            "next-run-worker", WorkerCapacity(cpu_slots=4, gpu_slots=0, memory_gb=8.0)
+        )
+        is None
+    )
+
+
+async def test_a_failed_worker_start_still_stops_the_worker(
+    make_controller: ControllerFactory, dataset: Path
+) -> None:
+    workers: list[NoWorker] = []
+
+    class FailingWorker(NoWorker):
+        def start(self) -> None:
+            workers.append(self)
+            super().start()
+            raise RuntimeError("worker startup failed after launch")
+
+    controller = make_controller(ScriptedRun("run_start"), worker_factory=FailingWorker)
+    result = await controller.run(
+        RunRequest(dataset=dataset, goal="x", target="target", run_id="run_start")
+    )
+    assert result.state == FAILED and not result.verified
+    assert len(workers) == 1 and workers[0].stopped

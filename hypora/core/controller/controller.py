@@ -488,11 +488,18 @@ class _Run:
     async def _phase_b(
         self, spec: TaskSpecification, contract: ExperimentContract, profile: DatasetProfile
     ) -> None:
-        self.worker.start()
         try:
+            self.worker.start()
             await self._experiments(spec, contract, profile)
         finally:
-            self.worker.stop()
+            try:
+                # A transport or controller failure can bypass the normal drain.
+                # Cancel before stopping: queued jobs must not outlive their run.
+                for job in run_jobs(self.database, self.run_id):
+                    if job.status not in TERMINAL_STATES:
+                        self._cancel(job.job_id, "controller worker shutdown")
+            finally:
+                self.worker.stop()
 
     async def _experiments(
         self, spec: TaskSpecification, contract: ExperimentContract, profile: DatasetProfile
