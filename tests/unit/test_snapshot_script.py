@@ -7,7 +7,10 @@ policy: what is stored, what is dropped, what is refused, and that a refusal wri
 import hashlib
 import io
 import json
+import urllib.request
+import urllib.response
 from dataclasses import dataclass, field
+from email.message import Message
 from pathlib import Path
 from typing import Any
 
@@ -293,3 +296,91 @@ def test_command_line_exit_codes(
     assert main(["--dir", str(tmp_path), "verify"]) == 0
     (tmp_path / "openml-7-toy-credit.parquet").write_bytes(b"x")
     assert main(["--dir", str(tmp_path), "verify"]) == 1
+
+
+def install_http_responses(
+    monkeypatch: pytest.MonkeyPatch,
+    responses: dict[str, tuple[int, str | None]],
+    calls: list[str],
+) -> None:
+    """Fake only HTTP transport, keeping urllib's real redirect processing and policy."""
+
+    def respond(request: urllib.request.Request) -> Any:
+        calls.append(request.full_url)
+        code, location = responses[request.full_url]
+        headers = Message()
+        if location is not None:
+            headers["Location"] = location
+        response: Any = urllib.response.addinfourl(
+            io.BytesIO(b"snapshot bytes"), headers, request.full_url, code
+        )
+        response.msg = "Found" if location else "OK"
+        return response
+
+    class HTTPS(urllib.request.HTTPSHandler):
+        def https_open(self, request: urllib.request.Request) -> Any:
+            return respond(request)
+
+    class HTTP(urllib.request.HTTPHandler):
+        def http_open(self, request: urllib.request.Request) -> Any:
+            return respond(request)
+
+    monkeypatch.setattr(urllib.request, "HTTPSHandler", HTTPS)
+    monkeypatch.setattr(urllib.request, "HTTPHandler", HTTP)
+    monkeypatch.setattr(urllib.request, "getproxies", lambda: {})
+    monkeypatch.setattr(urllib.request, "_opener", None)
+
+
+@pytest.mark.parametrize("code", [301, 302, 303, 307, 308])
+@pytest.mark.parametrize("target", ["https://example.org/data", "http://data.openml.org/data"])
+def test_redirects_are_checked_before_dispatch(
+    monkeypatch: pytest.MonkeyPatch, code: int, target: str
+) -> None:
+    start = "https://www.openml.org/start"
+    calls: list[str] = []
+    install_http_responses(monkeypatch, {start: (code, target), target: (200, None)}, calls)
+    with pytest.raises(SnapshotError, match="refusing to download"):
+        snap.UrllibHttp().get(start, max_bytes=100)
+    assert calls == [start]  # the forbidden host/scheme was never contacted
+
+
+@pytest.mark.parametrize("code", [301, 302, 303, 307, 308])
+def test_redirects_between_approved_https_hosts_work(
+    monkeypatch: pytest.MonkeyPatch, code: int
+) -> None:
+    start, end = "https://www.openml.org/start", "https://data.openml.org/end"
+    calls: list[str] = []
+    install_http_responses(monkeypatch, {start: (code, end), end: (200, None)}, calls)
+    result = snap.UrllibHttp().get(start, max_bytes=100)
+    assert (result.url, result.content) == (end, b"snapshot bytes")
+    assert calls == [start, end]
+
+
+def test_an_unapproved_intermediate_redirect_cannot_return_to_an_approved_host(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    start = "https://www.openml.org/start"
+    middle = "https://example.org/hop"
+    end = "https://data.openml.org/end"
+    calls: list[str] = []
+    install_http_responses(
+        monkeypatch, {start: (302, middle), middle: (302, end), end: (200, None)}, calls
+    )
+    with pytest.raises(SnapshotError, match="refusing to download"):
+        snap.UrllibHttp().get(start, max_bytes=100)
+    assert calls == [start]
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://notcreativecommons.org/licenses/by/4.0/",
+        "https://example.org/?license=creativecommons.org/licenses/by/4.0/",
+    ],
+)
+def test_a_uci_license_link_on_an_unrelated_host_is_refused(tmp_path: Path, url: str) -> None:
+    http = uci(page=f'<h1>License</h1><p>See <a href="{url}">these terms</a>.</p>')
+    with pytest.raises(SnapshotRefused, match="no recognizable license"):
+        snapshot(SnapshotSource.UCI, 9, tmp_path, http=http)
+    assert UCI_CSV not in http.calls
+    assert list(tmp_path.iterdir()) == []

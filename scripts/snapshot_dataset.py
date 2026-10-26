@@ -100,6 +100,22 @@ def check_url(url: str) -> None:
         )
 
 
+class _SourceRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Check every redirect before urllib sends the next request, including intermediate hops."""
+
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: Any,
+        code: int,
+        msg: str,
+        headers: Any,
+        newurl: str,
+    ) -> urllib.request.Request | None:
+        check_url(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 class UrllibHttp:
     """The real HTTP client (standard library only)."""
 
@@ -112,7 +128,8 @@ class UrllibHttp:
             url, headers={"User-Agent": USER_AGENT, "Accept-Encoding": "identity"}
         )
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout_s) as response:
+            opener = urllib.request.build_opener(_SourceRedirectHandler())
+            with opener.open(request, timeout=self.timeout_s) as response:
                 final = response.geturl()
                 check_url(final)  # a redirect must stay on an allowed host
                 length = response.headers.get("Content-Length")

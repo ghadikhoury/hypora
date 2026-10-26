@@ -77,6 +77,14 @@ def test_declarations_that_name_no_license_are_refused(declared: str) -> None:
         ("https://creativecommons.org/licenses/by/9.9/", None),
         ("https://creativecommons.org/licenses/by-xx/4.0/", None),
         ("https://example.org/licenses/by/4.0/", None),
+        ("https://notcreativecommons.org/licenses/by/4.0/", None),
+        ("https://creativecommons.org.evil.example/licenses/by/4.0/", None),
+        ("https://example.org/?license=creativecommons.org/licenses/by/4.0/", None),
+        ("https://example.org/#creativecommons.org/publicdomain/zero/1.0/", None),
+        ("file://creativecommons.org/licenses/by/4.0/", None),
+        ("https://creativecommons.org/licenses/by/4.0evil", None),
+        ("https://creativecommons.org/publicdomain/zero/1.0evil", None),
+        ("https://www.creativecommons.org/licenses/by/4.0/", "CC-BY-4.0"),
     ],
 )
 def test_license_urls(url: str, expected: str | None) -> None:

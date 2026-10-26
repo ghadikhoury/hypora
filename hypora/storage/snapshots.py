@@ -17,6 +17,7 @@ import io
 import os
 import re
 import tempfile
+import urllib.parse
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -129,10 +130,8 @@ def _named_licenses() -> dict[str, License]:
 
 _NAMED: Final = _named_licenses()
 
-_CC_URL: Final = re.compile(
-    r"creativecommons\.org/licenses/(by(?:-nc)?(?:-sa|-nd)?)/(\d\.\d)(?:/|$|[^0-9])"
-)
-_CC0_URL: Final = re.compile(r"creativecommons\.org/publicdomain/zero/1\.0(?:/|$|[^0-9])")
+_CC_URL: Final = re.compile(r"/licenses/(by(?:-nc)?(?:-sa|-nd)?)/(\d\.\d)(?:/|$)")
+_CC0_URL: Final = re.compile(r"/publicdomain/zero/1\.0(?:/|$)")
 
 
 def recognize_license(declared: str) -> License | None:
@@ -146,9 +145,18 @@ def recognize_license(declared: str) -> License | None:
 
 def license_from_url(url: str) -> License | None:
     """The license a creativecommons.org legal-code or deed URL points to, or None."""
-    if _CC0_URL.search(url):
+    try:
+        parts = urllib.parse.urlsplit(url)
+    except ValueError:
+        return None
+    if parts.scheme not in {"http", "https"} or parts.hostname not in {
+        "creativecommons.org",
+        "www.creativecommons.org",
+    }:
+        return None
+    if _CC0_URL.match(parts.path):
         return _CC0
-    match = _CC_URL.search(url)
+    match = _CC_URL.match(parts.path)
     if match is None or match.group(1) not in _CC_KINDS or match.group(2) not in _CC_VERSIONS:
         return None
     return _cc(match.group(1), match.group(2))

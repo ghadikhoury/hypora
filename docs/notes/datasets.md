@@ -49,7 +49,9 @@ A dataset is stored only if the license its source declares is one we can name.
 - Recognized: CC0, the six CC 4.0/3.0/2.5/2.0/1.0 variants (with a version: the terms differ
   between versions), "Public Domain" (an explicit dedication), PDDL, ODbL, ODC-By, DbCL, MIT,
   Apache-2.0. Refused: `Public`, `See source`, versionless CC names, anything unrecognized.
-  `recognize_license` and `license_from_url` hold the table; tests pin each case.
+  `recognize_license` and `license_from_url` hold the table; tests pin each case. License links
+  require an HTTP(S) URL on `creativecommons.org` (or `www.creativecommons.org`) with the license
+  in its path; lookalike hosts and license strings in queries or fragments do not establish terms.
 - Non-commercial licenses (CC BY-NC*) are clear licenses and are accepted; their ID says NC.
 - Only `active` OpenML datasets are stored (`in_preparation` and `deactivated` are refused).
 
@@ -60,7 +62,9 @@ data.
 ## Fetching
 
 - HTTPS only, to `www.openml.org`, `data.openml.org`, and `archive.ics.uci.edu`, checked before
-  the request and again after redirects; metadata capped at 8 MiB, data at 512 MiB.
+  the request, before dispatching every redirect hop, and on the final response; metadata capped
+  at 8 MiB, data at 512 MiB. Checking only the final response would already have contacted a
+  forbidden intermediate host, even when the chain returns to an approved host.
 - **OpenML:** `GET /api/v1/json/data/<id>` (description: status, licence, target, row-ID and
   ignored attributes, Parquet URL), checked before any data is downloaded; then the Parquet file.
   When the response's ETag is a plain MD5 (single-part S3 object), the download is verified
