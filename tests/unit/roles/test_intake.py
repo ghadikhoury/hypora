@@ -68,13 +68,14 @@ async def test_form_fields_override_the_draft_and_code_corrects_the_rest(
         IntakeForm(
             goal="Predict the price",
             target="price",
-            primary_metric=MetricName.ROC_AUC,  # not a regression metric: the default wins
+            primary_metric=MetricName.MAE,  # the explicit metric wins over the draft
             forbidden_columns=("note", "price", "ghost"),
         ),
         {
             "objective": "Predict the price",
             "target": "outcome",
             "task_type": "binary_classification",
+            "primary_metric": "roc_auc",
         },
     )
     assert spec.target == "price" and spec.task_type is TaskType.REGRESSION  # 60 distinct values
@@ -109,3 +110,43 @@ async def test_a_failed_model_call_is_still_accounted(frame: pd.DataFrame) -> No
             llm, guard, run_id="run_i", form=IntakeForm(goal="x"), frame=frame, dataset_ref="d"
         )
     assert guard.failed_calls == 1
+
+
+async def test_explicit_multiclass_task_wins_over_numeric_cardinality_heuristics() -> None:
+    frame = pd.DataFrame({"feature": range(180), "label": list(range(60)) * 3})
+    result, _, _ = await intake(
+        frame,
+        IntakeForm(
+            goal="Classify the label", target="label", task_type=TaskType.MULTICLASS_CLASSIFICATION
+        ),
+        {"objective": "Classify the label", "target": "label", "task_type": "regression"},
+    )
+    assert result.task_type is TaskType.MULTICLASS_CLASSIFICATION
+    assert result.primary_metric is MetricName.F1_MACRO
+
+
+async def test_incompatible_explicit_metric_is_not_silently_replaced(frame: pd.DataFrame) -> None:
+    with pytest.raises(IntakeError, match="requested primary metric"):
+        await intake(
+            frame,
+            IntakeForm(
+                goal="Predict price",
+                target="price",
+                task_type=TaskType.REGRESSION,
+                primary_metric=MetricName.ROC_AUC,
+            ),
+            {"objective": "Predict price", "target": "price", "task_type": "regression"},
+        )
+
+
+@pytest.mark.parametrize("task", [TaskType.BINARY_CLASSIFICATION, TaskType.FORECASTING])
+async def test_incompatible_explicit_task_is_not_silently_replaced(
+    frame: pd.DataFrame,
+    task: TaskType,
+) -> None:
+    with pytest.raises(IntakeError, match="requested task type"):
+        await intake(
+            frame,
+            IntakeForm(goal="Predict price", target="price", task_type=task),
+            {"objective": "Predict price", "target": "price", "task_type": "regression"},
+        )

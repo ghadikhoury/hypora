@@ -92,11 +92,21 @@ def _columns(frame: pd.DataFrame) -> str:
     return "\n".join(f"- {name} ({dtype})" for name, dtype in frame.dtypes.astype(str).items())
 
 
-def _task_type(target: pd.Series, hint: TaskType | None) -> TaskType:
+def _task_type(target: pd.Series, hint: TaskType | None, *, explicit: bool = False) -> TaskType:
     """The task type the target's values allow (code decides; the hint breaks ties)."""
     values = target.dropna()
     distinct = values.nunique()
     numeric = pd.api.types.is_numeric_dtype(values) and not pd.api.types.is_bool_dtype(values)
+    if explicit:
+        if hint is TaskType.REGRESSION:
+            if not numeric:
+                raise IntakeError("the requested regression task requires a numeric target")
+            return hint
+        if hint is TaskType.BINARY_CLASSIFICATION and distinct == 2:
+            return hint
+        if hint is TaskType.MULTICLASS_CLASSIFICATION and distinct > 2:
+            return hint
+        raise IntakeError("the requested task type is incompatible with the target")
     if hint is TaskType.REGRESSION and numeric:
         return TaskType.REGRESSION
     if numeric and distinct > MAX_CLASSES:
@@ -106,13 +116,15 @@ def _task_type(target: pd.Series, hint: TaskType | None) -> TaskType:
     return TaskType.BINARY_CLASSIFICATION if distinct == 2 else TaskType.MULTICLASS_CLASSIFICATION
 
 
-def _metric(task: TaskType, wanted: MetricName | None) -> MetricName:
+def _metric(task: TaskType, wanted: MetricName | None, *, explicit: bool = False) -> MetricName:
     allowed = (
         REGRESSION_METRICS
         if task is TaskType.REGRESSION
         else CLASSIFICATION_METRICS
         | (BINARY_ONLY_METRICS if task is TaskType.BINARY_CLASSIFICATION else frozenset())
     )
+    if explicit and wanted not in allowed:
+        raise IntakeError("the requested primary metric is incompatible with the target task type")
     return wanted if wanted in allowed else DEFAULT_METRIC[task]
 
 
@@ -160,8 +172,12 @@ async def run_intake(
     hint = form.task_type or (TaskType(draft.task_type) if draft.task_type else None)
     if form.task_type:
         from_form.append("task_type")
-    task_type = _task_type(frame[target], hint)
-    metric = _metric(task_type, form.primary_metric or draft.primary_metric)
+    task_type = _task_type(frame[target], hint, explicit=form.task_type is not None)
+    metric = _metric(
+        task_type,
+        form.primary_metric or draft.primary_metric,
+        explicit=form.primary_metric is not None,
+    )
     if form.primary_metric:
         from_form.append("primary_metric")
     forbidden = form.forbidden_columns or tuple(draft.forbidden_columns)

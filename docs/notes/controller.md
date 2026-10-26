@@ -19,7 +19,9 @@ final trial, limits that fired, and the report path. It needs Docker and the pro
 Before intake, the controller saves a private copy of the exact input bytes. Profiling records
 that file's SHA-256, and every MCP session and worker uses that same copy. Edits to the user's
 original file cannot change an active run. Caller-supplied run IDs must satisfy the shared
-Identifier contract before directories are created.
+Identifier contract before directories are created. Explicit form task types and metrics take
+precedence over inference; incompatible choices fail intake instead of silently changing the
+user's objective.
 
 | State (stage/status) | What happens | Who decides |
 |---|---|---|
