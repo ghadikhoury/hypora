@@ -319,9 +319,6 @@ one it supersedes.
   placeholder models. Requiring eval at S1.7 would contradict that approved selection schedule.
 - Consequences: PLAN.md's model policy, S1.7, and S2.6 and AGENTS.md's stage-gate summary are
   aligned. No model profile, model ID, runtime behavior, case, grading rule, or hidden split changes.
-  Important owner decisions are recorded here; this log contains decisions only, with
-  implementation notes and status reports kept elsewhere.
-
 
 ## D-017 — PyArrow is the project's Parquet engine
 - Date: 2026-10-25
