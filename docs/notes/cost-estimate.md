@@ -156,9 +156,10 @@ differently enough on another model to matter for the recorded evaluation.
   the prompt to space polls or batch them. Recommended before the multi-agent runs, whose trial
   workers get the same status tool (S3.C2); the planning stream (S3.H) or the prompt review
   (S4.2) are the natural places, subject to Ghadi's decision.
-- **The 1M-token run limit.** Both Luna runs hit it and one Gemini run reached 98.9% of it. The
-  default budgets are provisional until S4.2 (`🧑 HUMAN · DECIDE`), which should set the token
-  limit with these numbers in hand and decide whether cached tokens count toward it.
+- **The 1M-token run limit.** The run guard counts input plus output tokens, cached included.
+  Both Luna runs hit the limit, and Gemini fish-toxicity used 994,369 of the 1,000,000 (99.4%).
+  The default budgets are provisional until S4.2 (`🧑 HUMAN · DECIDE`), which should set the
+  token limit with these numbers in hand and decide whether cached tokens count toward it.
 - **Re-measure at S2.6.** The Stage 2 gate runs the dev case set on both profiles; its records
   replace these per-run figures for budgeting.
 
