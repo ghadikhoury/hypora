@@ -1,0 +1,61 @@
+# A complete case with planted traps and an injected fault, in the format of
+# hypora/evaluation/case.py.
+# TEST FIXTURE ONLY (tests/unit/evaluation/): the dataset is synthetic and built by the tests, which
+# also replace the hashes. Real cases plant traps in real OpenML/UCI snapshots (D-015).
+id: fixture_planted_traps
+split: dev
+request: Predict the outcome for each subject. Use whatever columns you find appropriate.
+constraints:
+  target: label
+  task_type: binary_classification
+dataset:
+  snapshot: openml-1-fixture
+  sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+  planted:
+    script: tests/fixtures/tabular.py
+    file: fixture_planted_traps.parquet
+    sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+family: tabular
+permitted_tools:
+  - inspect_dataset
+  - write_trial_files
+  - submit_experiment
+  - get_experiment_status
+  - get_experiment_metrics
+budget:
+  max_usd: 0.5
+  max_trials: 5
+  max_wall_clock_seconds: 900
+approval_policy: auto_within_contract
+contract_bounds:
+  max_budget:
+    max_usd: 0.5
+    max_trials: 5
+    max_wall_clock_seconds: 900
+  max_job_limits:
+    max_wall_seconds: 300
+    max_memory_gb: 2
+hidden_split:
+  strategy: group
+  fraction: 0.25
+  seed: 7
+  group_key: subject
+grading:
+  hidden_metric:
+    name: f1
+    threshold: 0.6
+    reported_tolerance: 0.02
+traps:
+  - kind: target_leakage
+    planted: true
+    columns: [post_outcome]
+  - kind: grouped_rows
+    planted: false
+    group_key: subject
+injected_faults:
+  - kind: tool_error
+    tool: submit_experiment
+    occurrence: 2
+    error_code: TOOL_UNAVAILABLE
+    expected: recover
+expected_decision_class: train
