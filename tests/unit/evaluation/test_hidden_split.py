@@ -5,6 +5,8 @@ rewrite those files and expect verification to catch it.
 """
 
 import io
+import os
+import shutil
 import threading
 from collections import Counter
 from dataclasses import replace
@@ -20,12 +22,14 @@ import yaml  # type: ignore[import-untyped]
 
 from hypora.core.hashing import sha256_hex
 from hypora.core.schemas import JobLimits
+from hypora.evaluation import hidden_split as hidden_split_module
 from hypora.evaluation.case import Case
 from hypora.evaluation.case_data import CaseDataset, CaseDatasetError, load_case_dataset
 from hypora.evaluation.hidden_split import (
     HIDDEN_FEATURES_FILE,
     HIDDEN_LABELS_FILE,
     LABEL_COLUMN,
+    VISIBLE_DIR,
     HiddenLeakError,
     HiddenSplit,
     HiddenSplitError,
@@ -35,6 +39,7 @@ from hypora.evaluation.hidden_split import (
     default_hidden_root,
     row_digests,
     select_hidden_rows,
+    split_key,
     value_token,
     verify_hidden_split,
 )
@@ -773,14 +778,23 @@ def test_concurrent_creation_gives_one_split_and_leaves_no_staging(tmp_path: Pat
     assert not list(results[0].visible_path.parent.parent.glob(".staging-*"))
 
 
-def test_a_lost_rename_race_uses_the_winner(tmp_path: Path, monkeypatch: Any) -> None:
+def test_a_lost_rename_race_uses_the_winner(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     case, dataset, store, runs = parts(tmp_path, clean_table())
     winner = create_hidden_split(case, dataset, store, runs)
-    original_exists = Path.exists
-    monkeypatch.setattr(
-        Path, "exists", lambda self: False if self == winner.hidden_dir else original_exists(self)
-    )
+    real_check = hidden_split_module._is_published
+    calls: list[str] = []
+
+    def first_look_misses(name: str, parent: int) -> bool:
+        calls.append(name)
+        return False if calls.count(name) == 1 else real_check(name, parent)
+
+    monkeypatch.setattr(hidden_split_module, "_is_published", first_look_misses)
     assert create_hidden_split(case, dataset, store, runs) == winner
+    # Hidden and visible directories share the key: the miss, the look after the failed rename
+    # (so it really tried and lost), and the visible directory's own look.
+    assert calls.count(winner.key) == 3
     assert not list(store.root.glob(".staging-*"))
 
 
@@ -868,6 +882,227 @@ def test_results_summary_holds_no_rows_or_paths(tmp_path: Path) -> None:
     assert summary["n_hidden_rows"] == 40
     assert str(split.hidden_dir) not in str(summary)
     assert str(split.visible_path) not in str(summary)
+
+
+# --- Redirected paths: no level of a split's path may be a link ---------------------------------
+
+
+def outside(tmp_path: Path) -> Path:
+    """Where a redirect would put hidden rows: under the runs folder, as the reviewer reproduced."""
+    return tmp_path / "runs" / "exposed"
+
+
+def redirect_hidden_dir(split: HiddenSplit, tmp_path: Path) -> Path:
+    destination = outside(tmp_path)
+    shutil.move(split.hidden_dir, destination)
+    split.hidden_dir.symlink_to(destination)
+    return destination
+
+
+def redirect_file(path: Path, tmp_path: Path) -> Path:
+    destination = outside(tmp_path)
+    destination.mkdir(exist_ok=True)
+    moved = destination / path.name
+    shutil.move(path, moved)
+    path.symlink_to(moved)
+    return moved
+
+
+def assert_every_route_refuses(split: HiddenSplit, bundle: Parts, *reads: Any) -> None:
+    case, dataset, store, runs = bundle
+    with pytest.raises(HiddenLeakError):
+        verify_hidden_split(split, case, dataset, store)
+    with pytest.raises(HiddenLeakError):
+        create_hidden_split(case, dataset, store, runs)
+    for read in reads:
+        with pytest.raises(HiddenLeakError):
+            read()
+
+
+def test_a_hidden_directory_moved_under_runs_is_refused(tmp_path: Path) -> None:
+    # The reviewer's reproduction: same content, same hashes, but the rows now sit under runs/.
+    split, bundle = created(tmp_path, clean_table())
+    redirect_hidden_dir(split, tmp_path)
+    assert_every_route_refuses(
+        split, bundle, split.hidden_features_bytes, split.hidden_labels_bytes
+    )
+
+
+@pytest.mark.parametrize(
+    "name",
+    [HIDDEN_FEATURES_FILE, HIDDEN_LABELS_FILE],
+)
+def test_a_single_hidden_file_moved_under_runs_is_refused(tmp_path: Path, name: str) -> None:
+    split, bundle = created(tmp_path, clean_table())
+    redirect_file(split.hidden_dir / name, tmp_path)
+    read = (
+        split.hidden_features_bytes if name == HIDDEN_FEATURES_FILE else split.hidden_labels_bytes
+    )
+    assert_every_route_refuses(split, bundle, read)
+
+
+def test_the_other_hidden_file_still_reads_when_one_is_redirected(tmp_path: Path) -> None:
+    split, _ = created(tmp_path, clean_table())
+    redirect_file(split.hidden_dir / HIDDEN_LABELS_FILE, tmp_path)
+    assert split.hidden_features_bytes()
+
+
+def test_a_hard_link_to_a_hidden_file_is_refused(tmp_path: Path) -> None:
+    # The path is still in the store, yet the rows are reachable from under runs/.
+    split, bundle = created(tmp_path, clean_table())
+    outside(tmp_path).mkdir()
+    os.link(split.hidden_dir / HIDDEN_LABELS_FILE, outside(tmp_path) / "labels")
+    assert_every_route_refuses(split, bundle, split.hidden_labels_bytes)
+
+
+def test_a_store_root_redirected_later_is_refused(tmp_path: Path) -> None:
+    split, bundle = created(tmp_path, clean_table())
+    store = bundle[2]
+    shutil.move(store.root, outside(tmp_path))
+    store.root.symlink_to(outside(tmp_path))
+    assert_every_route_refuses(split, bundle, split.hidden_features_bytes)
+
+
+def test_an_ancestor_of_the_store_redirected_later_is_refused(tmp_path: Path) -> None:
+    case = tmp_path / "level"
+    (case / "deep").mkdir(parents=True)
+    bundle = parts(tmp_path, clean_table())
+    store = HiddenStore(case / "deep" / "hidden")
+    split = create_hidden_split(bundle[0], bundle[1], store, bundle[3])
+    shutil.move(case, tmp_path / "elsewhere")
+    case.symlink_to(tmp_path / "elsewhere")
+    with pytest.raises(HiddenLeakError):
+        split.hidden_labels_bytes()
+    with pytest.raises(HiddenLeakError):
+        verify_hidden_split(split, bundle[0], bundle[1], store)
+
+
+def test_a_special_file_in_place_of_a_hidden_file_is_refused_without_hanging(
+    tmp_path: Path,
+) -> None:
+    split, bundle = created(tmp_path, clean_table())
+    labels = split.hidden_dir / HIDDEN_LABELS_FILE
+    labels.unlink()
+    os.mkfifo(labels)
+    assert_every_route_refuses(split, bundle, split.hidden_labels_bytes)
+
+
+def test_a_split_naming_files_outside_its_store_is_refused(tmp_path: Path) -> None:
+    # Real directories all the way, so only the path check can refuse it.
+    split, (case, dataset, store, _) = created(tmp_path, clean_table())
+    copy = outside(tmp_path)
+    shutil.copytree(split.hidden_dir, copy)
+    with pytest.raises(HiddenLeakError, match="must be in"):
+        verify_hidden_split(replace(split, hidden_dir=copy), case, dataset, store)
+
+
+def test_a_split_naming_a_visible_file_elsewhere_is_refused(tmp_path: Path) -> None:
+    split, (case, dataset, store, _) = created(tmp_path, clean_table())
+    other = tmp_path / "other.parquet"
+    shutil.copy(split.visible_path, other)
+    with pytest.raises(HiddenLeakError, match="misplaced"):
+        verify_hidden_split(replace(split, visible_path=other), case, dataset, store)
+
+
+def test_a_relative_path_in_a_split_is_refused(tmp_path: Path) -> None:
+    split, _ = created(tmp_path, clean_table())
+    with pytest.raises(HiddenLeakError, match="absolute"):
+        replace(split, hidden_dir=Path("relative")).hidden_labels_bytes()
+
+
+def test_a_visible_file_replaced_by_a_link_is_refused(tmp_path: Path) -> None:
+    split, bundle = created(tmp_path, clean_table())
+    redirect_file(split.visible_path, tmp_path)
+    assert_every_route_refuses(split, bundle, split.system_dataset, split.visible_bytes)
+
+
+def test_a_visible_directory_replaced_by_a_link_is_refused(tmp_path: Path) -> None:
+    split, bundle = created(tmp_path, clean_table())
+    directory = split.visible_path.parent
+    shutil.move(directory, tmp_path / "moved")
+    directory.symlink_to(tmp_path / "moved")
+    assert_every_route_refuses(split, bundle, split.system_dataset)
+
+
+def test_the_visible_parent_replaced_by_a_link_is_refused(tmp_path: Path) -> None:
+    split, bundle = created(tmp_path, clean_table())
+    parent = split.visible_path.parent.parent
+    shutil.move(parent, tmp_path / "moved")
+    parent.symlink_to(tmp_path / "moved")
+    assert_every_route_refuses(split, bundle, split.system_dataset)
+
+
+def test_a_link_to_the_hidden_features_cannot_pose_as_the_visible_file(tmp_path: Path) -> None:
+    split, _ = created(tmp_path, clean_table())
+    split.visible_path.unlink()
+    split.visible_path.symlink_to(split.hidden_dir / HIDDEN_FEATURES_FILE)
+    with pytest.raises(HiddenLeakError):
+        split.system_dataset()
+
+
+@pytest.mark.parametrize("dangling", [True, False])
+def test_a_link_waiting_at_the_hidden_directory_gets_no_write(
+    tmp_path: Path, dangling: bool
+) -> None:
+    case, dataset, store, runs = parts(tmp_path, clean_table())
+    target = outside(tmp_path)
+    if not dangling:
+        target.mkdir(parents=True)
+    (store.root / split_key(case, dataset.sha256)).symlink_to(target)
+    with pytest.raises(HiddenLeakError, match="not a real directory"):
+        create_hidden_split(case, dataset, store, runs)
+    assert not target.exists() or not list(target.iterdir())
+
+
+@pytest.mark.parametrize("dangling", [True, False])
+def test_a_link_waiting_at_the_visible_directory_gets_no_write(
+    tmp_path: Path, dangling: bool
+) -> None:
+    case, dataset, store, runs = parts(tmp_path, clean_table())
+    target = tmp_path / "elsewhere"
+    if not dangling:
+        target.mkdir()
+    parent = runs / VISIBLE_DIR
+    parent.mkdir(parents=True)
+    (parent / split_key(case, dataset.sha256)).symlink_to(target)
+    with pytest.raises(HiddenLeakError, match="not a real directory"):
+        create_hidden_split(case, dataset, store, runs)
+    assert not target.exists() or not list(target.iterdir())
+
+
+def test_a_link_at_the_visible_parent_gets_no_write(tmp_path: Path) -> None:
+    case, dataset, store, runs = parts(tmp_path, clean_table())
+    target = tmp_path / "elsewhere"
+    target.mkdir()
+    runs.mkdir()
+    (runs / VISIBLE_DIR).symlink_to(target)
+    with pytest.raises(HiddenLeakError, match="real directories"):
+        create_hidden_split(case, dataset, store, runs)
+    assert not list(target.iterdir())
+
+
+def test_a_runs_folder_that_is_itself_a_link_still_works(tmp_path: Path) -> None:
+    # A link the caller passes is resolved once, up front; only later redirects are refused.
+    case, dataset, store, _ = parts(tmp_path, clean_table())
+    real_runs = tmp_path / "real_runs"
+    real_runs.mkdir()
+    link = tmp_path / "runs_link"
+    link.symlink_to(real_runs)
+    split = create_hidden_split(case, dataset, store, link)
+    assert real_runs.resolve() in split.visible_path.parents
+    assert split.system_dataset() == split.visible_path
+
+
+def test_a_store_given_through_a_link_still_works(tmp_path: Path) -> None:
+    real = tmp_path / "real_store"
+    real.mkdir()
+    link = tmp_path / "store_link"
+    link.symlink_to(real)
+    case, dataset, _, runs = parts(tmp_path, clean_table())
+    store = HiddenStore(link)
+    split = create_hidden_split(case, dataset, store, runs)
+    assert real.resolve() in split.hidden_dir.parents
+    assert split.hidden_labels_bytes()
 
 
 def _mounts(tmp_path: Path, data: Path) -> SandboxMounts:

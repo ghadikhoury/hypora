@@ -20,14 +20,17 @@ into a sandbox for prediction (S2.2); labels stay with platform code.
 The store is enforced, not assumed. `HiddenStore` refuses a root inside or around the repository
 (which holds the code and config that compose mounts) or the runs directory (`/data`, `/trial`,
 `/out`, and the compose state volume are all under it), and offers `check_mounts` for any job spec.
+A split's files are written and read through directory descriptors that never follow a link, so
+hidden rows can't be redirected to another location and the visible file can't be swapped for one.
 """
 
+import contextlib
 import hashlib
 import io
 import math
 import os
 import shutil
-import tempfile
+import stat
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
@@ -35,6 +38,7 @@ from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Final
+from uuid import uuid4
 
 import numpy as np
 import pandas as pd  # type: ignore[import-untyped]
@@ -65,6 +69,10 @@ _METRICS_NEEDING_EVERY_CLASS: Final = frozenset(
     {MetricName.ROC_AUC, MetricName.PR_AUC, MetricName.BRIER_SCORE}
 )
 """The harness reports these as unavailable when a class is absent from the scored rows."""
+
+_DIR_FLAGS: Final = os.O_PATH | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+_FILE_FLAGS: Final = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC
+"""Linux only, like `execution/sandbox/outputs.py`. `O_NONBLOCK`: a FIFO can't hang the reader."""
 
 
 class HiddenSplitError(ValueError):
@@ -361,11 +369,52 @@ class HiddenStore:
 # --- Creating and verifying -----------------------------------------------------------------------
 
 
-def _read_store_file(path: Path) -> bytes:
+def _open_real_dir(path: Path, *, create: bool = False) -> int:
+    """A descriptor for `path`, walked from `/` without following a link at any level.
+
+    Stored paths are fully resolved when a split is created, so a link anywhere along one means it
+    was redirected afterwards. Later steps act on this descriptor, so nothing can be swapped
+    between the check and the use. `O_PATH` needs only search permission on each level.
+    """
+    if not path.is_absolute():
+        raise HiddenLeakError(f"a split's paths must be absolute: {path}")
+    current = os.open("/", _DIR_FLAGS)
     try:
-        return path.read_bytes()
+        for part in path.parts[1:]:
+            try:
+                following = os.open(part, _DIR_FLAGS, dir_fd=current)
+            except FileNotFoundError:
+                if not create:
+                    raise
+                with contextlib.suppress(FileExistsError):
+                    os.mkdir(part, dir_fd=current)
+                following = os.open(part, _DIR_FLAGS, dir_fd=current)
+            os.close(current)
+            current = following
+    except BaseException:
+        os.close(current)
+        raise
+    return current
+
+
+def _read_store_file(path: Path) -> bytes:
+    """A split's file, refused if any level of its path is a link, or if it isn't a regular file
+    with this one name: a hard link would keep the same rows reachable somewhere else."""
+    try:
+        parent = _open_real_dir(path.parent)
+        try:
+            descriptor = os.open(path.name, _FILE_FLAGS, dir_fd=parent)
+        finally:
+            os.close(parent)
+        with os.fdopen(descriptor, "rb") as handle:
+            info = os.fstat(handle.fileno())
+            if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+                raise HiddenLeakError(f"{path.name} of the split is not a singly linked file")
+            return handle.read()
     except OSError as exc:
-        raise HiddenLeakError(f"cannot read {path.name} of the split: {exc.strerror}") from None
+        raise HiddenLeakError(
+            f"cannot read {path.name} of the split through real directories: {exc.strerror}"
+        ) from None
 
 
 @dataclass(frozen=True)
@@ -466,29 +515,57 @@ def _split_tables(
     return visible, hidden.drop(columns=[target]), labels
 
 
-def _publish(directory: Path, files: Mapping[str, bytes]) -> None:
-    """Create `directory` with `files`, all at once. An existing one is kept, and verified later.
+def _is_published(name: str, parent: int) -> bool:
+    """Whether a split's directory exists there. A link or other file in its place is refused."""
+    try:
+        info = os.stat(name, dir_fd=parent, follow_symlinks=False)
+    except FileNotFoundError:
+        return False
+    if not stat.S_ISDIR(info.st_mode):
+        raise HiddenLeakError(f"{name} is not a real directory: a split can't be stored through it")
+    return True
 
-    Concurrent runs of a case (agent and baseline) race here safely: the rename either wins or
-    finds the finished directory of the winner.
-    """
-    if directory.exists():
-        return
-    directory.parent.mkdir(parents=True, exist_ok=True)
-    staging = Path(tempfile.mkdtemp(dir=directory.parent, prefix=".staging-"))
+
+def _write_staged(staging: str, parent: int, files: Mapping[str, bytes]) -> None:
+    staged = os.open(staging, _DIR_FLAGS, dir_fd=parent)
     try:
         for name, content in files.items():
-            with (staging / name).open("wb") as handle:
+            flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC
+            with os.fdopen(os.open(name, flags, 0o600, dir_fd=staged), "wb") as handle:
                 handle.write(content)
                 handle.flush()
                 os.fsync(handle.fileno())
-        try:
-            staging.rename(directory)
-        except OSError:
-            if not directory.is_dir():
-                raise
     finally:
-        shutil.rmtree(staging, ignore_errors=True)
+        os.close(staged)
+
+
+def _publish(directory: Path, files: Mapping[str, bytes]) -> None:
+    """Create `directory` with `files`, all at once. An existing one is kept, and verified later.
+
+    Every step goes through a descriptor of the real parent, so a link along the path can't redirect
+    the write. Concurrent runs of a case (agent and baseline) race here safely: the rename either
+    wins or finds the finished directory of the winner.
+    """
+    staging = f".staging-{uuid4().hex}"
+    try:
+        parent = _open_real_dir(directory.parent, create=True)
+        try:
+            if _is_published(directory.name, parent):
+                return
+            os.mkdir(staging, mode=0o700, dir_fd=parent)
+            _write_staged(staging, parent, files)
+            try:
+                os.rename(staging, directory.name, src_dir_fd=parent, dst_dir_fd=parent)
+            except OSError:
+                if not _is_published(directory.name, parent):
+                    raise
+        finally:
+            shutil.rmtree(staging, ignore_errors=True, dir_fd=parent)
+            os.close(parent)
+    except OSError as exc:
+        raise HiddenLeakError(
+            f"cannot store {directory.name} through real directories: {exc.strerror}"
+        ) from None
 
 
 def create_hidden_split(
@@ -586,6 +663,7 @@ def verify_hidden_split(
 ) -> None:
     """Check the files on disk, row by row, against the dataset; raises HiddenLeakError.
 
+    - the split's paths are the ones this case and store define, and no level of them is a link;
     - the store is separate from the visible file;
     - no visible row has the features of a hidden row, whatever its label;
     - the hidden rows are exactly the ones the case selects (multisets, so duplicates count);
@@ -598,6 +676,11 @@ def verify_hidden_split(
     target = case.constraints.target
     if (split.case_id, split.dataset_sha256) != (case.id, dataset.sha256):
         raise HiddenLeakError("this split was created for another case or dataset")
+    key = split_key(case, dataset.sha256)
+    if split.key != key or split.hidden_dir != store.root / key:
+        raise HiddenLeakError(f"the hidden files must be in {store.root / key}: {split.hidden_dir}")
+    if split.visible_path.parts[-3:] != (VISIBLE_DIR, key, VISIBLE_FILE):
+        raise HiddenLeakError(f"this split's visible file is misplaced: {split.visible_path}")
     store.refuse_overlap(split.visible_path)
     source = dataset.table()
     mask = select_hidden_rows(source, case)

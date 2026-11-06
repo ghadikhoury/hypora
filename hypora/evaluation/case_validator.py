@@ -1,9 +1,10 @@
 """Case validator (PLAN.md S2.1): a loaded case against its dataset and its trap metadata.
 
 `case.py` checks what a case file states about itself. This checks that it is true of the data: the
-dataset hash against the manifest, the columns and values traps refer to, and that the hidden split
-can be drawn. Every problem is reported at once. A dataset that can't be loaded is itself a problem,
-so a case can never pass with its data checks skipped.
+dataset hash against the manifest, the columns and values traps refer to, that the hidden split can
+be drawn, and that each trap's evidence survives it, since the system only sees the visible rows.
+Every problem is reported at once. A dataset that can't be loaded is itself a problem, so a case can
+never pass with its data checks skipped.
 
 It checks that a trap's metadata fits the data, not that the trap is effective: S2.5's generation
 scripts and its review verify that a planted trap really works (`REVIEW FOCUS`).
@@ -14,6 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd  # type: ignore[import-untyped]
+import pyarrow as pa  # type: ignore[import-untyped]
 
 from hypora.core.schemas.common import TaskType
 from hypora.evaluation.case import (
@@ -180,24 +182,106 @@ def _file_issues(case: Case, repo_root: Path) -> list[CaseIssue]:
     return []
 
 
-def _split_issues(frame: pd.DataFrame, case: Case) -> list[CaseIssue]:
-    try:
-        select_hidden_rows(frame, case)
-    except HiddenSplitError as exc:
-        return [CaseIssue("HIDDEN_SPLIT", str(exc))]
+def _varies(column: pd.Series) -> bool:
+    """Whether a column can tell rows apart. Missing counts as a value: it can leak too."""
+    return len(set(column_tokens(column))) >= 2
+
+
+def _rare_issues(column: pd.Series, trap: ClassImbalanceTrap, where: str) -> list[CaseIssue]:
+    tokens = Counter(column_tokens(column))
+    count, total = tokens[value_token(trap.positive_class)], sum(tokens.values())
+    if count == 0:
+        return [
+            CaseIssue(
+                "TRAP_HOLDOUT", f"class_imbalance: {where} hold no {trap.positive_class!r} at all"
+            )
+        ]
+    # Within one row of the limit: a holdout rounds, and a source exactly at it must not fail.
+    if (count - 1) / max(total - 1, 1) > MAX_POSITIVE_SHARE:
+        return [
+            CaseIssue(
+                "TRAP_HOLDOUT",
+                f"class_imbalance: {trap.positive_class!r} is {count / total:.1%} of {where}, so "
+                f"it isn't rare there (limit {MAX_POSITIVE_SHARE:.0%})",
+            )
+        ]
     return []
 
 
+def _holdout_issues(visible: pd.DataFrame, hidden: pd.DataFrame, case: Case) -> list[CaseIssue]:
+    """Whether each trap's evidence survives the holdout (spec §19.1: hidden rows never reach the
+    system), judged on the same rows `create_hidden_split` will write.
+
+    The system meets a trap only in the visible rows, so a trap has to be there. Hidden rows matter
+    where the grade reads them: the imbalance check scores the rare class, and the group check
+    needs more than one unseen group to measure anything.
+    """
+    issues: list[CaseIssue] = []
+
+    def lost(message: str) -> None:
+        issues.append(CaseIssue("TRAP_HOLDOUT", f"{message} once the hidden rows are removed"))
+
+    for trap in case.traps:
+        match trap:
+            case TargetLeakageTrap():
+                for name in trap.columns:
+                    if not _varies(visible[name]):
+                        lost(f"target_leakage: {name!r} no longer varies, so it can't leak,")
+            case GroupedRowsTrap():
+                sizes = Counter(column_tokens(visible[trap.group_key]))
+                if len(sizes) < 2 or max(sizes.values()) < 2:
+                    lost(f"grouped_rows: {trap.group_key!r} has no repeated visible groups")
+                if len(set(column_tokens(hidden[trap.group_key]))) < 2:
+                    issues.append(
+                        CaseIssue(
+                            "TRAP_HOLDOUT",
+                            f"grouped_rows: the hidden rows hold one {trap.group_key!r} group, too "
+                            "few to measure generalization to new groups",
+                        )
+                    )
+            case TemporalOrderTrap():
+                if time_values(visible[trap.time_key]).nunique() < 2:
+                    lost(f"temporal_order: {trap.time_key!r} no longer changes")
+                for name in trap.future_columns:
+                    if not _varies(visible[name]):
+                        lost(f"temporal_order: {name!r} no longer varies, so it can't mislead,")
+            case ClassImbalanceTrap():
+                target = case.constraints.target
+                issues.extend(_rare_issues(visible[target], trap, "the visible rows"))
+                issues.extend(_rare_issues(hidden[target], trap, "the hidden rows"))
+            case AttackTrap() if trap.column is not None:
+                assert trap.marker is not None  # the model requires it together with `column`
+                text = visible[trap.column].dropna().astype(str)
+                if not text.str.contains(trap.marker, regex=False).any():
+                    lost(f"attack: no visible value of {trap.column!r} holds its marker")
+    return issues
+
+
+def _split_issues(frame: pd.DataFrame, case: Case) -> list[CaseIssue]:
+    try:
+        mask = select_hidden_rows(frame, case)
+    except HiddenSplitError as exc:
+        return [CaseIssue("HIDDEN_SPLIT", str(exc))]
+    return _holdout_issues(frame.loc[~mask], frame.loc[mask], case)
+
+
 def check_dataset(case: Case, dataset: CaseDataset) -> list[CaseIssue]:
-    """Everything that depends on the rows: columns, target, trap metadata, the hidden split."""
-    frame = dataset.table()
-    issues = [
-        *_target_issues(frame, case),
-        *_column_issues(frame, case),
-        *_trap_issues(frame, case),
-    ]
-    # The split reports these same problems less clearly; only a sound dataset reaches it.
-    return issues or _split_issues(frame, case)
+    """Everything that depends on the rows: columns, target, trap metadata, the hidden split, and
+    whether each trap's evidence survives it. Every problem is an issue, never a crash."""
+    try:
+        frame = dataset.table()
+    except (ValueError, OSError, pa.ArrowException) as exc:
+        return [CaseIssue("DATASET", f"the dataset is not a readable Parquet table: {exc}")]
+    try:
+        issues = [
+            *_target_issues(frame, case),
+            *_column_issues(frame, case),
+            *_trap_issues(frame, case),
+        ]
+        # The split reports these same problems less clearly; only a sound dataset reaches it.
+        return issues or _split_issues(frame, case)
+    except HiddenSplitError as exc:
+        return [CaseIssue("DATASET", str(exc))]
 
 
 def validate_case(

@@ -123,6 +123,8 @@ categories first, so a pipeline's category codes mean the same on both.
 `verify_hidden_split` reads the files on disk (hash-checked, then parsed from the same bytes) and
 recomputes everything from the dataset:
 
+0. The split's paths are the ones this case and store define (a split naming files elsewhere is
+   refused), and every read goes through real directories (below).
 1. No visible row has the features of a hidden row, whatever its label.
 2. The hidden rows, recombined from their two files, are the multiset this case selects, so
    misaligned labels fail.
@@ -154,6 +156,15 @@ So hidden rows stay out of the repository and the runs folder, in `~/.hypora/hid
   new mount can't silently undermine this.
 - `HiddenStore.check_mounts(mounts)` refuses any sandbox job whose host directories overlap the store.
 - `HiddenSplit.system_dataset()` is the only dataset path for a run; it re-checks the file's hash.
+- **No level of a split's path may be a link.** A store check alone isn't enough: moving a split's
+  directory under `runs/` and leaving a symlink would still pass every hash. So `create_hidden_split`
+  resolves the store and runs paths once, up front, and from then on every write and every read
+  (`system_dataset`, `visible_bytes`, `hidden_features_bytes`, `hidden_labels_bytes`) walks from `/`
+  through `O_NOFOLLOW` directory descriptors and acts on those descriptors, so a link to a directory
+  or to a file, at any level, is refused, and nothing can be swapped between the check and the use. A
+  link waiting at a split's directory or along the way gets no write. Each file must also be a regular
+  file with one name, since a hard link keeps the rows reachable elsewhere.
+- Not detectable from here: someone copying the files elsewhere, or a bind mount over the store.
 - Sandbox isolation doesn't depend on the store's `0700` mode (D-012); it is defense in depth.
 
 The visible file is `runs/eval-datasets/<key>/dataset.parquet`, inside the runs folder so that both
@@ -181,6 +192,26 @@ dataset that can't be loaded is itself an issue, so a case can't pass with its d
 | `COLUMN_MISSING` | Every named column exists |
 | `TRAP_DATA` | Groups repeat, times parse and change, the positive class exists and is the rarest and at most 30%, an injected text marker is in its column |
 | `HIDDEN_SPLIT` | The split can be drawn and graded |
+| `TRAP_HOLDOUT` | Each trap's evidence survives the holdout (below) |
+
+### A trap has to survive the holdout
+
+The system meets a trap only in the visible rows, so a trap whose only evidence lands in the hidden
+rows tests nothing, yet looks fine on the source. The validator judges the same rows
+`create_hidden_split` writes, so a seed that moves the evidence fails.
+
+| Trap | Visible rows must | Hidden rows must |
+|---|---|---|
+| `attack` (`dataset_text`) | Still hold the marker | |
+| `grouped_rows` | Still have a repeated group, among at least two | Hold at least two groups, to measure generalization to new groups |
+| `temporal_order` | Still have at least two times; each `future_columns` entry still varies | |
+| `target_leakage` | Each column still varies (a missing value counts as a value: it can leak too) | |
+| `class_imbalance` | Hold the positive class, within one row of the share limit | The same, since the grade scores that class |
+
+Holdouts round, so a source exactly at the 30% limit isn't failed by the one row a split can add on a
+side. Traps with no evidence in the rows (`reuse_suffices`, `fine_tuning`, `optimization_outcome`,
+non-dataset `attack` channels) have nothing to check. A `malformed_data` fault names no column, so
+its data isn't checked here either; S2.5 verifies that case by its generation script.
 
 It checks that trap metadata fits the data, not that a trap is effective. S2.5's generation scripts
 and its `🔍 REVIEW FOCUS` review verify that.
