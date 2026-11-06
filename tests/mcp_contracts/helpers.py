@@ -69,6 +69,13 @@ async def submit(client: Client, trial_id: str, key: str = "s1", **extra: Any) -
     )
 
 
+def start_job(session: Session, job_id: str) -> None:
+    """Lease and start the job as `finish_job`'s worker: it is RUNNING after this."""
+    job = session.queue.lease("test-worker", WorkerCapacity(8, 0, 64.0))
+    assert job is not None and job.id == job_id
+    session.queue.start(job_id, "test-worker")
+
+
 def finish_job(
     session: Session,
     job_id: str,
@@ -76,12 +83,16 @@ def finish_job(
     scores: dict[str, Any] | None = None,
     logs: list[str] | None = None,
     error: tuple[str, str] | None = None,
+    started: bool = False,
 ) -> None:
-    """Do what the experiment worker does, minus the sandbox: logs, artifacts, outcome, state."""
+    """Do what the experiment worker does, minus the sandbox: logs, artifacts, outcome, state.
+
+    With `started`, the job is already RUNNING (`start_job`), so finishing is its only state change.
+    """
     queue = session.queue
-    job = queue.lease("test-worker", WorkerCapacity(8, 0, 64.0))
-    assert job is not None and job.id == job_id
-    queue.start(job_id, "test-worker")
+    if not started:
+        start_job(session, job_id)
+    job = queue.get(job_id)
     folder = protocol.job_dir(session.runs_root, RUN_ID, job_id)
     protocol.append_stage_log(
         folder,

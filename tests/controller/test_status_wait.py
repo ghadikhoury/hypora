@@ -7,6 +7,8 @@ through the queue, so no sandbox is needed.
 
 import json
 import threading
+import time
+from collections.abc import Callable
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -25,7 +27,7 @@ from hypora.mcp_server.session import MAX_STATUS_WAIT_SECONDS
 from hypora.storage.artifacts import ArtifactStore
 from hypora.storage.database import Database
 from hypora.storage.events import EventLog
-from hypora.storage.jobs import JobQueue, WorkerCapacity
+from hypora.storage.jobs import JobQueue, JobRecord, StaleJobState, WorkerCapacity
 from hypora.storage.records import run_jobs
 from tests.controller.conftest import ControllerFactory, NoWorker
 from tests.controller.scripted import ScriptedRun
@@ -33,62 +35,119 @@ from tests.controller.scripted import ScriptedRun
 pytestmark = pytest.mark.anyio
 STATUS = "get_experiment_status"
 SCORES: dict[str, Any] = {"folds": [{"rows": 10, "metrics": {"roc_auc": 0.9}, "unavailable": {}}]}
+HANG_GUARD = 300.0
+"""Only stops a hung test; far longer than a run takes on a slow machine, and no result uses it."""
 
 
-def holds_jobs_running_for(seconds: float) -> Any:
-    """A worker factory: each job is RUNNING for `seconds`, then COMPLETED with its metrics."""
+class HoldingWorker(NoWorker):
+    """Stands in for the experiment worker: each job stays RUNNING until `release()` is true or
+    `seconds` pass, then COMPLETES with its metrics. A cancelled job is confirmed, as the real
+    worker does, including one cancelled just as it was about to complete."""
 
-    class HoldingWorker(NoWorker):
-        def __init__(self, database: Path, runs_root: Path, log: Path, **options: Any) -> None:
-            super().__init__()
-            self.database_path, self.runs_root = database, runs_root
-            self.halt = threading.Event()
-            self.thread = threading.Thread(target=self.work, daemon=True)
+    def __init__(
+        self,
+        database: Path,
+        runs_root: Path,
+        *,
+        seconds: float,
+        release: Callable[[], bool] | None,
+    ) -> None:
+        super().__init__()
+        self.database_path, self.runs_root = database, runs_root
+        self.seconds, self.release = seconds, release
+        self.halt = threading.Event()
+        self.job_started = threading.Event()
+        self.cancel_confirmed = False
+        self.completion_cancelled = False
+        self.failure: BaseException | None = None
+        self.thread = threading.Thread(target=self.work, daemon=True)
 
-        def start(self) -> None:
-            super().start()
-            self.thread.start()
+    def start(self) -> None:
+        super().start()
+        self.thread.start()
 
-        def stop(self) -> int | None:
-            self.halt.set()
-            self.thread.join(10)
-            return super().stop()
+    def stop(self) -> int | None:
+        self.halt.set()
+        self.thread.join(60)
+        return super().stop()
 
-        def work(self) -> None:
-            database = Database(self.database_path)
-            queue = JobQueue(database)
-            while not self.halt.wait(0.1):
+    def work(self) -> None:
+        database = Database(self.database_path)
+        queue = JobQueue(database)
+        try:
+            while not self.halt.wait(0.05):
                 job = queue.lease("holder", WorkerCapacity(8, 0, 64.0))
-                if job is None:
-                    continue
-                queue.start(job.id, "holder")
-                if self.halt.wait(seconds):
-                    break
-                content = json.dumps(SCORES).encode()
-                artifacts = self.runs_root / job.run_id / "artifacts"
-                stored = ArtifactStore(database, artifacts).write(
-                    f"{job.id}.metrics", job.trial_id, "metrics", [content]
-                )
-                protocol.write_json_once(
-                    protocol.job_dir(self.runs_root, job.run_id, job.id) / protocol.OUTCOME_FILE,
-                    protocol.ExperimentOutcome(
-                        job_id=job.id,
-                        succeeded=True,
-                        artifacts=[
-                            protocol.OutcomeArtifact(
-                                artifact_id=stored.id,
-                                kind="metrics",
-                                sha256=stored.sha256,
-                                bytes=len(content),
-                            )
-                        ],
-                        scores=SCORES,
-                    ),
-                )
-                queue.complete(job.id, "holder")
+                if job is not None:
+                    queue.start(job.id, "holder")
+                    self.job_started.set()
+                    if self.hold(queue, job.id):
+                        self.complete(database, queue, job)
+        except Exception as exc:  # reported by finished_cleanly, not as a stray thread exception
+            self.failure = exc
+        finally:
             database.close()
 
-    return HoldingWorker
+    def hold(self, queue: JobQueue, job_id: str) -> bool:
+        """Whether the job should now complete; False if it was cancelled or the worker stopped."""
+        deadline = time.monotonic() + self.seconds
+        while time.monotonic() < deadline and not (self.release and self.release()):
+            if queue.get(job_id).status is JobState.CANCEL_REQUESTED:
+                # The race fixture releases on cancellation: force the completion path even if
+                # cancellation arrived between the loop's release check and this state read.
+                if self.release is not None and self.release():
+                    return True
+                queue.confirm_cancelled(job_id, "holder")
+                self.cancel_confirmed = True
+                return False
+            if self.halt.wait(0.05):
+                return False
+        return True
+
+    def complete(self, database: Database, queue: JobQueue, job: JobRecord) -> None:
+        content = json.dumps(SCORES).encode()
+        artifacts = self.runs_root / job.run_id / "artifacts"
+        stored = ArtifactStore(database, artifacts).write(
+            f"{job.id}.metrics", job.trial_id, "metrics", [content]
+        )
+        protocol.write_json_once(
+            protocol.job_dir(self.runs_root, job.run_id, job.id) / protocol.OUTCOME_FILE,
+            protocol.ExperimentOutcome(
+                job_id=job.id,
+                succeeded=True,
+                artifacts=[
+                    protocol.OutcomeArtifact(
+                        artifact_id=stored.id,
+                        kind="metrics",
+                        sha256=stored.sha256,
+                        bytes=len(content),
+                    )
+                ],
+                scores=SCORES,
+            ),
+        )
+        try:
+            queue.complete(job.id, "holder")
+        except StaleJobState:  # the controller cancelled it after the last look
+            queue.confirm_cancelled(job.id, "holder")
+            self.completion_cancelled = True
+
+
+class HoldingWorkers:
+    """A worker factory that keeps its workers, so a test can check how they ended."""
+
+    def __init__(self, seconds: float, release: Callable[[], bool] | None = None) -> None:
+        self.seconds, self.release = seconds, release
+        self.created: list[HoldingWorker] = []
+
+    def __call__(self, database: Path, runs_root: Path, log: Path, **_: Any) -> HoldingWorker:
+        worker = HoldingWorker(database, runs_root, seconds=self.seconds, release=self.release)
+        self.created.append(worker)
+        return worker
+
+    def assert_finished_cleanly(self) -> None:
+        assert self.created
+        for worker in self.created:
+            assert not worker.thread.is_alive() and worker.failure is None
 
 
 def _events(database: Database, run_id: str, kind: str) -> list[Any]:
@@ -109,13 +168,16 @@ async def test_a_waiting_job_costs_a_few_model_turns(
     make_controller: ControllerFactory, database: Database, dataset: Path
 ) -> None:
     script = ScriptedRun("run_turns", poll_seconds=0)
-    controller = make_controller(script, worker_factory=holds_jobs_running_for(6.0))
-    with anyio.fail_after(120):  # far less than the 45 s x 60 turns a stuck job could take
+    workers = HoldingWorkers(seconds=6.0)
+    controller = make_controller(script, worker_factory=workers)
+    with anyio.fail_after(HANG_GUARD):
         await controller.run(
             RunRequest(dataset=dataset, goal="x", target="target", run_id="run_turns")
         )
+    workers.assert_finished_cleanly()
 
     # QUEUED -> started, then started -> COMPLETED; at most one more if a call straddled a change.
+    # The bound holds at any speed: a 6 s job ends inside a call's 45 s wait.
     status_calls = [call for call in script.tool_calls if call.name == STATUS]
     assert 1 <= len(status_calls) <= 3
     assert script.tool_calls[-1].name == "get_experiment_metrics"  # it saw the job finish
@@ -134,12 +196,69 @@ async def test_without_the_wait_the_same_model_busy_polls(
     dataset: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The control for the test above: what S2.0b fixed, on the same job and the same model."""
+    """The control for the test above: the same model, with no wait to hold it back, spends more
+    than 10 turns on one job that is still running. The job ends only after the 11th call, so this
+    does not depend on how fast the machine is."""
     _short_waits(monkeypatch, 0.0)
     script = ScriptedRun("run_busy", poll_seconds=0)
-    controller = make_controller(script, worker_factory=holds_jobs_running_for(6.0))
-    await controller.run(RunRequest(dataset=dataset, goal="x", target="target", run_id="run_busy"))
-    assert len([call for call in script.tool_calls if call.name == STATUS]) > 10
+
+    def polled_enough() -> bool:
+        return len([call for call in list(script.tool_calls) if call.name == STATUS]) > 10
+
+    workers = HoldingWorkers(seconds=HANG_GUARD, release=polled_enough)
+    controller = make_controller(script, worker_factory=workers)
+    with anyio.fail_after(HANG_GUARD):
+        await controller.run(
+            RunRequest(dataset=dataset, goal="x", target="target", run_id="run_busy")
+        )
+    workers.assert_finished_cleanly()
+    assert polled_enough()
+    assert [job.status for job in run_jobs(database, "run_busy")] == [JobState.COMPLETED]
+
+
+@pytest.mark.parametrize("cancelled_as_it_completes", [False, True])
+async def test_a_limit_cancels_a_running_job_and_its_worker_ends_cleanly(
+    make_controller: ControllerFactory,
+    database: Database,
+    dataset: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    cancelled_as_it_completes: bool,
+) -> None:
+    """The turn cap fires while the job runs. The second case is CI run 42297110813's thread
+    exception: the worker goes on to complete a job the controller has just cancelled."""
+    _short_waits(monkeypatch, 0.1)
+    run_id = f"run_cancel_held_{cancelled_as_it_completes}".lower()
+
+    def cancel_requested() -> bool:
+        return run_jobs(database, run_id)[0].status is JobState.CANCEL_REQUESTED
+
+    workers = HoldingWorkers(
+        seconds=HANG_GUARD, release=cancel_requested if cancelled_as_it_completes else None
+    )
+
+    class RunningJobScript(ScriptedRun):
+        """Wait for actual worker execution before consuming the turns that trigger cancellation."""
+
+        async def _agent_turn(self, request: Any) -> Any:
+            if request.messages[-1].tool_name == "submit_experiment":
+                with anyio.fail_after(HANG_GUARD):
+                    while not workers.created[0].job_started.is_set():
+                        await anyio.sleep(0.01)
+            return await super()._agent_turn(request)
+
+    script = RunningJobScript(run_id, poll_seconds=0)
+    controller = make_controller(script, worker_factory=workers, max_agent_turns=6)
+    with anyio.fail_after(HANG_GUARD):
+        result = await controller.run(
+            RunRequest(dataset=dataset, goal="x", target="target", run_id=run_id)
+        )
+    workers.assert_finished_cleanly()
+    assert result.limits_fired == ("max_agent_turns",)
+    assert [job.status for job in run_jobs(database, run_id)] == [JobState.CANCELLED]
+    [worker] = workers.created
+    assert worker.job_started.is_set()
+    assert worker.completion_cancelled is cancelled_as_it_completes
+    assert worker.cancel_confirmed is not cancelled_as_it_completes
 
 
 @pytest.mark.parametrize(
@@ -226,7 +345,7 @@ async def test_a_limit_that_fires_during_a_wait_ends_the_wait_at_once(
                 ),
             )
 
-    with anyio.fail_after(120):
+    with anyio.fail_after(HANG_GUARD):
         async with anyio.create_task_group() as tasks:
             tasks.start_soon(fire_once_waiting)
             result = await controller.run(

@@ -176,8 +176,8 @@ Actual spend was $0. The Luna column is the D-027 run: a Luna re-run is paid, so
   Tokens are flat because this run tried a fifth trial, and because S1.7's Flash-Lite polls were
   already spaced by its slow calls.
 - **The fast-model case** is covered by a scripted test: a model that never pauses makes at most 3
-  status calls on a job held for 6 s, and more than 10 with the wait off
-  (`tests/controller/test_status_wait.py`).
+  status calls on a job held for 6 s. With the wait off, the same model spends more than 10 turns on
+  a job that is still running (`tests/controller/test_status_wait.py`).
 
 ## Follow-ups (recommendations, not made here)
 
