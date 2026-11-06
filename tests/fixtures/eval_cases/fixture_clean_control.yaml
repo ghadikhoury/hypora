@@ -1,0 +1,46 @@
+# A complete case in the format of hypora/evaluation/case.py: the clean control shape, stratified.
+# TEST FIXTURE ONLY (tests/unit/evaluation/): the snapshot it names is synthetic and built by the
+# tests, which also replace the hash. Real cases name real OpenML/UCI snapshots (D-015).
+id: fixture_clean_control
+split: dev
+request: Predict whether a customer will default, using the attached table.
+constraints:
+  target: label
+  task_type: binary_classification
+  primary_metric: roc_auc
+  secondary_metrics: [accuracy]
+  forbidden_columns: []
+dataset:
+  snapshot: openml-1-fixture
+  sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+family: tabular
+permitted_tools:
+  - inspect_dataset
+  - write_trial_files
+  - submit_experiment
+  - get_experiment_status
+  - get_experiment_metrics
+  - get_experiment_logs
+budget:
+  max_usd: 0.5
+  max_trials: 5
+  max_wall_clock_seconds: 900
+approval_policy: auto_within_contract
+contract_bounds:
+  max_budget:
+    max_usd: 1
+    max_trials: 10
+    max_wall_clock_seconds: 1800
+  max_job_limits:
+    max_wall_seconds: 300
+    max_memory_gb: 2
+hidden_split:
+  strategy: stratified
+  fraction: 0.2
+  seed: 20261106
+grading:
+  hidden_metric:
+    name: roc_auc
+    threshold: 0.6
+    reported_tolerance: 0.02
+expected_decision_class: train
