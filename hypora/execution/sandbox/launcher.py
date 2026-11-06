@@ -15,6 +15,7 @@ Isolation applied to every container (the image cannot enforce these on itself):
 | devices | no GPUs unless the job asks; never the Docker socket |
 | init | tini as PID 1, so stray processes are reaped and signals delivered |
 | self-kill | the command runs under `timeout --signal=KILL` at wall limit + 30 s (crash backstop) |
+| OOM evidence | after a non-zero exit, a fixed wrapper holds the cgroup briefly (see JOB_WRAPPER) |
 
 The wall clock, the output caps (bytes and entries), and abort requests (lost lease, cancel) are
 enforced by polling while the container runs; on any of them the container is killed. After it
@@ -60,6 +61,12 @@ SELF_KILL_GRACE_SECONDS = 30
 """The container kills its own job this long after the wall limit (crashed-supervisor backstop)."""
 ORPHAN_GRACE_SECONDS = 60
 """Past wall limit + this, a sandbox container is an orphan any worker may remove."""
+OOM_EVENT_HOLD_SECONDS = 0.2
+"""After a non-zero exit the container lives this much longer, so the runtime sees the OOM kill."""
+# PID 1 is tini; this runs under it. The job's words stay positional ("$@"), so a shell never parses
+# them. The hold is why State.OOMKilled can be trusted: without it, a killed job's cgroup can vanish
+# before containerd reads memory.events, and the flag is never set (sandbox-layout.md).
+JOB_WRAPPER = 'timeout --signal=KILL "$@"; rc=$?; [ "$rc" -eq 0 ] || sleep {hold}; exit "$rc"'
 
 AbortCheck = Callable[[], str | None]
 """Returns a reason to stop the job now (lease lost, cancel requested), or None."""
@@ -171,7 +178,14 @@ class SandboxLauncher:
         self_kill = math.ceil(limits.wall_seconds) + SELF_KILL_GRACE_SECONDS
         args: dict[str, Any] = {
             "image": spec.image,
-            "command": ["timeout", "--signal=KILL", str(self_kill), *spec.command],
+            "command": [
+                "sh",
+                "-c",
+                JOB_WRAPPER.format(hold=OOM_EVENT_HOLD_SECONDS),
+                "sh",
+                str(self_kill),
+                *spec.command,
+            ],
             "user": f"{uid}:{gid}",
             "working_dir": str(layout.TRIAL),
             "environment": environment,
