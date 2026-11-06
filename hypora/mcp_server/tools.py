@@ -22,6 +22,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated, Any, Final
 
+import anyio
+import anyio.to_thread
 import yaml  # type: ignore[import-untyped]
 from pydantic import Field, JsonValue, ValidationError
 from sqlalchemy.engine import Connection
@@ -87,6 +89,8 @@ MAX_PIPELINE_BYTES: Final = 1024 * 1024
 MAX_LOCK_BYTES: Final = 64 * 1024
 TRIAL_FILES: Final = ("trial.yaml", "pipeline.py", "requirements.lock")
 WITHHELD_LINE: Final = "[line withheld by the data firewall: it showed dataset values]"
+STATUS_CHECK_SECONDS: Final = 1.0
+"""How often a waiting get_experiment_status looks at its job."""
 _STATUS_ARTIFACT_KINDS: Final = frozenset({"metrics", "predictions", "manifest"})
 _SANDBOX_LOCK: Final = Path(__file__).parents[1] / "execution/sandbox/requirements-tabular.lock"
 _REQUIREMENT = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*==\s*([A-Za-z0-9._+!-]+)\s*$")
@@ -631,7 +635,7 @@ class HyporaTools:
         predictions itself. Held-out test labels are never used here.
 
         Use it after write_trial_files, and again after fixing a failed trial (with a NEW
-        idempotency_key). Then poll get_experiment_status until `finished` is true.
+        idempotency_key). Then call get_experiment_status until `finished` is true.
 
         Do not use it to change the split, metric, features, or budget: they come from the
         approved contract. Limits above the contract's are refused; only the user can extend
@@ -860,22 +864,27 @@ class HyporaTools:
             operation=job.operation,
             contract_version=request.contract_version,
             limits=job.limits,
-            next_step=f"Poll get_experiment_status(job_id={job.id!r}) every few seconds.",
+            next_step=f"Call get_experiment_status(job_id={job.id!r}); it waits for the job.",
         )
 
     # --- get_experiment_status --------------------------------------------------------------------
 
-    def get_experiment_status(
+    async def get_experiment_status(
         self,
         job_id: Annotated[
             Identifier,
             Field(description="From submit_experiment, e.g. 'job_1761400000000000000_a1b2c3'."),
         ],
     ) -> ExperimentStatus:
-        """Report where a submitted experiment is: queued, running, completed, or failed.
+        """Report where a submitted experiment is, waiting briefly while it is in progress.
 
-        Use it to poll after submit_experiment (every few seconds) until `finished` is true;
-        then call get_experiment_metrics (if succeeded) or get_experiment_logs (if failed).
+        The call waits on the server: it returns as soon as the job's state changes or the job
+        finishes, and after 45 seconds at most. A finished job returns at once. The platform
+        sets this wait; no argument changes it.
+
+        Use it after submit_experiment. If `finished` is false, call it again right away, with
+        no pause of your own. Once `finished` is true, call get_experiment_metrics (if
+        succeeded) or get_experiment_logs (if failed).
 
         Do not use it for metrics (get_experiment_metrics) or full logs (get_experiment_logs).
 
@@ -885,6 +894,28 @@ class HyporaTools:
 
         Example: get_experiment_status(job_id="job_1761400000000000000_a1b2c3")
         """
+        await self._await_job_change(job_id)
+        return await anyio.to_thread.run_sync(self._status, job_id)
+
+    async def _await_job_change(self, job_id: str) -> None:
+        """Wait until the job leaves its current phase, or until the session's bounded wait ends.
+
+        The tool is async so that a wait holds no worker thread and can be cancelled at any sleep:
+        other MCP calls keep running, and a client that gives up ends the wait. Only the job's
+        state is read here; everything returned to the caller is read afterwards, by `_status`.
+        """
+        job = await anyio.to_thread.run_sync(self._job, job_id)  # an unknown job fails at once
+        if job.status in TERMINAL_STATES:
+            return
+        phase = _wait_phase(job.status)
+        deadline = anyio.current_time() + self.session.config.status_wait_seconds
+        while (left := deadline - anyio.current_time()) > 0:
+            await anyio.sleep(min(STATUS_CHECK_SECONDS, left))
+            job = await anyio.to_thread.run_sync(self._job, job_id)
+            if _wait_phase(job.status) is not phase:
+                return
+
+    def _status(self, job_id: str) -> ExperimentStatus:
         job = self._job(job_id)
         folder = protocol.job_dir(self.session.runs_root, job.run_id, job.id)
         outcome = protocol.read_outcome(folder)
@@ -953,7 +984,7 @@ class HyporaTools:
             raise errors.not_yet(
                 "EXPERIMENT_NOT_FINISHED",
                 f"Job {job_id} is {job.status.value}.",
-                "Poll get_experiment_status until finished, then call this again.",
+                "Call get_experiment_status until finished, then call this again.",
                 state=job.status.value,
             )
         folder = protocol.job_dir(self.session.runs_root, job.run_id, job.id)
@@ -1019,9 +1050,18 @@ def _flatten(stages: Sequence[protocol.StageLog]) -> list[LogLine]:
     ]
 
 
+def _wait_phase(state: JobState) -> JobState:
+    """What a status wait compares. LEASED is the instant before RUNNING, so ending a wait on
+    LEASED -> RUNNING would spend a model turn on a change nobody can act on."""
+    return JobState.RUNNING if state is JobState.LEASED else state
+
+
 def _next_step(job: JobRecord, finished: bool, succeeded: bool | None) -> str:
     if not finished:
-        return f"Still {job.status.value}: call get_experiment_status again in a few seconds."
+        return (
+            f"Still {job.status.value}: call get_experiment_status again now; "
+            "it waits for the job, so do not pause first."
+        )
     if succeeded:
         return f"Call get_experiment_metrics(job_id={job.id!r})."
     return (

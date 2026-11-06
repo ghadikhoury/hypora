@@ -125,7 +125,7 @@ the narrative call, so a failure there still leaves a complete report.
 ## Prompts
 
 `hypora/core/roles/prompts/*.md`, each with a `prompt`/`version` header, loaded at runtime by
-`prompt_loader.load_prompt`. Every model call records `prompt_ref` (e.g. `single_agent@v1`). A
+`prompt_loader.load_prompt`. Every model call records `prompt_ref` (e.g. `single_agent@v2`). A
 test checks that every file has a valid header and that role code loads prompts instead of
 inlining them. Changing a prompt's text means bumping its version.
 

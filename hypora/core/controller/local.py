@@ -21,7 +21,7 @@ from mcp.client.stdio import stdio_client
 
 from hypora.core.config.flags import FeatureFlags
 from hypora.core.schemas import ActorRole
-from hypora.mcp_server.session import DefenseSwitches, SessionConfig
+from hypora.mcp_server.session import MAX_STATUS_WAIT_SECONDS, DefenseSwitches, SessionConfig
 
 REPO_ROOT: Final = Path(__file__).resolve().parents[3]
 DATASET_ID: Final = "ds_main"
@@ -64,6 +64,7 @@ def write_session(
     runs_root: Path,
     dataset: Path,
     flags: FeatureFlags,
+    status_wait_seconds: float = MAX_STATUS_WAIT_SECONDS,
 ) -> Path:
     """Write the MCP session file for `role` on `run_id`; returns its path."""
     config = SessionConfig(
@@ -77,6 +78,7 @@ def write_session(
         defenses=DefenseSwitches(
             allowlist=flags.defenses.allowlist, firewall=flags.defenses.firewall
         ),
+        status_wait_seconds=status_wait_seconds,
     )
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(config.model_dump_json(indent=2), encoding="utf-8")

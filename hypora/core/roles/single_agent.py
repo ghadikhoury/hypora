@@ -6,9 +6,11 @@ stdio connection (`McpToolChannel`), so what gets evaluated is the MCP path itse
 
 Loop: the model sees the system prompt and the run's context, calls tools, and reads each result
 (errors included, as observations it can act on, spec §15.2). Before every model call and every
-tool call it asks the controller's guard, which stops it at any run limit (spec §6.8). When the
-model stops calling tools, one structured-output call collects its final answer: the trial it
-nominates. The controller, not the agent, decides what is final (D-019).
+tool call it asks the controller's guard, which stops it at any run limit (spec §6.8). While a
+tool waits on the server (`get_experiment_status`, D-030) it keeps asking, so a limit or a user
+cancel ends the wait instead of being noticed after it. When the model stops calling tools, one
+structured-output call collects its final answer: the trial it nominates. The controller, not the
+agent, decides what is final (D-019).
 """
 
 import json
@@ -16,6 +18,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Final, Protocol
 
+import anyio
 from mcp import Client
 from mcp.shared.exceptions import MCPError
 from mcp_types import TextContent
@@ -26,10 +29,14 @@ from hypora.core.llm.errors import LLMError
 from hypora.core.llm.types import CallContext, Message, ToolSpec
 from hypora.core.roles.base import CallGuard, RunLimitReached
 from hypora.core.roles.prompt_loader import load_prompt
-from hypora.core.schemas import ActorRole, Identifier, ModelTier, StrictModel
+from hypora.core.schemas import ActorRole, Identifier, ModelTier, StrictModel, ToolName
 
 MAX_TOOL_RESULT_CHARS: Final = 60_000
 """A tool result longer than this is cut before it enters the model's context."""
+WAITING_TOOLS: Final = frozenset({ToolName.GET_EXPERIMENT_STATUS.value})
+"""Tools that wait on the server, and that only read: safe to abandon when a limit fires."""
+LIMIT_CHECK_SECONDS: Final = 1.0
+"""How often run limits are checked while a waiting tool is in flight."""
 
 
 class FinalAnswer(StrictModel):
@@ -92,6 +99,45 @@ def _argument_error(message: str) -> str:
     )
 
 
+async def _call_watching_limits(
+    channel: ToolChannel,
+    guard: CallGuard,
+    name: str,
+    arguments: Mapping[str, JsonValue],
+) -> tuple[bool, str]:
+    """Run a waiting tool, cancelling it as soon as the next model call would be refused.
+
+    That next call is what the wait leads to, so asking the guard about it covers the user's cancel
+    and every limit that can grow during a wait (wall clock, sandbox compute) at no extra cost.
+    A failure is raised as itself, not wrapped in the task group's exception group.
+    """
+    result: tuple[bool, str] | None = None
+    failure: Exception | None = None
+
+    async def watch(scope: anyio.CancelScope) -> None:
+        nonlocal failure
+        while True:
+            await anyio.sleep(LIMIT_CHECK_SECONDS)
+            try:
+                guard.before_model_call()
+            except Exception as exc:
+                failure = exc
+                scope.cancel()
+                return
+
+    async with anyio.create_task_group() as tasks:
+        tasks.start_soon(watch, tasks.cancel_scope)
+        try:
+            result = await channel.call(name, arguments)
+        except Exception as exc:
+            failure = exc
+        tasks.cancel_scope.cancel()
+    if failure is not None:
+        raise failure
+    assert result is not None
+    return result
+
+
 async def run_single_agent(
     adapter: LLMAdapter,
     guard: CallGuard,
@@ -131,9 +177,16 @@ async def run_single_agent(
                     )
                     continue
                 guard.before_tool_call(call.name, call.arguments)
-                is_error, content = await channel.call(call.name, call.arguments)
-                guard.after_tool_call(call.name)
                 tool_calls += 1
+                try:
+                    if call.name in WAITING_TOOLS:
+                        is_error, content = await _call_watching_limits(
+                            channel, guard, call.name, call.arguments
+                        )
+                    else:
+                        is_error, content = await channel.call(call.name, call.arguments)
+                finally:  # a cancelled wait still ran, and its events are in the log
+                    guard.after_tool_call(call.name)
                 messages.append(Message.tool_result(call, content, is_error=is_error))
     except RunLimitReached as reached:
         return AgentOutcome(None, turns, tool_calls, stop=reached)

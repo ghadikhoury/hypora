@@ -36,6 +36,8 @@ DEV_ROOT = REPO_ROOT / "runs" / "mcp-dev"
 SESSION_FILE = DEV_ROOT / "session.json"
 RUN_ID = "run_mcp_dev"
 APPROVAL_ID = "appr_mcp_dev_plan"
+STATUS_WAIT_SECONDS = 5.0
+"""Short enough for the MCP Inspector's default 10 s request timeout."""
 
 
 def dev_contract(run_id: str, features: list[str], approved_plan_hash: str) -> ExperimentContract:
@@ -120,6 +122,7 @@ def create_dev_workspace(root: Path = DEV_ROOT, *, force: bool = False) -> Path:
         datasets={"ds_main": str(dataset)},
         experiment_dataset="ds_main",
         defenses=DefenseSwitches(allowlist=defenses.allowlist, firewall=defenses.firewall),
+        status_wait_seconds=STATUS_WAIT_SECONDS,
     )
     session_file = root / "session.json"
     session_file.write_text(config.model_dump_json(indent=2), encoding="utf-8")

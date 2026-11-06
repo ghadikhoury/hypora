@@ -699,3 +699,29 @@ one it supersedes.
   and CI gates stay in place, and bugs are found earlier.
 - Consequences: AGENTS.md and PLAN.md hold the rules. If review blockers, red runs on `main`, or
   post-merge bugs increase, tighten stacking first.
+
+## D-030 — `get_experiment_status` waits briefly on the server
+- Date: 2026-11-06
+- Step: S2.0b (stop-and-ask trigger 1: a change to an MCP tool's behavior and description)
+- Decided by: Ghadi approved a short server-side wait; the coding agent chose the details below
+- Measured: status polls took 100 of 110 tool calls in one gpt-6-luna run and 28 of 50 in one Gemini
+  run. Each poll re-sends the conversation, which drove both Luna runs into the token limit
+  (`docs/notes/cost-estimate.md`). The eval model is expected to be gpt-6-luna, so this matters.
+- Decision:
+  - An unfinished job's status call waits until the job changes state or finishes, and at most
+    **45 seconds**. A finished or unknown job answers at once. `LEASED` and `RUNNING` count as one
+    state, since a turn spent between them buys nothing.
+  - **The wait is the default, with no new argument.** A model cannot extend it, and cannot opt out
+    into busy polling. The input and output schemas are unchanged; only descriptions and instructions
+    change in `docs/mcp/tools.json`. A launcher can shorten the wait per session, never lengthen it.
+  - The agent's side keeps checking the run guard during a wait, so a user cancel or a wall-clock or
+    compute limit ends the wait within a second. A cancelled call is recorded as `CALL_CANCELLED`.
+  - The prompt becomes `single_agent@v2`, which tells the model not to pause between calls.
+- Not adopted: an optional `wait_seconds` argument, which would add contract surface and let a model
+  poll with 0; waiting at the client, which would not help other MCP clients; a prompt-only fix, which
+  relies on every model obeying it and still costs a turn per poll.
+- Why 45 s: it is longer than the 28–33 s fit jobs of the S2.0b live run, so a job like those costs one
+  call, and it stays below the agent's 300 s read timeout and the 60 s default of common MCP clients.
+- Consequences: spec §12's table still holds. S3.C2's trial workers inherit the wait, and need the same
+  guard check while they wait. The Stage 1 runs in `results/stage1/` used `single_agent@v1`, so S2.6
+  re-measures cost per run.

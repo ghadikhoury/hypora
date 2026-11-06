@@ -12,7 +12,7 @@ access), D-015 (real data). Packages: `hypora/mcp_server/` (server, tools, sessi
 | `inspect_dataset` | read | The approved `DatasetProfile` (S1.1) of an authorized dataset; never rows |
 | `write_trial_files` | reversible | Create a trial or replace its `trial.yaml` (from a typed design), `pipeline.py`, `requirements.lock` |
 | `submit_experiment` | reversible | Freeze the trial's files and queue a `fit` job; returns a `job_id` |
-| `get_experiment_status` | read | Job state, platform-written error, firewalled log tail, artifact IDs |
+| `get_experiment_status` | read | Job state, platform-written error, firewalled log tail, artifact IDs; waits briefly for an unfinished job to change (D-030) |
 | `get_experiment_metrics` | read | Platform-computed validation scores (S1.3 `metrics.json`), bounded |
 | `get_experiment_logs` | read | Paginated sandbox stdout/stderr, every line firewalled |
 
@@ -81,6 +81,48 @@ calls race, the first published snapshot is the one that runs.
 hypothesis and code, and when to submit. Code decides everything else: which tools the role sees,
 whether arguments are valid, which run and trials it may touch, the split, the limits ceiling,
 the approval check, what the sandbox runs, every metric, and what text may leave.
+
+## The status wait (S2.0b; D-030)
+
+Polling took 100 of 110 tool calls in one Luna run, and each poll is a model turn that re-sends the
+conversation (`cost-estimate.md`). So `get_experiment_status` waits on the server before it answers:
+
+| The job | The call returns |
+|---|---|
+| has finished | at once |
+| does not exist, or belongs to another run | at once, `EXPERIMENT_NOT_FOUND` |
+| changes state during the wait | within a second of the change (`STATUS_CHECK_SECONDS`) |
+| does not change | after `SessionConfig.status_wait_seconds`, 45 s by default and at most |
+
+- **No argument.** The input schema is still just `job_id`, and any other argument is refused. A
+  model cannot ask for a longer wait, and cannot opt out into busy polling again. The session's
+  value comes from the trusted launcher, and `MAX_STATUS_WAIT_SECONDS` bounds it in validation.
+- **Why 45 s.** Fit jobs took 28–33 s in the S2.0b live run, so each cost one status call
+  (`cost-estimate.md`); a job of a few minutes costs a call every 45 s. The bound stays below the
+  agent's 300 s `MCP_READ_TIMEOUT_S` and the 60 s default of common MCP clients, firewall time
+  included. The dev workspace uses 5 s, for the MCP Inspector's 10 s default.
+- **`LEASED` and `RUNNING` count as one state.** A lease is the instant before the start, so
+  waking the model between them would spend a turn on a change it cannot act on. Every other change
+  ends the wait, including `CANCEL_REQUESTED` and a return to `QUEUED`.
+- **It holds no thread.** The SDK runs a sync tool in a worker thread, where a sleep would use up
+  one of anyio's 40 tokens and could not be cancelled. This tool is async: it sleeps on the event
+  loop and borrows a thread only for each state read. The SDK dispatches each request as its own
+  task, so other calls run during a wait (a test runs 45 waits at once). The worker is a separate
+  process, and SQLite WAL readers never block its writes.
+- **Nothing else changed.** The reply is built after the wait by the same code as before, and goes
+  through the same screen and boundary firewall. The tool still writes nothing.
+
+**Limits (the agent's side).** The server does not know the run's budget, and the wait must not
+hide a limit for 45 s. While a status call is in flight, `run_single_agent` asks the guard about the
+next model call every second (`_call_watching_limits`). A user cancel, or a wall-clock or compute
+limit that fires, cancels the call and stops the agent at once. Step, token, and spend limits do not
+grow during a wait, and still apply before each call. Only `WAITING_TOOLS` are watched, because they
+only read: a write that has started must finish.
+
+**A cancelled call is still recorded.** A cancelling or vanished client cancels the handler (MCP
+`notifications/cancelled`, or the stdio connection closing). The boundary then writes `tool_result`
+with status `error` and code `CALL_CANCELLED`, and nobody receives that result. Everything in the
+boundary except the tool itself is shielded, so a `tool_call` always gets its `tool_result`.
 
 ## Sessions and the allowlist
 
@@ -201,7 +243,8 @@ click **Connect**, then **Tools → List Tools**. A session to try:
    operation `fit`, ...), and `pipeline_py` set to
    `hypora/execution/templates/tabular/linear/pipeline.py`; note the `trial_id`.
 3. `submit_experiment` with that `trial_id` and `idempotency_key` `run_mcp_dev:try1`.
-4. `get_experiment_status` until `finished`; then `get_experiment_metrics` and `get_experiment_logs`.
+4. `get_experiment_status` until `finished` (each call waits up to 5 s here); then
+   `get_experiment_metrics` and `get_experiment_logs`.
 
 The dev workspace is a developer tool, not an evaluation case. Its data is real UCI data (D-015)
 as bundled with scikit-learn, so no download is needed. `--force` recreates it. Scripted check

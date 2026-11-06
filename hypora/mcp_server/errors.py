@@ -132,6 +132,17 @@ def internal_failure() -> ToolError:
     )
 
 
+def call_cancelled() -> ToolError:
+    """For the event log only: nobody receives a result for a call whose client gave up on it."""
+    return ToolError(
+        code="CALL_CANCELLED",
+        error_class=ErrorClass.TRANSIENT,
+        message="The client cancelled this call or disconnected before it finished.",
+        retryable=True,
+        suggested_recovery="Call the tool again if the result is still needed.",
+    )
+
+
 def error_result(error: ToolError) -> CallToolResult:
     """An MCP `is_error` result carrying the ToolError as both JSON text and structured content."""
     structured: Any = error.model_dump(mode="json")

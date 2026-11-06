@@ -65,9 +65,9 @@ SERVER_NAME: Final = "hypora"
 SERVER_VERSION: Final = "1"
 INSTRUCTIONS: Final = (
     "Hypora platform tools for one run. Typical order: inspect_dataset -> write_trial_files -> "
-    "submit_experiment -> get_experiment_status (poll until finished) -> get_experiment_metrics, "
-    "or get_experiment_logs to diagnose a failure. The platform owns the data split, the "
-    "held-out labels, and every metric. No tool returns raw dataset rows."
+    "submit_experiment -> get_experiment_status (it waits for the job; repeat until finished) -> "
+    "get_experiment_metrics, or get_experiment_logs to diagnose a failure. The platform owns the "
+    "data split, the held-out labels, and every metric. No tool returns raw dataset rows."
 )
 
 TOOL_ORDER: Final = (
@@ -156,32 +156,35 @@ class HyporaMCPServer(MCPServer):
         started = time.monotonic()
         tool = _event_tool_name(name)
         tier = TOOL_TIERS.get(ToolName(name)) if name in set(ToolName) else None
-        await self._emit(
-            EventType.TOOL_CALL,
-            self.session.role,
-            ToolCallPayload(
-                call_id=call_id,
-                tool=tool,
-                arguments=_redact(arguments),
-                idempotency_key=_idempotency_key(arguments),
-                session_id=self.session.config.session_id,
-            ),
-        )
-        if not await self._allowlist(call_id, tool, tier, name):
-            refusal = errors.policy(
-                "TOOL_NOT_ALLOWED",
-                f"Tool {tool!r} is not available to role {self.session.role.value!r}.",
-                "Use only the tools listed for this session.",
-            ).error
-            return await self._respond(call_id, tool, tier, started, error=refusal)
-        unknown = sorted(set(arguments) - self._parameters.get(name, frozenset(arguments)))
-        if unknown:  # the SDK would silently drop them; a typo or a smuggled field is an error
-            refusal = errors.invalid(
-                "UNKNOWN_ARGUMENTS",
-                f"{tool} has no argument(s) {[key[:40] for key in unknown[:5]]}.",
-                "Use only the arguments in the tool's input schema.",
-            ).error
-            return await self._respond(call_id, tool, tier, started, error=refusal)
+        # Only the tool itself can be interrupted: a client that cancels or disconnects (a status
+        # wait is the likely moment) must not leave a tool_call without its tool_result.
+        with anyio.CancelScope(shield=True):
+            await self._emit(
+                EventType.TOOL_CALL,
+                self.session.role,
+                ToolCallPayload(
+                    call_id=call_id,
+                    tool=tool,
+                    arguments=_redact(arguments),
+                    idempotency_key=_idempotency_key(arguments),
+                    session_id=self.session.config.session_id,
+                ),
+            )
+            if not await self._allowlist(call_id, tool, tier, name):
+                refusal = errors.policy(
+                    "TOOL_NOT_ALLOWED",
+                    f"Tool {tool!r} is not available to role {self.session.role.value!r}.",
+                    "Use only the tools listed for this session.",
+                ).error
+                return await self._respond(call_id, tool, tier, started, error=refusal)
+            unknown = sorted(set(arguments) - self._parameters.get(name, frozenset(arguments)))
+            if unknown:  # the SDK would silently drop them; a typo or a smuggled field is an error
+                refusal = errors.invalid(
+                    "UNKNOWN_ARGUMENTS",
+                    f"{tool} has no argument(s) {[key[:40] for key in unknown[:5]]}.",
+                    "Use only the arguments in the tool's input schema.",
+                ).error
+                return await self._respond(call_id, tool, tier, started, error=refusal)
 
         notes = CallNotes()
         token = CURRENT_CALL.set(notes)
@@ -190,30 +193,45 @@ class HyporaMCPServer(MCPServer):
         failure: errors.ToolFailure | None = None
         try:
             result = await super().call_tool(name, arguments, context)
+        except anyio.get_cancelled_exc_class():
+            with anyio.CancelScope(shield=True):
+                await self._finish(call_id, tool, started, error=errors.call_cancelled())
+            raise
         except MCPError:
-            await self._finish(call_id, tool, started, error=errors.internal_failure())
+            with anyio.CancelScope(shield=True):
+                await self._finish(call_id, tool, started, error=errors.internal_failure())
             raise
         except Exception as exc:
             error, failure = _to_tool_error(exc, tool)
         finally:
             CURRENT_CALL.reset(token)
 
-        if notes.withheld:
-            await self._policy(
-                call_id,
-                tool,
-                tier,
-                PolicyOutcome.DENY,
-                PolicyRule.DATA_FIREWALL,
-                [f"rule={rule} withheld_lines={count}" for rule, count in notes.withheld.items()],
-            )
-        if failure is not None and failure.decided_by is not None:
-            await self._policy(
-                call_id, tool, tier, PolicyOutcome.DENY, failure.decided_by, [failure.error.code]
-            )
-        if isinstance(result, InputRequiredResult):  # never produced by these tools
-            return result
-        return await self._respond(call_id, tool, tier, started, result=result, error=error)
+        with anyio.CancelScope(shield=True):
+            if notes.withheld:
+                await self._policy(
+                    call_id,
+                    tool,
+                    tier,
+                    PolicyOutcome.DENY,
+                    PolicyRule.DATA_FIREWALL,
+                    [
+                        f"rule={rule} withheld_lines={count}"
+                        for rule, count in notes.withheld.items()
+                    ],
+                )
+            if failure is not None and failure.decided_by is not None:
+                await self._policy(
+                    call_id,
+                    tool,
+                    tier,
+                    PolicyOutcome.DENY,
+                    failure.decided_by,
+                    [failure.error.code],
+                )
+            if isinstance(result, InputRequiredResult):  # never produced by these tools
+                return result
+            response = await self._respond(call_id, tool, tier, started, result=result, error=error)
+        return response
 
     async def _respond(
         self,

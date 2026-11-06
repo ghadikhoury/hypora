@@ -8,7 +8,7 @@ Each file starts with a header naming the prompt and its version:
     ---
     <the prompt text>
 
-`Prompt.ref` (`single_agent@v1`) is recorded on every model call that uses it (`prompt_ref` in the
+`Prompt.ref` (`single_agent@v2`) is recorded on every model call that uses it (`prompt_ref` in the
 `model_call` event), so a trace always says which prompt text produced which call. A prompt may
 contain `$name` placeholders, filled by `render` (`string.Template`: a missing value is an
 error, and `$$` is a literal dollar). Prompt text is never inlined in code.
@@ -37,7 +37,7 @@ class Prompt:
 
     @property
     def ref(self) -> str:
-        """The `prompt_ref` recorded in model_call events, e.g. `single_agent@v1`."""
+        """The `prompt_ref` recorded in model_call events, e.g. `single_agent@v2`."""
         return f"{self.name}@v{self.version}"
 
     def render(self, **values: object) -> str:

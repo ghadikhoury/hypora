@@ -27,7 +27,10 @@ DESIGN = {
 
 
 def open_session(session_file: Path, **changes: Any) -> Session:
-    """The workspace's session, optionally with another role or other defense switches."""
+    """The workspace's session, optionally with another role or other defense switches.
+
+    A status call does not wait unless a test asks for it (test_status_wait.py)."""
+    changes.setdefault("status_wait_seconds", 0.0)
     config = SessionConfig.model_validate_json(session_file.read_bytes())
     if "defenses" in changes:
         changes["defenses"] = DefenseSwitches(**changes["defenses"])

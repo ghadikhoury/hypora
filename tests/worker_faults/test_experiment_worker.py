@@ -4,6 +4,7 @@ the launcher is never reached, so it gets a client that would fail if it were.""
 from pathlib import Path
 from types import SimpleNamespace
 
+import anyio
 import pytest
 
 from hypora.core.schemas import JobLimits, Operation
@@ -77,7 +78,7 @@ def test_a_dataset_changed_after_submit_is_refused(setup):
     ran = worker.run_once()
     assert ran.final_state.value == "FAILED_TERMINAL"
     assert ran.outcome.error_code == "DATASET_CHANGED"
-    status = tools.get_experiment_status(job_id=job_id)
+    status = anyio.run(tools.get_experiment_status, job_id)
     assert status.error.code == "DATASET_CHANGED" and status.finished
 
 
@@ -151,7 +152,7 @@ def test_a_job_never_completes_on_data_other_than_submitted(setup, monkeypatch):
     ran = worker.run_once()
     assert ran.final_state.value == "FAILED_TERMINAL"
     assert ran.outcome.error_code == "DATASET_CHANGED"
-    assert tools.get_experiment_status(job_id=job_id).error.code == "DATASET_CHANGED"
+    assert anyio.run(tools.get_experiment_status, job_id).error.code == "DATASET_CHANGED"
 
 
 def test_submit_refuses_a_dataset_changed_since_the_session_indexed_it(setup):
