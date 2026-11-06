@@ -9,13 +9,19 @@ import contextlib
 import json
 import os
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import docker
 import pytest
 
-from hypora.execution.sandbox.launcher import LABEL_JOB, SandboxLauncher, SandboxStatus
+from hypora.execution.sandbox.launcher import (
+    LABEL_JOB,
+    OOM_EVENT_HOLD_SECONDS,
+    SandboxLauncher,
+    SandboxStatus,
+)
 from hypora.execution.sandbox.outputs import UnsafeOutputError, open_output
 from hypora.execution.sandbox.spec import (
     SandboxConfigError,
@@ -258,6 +264,133 @@ def test_memory_limit_kills_the_job(run_script: RunScript, tmp_path: Path) -> No
     assert result.status is SandboxStatus.OOM_KILLED, result.detail
 
 
+def test_oom_of_a_child_is_reported_whatever_the_parent_exits_with(
+    run_script: RunScript, tmp_path: Path
+) -> None:
+    code = r"""
+import subprocess, sys
+hog = "chunks = []\nwhile True:\n    chunks.append(bytearray(32 * 1024 * 1024))\n"
+subprocess.run([sys.executable, "-I", "-c", hog])
+raise SystemExit(3)
+"""
+    _, result = run_script(code, tmp_path, memory_bytes=128 * 1024**2)
+    assert result.status is SandboxStatus.OOM_KILLED, result.detail
+    assert result.exit_code == 3
+
+
+def test_a_job_that_sigkills_itself_is_a_failure_not_an_oom(
+    run_script: RunScript, tmp_path: Path
+) -> None:
+    # Same exit code as an OOM kill. Only the kernel's oom_kill counter, reported by the runtime,
+    # makes it OOM_KILLED; trial code cannot set that without really exceeding its memory limit.
+    _, result = run_script("import os, signal; os.kill(os.getpid(), signal.SIGKILL)", tmp_path)
+    assert result.status is SandboxStatus.FAILED, result.detail
+    assert result.exit_code == 137 and result.detail == "exit code 137"
+
+
+def test_container_outlives_a_killed_job_long_enough_for_the_oom_event(
+    sandbox_image: str, launcher: SandboxLauncher, tmp_path: Path
+) -> None:
+    # The fix for the lost OOM flag (sandbox-layout.md). The lost flag itself needs a systemd-driver
+    # host and a 2 % race, so this pins the mechanism: the cgroup stays populated after the kill.
+    code = (
+        "import json, os, signal, time\n"
+        "json.dump({'at': time.time()}, open('/out/at.json', 'w'))\n"
+        "os.kill(os.getpid(), signal.SIGKILL)\n"
+    )
+    mounts = make_mounts(tmp_path).validated()
+    spec = SandboxSpec(
+        job_id="job_hold",
+        worker_id="w-test",
+        image=sandbox_image,
+        command=("python", "-I", "-c", code),
+        mounts=mounts,
+        limits=SandboxLimits(wall_seconds=60, memory_bytes=128 * 1024**2, cpus=1),
+    )
+    args = launcher._create_args(spec, mounts, os.getuid(), os.getgid())
+    container = launcher.client.containers.create(**args)
+    try:
+        container.start()
+        assert container.wait(timeout=60)["StatusCode"] == 137
+        container.reload()
+        finished = datetime.fromisoformat(container.attrs["State"]["FinishedAt"]).timestamp()
+    finally:
+        container.remove(force=True)
+    killed_at = read_json(mounts.out / "at.json")["at"]
+    assert isinstance(killed_at, float)
+    assert finished - killed_at >= OOM_EVENT_HOLD_SECONDS
+
+
+def test_a_shell_never_parses_the_jobs_arguments(
+    sandbox_image: str, launcher: SandboxLauncher, tmp_path: Path
+) -> None:
+    hostile = ("$(touch /out/pwned)", "a b; touch /out/pwned", "`touch /out/pwned`", "*", "")
+    code = "import json, sys; json.dump({'argv': sys.argv[1:]}, open('/out/argv.json', 'w'))"
+    mounts = make_mounts(tmp_path).validated()
+    spec = SandboxSpec(
+        job_id="job_argv",
+        worker_id="w-test",
+        image=sandbox_image,
+        command=("python", "-I", "-c", code, *hostile),
+        mounts=mounts,
+        limits=SandboxLimits(wall_seconds=60, memory_bytes=128 * 1024**2, cpus=1),
+    )
+    result = launcher.run(spec)
+    assert result.status is SandboxStatus.COMPLETED, result.detail + result.logs
+    assert read_json(mounts.out / "argv.json")["argv"] == list(hostile)
+    assert not (mounts.out / "pwned").exists()
+
+
+class _ExitedContainer:
+    """A stopped container as `_finish` sees it, with a chosen OOM flag."""
+
+    id = "c" * 12
+
+    def __init__(self, oom_killed: bool) -> None:
+        self.attrs = {"State": {"OOMKilled": oom_killed}}
+
+    def reload(self) -> None:
+        pass
+
+    def logs(self, **_: object) -> bytes:
+        return b""
+
+    def remove(self, **_: object) -> None:
+        pass
+
+
+@pytest.mark.parametrize(
+    ("status", "exit_code", "flag", "expected"),
+    [
+        (SandboxStatus.COMPLETED, 137, True, SandboxStatus.OOM_KILLED),
+        (SandboxStatus.COMPLETED, 137, False, SandboxStatus.FAILED),  # self-kill, or other SIGKILL
+        (SandboxStatus.COMPLETED, 0, False, SandboxStatus.COMPLETED),
+        (SandboxStatus.TIMEOUT, None, True, SandboxStatus.TIMEOUT),  # our kill stays our kill
+        (SandboxStatus.ABORTED, None, True, SandboxStatus.ABORTED),
+        (SandboxStatus.OUTPUT_LIMIT, None, True, SandboxStatus.OUTPUT_LIMIT),
+    ],
+)
+def test_only_the_flag_on_a_job_that_ended_by_itself_means_oom(
+    tmp_path: Path,
+    status: SandboxStatus,
+    exit_code: int | None,
+    flag: bool,
+    expected: SandboxStatus,
+) -> None:
+    mounts = make_mounts(tmp_path).validated()
+    spec = SandboxSpec(
+        job_id="job_flag",
+        worker_id="w-test",
+        image="unused",
+        command=("true",),
+        mounts=mounts,
+        limits=SandboxLimits(wall_seconds=60, memory_bytes=128 * 1024**2, cpus=1),
+    )
+    launcher = SandboxLauncher(client=object())
+    result = launcher._finish(_ExitedContainer(flag), status, exit_code, 0.0, spec, mounts, "x")
+    assert result.status is expected
+
+
 def test_process_limit_contains_a_fork_bomb(run_script: RunScript, tmp_path: Path) -> None:
     code = r"""
 import json, subprocess
@@ -348,7 +481,8 @@ def test_the_container_kills_itself_without_a_supervisor(
         limits=SandboxLimits(wall_seconds=2, memory_bytes=128 * 1024**2, cpus=1),
     )
     args = launcher._create_args(spec, mounts, os.getuid(), os.getgid())
-    assert args["command"][:3] == ["timeout", "--signal=KILL", "3"]
+    assert args["command"][:2] == ["sh", "-c"] and "timeout --signal=KILL" in args["command"][2]
+    assert args["command"][4] == "3"  # the first of "$@": timeout's duration
     container = launcher.client.containers.create(**args)  # started, then never supervised
     try:
         started = time.monotonic()

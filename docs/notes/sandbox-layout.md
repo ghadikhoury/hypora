@@ -83,6 +83,7 @@ trial's jobs, so S1.4's `write_trial_files` never follows links when it writes t
 | Nesting | scans stop at 32 levels: the job fails with `OUTPUT_LIMIT`; the worker never crashes | `test_deep_nesting_fails_the_job_cleanly` |
 | Wall clock | polled; kill at the limit | `test_timeout_kills_the_job` |
 | Self-kill | the command runs under `timeout --signal=KILL` (wall + 30 s), so the job dies even if its worker crashed | `test_the_container_kills_itself_without_a_supervisor` |
+| OOM evidence | a fixed shell wrapper holds the cgroup 0.2 s after a non-zero exit, so Docker's OOM flag gets set ("Telling an OOM kill from other kills" below) | `test_container_outlives_a_killed_job_long_enough_for_the_oom_event`, `test_a_shell_never_parses_the_jobs_arguments` |
 | Lost lease / cancel | polled `should_abort`; kill | `test_abort_request_kills_the_job` |
 | Output links | no-symlink rule above | `test_symlink_escape_through_outputs_is_refused` |
 | Unsafe specs | refused before start | `test_overlapping_mounts_are_refused` and 2 more |
@@ -111,6 +112,90 @@ in `/`.
 
 Hardening options for later: rootless Docker, a custom seccomp/AppArmor profile, gVisor or
 microVMs. S3.D4's threat model expands on this.
+
+## Telling an OOM kill from other kills (S2.0)
+
+A job's status is `OOM_KILLED` on one signal only: Docker's `State.OOMKilled`, on a job that ended
+by itself. Exit code 137 alone proves nothing, because every SIGKILL produces it.
+
+**The bug.** On a host using the systemd cgroup driver, a genuine memory-limit kill sometimes never
+set the flag, and the job was reported as `FAILED` with `exit code 137`.
+`test_memory_limit_kills_the_job` failed this way on `main` twice. The test was right to fail: the
+sandbox misclassified the kill, and the test is not timing-sensitive.
+
+**What was measured** on the real CI runner (Docker 28.0.4, containerd 2.4.2, runc 1.5.2, kernel
+7.0, cgroup v2), with the launcher's real container arguments and a 128 MiB limit:
+
+| Setup | Jobs | Flag never set |
+|---|---|---|
+| systemd driver, job allocates at once | 600 | 14 |
+| systemd driver, job sleeps 0.5 s, then allocates | 400 | 5 |
+| cgroupfs driver, job allocates at once | 800 | 0 |
+| systemd driver, with the wrapper below | 800 | 0 |
+| systemd driver, with the wrapper, 8 CPU-spinning processes | 300 | 0 |
+| systemd driver, with the wrapper, job SIGKILLs itself | 30 | 30 (correct: not an OOM) |
+
+These are CI runs 42265345517 and 42266889563, from a probe script on a throwaway branch.
+- In every missed case the kernel's `oom_kill` counter rose by 1, so the kill was real.
+- The flag was still false after 3 to 5 s of re-reading, so it was lost, not late. Waiting longer in
+  the launcher cannot help.
+- In the run that listed daemon events, each miss showed `die` and no `oom`.
+- Ghadi's Docker Desktop uses the cgroupfs driver and showed 0 misses in 310 runs, 150 of them under
+  CPU contention. That is why this never reproduced locally.
+
+**The cause.** The first two points come from the kernel and containerd sources. The third is our
+inference; it fits every row above, but we did not observe the failed read directly.
+- containerd's shim learns of an OOM kill by reading `memory.events` when inotify wakes it. The kernel
+  (`cgroup_file_notify`) coalesces those wake-ups to one per 10 ms and raises `oom` before `oom_kill`,
+  so the shim can wake, read `oom_kill` still at 0, and not be woken again in time.
+- When PID 1 exits, the shim reads `memory.events` one last time. If the file is gone, it returns
+  without reporting anything (`internal/oom/watcher.go`).
+- After a kill, the whole container is gone within about 6 ms. Under the systemd driver, systemd can
+  remove the empty scope's cgroup by itself, so that last read can fail. Under cgroupfs the directory
+  stays until the runtime deletes the container, so the last read succeeds.
+
+**The fix.** The job runs under a fixed wrapper that stays alive for `OOM_EVENT_HOLD_SECONDS` after a
+non-zero exit, then exits with the job's code:
+
+```
+sh -c 'timeout --signal=KILL "$@"; rc=$?; [ "$rc" -eq 0 ] || sleep 0.2; exit "$rc"' sh <seconds> <command...>
+```
+
+The cgroup stays populated for 20 times the kernel's coalescing window, so the shim's next wake-up
+sees the counter. The chain is tini → sh → timeout → job. Isolation controls, limit values, and mounts
+do not change, and the job's arguments stay positional, so no shell parses them.
+
+The costs:
+- A failed job takes 0.2 s longer; a successful job takes no longer.
+- `sh` and `sleep` use a little of the job's memory and up to 2 of its `pids`.
+- A job that fails within 0.2 s of its wall limit may be reported as `TIMEOUT`.
+
+**How each kill is classified:**
+
+| What happened | Status | Why |
+|---|---|---|
+| The job, or a child of it, exceeds the memory limit, and the job exits non-zero | `OOM_KILLED` | the kernel's counter, reported through the runtime |
+| The job kills itself with SIGKILL, or another process does | `FAILED`, exit code 137 | no OOM kill is counted, so the flag stays false |
+| The wall limit, a cancel or lost lease, or the output caps | `TIMEOUT`, `ABORTED`, `OUTPUT_LIMIT` | the supervisor's own kill; the flag is ignored |
+| The process limit | no kill: `fork` fails inside the job | |
+
+**What trial code can do about it.**
+- It cannot fake the flag. Only a real kill by the kernel moves that counter, and a job that really
+  exceeds its limit is correctly `OOM_KILLED`.
+- It can try to hide an OOM by killing the wrapper first. tini then exits, the container dies at
+  once, and the old race returns, so it may get `FAILED` instead. It gains nothing: both statuses are
+  terminal, and neither is retried (`worker.py`, `experiments.py`).
+
+**Unchanged edge cases.**
+- A job that exits 0 after a child's OOM gets no hold. It is `OOM_KILLED` if the event arrived before
+  the exit, which is the same behavior as before this fix.
+- If a host still loses the event despite the hold, the job is reported as `FAILED`. No other SIGKILL
+  can be mistaken for an OOM this way.
+
+**Effect on evidence.** Retries did not change, since `OOM_KILLED`, `EXIT_<n>`, and `STAGE_FAILED` are
+all terminal. What was lost was the label: on an affected host, the agent and the F6 evidence saw a
+bare exit 137 with no logs, not an OOM to replan around (spec §15.5). Only systemd-driver hosts were
+affected, and Ghadi's machine is not one.
 
 ## The image (`Dockerfile.tabular`)
 
