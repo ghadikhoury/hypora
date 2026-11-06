@@ -918,9 +918,13 @@ One primary run per case per system; ≥ 5 representative cases × 3 runs report
 
 Runtime features must be active in the final agent evaluation. Reusing per-case records across features is allowed; relabeling one comparison as two experiments is not. The proposal and write-up follow the course's AI-assistance policy; every component must be explainable by the author in the demo.
 
+**Build order (D-028):** the core evaluation claims F1, F3, F4, F5, F6, and F7. F10, vision, the web app, and two extra comparisons come after the core (`docs/PLAN.md`, "Later track"); F10 is claimed only if it merges before the test freeze. This section is still subject to the handout.
+
 ---
 
 ## 21. Interfaces
+
+The web app is on the Later track (D-028). Until it exists, the CLI below is the interface.
 
 **Web app (primary UX), progressive disclosure:**
 - Workspace home — runs, connected workers, datasets, status.

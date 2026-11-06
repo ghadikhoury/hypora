@@ -11,7 +11,7 @@
 ## 0. How to use this plan
 
 ### 0.1 Structure
-- The build is divided into **Stages 0–6**. Each stage contains **steps**. **Every step is exactly one pull request.**
+- The build is divided into **Stages 0–6**. Each stage contains **steps**. **Every step is exactly one pull request.** An agent may be assigned a whole part, stream, or list of steps in one prompt, and still opens one reviewed PR per step (`AGENTS.md`, "Working through a part"; D-029).
 - Step IDs look like `S3.B2` (Stage 3, stream B, step 2). The PR branch name is given with each step.
 - Each step lists: what to build, dependencies, which spec sections apply, and **"Done when"** acceptance criteria. A step is not done until every criterion is met and CI is green.
 
@@ -43,14 +43,20 @@ Steps with no `🧑` label are fully automated: implement → tests → CI → A
 | Label | Meaning |
 |---|---|
 | `⇉ PARALLEL · <group>` | Can be implemented **at the same time** as every other step with the same group tag, by separate coding agents on separate branches. Dependencies listed on the step still apply. |
-| `→ SERIAL` | Must be done alone, in order. Nothing else in the stage starts until it merges. |
+| `→ SERIAL` | Must merge in order, before any step that follows it in the stage. Steps that do not depend on it may run alongside it, and the next step may stack on it under `AGENTS.md`'s conditions (D-029). |
+
+**Scope label:**
+
+| Label | Meaning |
+|---|---|
+| `⏸ LATER` | Moved after the core (D-028; "Later track" below). Not started until Ghadi assigns it. |
 
 ### 0.3 Global stop-and-ask triggers (apply to every step, labeled or not)
 The implementing agent must stop and ask Ghadi when:
 1. A change would modify a **schema in `core/schemas/`**, an **MCP tool signature/description**, the **trial `fit`/`predict` interface**, or the **event types** after they were approved.
 2. A **new dependency** is needed that is not already in `pyproject.toml` / `package.json` **and** is not named in spec §22 or in the current step. (Dependencies named there are pre-approved; pin them.)
 3. A change touches **security**: `core/policy/`, `execution/sandbox/`, the data firewall, auth, or secret handling.
-4. A change modifies **eval cases, grading rules, or hidden splits**.
+4. A change modifies **merged eval cases, grading rules, or hidden splits**. Creating them as a step specifies is not a change (D-029); the Reviewer checks that work.
 5. A change modifies the **`eval` model profile** (§1).
 6. An operation would spend **more than $5 of API credits** in one run, or start GPU jobs.
 7. Tests or the dev eval **regress** and the cause is not clear after one investigation.
@@ -86,7 +92,8 @@ Two model **profiles** live in `configs/models.yaml`:
 Rules:
 - Every model call records provider, model ID, profile, and whether a fallback occurred (event log, spec §15.1).
 - **Recorded runs never mix models.** In the `eval` profile, a provider failure is retried with backoff and then recorded as a failure — never silently swapped.
-- **Stage gates (D-016):** S1.7 runs its smoke tasks on `dev` only; matching `eval` evidence is added at S2.6 after the eval model is pinned. The last step of Stages 2–4 runs the dev case set on **both** profiles and commits both result sets, catching profile-specific behavior differences.
+- **Stage gates (D-016, D-029):** S1.7 ran its smoke tasks on `dev`; matching `eval` evidence is added at S2.6 after the eval model is pinned. S2.6 runs the dev case set on **both** profiles and commits both result sets, catching profile-specific behavior differences. S3.Z and S4.3 commit `eval` results; `dev` stays free for debugging.
+- **Live runs (D-029):** scripted models by default; see `AGENTS.md`, "Live runs".
 - Changing the `eval` profile after S2.6 invalidates recorded results; it requires `🧑 HUMAN · DECIDE` and a re-run of affected evals.
 - **Model selection (D-007):** S2.6 chooses the `eval` provider/model by measured cost per passed trap (`docs/DECISIONS.md` D-007).
 - The two providers also serve as the "two models" required for the F5 MCP evaluation (S5.3).
@@ -109,6 +116,7 @@ Rules:
 **PR description template** (`.github/pull_request_template.md`):
 ```
 Step: S?.? — <title>
+Stacked on: none | #<parent PR>. Do not merge before it.
 Spec: §…
 What changed:
 Why:
@@ -119,7 +127,7 @@ Explain-it check: 3 questions a TA might ask about this PR, with short answers
 ```
 The "explain-it check" exists so Ghadi can verify his understanding of every merged PR before the demo.
 
-**Review flow (D-024, D-026):** coding agent opens PR → AI reviewer (a different model/tool from the author) reviews the diff immediately → required CI green on the reviewed commit → merge. Reviewers rely on CI for full validation and run a targeted test only to verify a specific claim; see `AGENTS.md` for the procedure. There is no human merge approval.
+**Review flow (D-024, D-026):** coding agent opens PR → AI reviewer (a different model/tool from the author) reviews the diff immediately → required CI green on the reviewed commit → merge. Reviewers rely on CI for full validation and run a targeted test only to verify a specific claim; see `AGENTS.md` for the procedure, including stacked PRs (D-029). There is no human merge approval.
 
 ---
 
@@ -129,7 +137,8 @@ The "explain-it check" exists so Ghadi can verify his understanding of every mer
 |---|---|---|
 | Oct 25 | Proposal | (done outside this plan) |
 | **Nov 4** | Check-in: repo commit, video, one-page update, ≥ 3 dev cases with grading rules | **Stages 0–2 merged** |
-| Nov 13 | Last date for instructor-approved feature changes | Feature list confirmed |
+| Nov 13 | Last date for instructor-approved feature changes | Feature list confirmed (D-028) |
+| Nov 23 (target) | Test set frozen (S5.1) | Stages 2–4 merged; the Later track's durable and vision work must merge first to be in the evaluation |
 | **Dec 1** | Final submission (strict) | **Stages 0–6 merged** |
 | **Dec 2** | Private demo | S6.2 complete |
 
@@ -140,14 +149,24 @@ The "explain-it check" exists so Ghadi can verify his understanding of every mer
 ```
 Stage 0  Foundations            S0.1 → S0.2 → [S0.3 ⇉ S0.4 ⇉ S0.5]
 Stage 1  Walking skeleton       [S1.1 ⇉ S1.2 ⇉ S1.3] → S1.4 → S1.5 → S1.6 → S1.7
-Stage 2  Evaluation harness     S2.1 → [S2.2 ⇉ S2.3 ⇉ S2.4] → S2.5 → S2.6
+Stage 2  Evaluation harness     [S2.0 ⇉ S2.0b] ⇉ S2.1 → [S2.2 ⇉ S2.3 ⇉ S2.4] → S2.5 → S2.6
 Stage 3  Parallel workstreams   A Data · B Research+RAG · C Experiment loop · D Safety ·
-                                E Runtime (scheduler+durability) · F Families · G API+Frontend ·
+                                E Scheduler · F Time series + experimental route ·
                                 H Planning+recovery · I Observability    (all ⇉, see §Stage 3)
 Stage 4  Integration            S4.1 → S4.2 → S4.3 → S4.4
-Stage 5  Evaluation & evidence  S5.1 → S5.2 → [S5.3a … S5.3i ⇉] → S5.4
+Stage 5  Evaluation & evidence  S5.1 → S5.2 → [S5.3a, b, c, d, f, g ⇉] → S5.4
 Stage 6  Write-up, demo, submit [S6.1 ⇉ S6.2] → S6.3   (S6.4 optional)
+Later    After the core         ⏸ Durable execution · Vision · Web app · Extra comparisons
 ```
+
+**Suggested tracks (each cell is one prompt):**
+
+| Stage | Agent A | Agent B |
+|---|---|---|
+| 2 | S2.1 → S2.2 → S2.5 → S2.6 | S2.0, S2.0b, then S2.3 and S2.4 once S2.1 merges |
+| 3 | Stream B, then A | Stream C, then D |
+| 3, as those finish | S3.E1, then H | F, then I |
+| 4 | S4.1 → S4.2 → S4.3 → S4.4 | S4.3 fix PRs once S4.1 merges (a separate fix from Agent A's); drafting S5.1's test cases |
 
 ---
 
@@ -324,6 +343,22 @@ Done when: both tasks complete on the `dev` profile, and per-run token/cost numb
 
 **Goal:** a repeatable, programmatic evaluation that measures the agent from now on. Satisfies the check-in's dev-case requirement.
 
+### S2.0 — OOM-status flake
+**PR:** `s2.0-oom-status` · `⇉ PARALLEL · S2-prep` · **Spec:** §14.3
+Trigger 3 applies: report the cause and proposed fix to Ghadi before changing sandbox code.
+
+`tests/sandbox/test_security.py::test_memory_limit_kills_the_job` failed twice on `main` (runs 40160930320 and 40265531917): exit code 137 was reported as `FAILED`, not `OOM_KILLED`. Find out whether the test is timing-sensitive or the sandbox misclassifies the kill, which would affect F6 evidence.
+
+Done when: the cause is recorded in `docs/notes/sandbox-layout.md`, and the status is correct and tested.
+
+### S2.0b — Stop agents spending turns on status polling
+**PR:** `s2.0b-status-wait` · `⇉ PARALLEL · S2-prep` · **Spec:** §12; `docs/notes/cost-estimate.md`
+Trigger 1 applies if this changes an MCP tool: present the options to Ghadi first. Recommended: `get_experiment_status` waits briefly for a job to change before it returns.
+
+Polling took 28 of 50 tool calls in one Gemini run and 100 of 110 in one Luna run, and each poll re-sends the conversation. This slows every run and drove both Luna runs into the token limit.
+
+Done when: a scripted test shows a waiting job costs at most a few model turns, with cost and limits still enforced; one small free `dev` run confirms it.
+
 ### S2.1 — Case format and hidden splits
 **PR:** `s2.1-eval-cases-format` · `→ SERIAL` · **Depends on:** S1.6 · **Spec:** §19.1, §19.2
 
@@ -396,7 +431,8 @@ Done when: both result sets are committed with summaries; the `eval` profile mod
 - Every step in Stage 3 carries `⇉ PARALLEL · S3`. Any two steps from **different streams** may run simultaneously, subject to the listed dependencies.
 - Steps **within** a stream are serial in the order given, unless marked otherwise.
 - Streams touch separate directories; shared files (`core/schemas/`, `mcp_server/tools/__init__.py`, `configs/flags.yaml`) are modified only through small, separate PRs that rebase cleanly. A schema change triggers stop-and-ask (§0.3).
-- Recommended pairings for two simultaneous agents: **(B, C)** → **(D, E)** → **(A, H)** → **(F, G)** → **I** alongside any.
+- Recommended pairings for two simultaneous agents: **(B, C)** → **(A, D)** → **(S3.E1, F)** → **(H, I)**. S3.C3 and S3.C5 need S3.E1, so they wait for it.
+- Steps marked `⏸ LATER` are not part of the core (D-028; "Later track" below). Stream E's first step stays in the core.
 
 | Stream | Directory focus | Depends on (before first step) |
 |---|---|---|
@@ -404,9 +440,9 @@ Done when: both result sets are committed with summaries; the `eval` profile mod
 | B Research + RAG | `research/`, `core/roles/research_*` | Stage 2 |
 | C Experiment loop | `core/roles/training_*`, `trial_*`, `optimization_*`, `reviewer.py`, `core/verification/` | Stage 2 |
 | D Safety | `core/policy/`, `mcp_server/auth`, `execution/sandbox/` | Stage 2 |
-| E Runtime: scheduler + durability | `core/scheduler/`, `execution/worker/`, `storage/` | Stage 2 |
-| F Families | `families/vision/`, `families/timeseries/`, `families/experimental/` | Stage 2 |
-| G API + Frontend | `api/`, `web/` | Stage 2 |
+| E Runtime: scheduler (durability is `⏸ LATER`) | `core/scheduler/`, `execution/worker/`, `storage/` | Stage 2 |
+| F Families (vision is `⏸ LATER`) | `families/timeseries/`, `families/experimental/` | Stage 2 |
+| G API + Frontend (`⏸ LATER`) | `api/`, `web/` | Stage 2 |
 | H Planning + recovery | `core/roles/` (plan logic), `core/controller/` (error handling) | Stage 2 |
 | I Observability | `core/observability/`, `scripts/trace_*` | Stage 2 |
 
@@ -497,27 +533,28 @@ Done when: the suite runs under the runner with `defenses=all_on` and `defenses=
 Build `core/scheduler/`: task graph per run; ready-task execution with asyncio; pools (`cpu_slots`, `gpu_slots`, `memory_budget`, `llm_concurrency[provider]`); priorities from spec §9.2; cancellation of speculative tasks; `parallel_mode` flag.
 Done when: a synthetic DAG respects dependencies, pool limits, and priorities; `parallel_mode=off` serializes execution.
 
-**S3.E2 — Leases, retries, idempotent completion** · PR `s3.e2-leases` · `⇉ PARALLEL · S3` · Depends on S3.E1
+**S3.E2 — Leases, retries, idempotent completion** · PR `s3.e2-leases` · `⏸ LATER` · Depends on S3.E1
 Build: heartbeat-driven lease extension; expiry requeue; bounded retries with backoff per error class (spec §15.5 table); idempotent `complete` (duplicate completions ignored); worker crash detection.
 Done when: killing a worker mid-job requeues it; duplicate completion messages produce one result.
 
-**S3.E3 — Checkpoints and replay** · PR `s3.e3-checkpoints` · `⇉ PARALLEL · S3` · Depends on S3.E2
+**S3.E3 — Checkpoints and replay** · PR `s3.e3-checkpoints` · `⏸ LATER` · Depends on S3.E2
 Build: `ctx.checkpoint(state)` / `ctx.resume()` API in the harness (weights, optimizer, epoch, RNG, sampler); atomic writes; resume-on-requeue; controller restart = full replay from event log (extend S0.3 reducer to all event types); `durable_mode` flag.
 Done when: a training job killed after epoch N resumes at epoch N+1; a controller killed mid-Phase-B resumes with identical state.
 
-**S3.E4 — Crash-injection harness** · PR `s3.e4-crash-cases` · `⇉ PARALLEL · S3` · Depends on S3.E3
+**S3.E4 — Crash-injection harness** · PR `s3.e4-crash-cases` · `⏸ LATER` · Depends on S3.E3
 Build: ≥ 15 crash scenarios as eval cases (worker killed mid-training, controller killed mid-plan, duplicate submit, worker disconnect, kill during checkpoint write); metrics: completion rate, duplicate jobs, wasted compute seconds; runnable with `durable_mode=on/off`.
 Done when: the scenarios run under the runner in both modes and produce the three metrics.
 
 ### Stream F — Families (spec §18)
 
-**S3.F1 — Vision backend** · PR `s3.f1-vision` · `⇉ PARALLEL · S3`
+**S3.F1 — Vision backend** · PR `s3.f1-vision` · `⏸ LATER`
 `🔍 REVIEW FOCUS` — New sandbox image and the weight-download prep step: egress limited to approved hosts; trial containers still have no network.
 Build: image profiling (sizes, channels, corrupt files, class balance) and diagnostics (perceptual-hash near-duplicates, specimen/session grouping); `Dockerfile.vision` (PyTorch + torchvision CPU; GPU variant); approved-download prep step for pretrained weights with revision/hash recording; templates (frozen backbone + linear head, head-then-unfreeze fine-tune, from-scratch compact CNN); harness adapter (image loaders, train-only augmentation, safetensors serialization); vision metrics; ≥ 3 vision dev cases (one with specimen leakage).
 Done when: frozen-backbone template trains on a small public image dataset on CPU within the case budget; specimen-leakage case is detected by diagnostics.
 
 **S3.F2 — Time-series backend** · PR `s3.f2-timeseries` · `⇉ PARALLEL · S3`
 Build: profiling (frequency, gaps, entities, horizon feasibility); diagnostics (lookahead features, centered windows, future covariate misuse); walk-forward split in the harness; templates (seasonal-naive, exponential smoothing, lag-feature GBT, compact GRU); per-horizon metrics; ≥ 3 time-series dev cases (one with temporal leakage).
+The compact GRU needs PyTorch, which only the `⏸ LATER` vision image adds, so build it only once that image exists (D-028). A new sandbox package falls under trigger 3.
 Done when: templates run through the harness; the temporal-leakage case is caught.
 
 **S3.F3 — Experimental route** · PR `s3.f3-experimental` · `⇉ PARALLEL · S3` · Depends on S3.D2
@@ -526,23 +563,23 @@ Done when: an unsupported request is routed, gated, and labeled correctly.
 
 ### Stream G — API and frontend (spec §21)
 
-**S3.G1 — HTTP API and event stream** · PR `s3.g1-api` · `⇉ PARALLEL · S3`
+**S3.G1 — HTTP API and event stream** · PR `s3.g1-api` · `⏸ LATER`
 Build: FastAPI endpoints from spec §21; SSE stream from the event log; dataset upload to local storage (Mode 1); OpenAPI spec exported to `docs/api/openapi.json` and frozen; a mock server generated from it for frontend development.
 Done when: API tests cover every endpoint; the SSE stream replays and tails events.
 
-**S3.G2 — App shell and run creation** · PR `s3.g2-web-shell` · `⇉ PARALLEL · S3` · Depends on S3.G1
+**S3.G2 — App shell and run creation** · PR `s3.g2-web-shell` · `⏸ LATER` · Depends on S3.G1
 Build: React + TypeScript + Vite app; workspace home; new-objective page (chat + structured constraints + dataset drop-in + `share_samples` toggle off by default); typed API client generated from OpenAPI.
 Done when: a run can be created from the browser against the real API.
 
-**S3.G3 — Phase A view and approval screen** · PR `s3.g3-web-approval` · `⇉ PARALLEL · S3` · Depends on S3.G2
+**S3.G3 — Phase A view and approval screen** · PR `s3.g3-web-approval` · `⏸ LATER` · Depends on S3.G2
 Build: live research/diagnostic findings; approval screen showing strategy tradeoff table, recommendation, data contract, proposed trials with cost, budget; approve/modify/reject wired to the approval endpoint with hash.
 Done when: a run parked in `WAITING_APPROVAL` can be approved from the browser.
 
-**S3.G4 — Experiment dashboard and comparison** · PR `s3.g4-web-dashboard` · `⇉ PARALLEL · S3` · Depends on S3.G2
+**S3.G4 — Experiment dashboard and comparison** · PR `s3.g4-web-dashboard` · `⏸ LATER` · Depends on S3.G2
 Build: trial ledger, parallel job states, curves, resources, pause/cancel; comparison view vs. baseline with Pareto chart.
 Done when: a running Phase B updates live from SSE.
 
-**S3.G5 — Inspector and export** · PR `s3.g5-web-inspector` · `⇉ PARALLEL · S3` · Depends on S3.G2
+**S3.G5 — Inspector and export** · PR `s3.g5-web-inspector` · `⏸ LATER` · Depends on S3.G2
 Build: trace viewer (filter by role/tool/type, durations, tokens, cost), trial code viewer, policy decisions and approvals; export page with manifest, artifacts, reproduction instructions.
 Done when: any event in a run can be found and inspected from the browser.
 
@@ -571,9 +608,9 @@ Build: local-file MLflow logging of trial params, metrics, and artifacts keyed b
 Done when: trials appear in the MLflow UI with matching IDs.
 
 ### Stage 3 gate
-**S3.Z — Stage 3 gate** · PR `s3.z-gate` · `→ SERIAL` · Depends on all Stage 3 steps
-Build: dev set (now including vision and time-series cases) run on both profiles via the components available; results committed; regression report.
-Done when: both result sets committed; known gaps listed in `docs/notes/stage3-gaps.md`.
+**S3.Z — Stage 3 gate** · PR `s3.z-gate` · `→ SERIAL` · Depends on all core Stage 3 steps
+Build: dev set (now including time-series cases) run on the `eval` profile via the components available; results committed; regression report.
+Done when: results committed; known gaps listed in `docs/notes/stage3-gaps.md`.
 
 ---
 
@@ -595,13 +632,13 @@ Done when: values recorded in `docs/DECISIONS.md` and config.
 
 ### S4.3 — End-to-end hardening
 **PR(s):** `s4.3-hardening-*` (one PR per fix, all under this step) · `→ SERIAL`
-Build: run the full dev set on `dev` until stable; fix failures; then run the dev set on `eval` (recorded); regression flags must be clean or explained.
+Build: debug on `dev`, re-running the failing case and one control after each fix; fix failures; then run the dev set on `eval` (recorded); regression flags must be clean or explained.
 Done when: recorded `eval`-profile dev results committed; every remaining failure has a named category in `docs/notes/dev-failures.md`.
 
 ### S4.4 — Packaging and docs
 **PR:** `s4.4-packaging` · `→ SERIAL` · Depends on S4.3 · **Spec:** §4.1, §20 (repository row)
-Build: full `docker-compose.yml` (web, API, controller, MCP server, worker, DB); README with setup, **one command to run the agent**, **one command to run the eval**, pinned dependencies; `docs/architecture.md` with the data/tool-flow diagram; gitleaks over full history clean.
-Done when: a fresh clone on Ghadi's machine runs `docker compose up`, completes a task in the browser, and runs `make eval`.
+Build: full `docker-compose.yml` (controller, MCP server, worker, DB, plus web and API once built); README with setup, **one command to run the agent**, **one command to run the eval**, pinned dependencies; `docs/architecture.md` with the data/tool-flow diagram; gitleaks over full history clean.
+Done when: a fresh clone on Ghadi's machine runs `docker compose up`, completes a task with `hypora run` (in the browser too, if the web app has merged), and runs `make eval`.
 
 ---
 
@@ -612,7 +649,7 @@ Done when: a fresh clone on Ghadi's machine runs `docker compose up`, completes 
 ### S5.1 — Test set and freeze
 **PR:** `s5.1-test-set` · `→ SERIAL`
 `🔍 REVIEW FOCUS` — Test cases are distinct from dev cases, traps are real, grading rules match. After merging, the reviewing agent tags the merge commit `eval-freeze`.
-Build: ≥ 25 held-out test cases spanning tabular, vision, time series, every trap type in spec §19.2, reuse-suffices cases, and optimization cases; distinct from dev cases; `docs/eval-protocol.md` (case authorship, freeze commit, inspection policy, model IDs, temperatures, tool/data versions, retry policy).
+Build: ≥ 25 held-out test cases spanning tabular, time series, vision only if S3.F1 has merged (D-028), every trap type in spec §19.2 that those families can express, reuse-suffices cases, and optimization cases; distinct from dev cases; `docs/eval-protocol.md` (case authorship, freeze commit, inspection policy, model IDs, temperatures, tool/data versions, retry policy).
 Done when: cases validate; tag created; protocol document complete.
 
 ### S5.2 — Core evaluation run
@@ -622,7 +659,7 @@ Build: primary runs (agent vs. fixed baseline) on all test cases; ≥ 5 represen
 Done when: `results/<freeze_sha>/core/` contains all per-case records and the summary.
 
 ### S5.3 — Feature comparisons
-All sub-steps `⇉ PARALLEL · S5-features` (they share the frozen code and differ only by config). One PR each.
+All sub-steps `⇉ PARALLEL · S5-features` (they share the frozen code and differ only by config). One PR each. Reuse S5.2's per-case records for any arm with the same config, not a re-run; spec §20 allows this, but one comparison can't be relabeled as two experiments.
 
 | Step | PR | Comparison | Human |
 |---|---|---|---|
@@ -630,17 +667,17 @@ All sub-steps `⇉ PARALLEL · S5-features` (they share the frozen code and diff
 | **S5.3b** F4 planning | `s5.3b-f4` | 15 fault cases, `planning=on` vs `off`: recovery and task success; traces of recovered/unrecovered | — |
 | **S5.3c** F6 safety | `s5.3c-f6` | 30+ attacks: all defenses off vs on, then each defense off individually | — |
 | **S5.3d** F1 RAG | `s5.3d-f1` | Top-5 hit rate per retrieval mode on ≥ 20 questions; answer correctness with vs. without retrieval; cost/latency per setup | — |
-| **S5.3e** F10 durability | `s5.3e-f10` | ≥ 15 crash scenarios, `durable_mode=on` vs `off`: completion rate, duplicate jobs, wasted compute | — |
+| **S5.3e** F10 durability `⏸ LATER` | `s5.3e-f10` | ≥ 15 crash scenarios, `durable_mode=on` vs `off`: completion rate, duplicate jobs, wasted compute | — |
 | **S5.3f** F5 MCP | `s5.3f-f5` | Tool-call success on ≥ 20 tasks with OpenAI and Gemini as clients; revise tool descriptions; re-measure before/after | `🔍 REVIEW FOCUS` revised descriptions |
 | **S5.3g** F7 observability | `s5.3g-f7` | Identify the top bottleneck from traces; implement the fix in a separate PR; before/after on the full test set including quality | `🧑 HUMAN · DECIDE` which bottleneck to fix |
-| **S5.3h** Adaptive breadth | `s5.3h-breadth` | `breadth_mode=adaptive` vs `fixed_k`: trials run, compute seconds, final quality | — |
-| **S5.3i** Parallelism | `s5.3i-parallel` | `parallel_mode=on` vs `off`: wall-clock latency at equal quality | — |
+| **S5.3h** Adaptive breadth `⏸ LATER` | `s5.3h-breadth` | `breadth_mode=adaptive` vs `fixed_k`: trials run, compute seconds, final quality | — |
+| **S5.3i** Parallelism `⏸ LATER` | `s5.3i-parallel` | `parallel_mode=on` vs `off`: wall-clock latency at equal quality | — |
 
 Each sub-step: same cases on both configurations, Section 4.2 rules of the handout (primary run, repeat sample, Wilson and paired bootstrap for binary outcomes), per-case records committed under `results/<freeze_sha>/<feature>/`.
 Done when (each): records, summary table, and a short `analysis-inputs.md` listing representative cases are committed.
 
 ### S5.4 — Statistics consolidation and failure analysis inputs
-**PR:** `s5.4-analysis` · `→ SERIAL` · Depends on S5.2, S5.3*
+**PR:** `s5.4-analysis` · `→ SERIAL` · Depends on S5.2 and the core S5.3 steps
 `🧑 HUMAN · DECIDE` — Name the failure categories and choose the representative cases (≤ 10) from the drafted candidates.
 Build: consolidated tables and figures (`docs/results/`); draft failure clustering with case links; cost/latency breakdown by step type; per-feature evidence index (rubric part → file path).
 Done when: every claimed feature's rubric parts map to committed evidence paths.
@@ -676,6 +713,21 @@ Done when: judge validation records committed under `results/<sha>/f9/`.
 
 ---
 
+## Later track (D-028)
+
+These steps are not deleted. They start after the core is integrated (S4.3 merged), when Ghadi assigns them, in this order. Their step text above is unchanged.
+
+| Order | Work | Steps | Timing rule |
+|---|---|---|---|
+| 1 | Durable execution (F10) | S3.E2 → S3.E3 → S3.E4, then S5.3e | Must merge before S5.1's freeze to be claimed; otherwise it is post-submission work |
+| 2 | Vision | S3.F1 | Must merge before S5.1 for vision cases to join the test set; otherwise it can be shown only as unevaluated |
+| 3 | Web app | S3.G1 → S3.G2 → [S3.G3 ⇉ S3.G4 ⇉ S3.G5] | Any time; must not change agent behavior after the freeze |
+| 4 | Extra comparisons | S5.3h, S5.3i | After S5.2, at the frozen commit, if the budget allows (trigger 6) |
+
+Never let this track delay S5.1 or Stage 6. Until S3.E3 merges, `durable_mode` has no effect, and neither reports nor the write-up may claim durability.
+
+---
+
 ## Appendix A — Human intervention summary
 
 No step requires human approval to merge. Human involvement is limited to:
@@ -684,11 +736,13 @@ No step requires human approval to merge. Human involvement is limited to:
 |---|---|---|
 | S0.1 | SETUP | Docker Desktop + WSL2, `uv`, Node; branch protection; AI review app |
 | S0.5 | SECRET | `GEMINI_API_KEY` (Hypora project; D-007) |
+| S2.0, S2.0b | Triggers 3 and 1 | Approve the cause and fix before changing sandbox code; approve any tool change |
 | S2.6 | SECRET · DECIDE · COURSE | `OPENAI_API_KEY` + funding + spend limit (and Gemini billing on the Hypora project if compared); pin `eval` model IDs; check-in submission |
 | S3.B1 | SECRET | `HF_TOKEN` |
 | S4.2 | DECIDE | Thresholds and limits |
 | S5.2 | DECIDE | API spend for the core run |
 | S5.3g | DECIDE | Bottleneck to fix |
+| Nov 13 | COURSE | Confirm the 40-point rule and any feature change (D-028) |
 | S5.4 | DECIDE | Failure categories and representative cases |
 | S6.1 | COURSE | Write-up text and claims |
 | S6.2 | COURSE | Demo rehearsal |
@@ -702,7 +756,8 @@ No step requires human approval to merge. Human involvement is limited to:
 |---|---|---|
 | `S0-core` | S0.3, S0.4, S0.5 | After S0.2 |
 | `S1-base` | S1.1, S1.2, S1.3 | S1.3's integration test waits for S1.2 |
+| `S2-prep` | S2.0, S2.0b | May also run alongside S2.1 |
 | `S2-eval` | S2.2, S2.3, S2.4 | After S2.1 |
-| `S3` | All Stage 3 steps across streams A–I | Serial within a stream; parallel across streams; recommended pairings in Stage 3 rules |
-| `S5-features` | S5.3a–S5.3i | After S5.2; share the frozen code |
+| `S3` | Core Stage 3 steps (not `⏸ LATER`) | Serial within a stream; parallel across streams; recommended pairings in Stage 3 rules |
+| `S5-features` | S5.3a, b, c, d, f, g (plus later S5.3e, h, i) | After S5.2; share the frozen code |
 | `S6` | S6.1, S6.2 | After S5.4 |
