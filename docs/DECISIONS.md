@@ -650,7 +650,8 @@ one it supersedes.
   - Kept in the core: RAG (F1), time series, the experimental route, halving, optimization, and
     MLflow. Every other step is unchanged.
   - Features planned for the final evaluation: F1, F3, F4, F5, F6, F7 (60 raw points). F10 is claimed
-    only if it merges before the test freeze.
+    only if S3.E2–E4 merge before the test freeze and S5.3e then runs at the frozen commit. Crash traps
+    (spec §19.2) join the test set only in that case.
 - Why: spec §20 counts only the first 40 feature points, the deadline is Dec 1, and the core is what
   makes this a multi-agent system. The moved work stays available for the project and for a resume.
 - Consequences:
@@ -676,6 +677,9 @@ one it supersedes.
   - **Next step:** agents continue without a relay. A dependent step may stack on the agent's own open
     PR, up to two unmerged PRs. A step with `🔍 REVIEW FOCUS`, trigger-3 code, or a contract waits for
     its first clean review before anything stacks on it. Recorded-result steps start from merged code.
+  - **Coding sub-agents:** an implementing agent launches one coding sub-agent per step when its
+    assigned steps can truly run in parallel, and never for steps that depend on each other. These are
+    development helpers, not Hypora's product agents.
   - **Bugs in an earlier step** are fixed on that step's own branch, or in a small fix PR if it merged.
   - **`→ SERIAL`** now controls merge order and no longer blocks all other work in a stage.
   - **Review:** the Reviewer watches the PR queue. Depth stays the same, and every blocking issue goes

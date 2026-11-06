@@ -42,7 +42,7 @@ Steps with no `🧑` label are fully automated: implement → tests → CI → A
 
 | Label | Meaning |
 |---|---|
-| `⇉ PARALLEL · <group>` | Can be implemented **at the same time** as every other step with the same group tag, by separate coding agents on separate branches. Dependencies listed on the step still apply. |
+| `⇉ PARALLEL · <group>` | Can be implemented **at the same time** as every other step with the same group tag, by separate coding agents on separate branches, including coding sub-agents launched by one agent (`AGENTS.md`, "Coding sub-agents for parallel steps"). Dependencies listed on the step still apply. |
 | `→ SERIAL` | Must merge in order, before any step that follows it in the stage. Steps that do not depend on it may run alongside it, and the next step may stack on it under `AGENTS.md`'s conditions (D-029). |
 
 **Scope label:**
@@ -649,7 +649,7 @@ Done when: a fresh clone on Ghadi's machine runs `docker compose up`, completes 
 ### S5.1 — Test set and freeze
 **PR:** `s5.1-test-set` · `→ SERIAL`
 `🔍 REVIEW FOCUS` — Test cases are distinct from dev cases, traps are real, grading rules match. After merging, the reviewing agent tags the merge commit `eval-freeze`.
-Build: ≥ 25 held-out test cases spanning tabular, time series, vision only if S3.F1 has merged (D-028), every trap type in spec §19.2 that those families can express, reuse-suffices cases, and optimization cases; distinct from dev cases; `docs/eval-protocol.md` (case authorship, freeze commit, inspection policy, model IDs, temperatures, tool/data versions, retry policy).
+Build: ≥ 25 held-out test cases spanning tabular, time series, vision only if S3.F1 has merged (D-028), every trap type in spec §19.2 that those families can express except the Crashes row, which joins only if S3.E2–E4 have merged (D-028), reuse-suffices cases, and optimization cases; distinct from dev cases; `docs/eval-protocol.md` (case authorship, freeze commit, inspection policy, model IDs, temperatures, tool/data versions, retry policy).
 Done when: cases validate; tag created; protocol document complete.
 
 ### S5.2 — Core evaluation run
@@ -719,7 +719,7 @@ These steps are not deleted. They start after the core is integrated (S4.3 merge
 
 | Order | Work | Steps | Timing rule |
 |---|---|---|---|
-| 1 | Durable execution (F10) | S3.E2 → S3.E3 → S3.E4, then S5.3e | Must merge before S5.1's freeze to be claimed; otherwise it is post-submission work |
+| 1 | Durable execution (F10) | S3.E2 → S3.E3 → S3.E4, then S5.3e | To claim F10, S3.E2–E4 must merge before S5.1's freeze, and S5.3e must run after S5.2 at the frozen commit, before S5.4. Otherwise it is post-submission work |
 | 2 | Vision | S3.F1 | Must merge before S5.1 for vision cases to join the test set; otherwise it can be shown only as unevaluated |
 | 3 | Web app | S3.G1 → S3.G2 → [S3.G3 ⇉ S3.G4 ⇉ S3.G5] | Any time; must not change agent behavior after the freeze |
 | 4 | Extra comparisons | S5.3h, S5.3i | After S5.2, at the frozen commit, if the budget allows (trigger 6) |

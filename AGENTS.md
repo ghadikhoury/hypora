@@ -124,6 +124,35 @@ Comment the old and new head commits on the PR so the Reviewer can compare them.
 - **The design itself looks wrong,** or the spec can't work as written: stop that chain and use trigger
   8. Continue only with steps that do not depend on it.
 
+### Coding sub-agents for parallel steps (D-029)
+
+"Sub-agents" here means **extra coding agents that an implementing agent launches to write this
+repository's code faster** (for example, Claude Code's subagents). They are a development tool only.
+They are not Hypora's product agents (Leads, worker agents, the Supervisor), and they change nothing in
+the spec, the product's agent roles, or this team's roles.
+
+**Use them only for parallel steps.** When two or more of your assigned steps are ready at the same
+time, launch one sub-agent per step, as many as there are such steps. Steps qualify when both hold:
+- `docs/PLAN.md` allows them together: same `⇉ PARALLEL` group, different Stage 3 streams, or S2.1
+  alongside the `S2-prep` steps.
+- Each step's dependencies have merged, or it may stack under "Working through a part".
+
+**Steps that depend on each other are never parallel:** do them in order, with no sub-agent needed for
+the sake of it. If your tool has no sub-agents, work through the steps one at a time.
+
+**Rules:**
+- **Own clone:** each sub-agent works in its own clone under `~`, never a shared working directory, a
+  worktree, or `/mnt/c`: `git clone https://github.com/ghadikhoury/hypora.git ~/hypora-<step>`, then
+  `make setup`.
+- **Same bar:** each sub-agent handles one step and opens one PR, with its own branch, checks, fresh
+  review pass, and Explain-it check. Give it the step ID, "Done when", spec sections, and directories.
+- **No merging:** sub-agents never merge. PRs from your sub-agents count as your own for stacking.
+- **You coordinate:** assign steps so shared files don't collide, verify each result yourself, and see
+  that review comments get fixed. Sub-agents report to you, and you raise any 🧑 block for Ghadi.
+- **Take turns on heavy runs:** run Docker-based tests and live model runs one at a time across
+  sub-agents. They compete for CPU, some tests are timing-sensitive, and live runs share a daily cap.
+  Writing code and running other tests can be fully parallel.
+
 ### Reviewer flow (D-024, D-026, D-029)
 
 - **Watch the queue until told to stop.** Check `gh pr list` every few minutes and review every open
