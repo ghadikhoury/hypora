@@ -639,3 +639,63 @@ one it supersedes.
   `docs/notes/cost-estimate.md`) is unchanged; the Luna records are extra evidence under
   `results/stage1/luna/`. D-016's matching `eval` evidence still follows at S2.6. No schema,
   tool, event, model-profile, case, grading-rule, or hidden-split change.
+
+## D-028 — Build the core first; durable execution, vision, web app, and extra comparisons come later
+- Date: 2026-11-06
+- Step: scope; applies to Stages 3–6
+- Decided by: Ghadi
+- Decision:
+  - Moved to the "Later track" in PLAN.md, after the core: durable execution beyond the scheduler
+    (S3.E2–E4, S5.3e), vision (S3.F1), the web app (S3.G1–G5), and two comparisons (S5.3h, S5.3i).
+  - Kept in the core: RAG (F1), time series, the experimental route, halving, optimization, and
+    MLflow. Every other step is unchanged.
+  - Features planned for the final evaluation: F1, F3, F4, F5, F6, F7 (60 raw points). F10 is claimed
+    only if S3.E2–E4 merge before the test freeze and S5.3e then runs at the frozen commit. Crash traps
+    (spec §19.2) join the test set only in that case.
+- Why: spec §20 counts only the first 40 feature points, the deadline is Dec 1, and the core is what
+  makes this a multi-agent system. The moved work stays available for the project and for a resume.
+- Consequences:
+  - 49 required steps remain, including D-029's S2.0 and S2.0b; without the move it would be 61. The
+    Later track adds up to 12.
+  - The spec's behavior for moved items is unchanged but not yet built. Until S3.E3 exists,
+    `durable_mode` has no effect, and nothing may claim durability.
+  - **Ghadi must confirm the 40-point rule against the handout and any feature change with the
+    instructor by Nov 13** (the handout is kept outside this repository).
+
+## D-029 — Faster delivery: parts, stacked PRs, narrower local checks, fewer live runs
+- Date: 2026-11-06
+- Step: process; applies to every later step. Supersedes the planned `make check-fast` (D-022) and CI
+  split (D-023), S2.1's stop in D-025, and D-016's both-profile runs at S3.Z and S4.3
+- Decided by: Ghadi (asked for the changes; left the details to the coding agent)
+- Measured: S1.3–S1.6 took 2–4 review rounds at about 16–25 min per review pass and up to 38 min per
+  fix. A local `make check` took 22–27 min, against about 7 min on CI. S0.4 waited about 10 hours for
+  a final review pass. Free-tier live runs took 14–21 min each.
+- Decision:
+  - **Parts:** Ghadi may assign a part, stream, or list of steps in one prompt. Each step is still one
+    PR with its own review; a single large PR was rejected, since S1.4 alone had 8,800 lines and 5
+    blocking bugs.
+  - **Next step:** agents continue without a relay. A dependent step may stack on the agent's own open
+    PR, up to two unmerged PRs. A step with `🔍 REVIEW FOCUS`, trigger-3 code, or a contract waits for
+    its first clean review before anything stacks on it. Recorded-result steps start from merged code.
+  - **Coding sub-agents:** an implementing agent launches one coding sub-agent per step when its
+    assigned steps can truly run in parallel, and never for steps that depend on each other. These are
+    development helpers, not Hypora's product agents.
+  - **Bugs in an earlier step** are fixed on that step's own branch, or in a small fix PR if it merged.
+  - **`→ SERIAL`** now controls merge order and no longer blocks all other work in a stage.
+  - **Review:** the Reviewer watches the PR queue. Depth stays the same, and every blocking issue goes
+    in the first pass. Nits never hold a merge. Authors make a fresh-context pass against
+    `docs/notes/review-checklist.md` before opening a PR.
+  - **Local checks:** targeted tests, lint, and types before a PR. The full `make check` runs only once
+    for trigger-3 steps and once per stage gate. CI remains the required gate.
+  - **Live runs:** scripted models by default. Free `dev` runs need no extra approval when a step
+    requires them, and they use the smallest task that proves the point. Paid rules are unchanged.
+  - **Gates:** S2.6 runs both profiles for model selection. S3.Z and S4.3 commit `eval` results only.
+  - **Trigger 4** covers changes to merged cases, rules, and splits. Creating them as a step specifies
+    goes through `🔍 REVIEW FOCUS` review, because Ghadi is not reviewing each PR for now.
+  - **New steps:** S2.0 (OOM-status flake) and S2.0b (status polling), both small.
+- Not adopted: GitHub auto-merge, which saves little; CI job split and `pytest-xdist`, because CI is not
+  the main delay.
+- Why: most lost time came from waits and repeated work, not from the checks that find bugs. Review
+  and CI gates stay in place, and bugs are found earlier.
+- Consequences: AGENTS.md and PLAN.md hold the rules. If review blockers, red runs on `main`, or
+  post-merge bugs increase, tighten stacking first.

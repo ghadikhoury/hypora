@@ -1,4 +1,5 @@
 Step: S?.? — <title>
+Stacked on: none | #<parent PR>. Do not merge before it.
 Spec: §…
 What changed:
 Why:
