@@ -181,6 +181,21 @@ class TabularHarness:
             raise HarnessFailure("invalid prediction class metadata")
         return predictions, classes
 
+    def predict_rows(
+        self,
+        features: pd.DataFrame,
+        model: bytes,
+        pipeline: bytes,
+        contract: ExperimentContract,
+        limits: JobLimits,
+    ) -> tuple[pd.DataFrame, list]:
+        """Predict rows outside the contract's splits with a finished model (the graders, S2.2).
+
+        The sandbox receives the features and the model only. Its output is untrusted: this
+        bounds and decodes it, and the caller validates the classes and scores the predictions.
+        """
+        return self._predict(features, model, pipeline, contract, {}, limits)
+
     def _score(self, data, ids, predictions, classes, contract, train_ids):
         if contract.task_type.value != "regression":
             expected = sorted(data.target.iloc[train_ids].unique().tolist())
