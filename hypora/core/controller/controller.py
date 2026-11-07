@@ -945,7 +945,7 @@ class _Run:
 
 
 def _read_table(path: Path, source: bytes) -> pd.DataFrame:
-    """The dataset as a table. Parser messages can quote values, so only the error's type is kept."""
+    """The dataset as a table. Parser messages can quote values, so only the error type is kept."""
     try:
         return load_tabular(path, source=source)
     except Exception as exc:
