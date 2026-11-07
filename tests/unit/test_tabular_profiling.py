@@ -469,6 +469,31 @@ def test_sorted_unique_integer_id_stays_monotone_id_like(ascending: bool) -> Non
         assert IdLikeReason.MONOTONE_INTEGER in identifier.reasons
 
 
+@pytest.mark.parametrize("ascending", [True, False])
+@pytest.mark.parametrize("dtype", ["int64", "float64", "Int64"])
+def test_sorted_integer_with_one_duplicate_is_not_id_like(ascending: bool, dtype: str) -> None:
+    """D-011: a .99 unique fraction must not re-admit a sorted repeated key via NEAR_UNIQUE."""
+    values = np.concatenate([np.arange(99), [98]])
+    if not ascending:
+        values = values[::-1]
+    series = pd.Series(values, dtype=dtype, name="batch_id")
+    if dtype == "Int64":
+        series = pd.concat([series, pd.Series([pd.NA], dtype=dtype)], ignore_index=True)
+    assert series.dropna().nunique() / series.notna().sum() == pytest.approx(0.99)
+    assert not profile(pd.DataFrame({"batch_id": series})).id_like_columns
+
+
+@pytest.mark.parametrize("dtype", ["int64", "float64", "Int64"])
+def test_shuffled_near_unique_integer_ids_remain_detected(dtype: str) -> None:
+    """The sorted-key exception must not disable near-unique detection for ordinary shuffled IDs."""
+    values = np.concatenate([np.arange(99), [98]])
+    values = np.random.default_rng(1990).permutation(values)
+    series = pd.Series(values, dtype=dtype, name="sample_id")
+    assert not series.is_monotonic_increasing and not series.is_monotonic_decreasing
+    [identifier] = profile(pd.DataFrame({"sample_id": series})).id_like_columns
+    assert identifier.reasons == [IdLikeReason.NEAR_UNIQUE]
+
+
 def test_shuffled_integer_float_integer_and_string_ids_are_detected() -> None:
     shuffled = np.random.default_rng(0).permutation(100)
     data = pd.DataFrame(

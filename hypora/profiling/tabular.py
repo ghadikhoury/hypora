@@ -181,6 +181,13 @@ def _id_like(
         integer_valued = bool(
             np.isfinite(values).all() and np.equal(values, np.floor(values)).all()
         )
+    monotone_integer = integer_valued and (
+        present.is_monotonic_increasing or present.is_monotonic_decreasing
+    )
+    # D-011 applies to every ID reason: even one repeated sorted integer must not become
+    # ID-like via NEAR_UNIQUE after the monotone rule has rejected it.
+    if monotone_integer and column.n_unique < len(present):
+        return None
     identifier_shaped = integer_valued or column.inferred_type in (
         InferredType.CATEGORICAL,
         InferredType.TEXT,
@@ -188,13 +195,7 @@ def _id_like(
     reasons = []
     if identifier_shaped and column.unique_fraction >= config.near_unique_fraction:
         reasons.append(IdLikeReason.NEAR_UNIQUE)
-    # Near-uniqueness, because rows stored sorted make any repeated key (a class, a batch) monotone.
-    if (
-        integer_valued
-        and (present.is_monotonic_increasing or present.is_monotonic_decreasing)
-        and column.n_unique > 1
-        and column.unique_fraction >= config.near_unique_fraction
-    ):
+    if monotone_integer and column.n_unique > 1:
         reasons.append(IdLikeReason.MONOTONE_INTEGER)
     if (
         not is_numeric_dtype(series.dtype)

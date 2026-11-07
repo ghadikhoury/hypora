@@ -61,9 +61,11 @@ well below 0.71.
 
 ## Profiling follow-up
 
-Monotone-integer ID detection now requires near-uniqueness and skips the target entirely.
-Class-sorted targets/repeated batch IDs are not ID-like; unique ascending/descending IDs remain
-ID-like. No schema changed.
+ID detection skips the target entirely. Sorted integer-valued columns with any repeated nonmissing
+value are excluded before all ID reasons, including NEAR_UNIQUE: a 99%-unique repeated batch key
+must not re-enter through a sibling rule. Shuffled near-unique IDs remain detected; strictly unique
+ascending/descending integer IDs retain MONOTONE_INTEGER. Nullable/integer-valued float cases have
+the same behavior. No schema or non-integer ID rule changed.
 
 ## Actual baseline acceptance
 
@@ -96,6 +98,6 @@ recorded evaluation evidence; S2.6 starts from merged code. The runner reported 
 results, so this validation makes no regression claim. The recorded dev agent/baseline comparison
 and model lock remain S2.6 work.
 
-Validation: all six generation checks passed; planted hashes reproduced; 103 dev/profiling tests
+Validation: all six generation checks passed; planted hashes reproduced; 112 dev/profiling tests
 passed (four inapplicable planted-hash checks skipped), plus 62 CLI/repository convention tests.
 Lint, types, whitespace, and a fresh-context full author pass succeeded.
