@@ -1,6 +1,6 @@
 # Tabular dev cases and calibration (S2.5)
 
-Spec ?19.2 and ?5.2; PLAN S2.5; profiling follow-up D-011. Definitions, source IDs, generation
+Spec sections 19.2 and 5.2; PLAN S2.5; profiling follow-up D-011. Definitions, source IDs, generation
 commands, budgets, and pass rules: hypora/evaluation/cases/dev/README.md.
 
 ## Data and traps
@@ -10,7 +10,7 @@ post-outcome feature (D-015 trap-planting exception). Parkinsons Telemonitoring 
 motor_UPDRS and gains a patient-block key. The snapshot omitted UCI's subject#; consecutive age/sex
 runs recover 41 blocks from the documented 42 patients. Two adjacent patients with matching age/sex
 are conservatively merged, so their rows cannot be split apart. This is a conservative grouping
-proxy, not original-ID recovery. Each block has 101?281 rows; ten whole blocks are hidden. The raw
+proxy, not original-ID recovery. Each block has 101-281 rows; ten whole blocks are hidden. The raw
 ordering assumption is tied to the pinned source hash.
 
 Bike Sharing already has future target components: casual + registered = cnt on every row.
@@ -32,12 +32,12 @@ Separate actual baseline acceptance below exercises those boundaries.
 
 | Case | Fixed pipeline hidden score | Appropriate-split GBT | Appropriate-split linear | Initial bar |
 |---|---:|---:|---:|---:|
-| Leakage (ROC-AUC) | 0.9597 (leak included) | 0.7225 | 0.7275 | ? 0.65 |
-| Grouped (MAE) | 11.1819 | 12.7363 | 6.8417 | ? 7.5 |
-| Temporal (MAE) | 4.3952 (future counts included) | 75.8924 | 141.1033 | ? 146 |
-| Imbalance (macro-F1) | 0.8191 | 0.8199 | 0.7417 | ? 0.71 |
-| Clean control (MAE) | 0.6813 | 0.6813 | 0.6592 | ? 0.76 |
-| Tool-failure data, no injection (ROC-AUC) | 0.7400 | 0.7377 | 0.7508 | ? 0.67 |
+| Leakage (ROC-AUC) | 0.9597 (leak included) | 0.7225 | 0.7275 | >= 0.65 |
+| Grouped (MAE) | 11.1819 | 12.7363 | 6.8417 | <= 7.5 |
+| Temporal (MAE) | 4.3952 (future counts included) | 75.8924 | 141.1033 | <= 146 |
+| Imbalance (macro-F1) | 0.8191 | 0.8199 | 0.7417 | >= 0.71 |
+| Clean control (MAE) | 0.6813 | 0.6813 | 0.6592 | <= 0.76 |
+| Tool-failure data, no injection (ROC-AUC) | 0.7400 | 0.7377 | 0.7508 | >= 0.67 |
 
 Quality alone cannot validate methodology. Leakage and temporal baseline scores are excellent
 because unavailable features remain; feature/split checks still fail. Correct grouped splitting
