@@ -188,10 +188,12 @@ def _id_like(
     reasons = []
     if identifier_shaped and column.unique_fraction >= config.near_unique_fraction:
         reasons.append(IdLikeReason.NEAR_UNIQUE)
+    # Near-uniqueness, because rows stored sorted make any repeated key (a class, a batch) monotone.
     if (
         integer_valued
         and (present.is_monotonic_increasing or present.is_monotonic_decreasing)
         and column.n_unique > 1
+        and column.unique_fraction >= config.near_unique_fraction
     ):
         reasons.append(IdLikeReason.MONOTONE_INTEGER)
     if (
@@ -435,10 +437,12 @@ def profile_tabular(
     timestamps = [stamp for name in data if (stamp := _timestamps(data[name], config)) is not None]
     by_name = {item.column: item for item in timestamps}
     columns = [_column(data[name], by_name.get(name)) for name in data]
+    # The target is never a feature, so an ID-like verdict on it would only mislead (D-011).
     ids = [
         identifier
         for column in columns
-        if (identifier := _id_like(data[column.name], column, config)) is not None
+        if column.name != target
+        and (identifier := _id_like(data[column.name], column, config)) is not None
     ]
     associations: list[FeatureAssociation] = []
     leakage: list[LeakageCandidate] = []

@@ -49,10 +49,10 @@ calls or state transitions happen here: this is a pure library, called by later 
   nonmissing values. Normalize to UTC; report min/max, duplicates, and median interval in
   sorted time order. Monotonicity uses original row order; failed parses make it false.
 - IDs: near-unique integer-valued numerics (including floats storing integers) or string/
-  categorical/text values, monotone integer values (either direction), or >=95% UUID-shaped
-  strings. Non-integer continuous measurements and datetime columns are not ID candidates.
-  Known limitation until S2.5 (D-011): the monotone rule is non-strict and also scans the
-  target, so a class-sorted target or a sorted, repeated `batch_id` is reported as ID-like.
+  categorical/text values, near-unique monotone integer values (either direction), or >=95%
+  UUID-shaped strings. Non-integer continuous measurements and datetime columns are not ID
+  candidates. The target is never scanned, and a sorted column whose values repeat (a class, a
+  `batch_id`) is not an ID (D-011): it may still be a candidate group key.
 
 ## Bounded output and reproducibility
 

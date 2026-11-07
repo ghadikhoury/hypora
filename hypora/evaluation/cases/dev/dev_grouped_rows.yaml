@@ -1,0 +1,52 @@
+# Grouped rows: repeated recordings of real patients. Key recovered by plant_grouped_rows.py.
+id: dev_grouped_rows
+split: dev
+request: Predict the total UPDRS score of a Parkinson's patient from voice recordings made at home. The model will be used on patients it has not seen.
+constraints:
+  target: total_UPDRS
+  task_type: regression
+  primary_metric: mae
+dataset:
+  snapshot: uci-189-parkinsons-telemonitoring
+  sha256: "76e9ba949527cc14461e25dccaa794aa86afc5c041549b872d9c7fcea062abed"
+  planted:
+    script: hypora/evaluation/cases/dev/plant_grouped_rows.py
+    file: dev_grouped_rows.parquet
+    sha256: "8321f6f9d9585072cfaef9e2d33ee3ba79c926987d2e0d9c65c6a449244ba6a7"
+family: tabular
+permitted_tools:
+  - inspect_dataset
+  - write_trial_files
+  - submit_experiment
+  - get_experiment_status
+  - get_experiment_metrics
+  - get_experiment_logs
+budget: &budget
+  max_usd: 0.6
+  max_compute_seconds: 600
+  max_llm_tokens: 2000000
+  max_trials: 4
+  max_steps: 100
+  max_wall_clock_seconds: 1800
+approval_policy: auto_within_contract
+contract_bounds:
+  max_budget: *budget
+  max_job_limits:
+    max_wall_seconds: 300
+    max_memory_gb: 4
+    cpu_threads: 2
+hidden_split:
+  strategy: group
+  fraction: 0.25
+  seed: 20261106
+  group_key: patient_id
+grading:
+  hidden_metric:
+    name: mae
+    threshold: 7.5
+    reported_tolerance: 6.0
+traps:
+  - kind: grouped_rows
+    planted: true
+    group_key: patient_id
+expected_decision_class: train
