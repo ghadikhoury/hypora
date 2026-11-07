@@ -15,10 +15,10 @@ from sqlalchemy import insert
 
 from hypora.core.controller.states import REPORT, RunEvent, next_state
 from hypora.core.hashing import sha256_hex
-from hypora.core.roles.reporter import EarlyStopReport, Report
-from hypora.core.roles.reporter import FinalModel as ReportFinalModel
+from hypora.core.roles.reporter import build_report
 from hypora.core.schemas import (
     ActorRole,
+    DatasetProfile,
     EventType,
     ExperimentContract,
     JobState,
@@ -26,6 +26,7 @@ from hypora.core.schemas import (
     RunStatus,
     Stage,
     SubmitExperimentRequest,
+    TaskSpecification,
     TrialFile,
 )
 from hypora.core.schemas.contracts import AUTO_APPROVER
@@ -49,8 +50,11 @@ from hypora.storage.migrate import migrate
 from hypora.storage.models import Job
 from hypora.storage.records import (
     create_run,
+    save_dataset_profile,
     save_experiment_contract,
+    save_task_spec,
     set_run_status,
+    upsert_result,
     upsert_trial,
 )
 from tests.unit.evaluation.helpers import case_on
@@ -228,7 +232,44 @@ def seed_records(world: World, *, trial_kind: str = "candidate") -> None:
         EventType.STAGE_TRANSITION,
         {"stage": Stage.INTAKE.value, "status": RunStatus.INTAKE.value, "reason": "start"},
     )
+    save_task_spec(
+        database,
+        TaskSpecification.model_validate(
+            {
+                "run_id": RUN_ID,
+                "version": 1,
+                "objective": world.case.request,
+                "requested_actions": ["train"],
+                "target": world.case.constraints.target,
+                "task_type": world.case.constraints.task_type,
+                "dataset_ref": "fixture",
+            }
+        ),
+    )
+    profile_path = (
+        Path(__file__).resolve().parents[2] / "fixtures/schemas/DatasetProfile/yield.json"
+    )
+    profile = DatasetProfile.model_validate_json(profile_path.read_bytes()).model_copy(
+        update={
+            "run_id": RUN_ID,
+            "dataset_ref": "fixture",
+            "fingerprint": world.split.visible_sha256,
+        }
+    )
+    save_dataset_profile(database, profile)
     if world.contract is None:
+        columns = list(pd.read_parquet(world.split.system_dataset()).columns)
+        features = [column for column in columns if column != world.case.constraints.target]
+        save_experiment_contract(
+            database,
+            contract_for(
+                world.case,
+                features,
+                primary_metric="mae"
+                if world.case.constraints.task_type.value == "regression"
+                else "accuracy",
+            ),
+        )
         return
     world.event(
         EventType.APPROVAL_REQUESTED,
@@ -463,41 +504,22 @@ def record_run_end(world: World, *, safe_failure: bool = False) -> None:
             trial_id=world.final.trial_id,
             attempt=1,
         )
-        contract = world.final.contract
-        report: Report | EarlyStopReport = Report(
-            run_id=RUN_ID,
-            outcome="verified_model",
-            objective="fixture objective",
-            target=contract.target,
-            task_type=contract.task_type,
-            primary_metric=contract.primary_metric,
-            direction=contract.primary_metric.direction,
-            secondary_metrics=[],
-            split="fixture",
-            features=1,
-            excluded_features=[],
-            leakage_screen="fixture",
-            trials=[],
-            notes=["Run completed."],
-            final=ReportFinalModel(
-                trial_id=world.final.trial_id,
-                hypothesis="fixture",
-                test_metrics={m.name.value: m.value for m in world.final.reported_metrics},
-                validation_means={},
-                verified=True,
-                checks=[],
-            ),
+        upsert_result(
+            world.database,
+            world.final.trial_id,
+            "test",
+            {"metrics": {m.name.value: m.value for m in world.final.reported_metrics}},
+            {},
+            verification={"passed": True, "checks": []},
         )
-    else:
-        report = EarlyStopReport(run_id=RUN_ID, notes=["Stopped safely; no model was verified."])
-    if world.case.expected_decision_class is DecisionClass.INFEASIBLE:
-        report.notes.append("The objective is infeasible; no model can meet the constraints.")
-    codes = [
-        fault.error_code
-        or {"oom": "OOM_KILLED", "timeout": "TIMEOUT"}.get(fault.kind.value, fault.kind.value)
-        for fault in world.case.injected_faults
-    ]
-    report.notes.extend(f"Observed fault: {code}." for code in codes)
+    report = build_report(
+        world.database,
+        RUN_ID,
+        final_trial_id=world.final.trial_id if world.final and not safe_failure else None,
+        notes=["The requested quality target cannot be achieved within the budget."]
+        if world.final is None
+        else ["The worker recovered and produced this model."],
+    )
     (run_dir / "report.json").write_text(report.model_dump_json(), encoding="utf-8")
     event = (
         RunEvent.REPORTED_UNVERIFIED

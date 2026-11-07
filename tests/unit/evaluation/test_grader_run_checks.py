@@ -1247,9 +1247,10 @@ def test_safe_failure_report_with_unrelated_notes_does_not_acknowledge_fault(
     record_run_end(world, safe_failure=True)
     path = world.runs_root / RUN_ID / "report.json"
     raw = json.loads(path.read_text())
-    raw["notes"] = ["hello"]
+    raw["notes"] = ["OOM_KILLED"]
+    raw["features"] += 1
     path.write_text(json.dumps(raw))
-    assert "does not identify the observed fault" in check_of(grade(world), FAULT_NAME).detail
+    assert "facts differ from stored platform" in check_of(grade(world), FAULT_NAME).detail
 
 
 def test_infeasible_outcome_accepts_actual_failed_terminal_with_report(tmp_path: Path) -> None:
@@ -1258,10 +1259,26 @@ def test_infeasible_outcome_accepts_actual_failed_terminal_with_report(tmp_path:
     assert grade(world).passed
 
 
-def test_infeasible_outcome_rejects_unrelated_failure_explanation(tmp_path: Path) -> None:
+def test_infeasible_report_facts_cannot_be_replaced_with_a_bare_token(tmp_path: Path) -> None:
     world = infeasible_world(tmp_path)
     path = world.runs_root / RUN_ID / "report.json"
     raw = json.loads(path.read_text())
-    raw["notes"] = ["hello"]
+    raw["notes"] = ["infeasible"]
+    raw["sources"] = []
     path.write_text(json.dumps(raw))
-    assert "does not explain the infeasible" in check_of(grade(world), COMPLETED).detail
+    assert "facts differ from stored platform" in check_of(grade(world), COMPLETED).detail
+
+
+def test_early_stop_report_cannot_substitute_for_measured_report_facts(tmp_path: Path) -> None:
+    world = infeasible_world(tmp_path)
+    path = world.runs_root / RUN_ID / "report.json"
+    path.write_text(
+        json.dumps(
+            {
+                "run_id": RUN_ID,
+                "outcome": "no_verified_model",
+                "notes": ["infeasible"],
+            }
+        )
+    )
+    assert "no verifiable experiment facts" in check_of(grade(world), COMPLETED).detail

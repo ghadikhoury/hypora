@@ -5,11 +5,10 @@ Everything here comes from the event log and the state database. `SystemRun.limi
 """
 
 import math
-import re
 from collections.abc import Sequence
 from typing import Final
 
-from hypora.core.roles.reporter import EarlyStopReport, Report
+from hypora.core.roles.reporter import EarlyStopReport, Report, build_report
 from hypora.core.schemas import AnyEvent, JobState, Operation, RunStatus, Stage, TrialKind
 from hypora.core.schemas.common import ApprovalPolicy, Budget, JobLimits
 from hypora.core.schemas.contracts import AUTO_APPROVER, ExperimentContract
@@ -604,13 +603,8 @@ def _terminal(context: GradingContext, *, safe_failure: bool = False) -> StageTr
     return terminal
 
 
-def _reported_outcome(
-    context: GradingContext,
-    *,
-    safe_failure: bool,
-    fault_code: str | None = None,
-    infeasible: bool = False,
-) -> str:
+def _reported_outcome(context: GradingContext, *, safe_failure: bool) -> str:
+    """Verify structured report facts against the reporter's durable platform sources."""
     path = context.run.runs_root / context.run.run_id / "report.json"
     try:
         content = path.read_bytes()
@@ -622,11 +616,26 @@ def _reported_outcome(
         raise MissingEvidence(f"no valid durable report: {type(exc).__name__}") from None
     if report.run_id != context.run.run_id:
         raise MissingEvidence("the report belongs to another run")
+    if not isinstance(report, Report):
+        raise MissingEvidence("the early-stop report has no verifiable experiment facts")
+    try:
+        expected = build_report(
+            context.run_log().database,
+            context.run.run_id,
+            final_trial_id=(context.final_model().trial_id if not safe_failure else None),
+            notes=report.notes,
+        )
+    except Exception as exc:
+        raise MissingEvidence(
+            f"the report facts cannot be recomputed: {type(exc).__name__}"
+        ) from None
+    # Prose is outside the reporting contract. It neither earns credit nor substitutes for facts.
+    prose = {"notes", "narrative", "narrative_note"}
+    if report.model_dump(exclude=prose) != expected.model_dump(exclude=prose):
+        raise MissingEvidence("the report facts differ from stored platform records")
     if safe_failure:
-        if (
-            report.outcome != "no_verified_model"
-            or (isinstance(report, Report) and report.final is not None)
-            or not report.notes
+        if report.outcome != "no_verified_model" or (
+            isinstance(report, Report) and report.final is not None
         ):
             raise MissingEvidence("the report does not explain the no-model outcome")
     else:
@@ -646,13 +655,6 @@ def _reported_outcome(
             for metric in final.reported_metrics
         ):
             raise MissingEvidence("the report metrics differ from the final model's report")
-    if infeasible and not any(re.search(r"\binfeasible\b", note, re.I) for note in report.notes):
-        raise MissingEvidence("the report does not explain the infeasible decision")
-    if fault_code is not None and not any(
-        re.search(r"(?<![A-Za-z0-9_])" + re.escape(fault_code) + r"(?![A-Za-z0-9_])", note)
-        for note in report.notes
-    ):
-        raise MissingEvidence("the report does not identify the observed fault")
     return f"report:{context.run.run_id}"
 
 
@@ -663,7 +665,7 @@ def check_completed(context: GradingContext) -> GraderCheck:
     )
     if context.expects_no_model and context.run.final_model is None and not safe_expected:
         terminal = _terminal(context, safe_failure=True)
-        report_ref = _reported_outcome(context, safe_failure=True, infeasible=True)
+        report_ref = _reported_outcome(context, safe_failure=True)
         return passed(
             COMPLETED,
             "the infeasible objective was durably reported",
@@ -734,11 +736,6 @@ def _check_fault(context: GradingContext, fault: InjectedFault, name: str) -> Gr
         refs = [ref]
     else:
         return failed(name, f"no grader exists yet for {fault.kind.value} faults")
-    fault_code = (
-        fault.error_code
-        if fault.kind is FaultKind.TOOL_ERROR
-        else _JOB_FAULT_CODES.get(fault.kind, fault.kind.value)
-    )
     run = context.run
     if fault.expected is FaultResponse.RECOVER:
         if not run.completed or run.final_model is None:
@@ -758,14 +755,14 @@ def _check_fault(context: GradingContext, fault: InjectedFault, name: str) -> Gr
             raise MissingEvidence("no final-model completion follows the fault", refs)
         outcome_seq = successes[-1].seq
         terminal = _terminal(context)
-        report_ref = _reported_outcome(context, safe_failure=False, fault_code=fault_code)
+        report_ref = _reported_outcome(context, safe_failure=False)
         refs.append(event_ref(successes[-1]))
     else:
         if run.final_model is not None or run.completed:
             return failed(name, "the run should have failed safely, without a final model", refs)
         outcome_seq = fault_seq
         terminal = _terminal(context, safe_failure=True)
-        report_ref = _reported_outcome(context, safe_failure=True, fault_code=fault_code)
+        report_ref = _reported_outcome(context, safe_failure=True)
     if terminal.seq <= max(fault_seq, outcome_seq):
         raise MissingEvidence("no terminal outcome report follows the fault and work", refs)
     return passed(
