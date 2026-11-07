@@ -129,7 +129,7 @@ def build_plan(spec: TaskSpecification, data: DataContract, budget: Budget) -> A
     )
 
 
-def approve_by_policy(plan: ApprovedPlan) -> ApprovalRecord:
+def approve_by_policy(plan: ApprovedPlan, *, reason: str = STAGE1_NOTE) -> ApprovalRecord:
     """Approve the plan's exact hash by the auto-within-contract policy (D-019 1a)."""
     return ApprovalRecord(
         approval_id=f"appr_{plan.run_id}_plan_v{plan.version}",
@@ -139,7 +139,7 @@ def approve_by_policy(plan: ApprovedPlan) -> ApprovalRecord:
         approver=AUTO_APPROVER,
         decision=ApprovalDecision.APPROVED,
         policy=ApprovalPolicy.AUTO_WITHIN_CONTRACT,
-        reason=STAGE1_NOTE,
+        reason=reason,
         created_at=datetime.now(UTC),
     )
 
