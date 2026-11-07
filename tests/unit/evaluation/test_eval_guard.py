@@ -113,3 +113,23 @@ def test_row_guard_tolerates_hashes_that_resemble_unbounded_exponents() -> None:
         {"hash": "a1e999999999999999999999999999999b"},
         hidden_rows=HiddenRows(frozenset({("0", "1")})),
     )
+
+
+def test_incidental_scalar_sequences_are_not_complete_rows() -> None:
+    rows = HiddenRows(frozenset({("0", "1")}), (frozenset({"a", "b"}),))
+    guard = RecordGuard(())
+    assert guard.clean({"detail": "Predict labels 0, 1"}, hidden_rows=rows)
+    assert guard.clean({"detail": "Accuracy is 0, recall is 1"}, hidden_rows=rows)
+    with pytest.raises(RecordLeakError, match="complete row"):
+        guard.clean({"detail": "0, 1"}, hidden_rows=rows)
+    public = RecordGuard((), public_fields=frozenset({"inputs"}))
+    assert public.clean({"inputs": {"request": "0, 1"}, "detail": "safe"}, hidden_rows=rows)
+
+
+@pytest.mark.parametrize(
+    "detail", ["[[0, 1], [9, 8]]", '[{"a":0,"b":1},{"a":9,"b":8}]', "Rows: [[0,1],[9,8]]"]
+)
+def test_literal_batches_cannot_hide_complete_numeric_rows(detail: str) -> None:
+    rows = HiddenRows(frozenset({("0", "1")}), (frozenset({"a", "b"}),))
+    with pytest.raises(RecordLeakError, match="complete row"):
+        RecordGuard(()).clean({"detail": detail}, hidden_rows=rows)

@@ -6,6 +6,7 @@ is checked as a whole. A hidden value or store path refuses the record; a creden
 machine paths become placeholders, so a record names no home directory.
 """
 
+import ast
 import io
 import json
 import re
@@ -108,15 +109,13 @@ EMPTY_HIDDEN_ROWS: Final = HiddenRows()
 
 
 def _markdown_values(text: str, fields: frozenset[str]) -> str:
-    """Extract values from Markdown field/value pairs without dropping data named like a field."""
-    lines = []
+    """Extract explicit Markdown field/value pairs, preserving data named like a field."""
+    values = []
     for line in text.splitlines():
         cells = [cell.strip().strip("`") for cell in line.strip().strip("|").split("|")]
         if len(cells) >= 2 and len(cells) % 2 == 0 and all(name in fields for name in cells[::2]):
-            lines.append(", ".join(cells[1::2]))
-        else:
-            lines.append(line)
-    return "\n".join(lines)
+            values.extend(cells[1::2])
+    return ", ".join(values) if values else text
 
 
 _FIELD_NAME = re.compile(r"(?:\"[^\"]*\"|'[^']*'|\w+)\s*[:=]\s*")
@@ -203,15 +202,60 @@ def _row_containers(value: JsonValue, field_sets: tuple[frozenset[str], ...]) ->
             yield from _row_containers(item, field_sets)
 
 
+def _literal_holds_row(value: object, rows: HiddenRows) -> bool:
+    """Check complete leaf rows in literal batches as well as single rows."""
+    if isinstance(value, dict):
+        values = list(value.values())
+        if frozenset(value) in rows.field_sets and not any(
+            isinstance(cell, (dict, list, tuple)) for cell in values
+        ):
+            return (
+                tuple(sorted(_text_tokens(", ".join(str(cell) for cell in values)))) in rows.tokens
+            )
+        return any(_literal_holds_row(cell, rows) for cell in values)
+    if isinstance(value, (list, tuple)):
+        if not any(isinstance(cell, (dict, list, tuple)) for cell in value):
+            return (
+                tuple(sorted(_text_tokens(", ".join(str(cell) for cell in value)))) in rows.tokens
+            )
+        return any(_literal_holds_row(cell, rows) for cell in value)
+    return False
+
+
 def _holds_row(
     text: str, rows: HiddenRows, widths: tuple[int, ...], fields: frozenset[str]
 ) -> bool:
-    tokens = _text_tokens(text, fields)
-    return any(
-        tuple(sorted(tokens[start : start + width])) in rows.tokens
-        for width in widths
-        for start in range(len(tokens) - width + 1)
-    )
+    rendered = _markdown_values(text, fields)
+    if rendered != text:
+        # These tokens came from explicit named table cells, not incidental numbers in prose.
+        tokens = _text_tokens(rendered)
+        return any(
+            tuple(sorted(tokens[start : start + width])) in rows.tokens
+            for width in widths
+            for start in range(len(tokens) - width + 1)
+        )
+    for candidate in (text, *text.splitlines()):
+        marker = re.search(r"\b(?:hidden\s+)?rows?(?:\s+is)?\s*[:=]?\s+(.+)", candidate, re.I)
+        if marker:
+            candidate = marker.group(1)
+        candidate = candidate.strip()
+        if candidate.startswith(("[", "{", "(")):
+            try:
+                try:
+                    literal = json.loads(candidate)
+                except (ValueError, TypeError):
+                    literal = ast.literal_eval(candidate)
+            except (ValueError, TypeError, SyntaxError, RecursionError):
+                pass  # A bracketed CSV row need not be a valid Python/JSON literal.
+            else:
+                if _literal_holds_row(literal, rows):
+                    return True
+                continue
+        # A whole CSV/TSV/array row must match. Never search arbitrary token windows in prose:
+        # "Predict labels 0, 1" is public task context, not a disclosure of a two-cell row.
+        if tuple(sorted(_text_tokens(candidate))) in rows.tokens:
+            return True
+    return False
 
 
 def _holds_any(text: str, values: frozenset[str], lengths: Iterable[int]) -> bool:
@@ -230,6 +274,8 @@ class RecordGuard:
     forbidden_paths: tuple[str, ...]
     """The hidden store, and anything else no record may name."""
     secrets: tuple[str, ...] = ()
+    public_fields: frozenset[str] = frozenset()
+    """Top-level fields built only from already-public case/config metadata, never run output."""
     path_aliases: tuple[tuple[str, str], ...] = ()
     """(machine path, placeholder), most specific first."""
 
@@ -248,13 +294,19 @@ class RecordGuard:
         for text in _strings(document):
             if any(path in text for path in forbidden):
                 raise RecordLeakError("the record names the hidden store or its files")
+        derived = (
+            {key: value for key, value in document.items() if key not in self.public_fields}
+            if isinstance(document, dict)
+            else document
+        )
+        for text in _strings(derived):
             if lengths and _holds_any(text, hidden_values, lengths):
                 raise RecordLeakError("the record holds a value found only in the hidden rows")
         widths = tuple({len(row) for row in hidden_rows.tokens})
         fields = frozenset().union(*hidden_rows.field_sets)
         if hidden_rows and any(
             _holds_row(text, hidden_rows, widths, fields)
-            for text in _row_texts(document, hidden_rows.field_sets)
+            for text in _row_texts(derived, hidden_rows.field_sets)
         ):
             raise RecordLeakError("the record holds a complete row found only in the hidden rows")
         return _replace_paths(redact(document, self.secrets), dict(self.path_aliases))

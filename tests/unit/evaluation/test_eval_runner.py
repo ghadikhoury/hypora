@@ -8,6 +8,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import anyio
+import pandas as pd  # type: ignore[import-untyped]
 import pytest
 
 from hypora.core.config import RunConfig, load_settings_for_eval
@@ -652,3 +653,63 @@ async def test_repeat_harness_errors_are_explicitly_ungraded(tmp_path: Path) -> 
     assert summary.repeats[0].graded_runs == 0
     assert summary.repeats[0].incomplete_run_ids == ["run_incomplete_repeat"]
     assert "Ungraded repeat attempts" in render_markdown(summary)
+
+
+@pytest.mark.asyncio
+async def test_public_numeric_request_cannot_abort_valid_cases(tmp_path: Path) -> None:
+    from hypora.evaluation.hidden_split import select_hidden_rows
+    from hypora.evaluation.runner.guard import hidden_row_tokens
+
+    plan = plan_at(tmp_path)
+    frame = pd.DataFrame(
+        {"a": list(range(200)), "b": list(range(1, 201)), "label": [i % 2 for i in range(200)]}
+    )
+    case = case_on(plan.snapshots_dir, frame, id="numeric_a", request="Predict labels 0, 1")
+    for seed in range(100):
+        candidate = case.model_copy(
+            update={"hidden_split": case.hidden_split.model_copy(update={"seed": seed})}
+        )
+        if select_hidden_rows(frame, candidate)[0]:
+            case = candidate
+            break
+    else:
+        pytest.fail("could not select the numeric row")
+    cases = (
+        case.model_copy(update={"id": "numeric_a"}),
+        case.model_copy(update={"id": "numeric_b"}),
+    )
+    outcome = await run_eval(replace(plan, cases=cases), lambda _: None)
+    assert outcome.clean and len(outcome.recorded) == 4
+    assert all(record.inputs.request == "Predict labels 0, 1" for record in outcome.recorded)
+    # The exact feature row is hidden, not visible, in the actual split used by these runs.
+    from hypora.evaluation.case_data import load_case_dataset
+    from hypora.evaluation.hidden_split import create_hidden_split
+
+    dataset = load_case_dataset(
+        cases[0], snapshots_dir=plan.snapshots_dir, planted_dir=plan.planted_dir
+    )
+    split = create_hidden_split(cases[0], dataset, plan.store, plan.work_root / "runs")
+    assert ("0", "1") in hidden_row_tokens(split).tokens
+
+
+@pytest.mark.asyncio
+async def test_refused_fallback_is_unrecorded_without_cancelling_other_cases(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from hypora.evaluation.runner.guard import RecordGuard, RecordLeakError
+
+    plan = plan_at(tmp_path)
+    original = RecordGuard.clean
+
+    def refuse(self, document, hidden_values=frozenset(), hidden_rows=None):
+        if isinstance(document, dict) and document.get("case_id") == "case_0":
+            raise RecordLeakError("controlled fallback refusal")
+        return original(self, document, hidden_values, hidden_rows)
+
+    monkeypatch.setattr(RecordGuard, "clean", refuse)
+    outcome = await run_eval(plan, lambda _: None)
+    assert not outcome.clean and len(outcome.unrecorded) == 2
+    assert len(outcome.recorded) == 2 and all(
+        record.case_id == "case_1" for record in outcome.recorded
+    )
+    assert len(list((outcome.directory / "pending").glob("*.json"))) == 2

@@ -102,3 +102,11 @@ cap, and complete hidden-row renderings including short numeric/boolean/string c
 Python/JSON arrays, and named row fields normalize to row-value tokens. Isolated common values are
 allowed; a complete matching row is refused. The check also covers free-text dictionary keys and
 nested primitive arrays, without combining unrelated structured metadata into a row.
+
+Hidden-content scans apply to fields derived from system/grader output. The input and provenance
+fields are constructed from already-public case/config metadata, so an incidental public request
+such as "Predict labels 0, 1" cannot be mistaken for a new disclosure. Secret redaction and hidden
+store-path checks still cover the whole record. Complete row renderings are checked as rows, not
+arbitrary numeric windows in ordinary prose; nested literal batches are traversed. If even a
+minimal fallback record is refused, it stays unrecorded with its pending accounting receipt, and
+other cases continue. No rejected content is published.

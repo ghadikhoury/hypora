@@ -336,6 +336,7 @@ class _Eval:
             forbidden_paths=(str(plan.store.root),),
             secrets=load_credentials().secret_values(),
             path_aliases=machine_aliases(self.runs_root, REPO_ROOT),
+            public_fields=frozenset({"inputs", "provenance"}),
         )
         self.recorded: list[CaseRecord] = []
         self.unrecorded: list[str] = []
@@ -557,7 +558,9 @@ class _Eval:
                 )
             self._check_same_code()
             self.results.write(document, self.results.path_for(record))
-        except EvalRefused as exc:
+        except (EvalRefused, RecordLeakError) as exc:
+            # Even a minimal fallback may be refused. Keep its pending accounting receipt,
+            # mark it unrecorded, and let other cases finish; never publish rejected content.
             self.unrecorded.append(f"{name}: {exc}")
             return
         self.recorded.append(CaseRecord.model_validate(document))
