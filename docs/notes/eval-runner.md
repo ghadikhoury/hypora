@@ -46,7 +46,10 @@ retry duration, it remains unknown; it is not represented as zero. List price co
 versioned price table. Actual spend is zero for Gemini dev free-tier calls, list price otherwise.
 
 A system/grader failure creates a harness-error record and does not cancel the other cases.
-Harness errors count as failures in primary summaries and are listed explicitly. Graded failed
+Harness errors are ungraded measurements and are listed explicitly. Completion-adjusted pass
+fractions retain their missing passes, but incomplete systems have no Wilson interval. Paired
+outcome tables and bootstrap intervals require two graded outcomes; incomplete pairs are excluded
+and named, so a missing measurement cannot become a measured win. Graded failed
 cases remain immutable measurements. The summary includes Wilson 95% intervals, a paired outcome
 table, a paired percentile bootstrap with 10,000 resamples and a fixed seed (inconclusive when the
 interval contains zero), nearest-rank p95 and mean latency, and total/per-task list and actual cost.
@@ -93,3 +96,9 @@ only IDs, config/case hashes, and the reserved budget. If the process dies befor
 resume refuses with the run ID and budget exposure so unknown spend cannot disappear. An existing
 matching final/partial record reconciles a receipt left by a crash after publication. This does
 not resume or recover controller state.
+
+Before publication the record guard checks every distinctive hidden scalar without a dataset-size
+cap, and complete hidden-row renderings including short numeric/boolean/string cells. CSV/TSV,
+Python/JSON arrays, and named row fields normalize to row-value tokens. Isolated common values are
+allowed; a complete matching row is refused. The check also covers free-text dictionary keys and
+nested primitive arrays, without combining unrelated structured metadata into a row.

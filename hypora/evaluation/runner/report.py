@@ -1,9 +1,10 @@
 """The summary of one eval (spec §19.5; PLAN.md S2.4): `summary.json` and `summary.md`.
 
 Everything is computed from the records on disk, so a summary can be regenerated at any time and
-says nothing the records don't. A `harness_error` counts as a failed case in every rate: it is a
-missing pass, and leaving it out would flatter a system that crashes on hard cases. The summary
-lists those cases so the numbers can't be read as finished.
+says nothing the records don't. An unfinished `harness_error` is not a measured system failure.
+Completion-adjusted pass
+fractions retain its missing pass, but have no Wilson interval while incomplete; paired
+comparisons use only cases with two graded outcomes and list excluded incomplete pairs.
 """
 
 from collections import Counter
@@ -31,8 +32,10 @@ class Rate(StrictModel):
     passed: int
     tasks: int
     rate: float
-    wilson_low: float
-    wilson_high: float
+    measured_tasks: int
+    complete: bool
+    wilson_low: float | None
+    wilson_high: float | None
 
 
 class Latency(StrictModel):
@@ -80,6 +83,7 @@ class PairedComparison(StrictModel):
     seed: int
     verdict: BootstrapVerdict
     unpaired_cases: list[str] = Field(default_factory=list)
+    incomplete_cases: list[str] = Field(default_factory=list)
 
 
 class CaseRow(StrictModel):
@@ -98,6 +102,8 @@ class RepeatRow(StrictModel):
     passed: int
     mean_latency_seconds: float
     mean_cost_usd: float
+    graded_runs: int
+    incomplete_run_ids: list[str] = Field(default_factory=list)
 
 
 class ModelPriceLine(StrictModel):
@@ -152,14 +158,17 @@ class EvalSummary(StrictModel):
     usage_complete: bool = True
 
 
-def _rate(passes: Sequence[bool]) -> Rate:
-    interval = wilson_interval(sum(passes), len(passes))
+def _rate(passes: Sequence[bool], measured_tasks: int) -> Rate:
+    complete = measured_tasks == len(passes)
+    interval = wilson_interval(sum(passes), len(passes)) if complete else None
     return Rate(
         passed=sum(passes),
         tasks=len(passes),
         rate=sum(passes) / len(passes),
-        wilson_low=interval.low,
-        wilson_high=interval.high,
+        measured_tasks=measured_tasks,
+        complete=complete,
+        wilson_low=interval.low if interval else None,
+        wilson_high=interval.high if interval else None,
     )
 
 
@@ -174,7 +183,7 @@ def _system_summary(system: str, records: Sequence[CaseRecord]) -> SystemSummary
     known_retry_waits = [wait for wait in retry_waits if wait is not None]
     return SystemSummary(
         system=system,
-        pass_rate=_rate([r.passed for r in records]),
+        pass_rate=_rate([r.passed for r in records], sum(r.finished for r in records)),
         harness_errors=[r.case_id for r in records if not r.finished],
         latency_system=_latency([r.timings.system_seconds for r in records]),
         latency_active=_latency([r.timings.active_seconds for r in records]),
@@ -197,7 +206,11 @@ def _paired(
     first: str, second: str, by_system: Mapping[str, Mapping[str, CaseRecord]]
 ) -> PairedComparison | None:
     ones, twos = by_system[first], by_system[second]
-    shared = sorted(set(ones) & set(twos))
+    common = set(ones) & set(twos)
+    incomplete = sorted(
+        case for case in common if not (ones[case].finished and twos[case].finished)
+    )
+    shared = sorted(common - set(incomplete))
     if not shared:
         return None
     a = [ones[case].passed for case in shared]
@@ -219,6 +232,7 @@ def _paired(
         seed=bootstrap.seed,
         verdict=bootstrap.verdict,
         unpaired_cases=sorted(set(ones) ^ set(twos)),
+        incomplete_cases=incomplete,
     )
 
 
@@ -306,6 +320,8 @@ def build_summary(
                 case_id=case_id,
                 runs=len(runs),
                 passed=sum(r.passed for r in runs),
+                graded_runs=sum(r.finished for r in runs),
+                incomplete_run_ids=[r.run_id for r in runs if not r.finished],
                 mean_latency_seconds=latency_summary([r.timings.system_seconds for r in runs]).mean,
                 mean_cost_usd=cost_per_task([r.usage.cost_usd for r in runs]).per_task_usd,
             )
@@ -381,7 +397,9 @@ def _headline(summary: EvalSummary) -> list[str]:
     if errors:
         listed = ", ".join(f"{system}/{case}" for system, case in errors)
         lines += [
-            f"**{len(errors)} run(s) did not finish: {listed}. They count as failures below. "
+            f"**{len(errors)} run(s) did not finish: {listed}. These are ungraded measurements. "
+            "Completion-adjusted fractions count their missing passes, but no Wilson interval "
+            "is reported for an incomplete system. Paired tests exclude incomplete pairs. "
             "Run again with `--resume` to replace them.**",
             "",
         ]
@@ -397,17 +415,28 @@ def _rates(summary: EvalSummary) -> list[str]:
     ]
     for s in summary.systems:
         r = s.pass_rate
-        lines.append(
-            f"| {s.system} | {r.passed}/{r.tasks} | {r.rate:.3f} | "
-            f"[{r.wilson_low:.3f}, {r.wilson_high:.3f}] |"
+        interval = (
+            f"[{r.wilson_low:.3f}, {r.wilson_high:.3f}]"
+            if r.wilson_low is not None and r.wilson_high is not None
+            else f"unavailable: {r.measured_tasks}/{r.tasks} graded"
         )
-    return [*lines, ""]
+        lines.append(f"| {s.system} | {r.passed}/{r.tasks} | {r.rate:.3f} | {interval} |")
+    return [
+        *lines,
+        "Completion-adjusted fractions are lower bounds while runs are incomplete.",
+        "",
+    ]
 
 
 def _paired_lines(summary: EvalSummary) -> list[str]:
     p = summary.paired
     if p is None:
-        return ["## Paired comparison", "", "Not available: it needs two systems on one case.", ""]
+        return [
+            "## Paired comparison",
+            "",
+            "Needs two graded outcomes on a case. Incomplete pairs are excluded.",
+            "",
+        ]
     lines = [
         "## Paired comparison",
         "",
@@ -420,6 +449,11 @@ def _paired_lines(summary: EvalSummary) -> list[str]:
         f"({p.resamples} resamples, seed {p.seed}, percentile method). **{_verdict_text(p)}.**",
         "",
     ]
+    if p.incomplete_cases:
+        lines += [
+            f"Excluded incomplete pairs (no measured outcome): {', '.join(p.incomplete_cases)}.",
+            "",
+        ]
     if p.unpaired_cases:
         lines += [f"Not paired, ran on one side only: {', '.join(p.unpaired_cases)}.", ""]
     return lines
@@ -524,16 +558,25 @@ def _repeat_lines(summary: EvalSummary) -> list[str]:
     lines = [
         "## Repeat sample",
         "",
-        "Reported apart from the primary runs (spec §19.5); it enters none of the numbers above.",
+        "Reported apart from primary runs (spec §19.5). Fractions count missing passes; "
+        "ungraded attempts are listed separately and are not measured failures.",
         "",
-        "| System | Case | Passed | Mean seconds | Mean list $ |",
-        "|---|---|---|---|---|",
+        "| System | Case | Passed/attempts | Graded | Mean seconds | Mean list $ |",
+        "|---|---|---|---|---|---|",
     ]
     lines += [
-        f"| {r.system} | {r.case_id} | {r.passed}/{r.runs} | {r.mean_latency_seconds:.1f} | "
+        f"| {r.system} | {r.case_id} | {r.passed}/{r.runs} | {r.graded_runs} | "
+        f"{r.mean_latency_seconds:.1f} | "
         f"${r.mean_cost_usd:.4f} |"
         for r in summary.repeats
     ]
+    incomplete = [
+        f"{row.system}/{row.case_id}: {', '.join(row.incomplete_run_ids)}"
+        for row in summary.repeats
+        if row.incomplete_run_ids
+    ]
+    if incomplete:
+        lines += ["", "Ungraded repeat attempts: " + "; ".join(incomplete) + "."]
     return [*lines, ""]
 
 

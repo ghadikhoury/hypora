@@ -35,9 +35,11 @@ from hypora.evaluation.hidden_split import (
     create_hidden_split,
 )
 from hypora.evaluation.runner.guard import (
+    HiddenRows,
     RecordGuard,
     RecordLeakError,
     hidden_only_values,
+    hidden_row_tokens,
     machine_aliases,
 )
 from hypora.evaluation.runner.records import (
@@ -161,6 +163,7 @@ class _Prepared:
     split: HiddenSplit | None
     hidden_values: frozenset[str]
     setup_seconds: float
+    hidden_rows: HiddenRows = field(default_factory=HiddenRows)
     error: str | None = None
 
 
@@ -347,10 +350,11 @@ class _Eval:
             )
             split = create_hidden_split(case, dataset, self.plan.store, self.runs_root)
             values = hidden_only_values(split)
+            rows = hidden_row_tokens(split)
         except Exception as exc:
             error = self.guard.safe_text(f"{type(exc).__name__}: {exc}")
-            return _Prepared(case, None, frozenset(), time.perf_counter() - started, error)
-        return _Prepared(case, split, values, time.perf_counter() - started)
+            return _Prepared(case, None, frozenset(), time.perf_counter() - started, error=error)
+        return _Prepared(case, split, values, time.perf_counter() - started, hidden_rows=rows)
 
     def harness_error(
         self,
@@ -535,7 +539,9 @@ class _Eval:
         values = task.prepared.hidden_values
         try:
             try:
-                document = self.guard.clean(record.model_dump(mode="json"), values)
+                document = self.guard.clean(
+                    record.model_dump(mode="json"), values, task.prepared.hidden_rows
+                )
             except RecordLeakError as exc:
                 # The refused content goes nowhere, and the run is reported as not measured.
                 record = self.harness_error(
@@ -546,7 +552,9 @@ class _Eval:
                     record.timings,
                     record.usage,
                 )
-                document = self.guard.clean(record.model_dump(mode="json"), values)
+                document = self.guard.clean(
+                    record.model_dump(mode="json"), values, task.prepared.hidden_rows
+                )
             self._check_same_code()
             self.results.write(document, self.results.path_for(record))
         except EvalRefused as exc:

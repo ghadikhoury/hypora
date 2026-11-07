@@ -14,6 +14,11 @@ deterministic code from the TaskSpecification and the profile:
 from datetime import UTC, datetime
 from typing import Final
 
+from hypora.core.roles.intake import (
+    BINARY_ONLY_METRICS,
+    CLASSIFICATION_METRICS,
+    REGRESSION_METRICS,
+)
 from hypora.core.schemas import (
     AUTO_APPROVER,
     ApprovalArtifactType,
@@ -49,15 +54,15 @@ STAGE1_NOTE: Final = (
 )
 
 METRIC_SETS: Final = {
-    TaskType.BINARY_CLASSIFICATION: (MetricName.ROC_AUC, MetricName.F1_MACRO, MetricName.LOG_LOSS),
-    TaskType.MULTICLASS_CLASSIFICATION: (
-        MetricName.F1_MACRO,
-        MetricName.ACCURACY,
-        MetricName.LOG_LOSS,
+    TaskType.BINARY_CLASSIFICATION: tuple(
+        metric for metric in MetricName if metric in CLASSIFICATION_METRICS | BINARY_ONLY_METRICS
     ),
-    TaskType.REGRESSION: (MetricName.MAE, MetricName.RMSE, MetricName.R2),
+    TaskType.MULTICLASS_CLASSIFICATION: tuple(
+        metric for metric in MetricName if metric in CLASSIFICATION_METRICS
+    ),
+    TaskType.REGRESSION: tuple(metric for metric in MetricName if metric in REGRESSION_METRICS),
 }
-"""The metrics every trial reports for each task type; the primary one is listed separately."""
+"""Every supported task metric reaches the report without consulting hidden grading rules."""
 
 
 class ContractError(ValueError):

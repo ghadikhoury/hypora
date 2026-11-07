@@ -4,6 +4,7 @@ import pytest
 
 from hypora.core.config.flags import FeatureFlags
 from hypora.core.controller.contract import (
+    METRIC_SETS,
     ContractError,
     approve_by_policy,
     build_data_contract,
@@ -73,7 +74,9 @@ def test_the_policy_approves_the_exact_plan_hash() -> None:
     assert contract.approved_plan_hash == approval.artifact_hash
     assert contract.approval_id == approval.approval_id == "appr_run_unit_plan_v1"
     assert contract.primary_metric is MetricName.F1_MACRO
-    assert contract.secondary_metrics == (MetricName.ROC_AUC, MetricName.LOG_LOSS)
+    assert set(contract.secondary_metrics) == set(METRIC_SETS[TaskType.BINARY_CLASSIFICATION]) - {
+        MetricName.F1_MACRO
+    }
     assert contract.budget == budget and contract.default_job_limits == LIMITS
 
 
@@ -96,9 +99,17 @@ def test_explicit_secondary_metrics_are_unioned_with_defaults_and_quality_target
     data = build_data_contract(task, COLUMNS)
     approval = approve_by_policy(build_plan(task, data, Budget()))
     contract = build_experiment_contract(task, data, approval, budget=Budget(), job_limits=LIMITS)
-    assert contract.secondary_metrics == (
-        MetricName.F1_MACRO,
-        MetricName.LOG_LOSS,
-        MetricName.ACCURACY,
-    )
+    assert set(contract.secondary_metrics) == set(METRIC_SETS[TaskType.BINARY_CLASSIFICATION]) - {
+        MetricName.ROC_AUC
+    }
     assert contract.quality_threshold == 0.8
+
+
+@pytest.mark.parametrize(
+    "task_type",
+    [TaskType.BINARY_CLASSIFICATION, TaskType.MULTICLASS_CLASSIFICATION, TaskType.REGRESSION],
+)
+def test_every_supported_metric_reaches_the_agent_report(task_type: TaskType) -> None:
+    from hypora.evaluation.case import metrics_for
+
+    assert set(METRIC_SETS[task_type]) == metrics_for(task_type)

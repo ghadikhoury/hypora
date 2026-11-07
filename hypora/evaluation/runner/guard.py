@@ -7,8 +7,11 @@ machine paths become placeholders, so a record names no home directory.
 """
 
 import io
+import json
+import re
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
+from decimal import Decimal, DecimalException
 from pathlib import Path
 from typing import Final
 
@@ -24,7 +27,6 @@ from hypora.evaluation.hidden_split import (
 
 MIN_VALUE_CHARS: Final = 8
 """Shorter cell values are too likely to appear by chance (a word in a report, a metric)."""
-MAX_HIDDEN_VALUES: Final = 50_000
 
 
 class RecordLeakError(Exception):
@@ -72,7 +74,7 @@ def _cell_texts(frame: pd.DataFrame) -> set[str]:
         for value in frame[name].astype(object).dropna().unique().tolist():
             if isinstance(value, str):
                 texts.add(value)
-            elif isinstance(value, float):
+            elif isinstance(value, (int, float, bool)):
                 texts.add(repr(value))
     return texts
 
@@ -88,7 +90,128 @@ def hidden_only_values(split: HiddenSplit) -> frozenset[str]:
         _table(split.hidden_labels_bytes())
     )
     distinctive = sorted(v for v in hidden - visible if len(v) >= MIN_VALUE_CHARS)
-    return frozenset(distinctive[:MAX_HIDDEN_VALUES])
+    return frozenset(distinctive)
+
+
+@dataclass(frozen=True)
+class HiddenRows:
+    """Complete hidden-row fingerprints and the column sets of authorized row renderings."""
+
+    tokens: frozenset[tuple[str, ...]] = frozenset()
+    field_sets: tuple[frozenset[str], ...] = ()
+
+    def __bool__(self) -> bool:
+        return bool(self.tokens)
+
+
+EMPTY_HIDDEN_ROWS: Final = HiddenRows()
+
+
+def _markdown_values(text: str, fields: frozenset[str]) -> str:
+    """Extract values from Markdown field/value pairs without dropping data named like a field."""
+    lines = []
+    for line in text.splitlines():
+        cells = [cell.strip().strip("`") for cell in line.strip().strip("|").split("|")]
+        if len(cells) >= 2 and len(cells) % 2 == 0 and all(name in fields for name in cells[::2]):
+            lines.append(", ".join(cells[1::2]))
+        else:
+            lines.append(line)
+    return "\n".join(lines)
+
+
+_FIELD_NAME = re.compile(r"(?:\"[^\"]*\"|'[^']*'|\w+)\s*[:=]\s*")
+_VALUE_TOKEN = re.compile(
+    r"[^\W\d_]+(?:[_-][^\W\d_]+)*|[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[-+]?\d+)?", re.I
+)
+
+
+def _text_tokens(text: str, fields: frozenset[str] = frozenset()) -> tuple[str, ...]:
+    """Normalize row renderings: CSV, Python/JSON arrays, and named JSON/Python fields.
+
+    Field labels and punctuation aren't cell values. Numbers normalize across integer, float,
+    and exponent notation. Words remain tokens, so an isolated common scalar is never a row.
+    """
+    text = _markdown_values(text, fields) if fields else text
+    tokens = []
+    for token in _VALUE_TOKEN.findall(_FIELD_NAME.sub("", text)):
+        token = token.casefold()
+        if token in {"none", "nan", "na", "null"}:
+            token = "null"
+        else:
+            try:
+                number = Decimal(token)
+                token = str(number.normalize()) if number else "0"
+            except DecimalException:
+                pass
+        tokens.append(token)
+    return tuple(tokens)
+
+
+def _rows(frame: pd.DataFrame) -> set[tuple[str, ...]]:
+    return {
+        tuple(sorted(tokens))
+        for row in frame.itertuples(index=False, name=None)
+        if len(tokens := _text_tokens(", ".join(str(cell) for cell in row))) >= 2
+    }
+
+
+def hidden_row_tokens(split: HiddenSplit) -> HiddenRows:
+    """All distinctive complete hidden rows, with no dataset-size truncation.
+
+    Include feature-only rows when they have at least two scalar tokens and full rows with the
+    label last. Visible rows are excluded to avoid rejecting authorized visible data. Short
+    numeric/boolean/string cells are protected as a row, not as isolated common values.
+    """
+    visible = _table(split.visible_bytes())
+    features = _table(split.hidden_features_bytes())
+    labels = _table(split.hidden_labels_bytes())
+    target = next(column for column in visible.columns if column not in features.columns)
+    visible_features = visible[list(features.columns)]
+    hidden_full = features.copy()
+    hidden_full[target] = labels.iloc[:, 0].to_numpy()
+    visible_full = visible[[*features.columns, target]]
+    return HiddenRows(
+        tokens=frozenset(
+            (_rows(features) - _rows(visible_features)) | (_rows(hidden_full) - _rows(visible_full))
+        ),
+        field_sets=(
+            frozenset(str(name) for name in features.columns),
+            frozenset(str(name) for name in hidden_full.columns),
+            frozenset({*(str(name) for name in features.columns), "target"}),
+        ),
+    )
+
+
+def _row_texts(value: JsonValue, field_sets: tuple[frozenset[str], ...]) -> Iterator[str]:
+    """Free text and structured rows, without combining unrelated nested metadata."""
+    yield from _strings(value)
+    yield from _row_containers(value, field_sets)
+
+
+def _row_containers(value: JsonValue, field_sets: tuple[frozenset[str], ...]) -> Iterator[str]:
+    if isinstance(value, list):
+        if value and all(not isinstance(item, (dict, list)) for item in value):
+            yield json.dumps(value)
+        for item in value:
+            yield from _row_containers(item, field_sets)
+    elif isinstance(value, dict):
+        if frozenset(value) in field_sets and all(
+            not isinstance(item, (dict, list)) for item in value.values()
+        ):
+            yield json.dumps(value)
+        for item in value.values():
+            yield from _row_containers(item, field_sets)
+
+
+def _holds_row(
+    text: str, rows: HiddenRows, widths: tuple[int, ...], fields: frozenset[str]
+) -> bool:
+    tokens = _text_tokens(text, fields)
+    return any(
+        tuple(sorted(tokens[start : start + width])) in rows.tokens
+        for width in widths
+        for start in range(len(tokens) - width + 1)
+    )
 
 
 def _holds_any(text: str, values: frozenset[str], lengths: Iterable[int]) -> bool:
@@ -110,7 +233,12 @@ class RecordGuard:
     path_aliases: tuple[tuple[str, str], ...] = ()
     """(machine path, placeholder), most specific first."""
 
-    def clean(self, document: JsonValue, hidden_values: frozenset[str] = frozenset()) -> JsonValue:
+    def clean(
+        self,
+        document: JsonValue,
+        hidden_values: frozenset[str] = frozenset(),
+        hidden_rows: HiddenRows = EMPTY_HIDDEN_ROWS,
+    ) -> JsonValue:
         """The document ready to store; raises RecordLeakError when it can't be stored at all.
 
         Checks come first: replacing a home directory would hide a store path under it.
@@ -122,6 +250,13 @@ class RecordGuard:
                 raise RecordLeakError("the record names the hidden store or its files")
             if lengths and _holds_any(text, hidden_values, lengths):
                 raise RecordLeakError("the record holds a value found only in the hidden rows")
+        widths = tuple({len(row) for row in hidden_rows.tokens})
+        fields = frozenset().union(*hidden_rows.field_sets)
+        if hidden_rows and any(
+            _holds_row(text, hidden_rows, widths, fields)
+            for text in _row_texts(document, hidden_rows.field_sets)
+        ):
+            raise RecordLeakError("the record holds a complete row found only in the hidden rows")
         return _replace_paths(redact(document, self.secrets), dict(self.path_aliases))
 
     def safe_text(self, text: str) -> str:
@@ -142,4 +277,11 @@ def machine_aliases(runs_root: Path, repo_root: Path) -> tuple[tuple[str, str], 
     )
 
 
-__all__ = ["RecordGuard", "RecordLeakError", "hidden_only_values", "machine_aliases"]
+__all__ = [
+    "HiddenRows",
+    "RecordGuard",
+    "RecordLeakError",
+    "hidden_only_values",
+    "hidden_row_tokens",
+    "machine_aliases",
+]

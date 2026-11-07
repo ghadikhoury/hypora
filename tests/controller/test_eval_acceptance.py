@@ -127,14 +127,22 @@ async def test_two_cases_on_agent_and_baseline_give_records_a_summary_and_a_comp
     constraints = {
         "target": "target",
         "task_type": "binary_classification",
-        "primary_metric": "roc_auc",
     }
     metric = {"name": "roc_auc", "threshold": 0.9, "reported_tolerance": 0.1}
     common = {"constraints": constraints, "grading": {"hidden_metric": metric}}
     tools = sorted({*raw_case()["permitted_tools"], "write_trial_files", "submit_experiment"})
     snapshots = tmp_path / "snapshots"
     snapshots.mkdir()
-    clean = case_on(snapshots, frame, id="uci_clean", permitted_tools=tools, **common)
+    clean = case_on(
+        snapshots,
+        frame,
+        id="uci_clean",
+        permitted_tools=tools,
+        constraints=constraints,
+        grading={
+            "hidden_metric": {"name": "brier_score", "threshold": 0.2, "reported_tolerance": 0.1}
+        },
+    )
     fault = case_on(
         snapshots,
         frame,
@@ -159,6 +167,9 @@ async def test_two_cases_on_agent_and_baseline_give_records_a_summary_and_a_comp
     }
     assert records["agent", "uci_clean"]["grade"]["passed"], records["agent", "uci_clean"]
     assert records["baseline", "uci_clean"]["grade"]["passed"], records["baseline", "uci_clean"]
+    assert clean.constraints.primary_metric is None and not clean.constraints.secondary_metrics
+    metrics = records["agent", "uci_clean"]["outputs"]["final_model"]["reported_metrics"]
+    assert "brier_score" in {metric["name"] for metric in metrics}
 
     # The agent retried, on a real worker, and its work is what the proof links to.
     recovered = records["agent", "uci_tool_fault"]

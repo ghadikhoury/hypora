@@ -180,6 +180,11 @@ async def test_failure_is_recorded_and_other_cases_complete(tmp_path: Path) -> N
     summary = build_summary(primary(outcome, plan), [], outcome.regression)
     assert summary.systems[0].pass_rate.tasks == 2
     assert summary.systems[0].pass_rate.passed == 0
+    assert summary.systems[0].pass_rate.measured_tasks == 0
+    assert summary.systems[0].pass_rate.wilson_low is None
+    assert summary.systems[0].pass_rate.wilson_high is None
+    assert summary.paired is None  # missing agent outcomes cannot become baseline wins
+    assert "Incomplete pairs are excluded" in render_markdown(summary)
     assert "did not finish" in render_markdown(summary)
     retry = await run_eval(replace(plan, resume=True), lambda _: None)
     assert retry.clean and len(retry.recorded) == 2 and len(retry.skipped) == 2
@@ -589,3 +594,61 @@ async def test_crash_after_final_record_reconciles_receipt_without_repeating_run
     resumed = await run_eval(replace(plan, resume=True), lambda _: None)
     assert not resumed.recorded and len(resumed.skipped) == 2
     assert not list((store.directory / "pending").glob("*.json"))
+
+
+@pytest.mark.asyncio
+async def test_paired_bootstrap_excludes_incomplete_pairs_but_keeps_graded_failures(
+    tmp_path: Path,
+) -> None:
+    plan = plan_at(tmp_path)
+    outcome = await run_eval(plan, lambda _: None)
+    records = primary(outcome, plan)
+    original = records["agent", "case_0"]
+    incomplete = original.model_copy(
+        update={
+            "status": "harness_error",
+            "passed": False,
+            "grade": None,
+            "outputs": None,
+            "error": "interrupted before grading",
+        }
+    )
+    records["agent", "case_0"] = incomplete
+    summary = build_summary(records, [], outcome.regression)
+    assert summary.paired is not None
+    assert summary.paired.cases == 1 and summary.paired.both_pass == 1
+    assert summary.paired.second_only == 0
+    assert summary.paired.incomplete_cases == ["case_0"]
+    assert summary.paired.verdict.value == "inconclusive"
+    assert summary.systems[0].pass_rate.wilson_low is None
+    assert "Excluded incomplete pairs" in render_markdown(summary)
+    # A real graded failure remains a valid outcome and enters the paired comparison.
+    assert original.grade is not None
+    grade = original.grade.model_copy(update={"passed": False})
+    records["agent", "case_0"] = original.model_copy(update={"passed": False, "grade": grade})
+    complete = build_summary(records, [], outcome.regression)
+    assert complete.paired is not None and complete.paired.cases == 2
+    assert complete.paired.second_only == 1 and not complete.paired.incomplete_cases
+    assert complete.systems[0].pass_rate.complete
+
+
+@pytest.mark.asyncio
+async def test_repeat_harness_errors_are_explicitly_ungraded(tmp_path: Path) -> None:
+    plan = plan_at(tmp_path)
+    outcome = await run_eval(plan, lambda _: None)
+    record = outcome.recorded[0]
+    repeat = record.model_copy(
+        update={
+            "kind": "repeat",
+            "status": "harness_error",
+            "passed": False,
+            "grade": None,
+            "outputs": None,
+            "error": "unmeasured",
+            "run_id": "run_incomplete_repeat",
+        }
+    )
+    summary = build_summary(primary(outcome, plan), [repeat], outcome.regression)
+    assert summary.repeats[0].graded_runs == 0
+    assert summary.repeats[0].incomplete_run_ids == ["run_incomplete_repeat"]
+    assert "Ungraded repeat attempts" in render_markdown(summary)
