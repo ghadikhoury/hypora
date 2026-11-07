@@ -423,6 +423,77 @@ def test_continuous_features_and_timestamps_are_not_ids() -> None:
     assert not profile(measurements).id_like_columns
 
 
+def test_class_sorted_target_is_not_id_like() -> None:
+    """D-011: UCI wine and iris are stored sorted by class. The target is never a feature."""
+    wine = load_wine(as_frame=True).frame
+    assert wine["target"].is_monotonic_increasing
+    ids = profile(wine, TaskType.MULTICLASS_CLASSIFICATION).id_like_columns
+    assert "target" not in {item.column for item in ids}
+
+
+def test_unique_target_is_skipped_as_well() -> None:
+    """D-011 skips the target outright, not only when it repeats."""
+    data = pd.DataFrame(
+        {"target": np.arange(100.0), "x": np.random.default_rng(0).normal(size=100)}
+    )
+    assert not profile(data, TaskType.REGRESSION).id_like_columns
+
+
+def test_sorted_batch_id_with_repeats_is_a_group_key_not_an_id() -> None:
+    """D-011: a sorted key whose values repeat is monotone, but it identifies a group, not a row."""
+    rng = np.random.default_rng(0)
+    batch = np.repeat(np.arange(30), 10)
+    data = pd.DataFrame(
+        {
+            "batch_id": batch,
+            "x": rng.normal(size=300),
+            "target": (rng.normal(size=30)[batch] > 0).astype(int),
+        }
+    )
+    assert data["batch_id"].is_monotonic_increasing
+    result = profile(data, TaskType.BINARY_CLASSIFICATION)
+    assert "batch_id" not in {item.column for item in result.id_like_columns}
+    assert "batch_id" in {item.column for item in result.candidate_group_keys}
+
+
+@pytest.mark.parametrize("ascending", [True, False])
+def test_sorted_unique_integer_id_stays_monotone_id_like(ascending: bool) -> None:
+    """D-011: the rule's purpose survives, in either direction, with or without a target."""
+    values = np.arange(500) if ascending else np.arange(500)[::-1]
+    rng = np.random.default_rng(0)
+    data = pd.DataFrame(
+        {"sample_id": values, "x": rng.normal(size=500), "target": rng.integers(0, 2, 500)}
+    )
+    for result in (profile(data), profile(data, TaskType.BINARY_CLASSIFICATION)):
+        identifier = next(item for item in result.id_like_columns if item.column == "sample_id")
+        assert IdLikeReason.MONOTONE_INTEGER in identifier.reasons
+
+
+@pytest.mark.parametrize("ascending", [True, False])
+@pytest.mark.parametrize("dtype", ["int64", "float64", "Int64"])
+def test_sorted_integer_with_one_duplicate_is_not_id_like(ascending: bool, dtype: str) -> None:
+    """D-011: a .99 unique fraction must not re-admit a sorted repeated key via NEAR_UNIQUE."""
+    values = np.concatenate([np.arange(99), [98]])
+    if not ascending:
+        values = values[::-1]
+    series = pd.Series(values, dtype=dtype, name="batch_id")
+    if dtype == "Int64":
+        series = pd.concat([series, pd.Series([pd.NA], dtype=dtype)], ignore_index=True)
+    assert series.dropna().nunique() / series.notna().sum() == pytest.approx(0.99)
+    assert not profile(pd.DataFrame({"batch_id": series})).id_like_columns
+
+
+@pytest.mark.parametrize("dtype", ["int64", "float64", "Int64"])
+def test_shuffled_near_unique_integer_ids_remain_detected(dtype: str) -> None:
+    """The sorted-key exception must not disable near-unique detection for ordinary shuffled IDs."""
+    values = np.concatenate([np.arange(99), [98]])
+    values = np.random.default_rng(1990).permutation(values)
+    series = pd.Series(values, dtype=dtype, name="sample_id")
+    assert not series.is_monotonic_increasing and not series.is_monotonic_decreasing
+    [identifier] = profile(pd.DataFrame({"sample_id": series})).id_like_columns
+    assert identifier.reasons == [IdLikeReason.NEAR_UNIQUE]
+
+
 def test_shuffled_integer_float_integer_and_string_ids_are_detected() -> None:
     shuffled = np.random.default_rng(0).permutation(100)
     data = pd.DataFrame(

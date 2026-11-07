@@ -1,0 +1,49 @@
+# Temporal order: real hourly rentals, 2011-2012. Nothing planted: casual and registered add up to cnt.
+id: dev_temporal_order
+split: dev
+request: Predict the total number of bikes rented in each hour (cnt) for coming dates, so that the operator can plan ahead.
+constraints:
+  target: cnt
+  task_type: regression
+  primary_metric: mae
+dataset:
+  snapshot: uci-275-bike-sharing
+  sha256: "10ea2ca337567cab43faf47dcab503dc7cb24f18cded33a9f1cd031add7dae6f"
+family: tabular
+permitted_tools:
+  - inspect_dataset
+  - write_trial_files
+  - submit_experiment
+  - get_experiment_status
+  - get_experiment_metrics
+  - get_experiment_logs
+budget: &budget
+  max_usd: 0.6
+  max_compute_seconds: 600
+  max_llm_tokens: 2000000
+  max_trials: 4
+  max_steps: 100
+  max_wall_clock_seconds: 1800
+approval_policy: auto_within_contract
+contract_bounds:
+  max_budget: *budget
+  max_job_limits:
+    max_wall_seconds: 300
+    max_memory_gb: 4
+    cpu_threads: 2
+hidden_split:
+  strategy: temporal
+  fraction: 0.25
+  seed: 20261106
+  time_key: dteday
+grading:
+  hidden_metric:
+    name: mae
+    threshold: 146.0
+    reported_tolerance: 21.0
+traps:
+  - kind: temporal_order
+    planted: false
+    time_key: dteday
+    future_columns: [casual, registered]
+expected_decision_class: train

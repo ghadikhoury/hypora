@@ -1,0 +1,47 @@
+# Class imbalance: 15.5% of real sessions end in a purchase. Nothing planted. No primary metric is given: choosing one is the test.
+id: dev_class_imbalance
+split: dev
+request: Identify which website sessions will end in a purchase, so that the marketing team can act on them.
+constraints:
+  target: Revenue
+  task_type: binary_classification
+dataset:
+  snapshot: uci-468-online-shoppers-purchasing-intention-dataset
+  sha256: "43f77d0d9480edf40ba38f6c1095a8fd568610e39565a8f4a674df60c20dd746"
+family: tabular
+permitted_tools:
+  - inspect_dataset
+  - write_trial_files
+  - submit_experiment
+  - get_experiment_status
+  - get_experiment_metrics
+  - get_experiment_logs
+budget: &budget
+  max_usd: 0.6
+  max_compute_seconds: 600
+  max_llm_tokens: 2000000
+  max_trials: 4
+  max_steps: 100
+  max_wall_clock_seconds: 1800
+approval_policy: auto_within_contract
+contract_bounds:
+  max_budget: *budget
+  max_job_limits:
+    max_wall_seconds: 300
+    max_memory_gb: 4
+    cpu_threads: 2
+hidden_split:
+  strategy: stratified
+  fraction: 0.25
+  seed: 20261106
+grading:
+  hidden_metric:
+    name: f1_macro
+    threshold: 0.71
+    reported_tolerance: 0.04
+traps:
+  - kind: class_imbalance
+    planted: false
+    positive_class: true
+    acceptable_metrics: [roc_auc, pr_auc, f1, f1_macro, balanced_accuracy]
+expected_decision_class: train
