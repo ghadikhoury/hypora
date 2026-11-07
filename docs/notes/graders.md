@@ -96,9 +96,11 @@ final model, and the terminal state (`graders/outcomes.py`). Notes and narrative
   or cancel event, a non-`complete` agent handoff, a cancelled job, or a trial written but never tried
   leaves the cause unresolved.
 - **Malformed data** is in the dataset from the start, so nothing about timing ties a run's outcome to
-  it. It needs the platform's own finding that the data failed (`DATASET_UNREADABLE` from the controller
-  or `CONTRACT_DATA_ERROR` from a job) with the matching outcome. A run that silently works around the
-  rows, or stops for another reason such as a syntax error, fails closed.
+  it. A safe stop needs the controller's own finding that the bytes can't be read as a table
+  (`DATASET_UNREADABLE`, from the controller and no other source). A job's `CONTRACT_DATA_ERROR` doesn't
+  count: the worker assigns it to any `ValueError`, `KeyError`, or `TypeError` in the harness, including
+  a bad fix on another column or malformed predictions. Recovery fails closed: the case names no
+  malformed column, so no record can show the rows were detected and handled.
 - **Expected safe failure** keeps the plan's TRAIN or REUSE. `hidden_metric` may be null in such a case
   (`Case` validates this). Model-dependent checks become not applicable only after the proof holds;
   without the proof they fail. A runtime failure is never relabeled INFEASIBLE.

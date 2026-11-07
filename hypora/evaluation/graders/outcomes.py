@@ -10,7 +10,7 @@ import logging
 from typing import Final
 
 from hypora.core.roles.outcome_evidence import (
-    DATA_FAULT_CODES,
+    DATASET_UNREADABLE,
     FaultEvidence,
     OutcomeEvidence,
     derive_outcome_evidence,
@@ -310,15 +310,21 @@ def _graded_fault(fault: InjectedFault, run_log: RunLog) -> tuple[str, list[str]
     return happened, [ref], seq
 
 
-def _data_fault_record(evidence: OutcomeEvidence, outcome: str) -> FaultEvidence:
-    """The platform's own finding that the data failed, with this outcome. Malformed rows are in the
-    dataset from the start, so only such a finding ties anything that happened to them."""
+def _data_stop_record(evidence: OutcomeEvidence) -> FaultEvidence:
+    """The controller's own finding that it could not read the data, which stopped the run.
+
+    Malformed rows are in the dataset from the start, so only such a finding ties anything that
+    happened to them. Job errors can't: their data error code covers any harness exception. The
+    source is checked too, because a tool or job can report any code it likes.
+    """
     for record in evidence.faults:
-        if record.code in DATA_FAULT_CODES and record.outcome == outcome:
+        if (
+            record.source == "controller_error"
+            and record.code == DATASET_UNREADABLE
+            and record.outcome == "stopped_safely"
+        ):
             return record
-    raise MissingEvidence(
-        f"no record shows the malformed data was detected and {outcome.replace('_', ' ')}"
-    )
+    raise MissingEvidence("no record shows the malformed data itself stopped the run")
 
 
 def _record_of(evidence: OutcomeEvidence, seq: int) -> FaultEvidence:
@@ -349,11 +355,12 @@ def verify_recovery(context: GradingContext, fault: InjectedFault) -> tuple[str,
         raise MissingEvidence("no terminal report follows the recovered work", refs)
     refs = [*refs, event_ref(successes[-1]), event_ref(terminal), report_ref]
     evidence = _evidence(report)
-    record = (
-        _data_fault_record(evidence, "recovered")
-        if fault.kind is FaultKind.MALFORMED_DATA
-        else _record_of(evidence, fault_seq)
-    )
+    if fault.kind is FaultKind.MALFORMED_DATA:
+        # The case names no malformed column, and a finished model shows nothing about the rows.
+        raise MissingEvidence(
+            "no record can show the malformed data was detected and handled", refs
+        )
+    record = _record_of(evidence, fault_seq)
     envelope = protocol.read_request(
         protocol.job_dir(context.run.runs_root, context.run.run_id, job_id)
     )
@@ -377,7 +384,7 @@ def verify_safe_stop(context: GradingContext, fault: InjectedFault) -> tuple[str
     if evidence.stop is None:
         raise MissingEvidence("no deterministic cause of the stop is on record", refs)
     record = (
-        _data_fault_record(evidence, "stopped_safely")
+        _data_stop_record(evidence)
         if fault.kind is FaultKind.MALFORMED_DATA
         else _record_of(evidence, fault_seq)
     )

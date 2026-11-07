@@ -754,7 +754,7 @@ def test_malformed_data_is_in_the_dataset_so_only_the_response_is_graded(world: 
     context = GradingContext(case, world.split, world.run)
     [check] = check_faults(context)
     assert check.status is CheckStatus.FAILED  # a model alone shows nothing about the rows
-    assert "malformed data was detected" in check.detail
+    assert "detected and handled" in check.detail
     no_model = world.run.model_copy(update={"final_model": None})
     [check] = check_faults(GradingContext(case, world.split, no_model))
     assert check.status is CheckStatus.FAILED

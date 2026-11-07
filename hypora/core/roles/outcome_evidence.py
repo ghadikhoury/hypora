@@ -60,9 +60,9 @@ AMBIGUOUS_STOP_CODES: Final = frozenset({"RUN_LIMIT_REACHED", "RUN_CANCELLED"})
 FAILED_STATES: Final = frozenset({JobState.FAILED, JobState.FAILED_TERMINAL})
 UNCODED_JOB_FAILURE: Final = "JOB_FAILED"
 DATASET_UNREADABLE: Final = "DATASET_UNREADABLE"
-DATA_FAULT_CODES: Final = frozenset({DATASET_UNREADABLE, "CONTRACT_DATA_ERROR"})
-"""The platform's own findings that the data itself failed: the controller could not read it, or a
-contract's fixes could not apply to it. Any other failure says nothing about the data."""
+"""The controller could not read the dataset's bytes as a table: the one finding that is about the
+data itself. A job's `CONTRACT_DATA_ERROR` is not: the worker gives that code to any `ValueError`,
+`KeyError`, or `TypeError` in the harness, whatever raised it."""
 
 _CODE: Final = re.compile(r"\b([A-Z][A-Z0-9_]{2,}):")
 _TRAIN_PLANS: Final = frozenset(
@@ -492,7 +492,6 @@ def derive_outcome_evidence(database: Database, runs_root: Path, run_id: str) ->
 __all__ = [
     "CANDIDATE_TOOLS",
     "DATASET_UNREADABLE",
-    "DATA_FAULT_CODES",
     "MODEL_PRODUCING_TOOL",
     "DecisionEvidence",
     "FaultEvidence",

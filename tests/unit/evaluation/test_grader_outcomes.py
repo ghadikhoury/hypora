@@ -613,16 +613,30 @@ def test_an_unrelated_syntax_error_says_nothing_about_malformed_data(tmp_path: P
     world.tool_call("write_trial_files", "call_1", result="error", code="PIPELINE_SYNTAX_ERROR")
     agent_handoff(world)
     record_run_end(world, safe_failure=True)
-    assert "malformed data was detected" in check_of(grade(world), MALFORMED).detail
+    assert "malformed data itself" in check_of(grade(world), MALFORMED).detail
 
 
-def test_a_job_that_finds_the_data_bad_is_a_data_caused_stop(tmp_path: Path) -> None:
+def test_a_generic_job_data_error_is_not_a_data_caused_stop(tmp_path: Path) -> None:
+    # The worker gives this code to any ValueError, KeyError, or TypeError in the harness.
+    for name, reason in (
+        ("fix", "CONTRACT_DATA_ERROR: a fix on an unrelated column failed"),
+        ("predictions", "CONTRACT_DATA_ERROR: malformed prediction output"),
+    ):
+        world = stopping(tmp_path / name)
+        _malformed(world, "fail_safely")
+        add_experiment_job(world, "job_1", "FAILED", reason=reason)
+        agent_handoff(world)
+        record_run_end(world, safe_failure=True)
+        assert "malformed data itself" in check_of(grade(world), MALFORMED).detail
+
+
+def test_only_the_controller_can_report_the_data_unreadable(tmp_path: Path) -> None:
     world = stopping(tmp_path)
     _malformed(world, "fail_safely")
-    add_experiment_job(world, "job_1", "FAILED", reason="CONTRACT_DATA_ERROR: fix failed")
+    world.tool_call("write_trial_files", "call_1", result="error", code="DATASET_UNREADABLE")
     agent_handoff(world)
     record_run_end(world, safe_failure=True)
-    assert check_of(grade(world), MALFORMED).status is CheckStatus.PASSED
+    assert "malformed data itself" in check_of(grade(world), MALFORMED).detail
 
 
 def test_completing_a_model_is_not_handling_malformed_data(tmp_path: Path) -> None:
@@ -630,13 +644,13 @@ def test_completing_a_model_is_not_handling_malformed_data(tmp_path: Path) -> No
     _malformed(world, "recover")
     add_experiment_job(world, "job_validation")
     record_run_end(world)
-    assert "malformed data was detected" in check_of(grade(world), MALFORMED).detail
+    assert "detected and handled" in check_of(grade(world), MALFORMED).detail
 
 
-def test_detecting_bad_data_and_then_replacing_the_work_recovers(tmp_path: Path) -> None:
+def test_replacing_work_after_a_generic_data_error_is_not_handling_it(tmp_path: Path) -> None:
     world = recovering(tmp_path)
     _malformed(world, "recover")
     add_experiment_job(world, "job_1", "FAILED", reason="CONTRACT_DATA_ERROR: fix failed")
     add_experiment_job(world, "job_validation")
     record_run_end(world)
-    assert check_of(grade(world), MALFORMED).status is CheckStatus.PASSED
+    assert "detected and handled" in check_of(grade(world), MALFORMED).detail
