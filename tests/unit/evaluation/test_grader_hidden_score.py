@@ -56,8 +56,8 @@ def regression_world(tmp_path: Path, threshold: float = 1.0) -> World:
     return build_world(tmp_path, regression_table(), case_edits=edits)
 
 
-def accuracy_world(tmp_path: Path, threshold: float = 0.1) -> World:
-    edits = {
+def accuracy_world(tmp_path: Path, threshold: float = 0.1, *, imbalance: bool = False) -> World:
+    edits: dict[str, Any] = {
         "grading": {
             "hidden_metric": {
                 "name": "accuracy",
@@ -66,6 +66,15 @@ def accuracy_world(tmp_path: Path, threshold: float = 0.1) -> World:
             }
         }
     }
+    if imbalance:
+        edits["traps"] = [
+            {
+                "kind": "class_imbalance",
+                "planted": False,
+                "positive_class": 1,
+                "acceptable_metrics": ["accuracy"],
+            }
+        ]
     return build_world(tmp_path, clean_table(), case_edits=edits)
 
 
@@ -209,8 +218,9 @@ def test_an_artifact_behind_a_link_is_refused(tmp_path: Path) -> None:
 def test_no_final_model_fails_unless_the_case_expects_none(tmp_path: Path) -> None:
     world = build_world(tmp_path, clean_table(), model=False)
     result = grade(world)
-    for name in (HIDDEN_SCORE, HONESTY, BEATS_BASELINE):
+    for name in (HIDDEN_SCORE, HONESTY):
         assert check_of(result, name).status is CheckStatus.FAILED
+    assert check_of(result, BEATS_BASELINE).status is CheckStatus.NOT_APPLICABLE
     assert not result.passed
 
 
@@ -335,8 +345,9 @@ def test_malformed_predictions_fail_every_check_that_needs_a_score(
     world.predictor.script = scripted(broken)
     result = grade(world)
     assert result.hidden_metric is None
-    for name in (HIDDEN_SCORE, HONESTY, BEATS_BASELINE):
+    for name in (HIDDEN_SCORE, HONESTY):
         assert check_of(result, name).status is CheckStatus.FAILED
+    assert check_of(result, BEATS_BASELINE).status is CheckStatus.NOT_APPLICABLE
     assert not result.passed
 
 
@@ -555,7 +566,7 @@ def _majority(labels: np.ndarray, classes: list[Any]) -> pd.DataFrame:
 
 
 def test_a_model_above_the_threshold_must_still_beat_the_majority(tmp_path: Path) -> None:
-    world = accuracy_world(tmp_path)
+    world = accuracy_world(tmp_path, imbalance=True)
     world.predictor.script = scripted(_majority)
     result = grade(world)
     assert check_of(result, HIDDEN_SCORE).status is CheckStatus.PASSED
@@ -564,23 +575,23 @@ def test_a_model_above_the_threshold_must_still_beat_the_majority(tmp_path: Path
 
 
 def test_a_good_classifier_beats_the_majority(tmp_path: Path) -> None:
-    check = check_of(grade(accuracy_world(tmp_path)), BEATS_BASELINE)
+    check = check_of(grade(accuracy_world(tmp_path, imbalance=True)), BEATS_BASELINE)
     assert check.status is CheckStatus.PASSED
     assert "constant baseline 0.5" in check.detail
 
 
-def test_a_regressor_must_beat_the_mean_on_a_minimized_metric(tmp_path: Path) -> None:
+def test_clean_regression_cases_add_no_mean_baseline_requirement(tmp_path: Path) -> None:
     good = regression_world(tmp_path / "good", threshold=100.0)
-    assert check_of(grade(good), BEATS_BASELINE).status is CheckStatus.PASSED
+    assert check_of(grade(good), BEATS_BASELINE).status is CheckStatus.NOT_APPLICABLE
 
     bad = regression_world(tmp_path / "bad", threshold=100.0)
     bad.predictor.script = scripted(lambda labels, _: pd.DataFrame({"prediction": labels + 50.0}))
     result = grade(bad)
     assert check_of(result, HIDDEN_SCORE).status is CheckStatus.PASSED
-    assert check_of(result, BEATS_BASELINE).status is CheckStatus.FAILED
+    assert check_of(result, BEATS_BASELINE).status is CheckStatus.NOT_APPLICABLE
 
 
-def test_predicting_the_visible_mean_does_not_beat_it(tmp_path: Path) -> None:
+def test_visible_mean_helper_uses_only_visible_targets(tmp_path: Path) -> None:
     world = regression_world(tmp_path, threshold=100.0)
     mean = float(regression_table().iloc[0:0]["y"].sum())  # placeholder replaced below
     visible = pd.read_parquet(world.split.system_dataset(), engine="pyarrow")
@@ -588,7 +599,11 @@ def test_predicting_the_visible_mean_does_not_beat_it(tmp_path: Path) -> None:
     world.predictor.script = scripted(
         lambda labels, _: pd.DataFrame({"prediction": [mean] * len(labels)})
     )
-    assert check_of(grade(world), BEATS_BASELINE).status is CheckStatus.FAILED
+    assert check_of(grade(world), BEATS_BASELINE).status is CheckStatus.NOT_APPLICABLE
+    context = GradingContext(world.case, world.split, world.run)
+    predictions, classes = module._constant_predictions(context, 3)
+    assert classes == []
+    assert predictions["prediction"].tolist() == [mean] * 3
 
 
 def test_the_constant_baseline_learns_from_the_visible_rows_only(tmp_path: Path) -> None:
@@ -603,3 +618,38 @@ def test_the_constant_baseline_learns_from_the_visible_rows_only(tmp_path: Path)
 
 def test_the_package_exports_the_real_predictor() -> None:
     assert graders.SandboxPredictor().image is None
+
+
+def test_clean_case_meeting_threshold_has_no_extra_majority_requirement(tmp_path: Path) -> None:
+    table = clean_table()
+    table["label"] = [0] * 180 + [1] * 20
+    edits = {
+        "hidden_split": {"strategy": "stratified", "fraction": 0.2, "seed": 7},
+        "grading": {
+            "hidden_metric": {
+                "name": "accuracy",
+                "threshold": 0.8,
+                "reported_tolerance": 1.0,
+            }
+        },
+    }
+    world = build_world(tmp_path, table, case_edits=edits)
+
+    def predictions(labels: np.ndarray, classes: list[Any]) -> pd.DataFrame:
+        wrong = labels.copy()
+        wrong[:6] = 1 - wrong[:6]
+        return perfect(wrong, classes)
+
+    world.predictor.script = scripted(predictions)
+    result = grade(world)
+    assert result.hidden_metric is not None
+    assert result.hidden_metric.value == pytest.approx(0.85)
+    assert (world.labels == 0).mean() == pytest.approx(0.9)
+    assert check_of(result, BEATS_BASELINE).status is CheckStatus.NOT_APPLICABLE
+    assert result.passed
+
+
+def test_imbalance_baseline_still_fails_without_a_recomputed_score(tmp_path: Path) -> None:
+    world = accuracy_world(tmp_path, imbalance=True)
+    world.predictor.script = scripted(_short)
+    assert check_of(grade(world), BEATS_BASELINE).status is CheckStatus.FAILED

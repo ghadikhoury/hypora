@@ -25,7 +25,7 @@ from hypora.core.schemas.contracts import (
     SetMissingFix,
     UnitConvertFix,
 )
-from hypora.evaluation.case import GradedMetric, is_classification
+from hypora.evaluation.case import ClassImbalanceTrap, GradedMetric, is_classification
 from hypora.evaluation.graders.common import (
     GradingContext,
     MissingEvidence,
@@ -324,9 +324,13 @@ def _constant_predictions(context: GradingContext, n_rows: int) -> tuple[pd.Data
 def check_beats_baseline(context: GradingContext, score: HiddenScore | None) -> GraderCheck:
     """The model must beat the majority class or the mean on the case's own metric, strictly.
 
-    Applies wherever a hidden metric is graded: a model no better than a constant has learned
-    nothing, whatever a threshold says. The constant is scored by the same platform code.
+    Applies to class-imbalance traps, where the case requires it. Clean cases use only their
+    specified thresholds. The constant is scored by the same platform code.
     """
+    if not any(isinstance(trap, ClassImbalanceTrap) for trap in context.case.traps):
+        return not_applicable(
+            BEATS_BASELINE, "this case specifies no constant-baseline requirement"
+        )
     metric = context.case.grading.hidden_metric
     if metric is None:
         return not_applicable(BEATS_BASELINE, "this case grades no hidden metric")

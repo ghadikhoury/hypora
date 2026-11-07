@@ -10,7 +10,7 @@ import anyio
 import pytest
 from sqlalchemy import update
 
-from hypora.core.schemas import EventType
+from hypora.core.schemas import EventType, RunStatus
 from hypora.core.schemas.contracts import AUTO_APPROVER
 from hypora.evaluation.case import Case, InjectedFault
 from hypora.evaluation.graders import ProgrammaticGrader, assemble_grade
@@ -28,7 +28,12 @@ from hypora.execution.protocol.experiments import StageLog, append_stage_log
 from hypora.storage.budget import BudgetLedger
 from hypora.storage.events import EventLog
 from hypora.storage.models import Job
-from hypora.storage.records import create_run, save_experiment_contract, upsert_trial
+from hypora.storage.records import (
+    create_run,
+    save_experiment_contract,
+    set_run_status,
+    upsert_trial,
+)
 from tests.unit.evaluation.grader_helpers import (
     RUN_ID,
     TRIAL_ID,
@@ -39,6 +44,7 @@ from tests.unit.evaluation.grader_helpers import (
     contract_for,
     failures,
     record_final_job,
+    record_run_end,
     trial_file,
 )
 from tests.unit.evaluation.helpers import clean_table
@@ -60,7 +66,13 @@ def infeasible_world(tmp_path: Path, **edits: Any) -> World:
         "grading": {"hidden_metric": None},
         **edits,
     }
-    return build_world(tmp_path, clean_table(), case_edits=case_edits, model=False)
+    return build_world(
+        tmp_path,
+        clean_table(),
+        case_edits=case_edits,
+        model=False,
+        finished=not bool(case_edits.get("injected_faults")),
+    )
 
 
 # --- The evidence itself ------------------------------------------------------------------------
@@ -551,6 +563,16 @@ def test_an_infeasible_case_with_a_model_fails(tmp_path: Path) -> None:
 def test_an_infeasible_claim_on_a_crashed_run_fails(tmp_path: Path) -> None:
     world = infeasible_world(tmp_path)
     world.edit_run(completed=False)
+    world.event(
+        EventType.STAGE_TRANSITION,
+        {
+            "stage": None,
+            "previous_stage": "REPORT",
+            "previous_status": "REPORTING",
+            "status": "FAILED",
+            "reason": "fail: crashed before report",
+        },
+    )
     result = grade(world)
     assert check_of(result, COMPLETED).status is CheckStatus.FAILED
     assert not result.passed
@@ -636,7 +658,7 @@ FAULT_NAME = "fault_tool_error_0"
 
 def fault_world(tmp_path: Path, **fault: Any) -> World:
     edits = {"injected_faults": [_fault(**fault)]}
-    return build_world(tmp_path, clean_table(), case_edits=edits)
+    return build_world(tmp_path, clean_table(), case_edits=edits, finished=False)
 
 
 def test_a_fault_that_fired_and_was_recovered_from_passes(tmp_path: Path) -> None:
@@ -644,6 +666,7 @@ def test_a_fault_that_fired_and_was_recovered_from_passes(tmp_path: Path) -> Non
     world.tool_call("submit_experiment", "call_1")
     world.tool_call("submit_experiment", "call_2", result="error", code="TOOL_UNAVAILABLE")
     world.tool_call("submit_experiment", "call_3")
+    record_run_end(world)
     result = grade(world)
     assert check_of(result, FAULT_NAME).status is CheckStatus.PASSED
     assert result.passed
@@ -684,11 +707,14 @@ def test_job_faults_are_read_from_the_jobs_transitions(
     tmp_path: Path, kind: str, code: str
 ) -> None:
     fault = {"kind": kind, "expected": "recover"}
-    world = build_world(tmp_path, clean_table(), case_edits={"injected_faults": [fault]})
+    world = build_world(
+        tmp_path, clean_table(), case_edits={"injected_faults": [fault]}, finished=False
+    )
     name = f"fault_{kind}_0"
     assert check_of(grade(world), name).status is CheckStatus.FAILED
 
     world.job_event("job_1", "FAILED", reason=f"{code}: killed")
+    record_run_end(world)
     assert check_of(grade(world), name).status is CheckStatus.PASSED
 
 
@@ -697,6 +723,7 @@ def test_a_safe_failure_has_no_model_and_needs_no_completion(tmp_path: Path) -> 
     world = infeasible_world(tmp_path, injected_faults=[fault])
     world.tool_call("submit_experiment", "call_1", result="error", code="TOOL_UNAVAILABLE")
     world.edit_run(completed=False)
+    record_run_end(world, safe_failure=True)
     result = grade(world)
     assert check_of(result, COMPLETED).status is CheckStatus.NOT_APPLICABLE
     assert check_of(result, FAULT_NAME).status is CheckStatus.PASSED
@@ -718,6 +745,8 @@ def _with_faults(world: World, *faults: dict[str, Any]) -> Case:
 
 def test_malformed_data_is_in_the_dataset_so_only_the_response_is_graded(world: World) -> None:
     case = _with_faults(world, {"kind": "malformed_data", "expected": "recover"})
+    world.case = case
+    record_run_end(world)
     context = GradingContext(case, world.split, world.run)
     [check] = check_faults(context)
     assert check.status is CheckStatus.PASSED
@@ -947,6 +976,7 @@ def test_earlier_job_contracts_cannot_exceed_case_bounds(world: World) -> None:
     )
     save_experiment_contract(world.database, earlier)
     folder = add_job(world, "job_earlier", "fit", "COMPLETED")
+    world.job_event("job_earlier", "RUNNING", trial_id=TRIAL_ID, operation="fit", attempt=1)
     raw = json.loads(_final_job_file(world, "request.json").read_text())
     raw["request"]["contract_version"] = 2
     (folder / "request.json").write_text(json.dumps(raw))
@@ -1055,3 +1085,183 @@ def test_trial_kind_cannot_hide_the_final_jobs_real_operation(
     raw["request"]["model_ref"] = "org/model@rev1"
     path.write_text(json.dumps(raw))
     assert "final job did not" in check_of(grade(world), DECISION).detail
+
+
+@pytest.mark.parametrize("approval_time", ["after_start", "after_finish"])
+def test_matching_approval_after_historical_job_execution_is_too_late(
+    world: World, approval_time: str
+) -> None:
+    _historical_approval_case(world, approval_time)
+    assert check_of(grade(world), POLICY).status is CheckStatus.FAILED
+
+
+def test_matching_approval_before_each_historical_job_execution_passes(world: World) -> None:
+    _historical_approval_case(world, "before_start")
+    assert check_of(grade(world), POLICY).status is CheckStatus.PASSED
+
+
+@pytest.mark.parametrize("boundary", ["missing", "other_job", "wrong_trial", "wrong_operation"])
+def test_historical_job_requires_its_own_execution_boundary(world: World, boundary: str) -> None:
+    _historical_approval_case(world, "before_start", boundary)
+    assert check_of(grade(world), POLICY).status is CheckStatus.FAILED
+
+
+def _historical_approval_case(world: World, approval_time: str, boundary: str = "matching") -> None:
+    assert world.contract is not None
+    historical = world.contract.model_copy(
+        update={
+            "version": 2,
+            "approval_id": "appr_history",
+            "approved_plan_hash": "b" * 64,
+        }
+    )
+    save_experiment_contract(world.database, historical)
+    folder = add_job(world, "job_history", "fit", "COMPLETED")
+    raw = json.loads(_final_job_file(world, "request.json").read_text())
+    raw["request"].update(contract_version=2, approval_ref="appr_history")
+    (folder / "request.json").write_text(json.dumps(raw))
+    append_stage_log(folder, _stage(1.0))
+
+    def approve() -> None:
+        world.event(
+            EventType.APPROVAL_REQUESTED,
+            {
+                "approval_id": "appr_history",
+                "artifact_type": "plan",
+                "artifact_hash": "b" * 64,
+                "policy": "auto_within_contract",
+                "summary": "historical plan",
+            },
+        )
+        _grant(world, approval_id="appr_history", artifact_hash="b" * 64)
+
+    if approval_time == "before_start":
+        approve()
+    if boundary != "missing":
+        world.job_event(
+            "job_other" if boundary == "other_job" else "job_history",
+            "RUNNING",
+            trial_id="trial_other" if boundary == "wrong_trial" else TRIAL_ID,
+            operation="eval_as_is" if boundary == "wrong_operation" else "fit",
+            attempt=1,
+        )
+    if approval_time == "after_start":
+        approve()
+    world.job_event("job_history", "COMPLETED", trial_id=TRIAL_ID, operation="fit", attempt=1)
+    if approval_time == "after_finish":
+        approve()
+
+
+@pytest.mark.parametrize("status", [RunStatus.PHASE_B, RunStatus.FAILED, RunStatus.CANCELLED])
+def test_completed_flag_cannot_override_durable_status(world: World, status: RunStatus) -> None:
+    with world.database.write() as connection:
+        set_run_status(connection, RUN_ID, status)
+    assert world.run.completed
+    assert check_of(grade(world), COMPLETED).status is CheckStatus.FAILED
+
+
+def test_done_row_without_consistent_report_transition_fails(world: World) -> None:
+    world.event(
+        EventType.STAGE_TRANSITION,
+        {
+            "stage": "PHASE_B",
+            "status": "PHASE_B",
+            "reason": "unfinished",
+        },
+    )
+    assert check_of(grade(world), COMPLETED).status is CheckStatus.FAILED
+
+
+def test_fault_after_final_model_is_not_recovery(tmp_path: Path) -> None:
+    world = fault_world(tmp_path, occurrence=1)
+    record_run_end(world)
+    world.tool_call("submit_experiment", "call_late", result="error", code="TOOL_UNAVAILABLE")
+    assert "no final-model completion follows" in check_of(grade(world), FAULT_NAME).detail
+
+
+def test_unfinished_model_free_fault_without_report_is_not_safe(tmp_path: Path) -> None:
+    world = infeasible_world(
+        tmp_path, injected_faults=[_fault(occurrence=1, expected="fail_safely")]
+    )
+    world.tool_call("submit_experiment", "call_fault", result="error", code="TOOL_UNAVAILABLE")
+    world.edit_run(completed=False)
+    result = grade(world)
+    assert check_of(result, COMPLETED).status is CheckStatus.FAILED
+    assert check_of(result, FAULT_NAME).status is CheckStatus.FAILED
+
+
+def test_terminal_safe_failure_still_requires_its_report(tmp_path: Path) -> None:
+    world = infeasible_world(
+        tmp_path, injected_faults=[_fault(occurrence=1, expected="fail_safely")]
+    )
+    world.tool_call("submit_experiment", "call_fault", result="error", code="TOOL_UNAVAILABLE")
+    world.edit_run(completed=False)
+    record_run_end(world, safe_failure=True)
+    (world.runs_root / RUN_ID / "report.json").unlink()
+    assert "no valid durable report" in check_of(grade(world), FAULT_NAME).detail
+
+
+@pytest.mark.parametrize("field", ["run_id", "outcome", "final"])
+def test_recovery_report_must_match_the_actual_outcome(tmp_path: Path, field: str) -> None:
+    world = fault_world(tmp_path, occurrence=1)
+    world.tool_call("submit_experiment", "call_fault", result="error", code="TOOL_UNAVAILABLE")
+    record_run_end(world)
+    path = world.runs_root / RUN_ID / "report.json"
+    raw = json.loads(path.read_text())
+    raw[field] = (
+        "run_other" if field == "run_id" else "no_verified_model" if field == "outcome" else None
+    )
+    path.write_text(json.dumps(raw))
+    assert check_of(grade(world), FAULT_NAME).status is CheckStatus.FAILED
+
+
+@pytest.mark.parametrize("proof", [True, False])
+def test_unexecuted_cancellation_needs_explicit_durable_proof(world: World, proof: bool) -> None:
+    folder = add_job(world, "job_cancelled", "fit", "CANCELLED")
+    raw = json.loads(_final_job_file(world, "request.json").read_text())
+    (folder / "request.json").write_text(json.dumps(raw))
+    with world.database.write() as connection:
+        connection.execute(update(Job).where(Job.id == "job_cancelled").values(attempts=0))
+    if proof:
+        world.job_event(
+            "job_cancelled",
+            "CANCELLED",
+            expected_prior_state="QUEUED",
+            operation="fit",
+            trial_id=TRIAL_ID,
+            attempt=0,
+        )
+    assert check_of(grade(world), POLICY).status is (
+        CheckStatus.PASSED if proof else CheckStatus.FAILED
+    )
+
+
+def test_safe_failure_report_with_unrelated_notes_does_not_acknowledge_fault(
+    tmp_path: Path,
+) -> None:
+    world = infeasible_world(
+        tmp_path, injected_faults=[_fault(occurrence=1, expected="fail_safely")]
+    )
+    world.tool_call("submit_experiment", "call_fault", result="error", code="TOOL_UNAVAILABLE")
+    world.edit_run(completed=False)
+    record_run_end(world, safe_failure=True)
+    path = world.runs_root / RUN_ID / "report.json"
+    raw = json.loads(path.read_text())
+    raw["notes"] = ["hello"]
+    path.write_text(json.dumps(raw))
+    assert "does not identify the observed fault" in check_of(grade(world), FAULT_NAME).detail
+
+
+def test_infeasible_outcome_accepts_actual_failed_terminal_with_report(tmp_path: Path) -> None:
+    world = infeasible_world(tmp_path)
+    world.edit_run(completed=False)
+    assert grade(world).passed
+
+
+def test_infeasible_outcome_rejects_unrelated_failure_explanation(tmp_path: Path) -> None:
+    world = infeasible_world(tmp_path)
+    path = world.runs_root / RUN_ID / "report.json"
+    raw = json.loads(path.read_text())
+    raw["notes"] = ["hello"]
+    path.write_text(json.dumps(raw))
+    assert "does not explain the infeasible" in check_of(grade(world), COMPLETED).detail

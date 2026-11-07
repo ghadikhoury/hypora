@@ -13,7 +13,10 @@ import numpy as np
 import pandas as pd  # type: ignore[import-untyped]
 from sqlalchemy import insert
 
+from hypora.core.controller.states import REPORT, RunEvent, next_state
 from hypora.core.hashing import sha256_hex
+from hypora.core.roles.reporter import EarlyStopReport, Report
+from hypora.core.roles.reporter import FinalModel as ReportFinalModel
 from hypora.core.schemas import (
     ActorRole,
     EventType,
@@ -47,6 +50,7 @@ from hypora.storage.models import Job
 from hypora.storage.records import (
     create_run,
     save_experiment_contract,
+    set_run_status,
     upsert_trial,
 )
 from tests.unit.evaluation.helpers import case_on
@@ -277,6 +281,7 @@ def build_world(
     model: bool = True,
     decision: str | None = None,
     trial_kind: str = "candidate",
+    finished: bool = True,
 ) -> World:
     """A passing run of a case on `frame`; tests break one thing at a time."""
     snapshots = tmp_path / "snapshots"
@@ -324,6 +329,8 @@ def build_world(
         predictor=ScriptedPredictor(labels, classes),
     )
     seed_records(world, trial_kind=trial_kind)
+    if finished:
+        record_run_end(world)
     return world
 
 
@@ -388,6 +395,9 @@ def record_final_job(world: World, operation: str = "fit") -> None:
     folder = world.runs_root / RUN_ID / "jobs" / "job_final"
     if not folder.exists():
         folder = add_job(world, "job_final", operation, "COMPLETED", final.trial_id)
+        world.job_event(
+            "job_final", "RUNNING", operation=operation, trial_id=final.trial_id, attempt=1
+        )
         append_stage_log(
             folder,
             StageLog(
@@ -436,3 +446,83 @@ def record_final_job(world: World, operation: str = "fit") -> None:
     )
     (folder / "request.json").write_text(envelope.model_dump_json(), encoding="utf-8")
     (folder / "outcome.json").write_text(outcome.model_dump_json(), encoding="utf-8")
+
+
+def record_run_end(world: World, *, safe_failure: bool = False) -> None:
+    """A real report file plus durable terminal records, after the work being tested."""
+    run_dir = world.runs_root / RUN_ID
+    run_dir.mkdir(parents=True, exist_ok=True)
+    if world.final is not None and not safe_failure:
+        request = ExperimentRequest.model_validate_json(
+            (run_dir / "jobs" / "job_final" / "request.json").read_bytes()
+        ).request
+        world.job_event(
+            "job_final",
+            "COMPLETED",
+            operation=request.operation,
+            trial_id=world.final.trial_id,
+            attempt=1,
+        )
+        contract = world.final.contract
+        report: Report | EarlyStopReport = Report(
+            run_id=RUN_ID,
+            outcome="verified_model",
+            objective="fixture objective",
+            target=contract.target,
+            task_type=contract.task_type,
+            primary_metric=contract.primary_metric,
+            direction=contract.primary_metric.direction,
+            secondary_metrics=[],
+            split="fixture",
+            features=1,
+            excluded_features=[],
+            leakage_screen="fixture",
+            trials=[],
+            notes=["Run completed."],
+            final=ReportFinalModel(
+                trial_id=world.final.trial_id,
+                hypothesis="fixture",
+                test_metrics={m.name.value: m.value for m in world.final.reported_metrics},
+                validation_means={},
+                verified=True,
+                checks=[],
+            ),
+        )
+    else:
+        report = EarlyStopReport(run_id=RUN_ID, notes=["Stopped safely; no model was verified."])
+    if world.case.expected_decision_class is DecisionClass.INFEASIBLE:
+        report.notes.append("The objective is infeasible; no model can meet the constraints.")
+    codes = [
+        fault.error_code
+        or {"oom": "OOM_KILLED", "timeout": "TIMEOUT"}.get(fault.kind.value, fault.kind.value)
+        for fault in world.case.injected_faults
+    ]
+    report.notes.extend(f"Observed fault: {code}." for code in codes)
+    (run_dir / "report.json").write_text(report.model_dump_json(), encoding="utf-8")
+    event = (
+        RunEvent.REPORTED_UNVERIFIED
+        if safe_failure or world.final is None
+        else RunEvent.REPORTED_VERIFIED
+    )
+    terminal = next_state(REPORT, event)
+    status = terminal.status
+    world.event(
+        EventType.STAGE_TRANSITION,
+        {
+            "stage": REPORT.stage,
+            "status": REPORT.status,
+            "reason": "phase_b_done: reporting",
+        },
+    )
+    with world.database.write() as connection:
+        set_run_status(connection, RUN_ID, status)
+    world.event(
+        EventType.STAGE_TRANSITION,
+        {
+            "stage": terminal.stage,
+            "previous_stage": REPORT.stage,
+            "previous_status": "REPORTING",
+            "status": status.value,
+            "reason": f"{event.value}: report written",
+        },
+    )
