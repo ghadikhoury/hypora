@@ -10,7 +10,6 @@ import logging
 from typing import Final
 
 from hypora.core.roles.outcome_evidence import (
-    DATASET_UNREADABLE,
     FaultEvidence,
     OutcomeEvidence,
     derive_outcome_evidence,
@@ -50,6 +49,9 @@ log = logging.getLogger(__name__)
 _FAILED_STATES: Final = frozenset({JobState.FAILED, JobState.FAILED_TERMINAL})
 _JOB_FAULT_CODES: Final = {FaultKind.OOM: "OOM_KILLED", FaultKind.TIMEOUT: "TIMEOUT"}
 _PROSE: Final = {"notes", "narrative", "narrative_note"}
+GRADED_FAULTS: Final = frozenset({FaultKind.OOM, FaultKind.TIMEOUT, FaultKind.TOOL_ERROR})
+"""Fault kinds whose outcome the records can prove. Malformed data leaves no record tying an outcome
+to the rows, so its grader arrives with S3.H3's bad-data cases (D-032); crash kinds with S3.E4."""
 
 
 def final_job_id(context: GradingContext, log: RunLog) -> str:
@@ -300,31 +302,14 @@ def fired_fault(fault: InjectedFault, run_log: RunLog) -> tuple[str, str, int] |
 
 
 def _graded_fault(fault: InjectedFault, run_log: RunLog) -> tuple[str, list[str], int]:
-    """(detail, references, sequence) of a fault. Malformed rows are in the data from the start."""
-    if fault.kind is FaultKind.MALFORMED_DATA:
-        return "the malformed rows are in the dataset", [], 0
+    """(detail, references, sequence) of a fault that has a grader and is shown to have happened."""
+    if fault.kind not in GRADED_FAULTS:
+        raise MissingEvidence(f"no grader exists yet for {fault.kind.value} faults")
     found = fired_fault(fault, run_log)
     if found is None:
         raise MissingEvidence("the log shows no sign that this fault happened", [run_log.ref])
     happened, ref, seq = found
     return happened, [ref], seq
-
-
-def _data_stop_record(evidence: OutcomeEvidence) -> FaultEvidence:
-    """The controller's own finding that it could not read the data, which stopped the run.
-
-    Malformed rows are in the dataset from the start, so only such a finding ties anything that
-    happened to them. Job errors can't: their data error code covers any harness exception. The
-    source is checked too, because a tool or job can report any code it likes.
-    """
-    for record in evidence.faults:
-        if (
-            record.source == "controller_error"
-            and record.code == DATASET_UNREADABLE
-            and record.outcome == "stopped_safely"
-        ):
-            return record
-    raise MissingEvidence("no record shows the malformed data itself stopped the run")
 
 
 def _record_of(evidence: OutcomeEvidence, seq: int) -> FaultEvidence:
@@ -355,11 +340,6 @@ def verify_recovery(context: GradingContext, fault: InjectedFault) -> tuple[str,
         raise MissingEvidence("no terminal report follows the recovered work", refs)
     refs = [*refs, event_ref(successes[-1]), event_ref(terminal), report_ref]
     evidence = _evidence(report)
-    if fault.kind is FaultKind.MALFORMED_DATA:
-        # The case names no malformed column, and a finished model shows nothing about the rows.
-        raise MissingEvidence(
-            "no record can show the malformed data was detected and handled", refs
-        )
     record = _record_of(evidence, fault_seq)
     envelope = protocol.read_request(
         protocol.job_dir(context.run.runs_root, context.run.run_id, job_id)
@@ -383,11 +363,7 @@ def verify_safe_stop(context: GradingContext, fault: InjectedFault) -> tuple[str
     refs = [*refs, event_ref(terminal), report_ref]
     if evidence.stop is None:
         raise MissingEvidence("no deterministic cause of the stop is on record", refs)
-    record = (
-        _data_stop_record(evidence)
-        if fault.kind is FaultKind.MALFORMED_DATA
-        else _record_of(evidence, fault_seq)
-    )
+    record = _record_of(evidence, fault_seq)
     if record.outcome != "stopped_safely":
         raise MissingEvidence("the stop can't be attributed to this fault", refs)
     if terminal.seq <= max(fault_seq, *evidence.stop.event_seqs):
@@ -437,6 +413,7 @@ def no_model_justification(context: GradingContext) -> str | None:
 
 
 __all__ = [
+    "GRADED_FAULTS",
     "final_job_id",
     "fired_fault",
     "no_model_justification",

@@ -594,8 +594,8 @@ Build: error taxonomy mapping (`ToolError` classes → retry/replan/ask); replan
 Done when: an injected OOM leads to a revised plan with a smaller configuration; non-idempotent calls are never auto-retried.
 
 **S3.H3 — Fault case set** · PR `s3.h3-fault-cases` · `⇉ PARALLEL · S3` · Depends on S3.H2
-Build: ≥ 15 distinct fault cases — 5 tool failures, 5 timeouts, 5 bad-data cases — as eval cases with fault injection hooks in the MCP server and worker; graded on recovery and task success.
-Done when: the cases run under the runner with `planning=on/off`.
+Build: ≥ 15 distinct fault cases — 5 tool failures, 5 timeouts, 5 bad-data cases — as eval cases with fault injection hooks in the MCP server and worker; graded on recovery and task success. The bad-data cases also build the malformed-data fault grader moved here from S2.2 (D-032): they need evidence tying an outcome to the bad rows, since a malformed row usually loads fine and a job's `CONTRACT_DATA_ERROR` covers any harness exception.
+Done when: the cases run under the runner with `planning=on/off`, and malformed-data recovery and safe failure each have passing and failing grader tests.
 
 ### Stream I — Observability (spec §16; course F7)
 

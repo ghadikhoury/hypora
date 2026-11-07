@@ -335,26 +335,15 @@ def test_a_reuse_plan_keeps_reuse_through_a_safe_stop(tmp_path: Path) -> None:
     assert check_of(result, DECISION).status is CheckStatus.PASSED
 
 
-def test_a_controller_error_is_a_direct_stop_only_for_itself(tmp_path: Path) -> None:
-    malformed = {"kind": "malformed_data", "expected": "fail_safely"}
-    world = stopping(tmp_path / "direct")
-    world.case = world.case.model_copy(update={"injected_faults": (_fault_model(malformed),)})
-    world.event(
-        EventType.ERROR, {"component": "controller", "code": "DATASET_UNREADABLE", "message": "x"}
-    )
-    record_run_end(world, safe_failure=True)
-    assert (
-        "stopped safely (controller_error)"
-        in check_of(grade(world), "fault_malformed_data_0").detail
-    )
-
-    # A tool fault followed by a controller error: nothing ties the two together.
-    world = stopping(tmp_path / "ambiguous")
+def test_a_controller_error_is_the_stop_but_does_not_explain_another_fault(tmp_path: Path) -> None:
+    world = stopping(tmp_path)
     world.tool_call("write_trial_files", "call_1", result="error", code="PIPELINE_SYNTAX_ERROR")
     world.event(
         EventType.ERROR, {"component": "controller", "code": "CONTROLLER_ERROR", "message": "x"}
     )
     record_run_end(world, safe_failure=True)
+    report = json.loads(_report(world).read_text())
+    assert report["evidence"]["stop"]["cause"] == "controller_error"
     assert "can't be attributed" in check_of(grade(world), TOOL_FAULT).detail
 
 
@@ -596,7 +585,7 @@ def test_a_failed_attempt_of_a_job_that_completed_did_not_cause_the_stop(tmp_pat
     assert check_of(grade(world), OOM_FAULT).status is CheckStatus.FAILED
 
 
-# --- Malformed data -------------------------------------------------------------------------------
+# --- Malformed data has no grader yet (D-032; S3.H3) ----------------------------------------------
 
 
 def _malformed(world: World, expected: str) -> None:
@@ -605,52 +594,56 @@ def _malformed(world: World, expected: str) -> None:
 
 
 MALFORMED = "fault_malformed_data_0"
+NO_GRADER = "no grader exists yet for malformed_data faults"
 
 
-def test_an_unrelated_syntax_error_says_nothing_about_malformed_data(tmp_path: Path) -> None:
+def test_a_stop_earns_no_malformed_data_credit_whatever_its_cause(tmp_path: Path) -> None:
+    for name, reason in (
+        ("fix", "CONTRACT_DATA_ERROR: a fix on an unrelated column failed"),
+        ("predictions", "CONTRACT_DATA_ERROR: malformed prediction output"),
+        ("trial", "TRIAL_ERROR: crashed"),
+    ):
+        world = stopping(tmp_path / name, grading={"hidden_metric": None})
+        _malformed(world, "fail_safely")
+        add_experiment_job(world, "job_1", "FAILED", reason=reason)
+        agent_handoff(world)
+        record_run_end(world, safe_failure=True)
+        result = grade(world)
+        assert not result.passed
+        assert NO_GRADER in check_of(result, MALFORMED).detail
+        assert NO_GRADER in check_of(result, DECISION).detail  # no excuse for having no model
+
+
+def test_a_syntax_error_earns_no_malformed_data_credit(tmp_path: Path) -> None:
     world = stopping(tmp_path)
     _malformed(world, "fail_safely")
     world.tool_call("write_trial_files", "call_1", result="error", code="PIPELINE_SYNTAX_ERROR")
     agent_handoff(world)
     record_run_end(world, safe_failure=True)
-    assert "malformed data itself" in check_of(grade(world), MALFORMED).detail
+    assert NO_GRADER in check_of(grade(world), MALFORMED).detail
 
 
-def test_a_generic_job_data_error_is_not_a_data_caused_stop(tmp_path: Path) -> None:
-    # The worker gives this code to any ValueError, KeyError, or TypeError in the harness.
-    for name, reason in (
-        ("fix", "CONTRACT_DATA_ERROR: a fix on an unrelated column failed"),
-        ("predictions", "CONTRACT_DATA_ERROR: malformed prediction output"),
-    ):
-        world = stopping(tmp_path / name)
-        _malformed(world, "fail_safely")
-        add_experiment_job(world, "job_1", "FAILED", reason=reason)
-        agent_handoff(world)
-        record_run_end(world, safe_failure=True)
-        assert "malformed data itself" in check_of(grade(world), MALFORMED).detail
-
-
-def test_only_the_controller_can_report_the_data_unreadable(tmp_path: Path) -> None:
-    world = stopping(tmp_path)
-    _malformed(world, "fail_safely")
-    world.tool_call("write_trial_files", "call_1", result="error", code="DATASET_UNREADABLE")
-    agent_handoff(world)
-    record_run_end(world, safe_failure=True)
-    assert "malformed data itself" in check_of(grade(world), MALFORMED).detail
-
-
-def test_completing_a_model_is_not_handling_malformed_data(tmp_path: Path) -> None:
-    world = recovering(tmp_path)
-    _malformed(world, "recover")
-    add_experiment_job(world, "job_validation")
-    record_run_end(world)
-    assert "detected and handled" in check_of(grade(world), MALFORMED).detail
-
-
-def test_replacing_work_after_a_generic_data_error_is_not_handling_it(tmp_path: Path) -> None:
+def test_a_finished_model_earns_no_malformed_data_credit(tmp_path: Path) -> None:
     world = recovering(tmp_path)
     _malformed(world, "recover")
     add_experiment_job(world, "job_1", "FAILED", reason="CONTRACT_DATA_ERROR: fix failed")
     add_experiment_job(world, "job_validation")
     record_run_end(world)
-    assert "detected and handled" in check_of(grade(world), MALFORMED).detail
+    result = grade(world)
+    assert not result.passed
+    assert NO_GRADER in check_of(result, MALFORMED).detail
+
+
+@pytest.mark.parametrize("kind", ["worker_killed", "controller_killed", "duplicate_submit"])
+def test_a_fault_kind_without_a_grader_says_so_and_excuses_nothing(
+    tmp_path: Path, kind: str
+) -> None:
+    world = stopping(tmp_path, grading={"hidden_metric": None})
+    fault = _fault_model({"kind": kind, "expected": "fail_safely"})
+    world.case = world.case.model_copy(update={"injected_faults": (fault,)})
+    world.tool_call("write_trial_files", "call_1", result="error", code="PIPELINE_SYNTAX_ERROR")
+    agent_handoff(world)
+    record_run_end(world, safe_failure=True)
+    result = grade(world)
+    assert not result.passed
+    assert f"no grader exists yet for {kind}" in check_of(result, DECISION).detail

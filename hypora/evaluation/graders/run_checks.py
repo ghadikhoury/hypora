@@ -24,7 +24,7 @@ from hypora.core.schemas.events import (
     ToolResultEvent,
     ToolResultStatus,
 )
-from hypora.evaluation.case import Case, DecisionClass, FaultKind, FaultResponse, InjectedFault
+from hypora.evaluation.case import Case, DecisionClass, FaultResponse, InjectedFault
 from hypora.evaluation.graders.common import (
     GradingContext,
     MissingEvidence,
@@ -37,6 +37,7 @@ from hypora.evaluation.graders.common import (
     verdict,
 )
 from hypora.evaluation.graders.outcomes import (
+    GRADED_FAULTS,
     final_job_id,
     terminal_transition,
     verified_report,
@@ -68,9 +69,6 @@ _TOLERANCE: Final = 1e-9
 
 _TRAINED_KINDS: Final = frozenset({TrialKind.BASELINE, TrialKind.CANDIDATE, TrialKind.FINETUNE})
 _TRAINING_OPERATIONS: Final = frozenset({Operation.FIT, Operation.FINETUNE})
-_GRADED_FAULTS: Final = frozenset(
-    {FaultKind.OOM, FaultKind.TIMEOUT, FaultKind.TOOL_ERROR, FaultKind.MALFORMED_DATA}
-)
 
 
 # --- Policy -------------------------------------------------------------------------------------
@@ -583,7 +581,7 @@ def check_completed(context: GradingContext) -> GraderCheck:
 
 def _check_fault(context: GradingContext, fault: InjectedFault, name: str) -> GraderCheck:
     """Recovers or fails safely (spec §19.2), once the fault is shown to have happened."""
-    if fault.kind not in _GRADED_FAULTS:
+    if fault.kind not in GRADED_FAULTS:
         return failed(name, f"no grader exists yet for {fault.kind.value} faults")
     run = context.run
     if fault.expected is FaultResponse.RECOVER:

@@ -95,17 +95,15 @@ final model, and the terminal state (`graders/outcomes.py`). Notes and narrative
   failed attempt of a job that later completed, can't be named as the reason the run stopped. A limit
   or cancel event, a non-`complete` agent handoff, a cancelled job, or a trial written but never tried
   leaves the cause unresolved.
-- **Malformed data** is in the dataset from the start, so nothing about timing ties a run's outcome to
-  it. A safe stop needs the controller's own finding that the bytes can't be read as a table
-  (`DATASET_UNREADABLE`, from the controller and no other source). A job's `CONTRACT_DATA_ERROR` doesn't
-  count: the worker assigns it to any `ValueError`, `KeyError`, or `TypeError` in the harness, including
-  a bad fix on another column or malformed predictions. Recovery fails closed: the case names no
-  malformed column, so no record can show the rows were detected and handled.
+- **Malformed data** has no grader yet (D-032). A malformed row usually loads fine, so no record ties a
+  run's outcome to it, and a job's `CONTRACT_DATA_ERROR` can't: the worker assigns it to any `ValueError`,
+  `KeyError`, or `TypeError` in the harness. These cases fail explicitly until S3.H3 builds its bad-data
+  cases with the evidence they need.
 - **Expected safe failure** keeps the plan's TRAIN or REUSE. `hidden_metric` may be null in such a case
   (`Case` validates this). Model-dependent checks become not applicable only after the proof holds;
   without the proof they fail. A runtime failure is never relabeled INFEASIBLE.
 
-Attack, fine-tuning, optimization, and crash fault graders are not implemented in this step:
+Attack, fine-tuning, optimization, malformed-data, and crash fault graders are not implemented in this step:
 cases requiring them fail explicitly instead of receiving unearned credit.
 
 ## Validation

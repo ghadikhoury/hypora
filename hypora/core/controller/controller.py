@@ -55,11 +55,7 @@ from hypora.core.controller.states import START, RunEvent, RunState, next_state
 from hypora.core.llm.adapter import LLMAdapter
 from hypora.core.roles.base import USER_CANCEL, RunLimitReached
 from hypora.core.roles.intake import IntakeError, IntakeForm, run_intake
-from hypora.core.roles.outcome_evidence import (
-    DATASET_UNREADABLE,
-    derive_outcome_evidence,
-    has_authorized_model_route,
-)
+from hypora.core.roles.outcome_evidence import derive_outcome_evidence, has_authorized_model_route
 from hypora.core.roles.prompt_loader import load_prompt
 from hypora.core.roles.reporter import (
     EarlyStopReport,
@@ -138,10 +134,6 @@ MCP_READ_TIMEOUT_S: Final = 300.0
 FINAL_JOB_STAGES: Final = 10
 """Upper bound on the sandbox stages of a final job, for its timeout (folds x 2 + freeze + test)."""
 EXAMPLE_PIPELINE: Final = "linear/pipeline.py"
-
-
-class DatasetUnreadable(Exception):
-    """The dataset's bytes can't be read as a table. The message is the parser's error type only."""
 
 
 @dataclass(frozen=True)
@@ -352,7 +344,7 @@ class _Run:
             protocol.write_once(snapshot, source)
             self.dataset = snapshot
             self.dataset_fingerprint = hashlib.sha256(source).hexdigest()
-            frame = _read_table(self.dataset, source)
+            frame = load_tabular(self.dataset, source=source)
             spec = await self._intake(frame)
             self._advance(RunEvent.INTAKE_DONE, f"task spec v{spec.version}: {spec.task_type}")
             profile = self._profile(frame, spec)
@@ -862,14 +854,12 @@ class _Run:
         if isinstance(exc, RunLimitReached):  # the guard already recorded the event
             self.notes.append(f"Run stopped: {exc}.")
             return
-        own = isinstance(exc, IntakeError | ContractError | DatasetUnreadable)
+        own = isinstance(exc, IntakeError | ContractError)
         code = (
             "INTAKE_FAILED"
             if isinstance(exc, IntakeError)
             else "CONTRACT_FAILED"
             if isinstance(exc, ContractError)
-            else DATASET_UNREADABLE
-            if isinstance(exc, DatasetUnreadable)
             else "CONTROLLER_ERROR"
         )
         message = str(exc)[:300] if own else type(exc).__name__
@@ -942,14 +932,6 @@ class _Run:
             role,
             HandoffPayload(role_instance_id=instance, handoff=handoff).model_dump(mode="json"),
         )
-
-
-def _read_table(path: Path, source: bytes) -> pd.DataFrame:
-    """The dataset as a table. Parser messages can quote values, so only the error type is kept."""
-    try:
-        return load_tabular(path, source=source)
-    except Exception as exc:
-        raise DatasetUnreadable(type(exc).__name__) from exc
 
 
 def _describe(outcome: AgentOutcome) -> str:

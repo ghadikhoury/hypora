@@ -213,7 +213,7 @@ async def test_narrative_text_changes_no_evidence_verdict(
     assert before.passed and after.passed
 
 
-async def test_a_real_unreadable_dataset_is_a_data_caused_stop(
+async def test_a_real_controller_failure_is_the_recorded_cause_of_the_stop(
     tmp_path: Path,
     make_controller: ControllerFactory,
     database: Database,
@@ -225,10 +225,11 @@ async def test_a_real_unreadable_dataset_is_a_data_caused_stop(
     result = await controller.run(RunRequest(dataset=garbage, goal="Predict", run_id=RUN_ID))
     assert result.state == FAILED
     evidence = json.loads(result.report_json.read_text())["evidence"]
-    assert evidence["faults"][0]["code"] == "DATASET_UNREADABLE"
+    assert evidence["stop"]["cause"] == "controller_error"
     assert evidence["faults"][0]["outcome"] == "stopped_safely"
     assert evidence["decision"] is None  # no plan was approved, so no intent was stated
 
+    # Malformed-data faults have no grader yet (D-032): even this stop earns them no credit.
     world = _world(
         tmp_path, dataset, grading={"hidden_metric": None}, injected_faults=[SYNTAX_FAULT]
     )
@@ -236,5 +237,5 @@ async def test_a_real_unreadable_dataset_is_a_data_caused_stop(
     case = world.case.model_copy(update={"injected_faults": (fault,)})
     run = _system_run(world, controller, DecisionClass.TRAIN, result)
     grade = await ProgrammaticGrader().grade(case, world.split, run)
-    assert check_of(grade, "fault_malformed_data_0").status is CheckStatus.PASSED
-    assert "no clear intent" in check_of(grade, DECISION).detail  # intent stays unresolved
+    assert not grade.passed
+    assert "no grader exists yet" in check_of(grade, "fault_malformed_data_0").detail
