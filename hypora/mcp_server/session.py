@@ -10,6 +10,7 @@ import contextlib
 import hashlib
 import threading
 from pathlib import Path
+from typing import Final
 
 import pandas as pd  # type: ignore[import-untyped]
 from pydantic import Field, model_validator
@@ -29,6 +30,10 @@ from hypora.storage.database import Database
 from hypora.storage.events import EventLog
 from hypora.storage.jobs import JobQueue
 from hypora.storage.records import RecordNotFound, load_experiment_contract
+
+MAX_STATUS_WAIT_SECONDS: Final = 45.0
+"""The longest one `get_experiment_status` call may wait for its job to change (D-030). It stays
+below the agent's own MCP read timeout and the 60 s default timeout of common MCP clients."""
 
 
 class DefenseSwitches(StrictModel):
@@ -51,6 +56,12 @@ class SessionConfig(Record):
     )
     experiment_dataset: Identifier = Field(description="The dataset the run's contract governs.")
     defenses: DefenseSwitches = Field(default_factory=DefenseSwitches)
+    status_wait_seconds: float = Field(
+        MAX_STATUS_WAIT_SECONDS,
+        ge=0,
+        le=MAX_STATUS_WAIT_SECONDS,
+        description="How long one get_experiment_status call may wait for its job to change.",
+    )
 
     @model_validator(mode="after")
     def _consistent(self) -> "SessionConfig":

@@ -41,7 +41,10 @@ async def test_a_run_ends_with_a_verified_model_and_a_report(
     def change_source_during_intake() -> None:
         dataset.write_bytes(original + b"\n")
 
-    script = ScriptedRun(RUN_ID, job_limits=limits, on_intake=change_source_during_intake)
+    # poll_seconds=0: a model that never pauses between status calls, as gpt-6-luna did (D-030).
+    script = ScriptedRun(
+        RUN_ID, job_limits=limits, on_intake=change_source_during_intake, poll_seconds=0
+    )
     controller = make_controller(script)
     result = await controller.run(
         RunRequest(dataset=dataset, goal="Predict malignant tumours", run_id=RUN_ID)
@@ -93,6 +96,9 @@ async def test_a_run_ends_with_a_verified_model_and_a_report(
     assert [e.payload.tool for e in tool_calls] == [call.name for call in script.tool_calls]
     assert {e.actor_role.value for e in tool_calls} == {"single_agent"}  # through the MCP server
     assert kinds.count("tool_result") == len(script.tool_calls)
+    # The real sandbox job, watched by a model that never pauses, costs a few model turns.
+    status_calls = [call for call in script.tool_calls if call.name == "get_experiment_status"]
+    assert len(status_calls) <= 8
     requested = next(e for e in events if e.type.value == "approval_requested")
     granted = next(e for e in events if e.type.value == "approval_granted")
     assert requested.payload.artifact_hash == granted.payload.artifact_hash
@@ -126,7 +132,7 @@ async def test_a_run_ends_with_a_verified_model_and_a_report(
     every_prompt = {e.payload.prompt_ref for e in events if e.type.value == "model_call"}
     assert every_prompt == {
         "intake@v1",
-        "single_agent@v1",
+        "single_agent@v2",
         "single_agent_final@v1",
         "reporter@v1",
     }

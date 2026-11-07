@@ -27,7 +27,10 @@ DESIGN = {
 
 
 def open_session(session_file: Path, **changes: Any) -> Session:
-    """The workspace's session, optionally with another role or other defense switches."""
+    """The workspace's session, optionally with another role or other defense switches.
+
+    A status call does not wait unless a test asks for it (test_status_wait.py)."""
+    changes.setdefault("status_wait_seconds", 0.0)
     config = SessionConfig.model_validate_json(session_file.read_bytes())
     if "defenses" in changes:
         changes["defenses"] = DefenseSwitches(**changes["defenses"])
@@ -66,6 +69,13 @@ async def submit(client: Client, trial_id: str, key: str = "s1", **extra: Any) -
     )
 
 
+def start_job(session: Session, job_id: str) -> None:
+    """Lease and start the job as `finish_job`'s worker: it is RUNNING after this."""
+    job = session.queue.lease("test-worker", WorkerCapacity(8, 0, 64.0))
+    assert job is not None and job.id == job_id
+    session.queue.start(job_id, "test-worker")
+
+
 def finish_job(
     session: Session,
     job_id: str,
@@ -73,12 +83,16 @@ def finish_job(
     scores: dict[str, Any] | None = None,
     logs: list[str] | None = None,
     error: tuple[str, str] | None = None,
+    started: bool = False,
 ) -> None:
-    """Do what the experiment worker does, minus the sandbox: logs, artifacts, outcome, state."""
+    """Do what the experiment worker does, minus the sandbox: logs, artifacts, outcome, state.
+
+    With `started`, the job is already RUNNING (`start_job`), so finishing is its only state change.
+    """
     queue = session.queue
-    job = queue.lease("test-worker", WorkerCapacity(8, 0, 64.0))
-    assert job is not None and job.id == job_id
-    queue.start(job_id, "test-worker")
+    if not started:
+        start_job(session, job_id)
+    job = queue.get(job_id)
     folder = protocol.job_dir(session.runs_root, RUN_ID, job_id)
     protocol.append_stage_log(
         folder,

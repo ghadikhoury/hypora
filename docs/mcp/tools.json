@@ -1,6 +1,6 @@
 {
   "server": {
-    "instructions": "Hypora platform tools for one run. Typical order: inspect_dataset -> write_trial_files -> submit_experiment -> get_experiment_status (poll until finished) -> get_experiment_metrics, or get_experiment_logs to diagnose a failure. The platform owns the data split, the held-out labels, and every metric. No tool returns raw dataset rows.",
+    "instructions": "Hypora platform tools for one run. Typical order: inspect_dataset -> write_trial_files -> submit_experiment -> get_experiment_status (it waits for the job; repeat until finished) -> get_experiment_metrics, or get_experiment_logs to diagnose a failure. The platform owns the data split, the held-out labels, and every metric. No tool returns raw dataset rows.",
     "name": "hypora",
     "version": "1"
   },
@@ -1490,7 +1490,7 @@
         "readOnlyHint": false,
         "title": "Queue a trial for validation"
       },
-      "description": "Queue one trial for platform-run validation; returns a job_id at once.\n\nThe platform freezes the trial's current files, then (in a sandbox, without network)\nfits pipeline.py on each validation fold of the contract's split and scores the\npredictions itself. Held-out test labels are never used here.\n\nUse it after write_trial_files, and again after fixing a failed trial (with a NEW\nidempotency_key). Then poll get_experiment_status until `finished` is true.\n\nDo not use it to change the split, metric, features, or budget: they come from the\napproved contract. Limits above the contract's are refused; only the user can extend\nthem.\n\nReturns the job_id, its state (normally QUEUED), and whether the key was a duplicate.\n\nExample: submit_experiment(trial_id=\"trl_4f2a9c1e\", idempotency_key=\"run_104:sub_0001\")",
+      "description": "Queue one trial for platform-run validation; returns a job_id at once.\n\nThe platform freezes the trial's current files, then (in a sandbox, without network)\nfits pipeline.py on each validation fold of the contract's split and scores the\npredictions itself. Held-out test labels are never used here.\n\nUse it after write_trial_files, and again after fixing a failed trial (with a NEW\nidempotency_key). Then call get_experiment_status until `finished` is true.\n\nDo not use it to change the split, metric, features, or budget: they come from the\napproved contract. Limits above the contract's are refused; only the user can extend\nthem.\n\nReturns the job_id, its state (normally QUEUED), and whether the key was a duplicate.\n\nExample: submit_experiment(trial_id=\"trl_4f2a9c1e\", idempotency_key=\"run_104:sub_0001\")",
       "inputSchema": {
         "$defs": {
           "Family": {
@@ -1825,7 +1825,7 @@
         "readOnlyHint": true,
         "title": "Experiment status"
       },
-      "description": "Report where a submitted experiment is: queued, running, completed, or failed.\n\nUse it to poll after submit_experiment (every few seconds) until `finished` is true;\nthen call get_experiment_metrics (if succeeded) or get_experiment_logs (if failed).\n\nDo not use it for metrics (get_experiment_metrics) or full logs (get_experiment_logs).\n\nReturns the job state, attempts, a platform-written error (code and message) if it\nfailed, the last log lines (lines that showed dataset values are withheld), the IDs of\nstored artifacts, and the suggested next step.\n\nExample: get_experiment_status(job_id=\"job_1761400000000000000_a1b2c3\")",
+      "description": "Report where a submitted experiment is, waiting briefly while it is in progress.\n\nThe call waits on the server: it returns as soon as the job's state changes or the job\nfinishes, and after 45 seconds at most. A finished job returns at once. The platform\nsets this wait; no argument changes it.\n\nUse it after submit_experiment. If `finished` is false, call it again right away, with\nno pause of your own. Once `finished` is true, call get_experiment_metrics (if\nsucceeded) or get_experiment_logs (if failed).\n\nDo not use it for metrics (get_experiment_metrics) or full logs (get_experiment_logs).\n\nReturns the job state, attempts, a platform-written error (code and message) if it\nfailed, the last log lines (lines that showed dataset values are withheld), the IDs of\nstored artifacts, and the suggested next step.\n\nExample: get_experiment_status(job_id=\"job_1761400000000000000_a1b2c3\")",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {

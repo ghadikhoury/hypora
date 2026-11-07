@@ -149,13 +149,40 @@ differently enough on another model to matter for the recorded evaluation.
 5. **Reliability.** No Luna call failed or was retried. Gemini had one retried call in the
    committed runs and one server error that outlasted its retries in the pilot (handled as above).
 
+## After S2.0b: the status wait (D-030)
+
+One free `dev` run on 2026-11-06, through `make run` on the same credit-g snapshot as S1.7 (same
+SHA-256). Its record is not committed, and it checks that the change works; it is not an evaluation.
+Actual spend was $0. The Luna column is the D-027 run: a Luna re-run is paid, so S2.6 measures that.
+
+| credit-g | Flash-Lite, `single_agent@v1` (S1.7) | Flash-Lite, `single_agent@v2` (S2.0b) | Luna, `single_agent@v1` (D-027) |
+|---|---|---|---|
+| Outcome | DONE, verified | DONE, verified | DONE, verified |
+| Limits fired | none | none | `max_llm_tokens` |
+| Model calls | 26 | 25 | 54 |
+| Tool calls (of which status polls) | 22 (7) | **21 (5)** | 84 (74) |
+| Trials; jobs | 4; 5 completed, 1 failed | 5; 6 completed | 3; 3 completed, 1 cancelled |
+| Input tokens | 496,640 | 495,108 | 1,004,017 |
+| Output tokens | 4,871 | 4,921 | 5,940 |
+| Cost at list price | $0.0570 | $0.0566 | $0.0164 |
+| Model time per call | 30.2 s | 1.6 s | 2.4 s |
+| Wall clock | 815 s | 225 s | 224 s |
+
+- **One poll per job.** Each of the 5 status calls waited 28–33 s and returned `COMPLETED`. In this
+  run Flash-Lite answered as fast as Luna did (1.6 s per call), the speed that produced Luna's 74 and
+  100 polls.
+- **What this does not show.** It is one run, on a different model from Luna. Free-tier latency also
+  fell from 30.2 s to 1.6 s per call between these runs, which explains most of the wall-clock drop.
+  Tokens are flat because this run tried a fifth trial, and because S1.7's Flash-Lite polls were
+  already spaced by its slow calls.
+- **The fast-model case** is covered by a scripted test: a model that never pauses makes at most 3
+  status calls on a job held for 6 s. With the wait off, the same model spends more than 10 turns on
+  a job that is still running (`tests/controller/test_status_wait.py`).
+
 ## Follow-ups (recommendations, not made here)
 
-- **Status polling.** Two fixes are possible: let `get_experiment_status` wait for a change (an
-  MCP tool signature change: stop-and-ask trigger 1, since the tool contract is frozen), or revise
-  the prompt to space polls or batch them. Recommended before the multi-agent runs, whose trial
-  workers get the same status tool (S3.C2); the planning stream (S3.H) or the prompt review
-  (S4.2) are the natural places, subject to Ghadi's decision.
+- **Status polling: done in S2.0b (D-030).** S3.C2's trial workers get the same status tool, and
+  need the same guard check during a wait (`_call_watching_limits`).
 - **The 1M-token run limit.** The run guard counts input plus output tokens, cached included.
   Both Luna runs hit the limit, and Gemini fish-toxicity used 994,369 of the 1,000,000 (99.4%).
   The default budgets are provisional until S4.2 (`🧑 HUMAN · DECIDE`), which should set the
