@@ -135,6 +135,7 @@ class LLMAdapter:
         self._clock = clock
         self._sleep = sleep
         self._backoff = Backoff(models.retry, (rng or random.Random()).random)
+        self._retry_wait_s = 0.0
         self._check_ready()
 
     @classmethod
@@ -175,6 +176,12 @@ class LLMAdapter:
     @property
     def profile(self) -> ModelProfile:
         return self._profile
+
+    @property
+    def retry_wait_s(self) -> float:
+        """Seconds this adapter has slept in retry backoff. A `model_call` event's
+        `rate_limit_wait_ms` holds these together with admission waits; this tells them apart."""
+        return self._retry_wait_s
 
     def _check_ready(self) -> None:
         """Fail at construction, not mid-run: every reachable model is set, priced, and served."""
@@ -414,6 +421,7 @@ class LLMAdapter:
                     delay = self._backoff.delay_s(retries, error.retry_after_s)
                     await self._sleep(delay)
                     waited_s += delay
+                    self._retry_wait_s += delay
                     retries += 1
                     continue
                 await self._emit(context, failure_payload(error), ledger)

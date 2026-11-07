@@ -6,6 +6,7 @@
     hypora trace RUN_ID [--filter type=model_call,tool_call] [--filter role=single_agent]
     hypora cancel RUN_ID
     hypora approve RUN_ID        # placeholder until the interactive plan gate (S3.D2)
+    hypora eval --cases dev --config default --systems agent,baseline --profile dev
 
 The CLI is one client of the runtime (spec principle 11): it builds a `RunRequest` and hands it
 to the controller, and it reads state only from the event log and the stored records. State lives
@@ -24,6 +25,7 @@ from typing import Annotated, Final
 import anyio
 import typer
 
+from hypora.cli.eval import eval_command
 from hypora.cli.run import PreflightError, RunOptions, execute, result_lines
 from hypora.cli.status import TERMINAL, run_status_lines, runs_table_lines
 from hypora.cli.trace import parse_filters, render_rows, summary, trace_rows
@@ -241,6 +243,9 @@ def cancel(
         "next model or tool call, cancels unfinished jobs, writes the report, and ends the run "
         f"CANCELLED. Follow it with `hypora status {run_id}`."
     )
+
+
+app.command("eval")(eval_command)
 
 
 def main() -> None:

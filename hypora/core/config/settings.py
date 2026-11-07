@@ -21,7 +21,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, ClassVar
 
-from pydantic import Field, JsonValue, ValidationError
+from pydantic import Field, JsonValue, PositiveInt, ValidationError
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -235,6 +235,9 @@ class EvalConfig(StrictModel):
     flags: dict[str, JsonValue] = Field(
         default_factory=dict, description="Partial FeatureFlags applied over flags.yaml."
     )
+    max_parallel_cases: PositiveInt = Field(
+        4, description="Runs at once; the runner lowers it to what the resource pools can hold."
+    )
 
     def overrides(self) -> dict[str, Any]:
         """The explicit overrides to pass to `load_settings`."""
@@ -259,11 +262,17 @@ def load_eval_config(name: str, config_dir: Path | str | None = None) -> EvalCon
     return config
 
 
-def load_settings_for_eval(name: str, config_dir: Path | str | None = None) -> HyporaSettings:
+def load_settings_for_eval(
+    name: str, config_dir: Path | str | None = None, profile: ModelProfile | None = None
+) -> HyporaSettings:
     """Settings for a named eval config: configs/*.yaml with the eval config's overrides on top.
 
-    Any HYPORA_* variable other than HYPORA_CONFIG_DIR is an error, so a leftover `export` from a
-    dev session can't silently change a recorded comparison.
+    `profile` replaces the config's model profile (`make eval PROFILE=dev`; D-016 runs one set on
+    both). Any HYPORA_* variable other than HYPORA_CONFIG_DIR is an error, so a leftover `export`
+    from a dev session can't silently change a recorded comparison.
     """
     _check_no_env_for_eval(os.environ, name)
-    return load_settings(config_dir, overrides=load_eval_config(name, config_dir).overrides())
+    overrides = load_eval_config(name, config_dir).overrides()
+    if profile is not None:
+        overrides["model_profile"] = profile
+    return load_settings(config_dir, overrides=overrides)
