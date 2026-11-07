@@ -84,6 +84,8 @@ class IntakeForm:
     target: str | None = None
     task_type: TaskType | None = None
     primary_metric: MetricName | None = None
+    secondary_metrics: tuple[MetricName, ...] = ()
+    quality_target: float | None = None
     forbidden_columns: tuple[str, ...] = ()
     budget: Budget = field(default_factory=Budget)
 
@@ -180,6 +182,13 @@ async def run_intake(
     )
     if form.primary_metric:
         from_form.append("primary_metric")
+    secondary = tuple(dict.fromkeys(form.secondary_metrics))
+    for secondary_metric in secondary:
+        _metric(task_type, secondary_metric, explicit=True)
+    if secondary:
+        from_form.append("secondary_metrics")
+    if form.quality_target is not None:
+        from_form.append("quality_target")
     forbidden = form.forbidden_columns or tuple(draft.forbidden_columns)
     if form.forbidden_columns:
         from_form.append("forbidden_columns")
@@ -194,6 +203,8 @@ async def run_intake(
         task_type=task_type,
         target=target,
         primary_metric=metric,
+        secondary_metrics=list(secondary),
+        quality_target=form.quality_target,
         forbidden_columns=sorted(set(forbidden) & set(columns) - {target}),
         budget=form.budget,
         approval_policy=ApprovalPolicy.AUTO_WITHIN_CONTRACT,

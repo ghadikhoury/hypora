@@ -29,3 +29,11 @@ and does not replace them. Add a line when review catches a new kind of bug.
 - **Hidden metric parity:** systems report every supported task metric without reading the hidden
   grading rule; an undefined required metric fails explicitly rather than silently losing evidence
   (PR #27).
+
+- **Incomplete comparisons:** harness errors are missing measurements, not graded system failures;
+  paired wins/bootstrap require two graded outcomes and incomplete rates have no inferential CI (PR #28).
+- **Hidden-data guards:** check complete numeric/short-valued rows and the tail of large datasets;
+  a distinctive-scalar heuristic alone is insufficient (PR #28).
+
+- **Fail-closed fallback:** a refused fallback record must not cancel unrelated cases; preserve its
+  accounting receipt. Public input metadata is not newly disclosed hidden data (PR #28).

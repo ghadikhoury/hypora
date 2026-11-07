@@ -150,3 +150,22 @@ async def test_incompatible_explicit_task_is_not_silently_replaced(
             IntakeForm(goal="Predict price", target="price", task_type=task),
             {"objective": "Predict price", "target": "price", "task_type": "regression"},
         )
+
+
+async def test_explicit_secondary_metric_and_quality_target_survive_intake(
+    frame: pd.DataFrame,
+) -> None:
+    result, _, _ = await intake(
+        frame,
+        IntakeForm(
+            goal="Predict outcome",
+            target="outcome",
+            primary_metric=MetricName.ACCURACY,
+            secondary_metrics=(MetricName.ROC_AUC,),
+            quality_target=0.8,
+        ),
+        {"objective": "Predict outcome", "target": "outcome", "primary_metric": "f1_macro"},
+    )
+    assert result.primary_metric is MetricName.ACCURACY
+    assert result.secondary_metrics == [MetricName.ROC_AUC] and result.quality_target == 0.8
+    assert "secondary_metrics" in result.from_form and "quality_target" in result.from_form
