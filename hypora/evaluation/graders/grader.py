@@ -18,6 +18,7 @@ from hypora.evaluation.graders.hidden_score import (
     check_honesty,
     score_hidden,
 )
+from hypora.evaluation.graders.outcomes import no_model_justification
 from hypora.evaluation.graders.run_checks import (
     BUDGET,
     COMPLETED,
@@ -85,6 +86,7 @@ class ProgrammaticGrader:
 
     def _all_checks(self, context: GradingContext) -> CaseGrade:
         scores: list[HiddenScore] = []
+        context.no_model_reason = no_model_justification(context)
 
         def hidden() -> GraderCheck:
             check, score = score_hidden(context, self.predictor)

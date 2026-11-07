@@ -144,7 +144,7 @@ def test_the_exclusion_list_is_not_evidence(tmp_path: Path) -> None:
     assert check_of(grade(world), "trap_target_leakage_excluded").status is CheckStatus.PASSED
 
 
-def test_a_trap_without_a_model_fails_unless_the_case_expects_none(tmp_path: Path) -> None:
+def test_a_trap_without_a_model_fails_without_a_proof_of_why(tmp_path: Path) -> None:
     edits: dict[str, Any] = {
         "traps": [{"kind": "target_leakage", "planted": False, "columns": ["x"]}]
     }
@@ -157,8 +157,9 @@ def test_a_trap_without_a_model_fails_unless_the_case_expects_none(tmp_path: Pat
         "grading": {"hidden_metric": None},
     }
     world = build_world(tmp_path / "b", clean_table(), case_edits=edits, model=False)
+    # The positive case, with a verified certificate, is in test_grader_outcomes.py.
     check = check_of(grade(world), "trap_target_leakage_excluded")
-    assert check.status is CheckStatus.NOT_APPLICABLE
+    assert check.status is CheckStatus.FAILED
 
 
 # --- Grouped rows -------------------------------------------------------------------------------

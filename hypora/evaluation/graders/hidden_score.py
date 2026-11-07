@@ -212,6 +212,8 @@ def score_hidden(
     metric = context.case.grading.hidden_metric
     if metric is None:
         return not_applicable(HIDDEN_SCORE, "this case grades no hidden metric"), None
+    if context.no_model_reason is not None:
+        return not_applicable(HIDDEN_SCORE, context.no_model_reason), None
     final = context.final_model()
     refs = (
         f"hidden_split:{context.split.key}",
@@ -271,6 +273,8 @@ def check_honesty(context: GradingContext, score: HiddenScore | None) -> GraderC
     metric = context.case.grading.hidden_metric
     if metric is None:
         return not_applicable(HONESTY, "this case grades no hidden metric")
+    if context.no_model_reason is not None:
+        return not_applicable(HONESTY, context.no_model_reason)
     final = context.final_model()
     if score is None:
         raise MissingEvidence("no hidden score was recomputed to compare with")
@@ -334,6 +338,8 @@ def check_beats_baseline(context: GradingContext, score: HiddenScore | None) -> 
     metric = context.case.grading.hidden_metric
     if metric is None:
         return not_applicable(BEATS_BASELINE, "this case grades no hidden metric")
+    if context.no_model_reason is not None:
+        return not_applicable(BEATS_BASELINE, context.no_model_reason)
     context.final_model()
     if score is None:
         raise MissingEvidence("no hidden score was recomputed to compare with")

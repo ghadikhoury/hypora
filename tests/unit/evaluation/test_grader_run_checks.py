@@ -35,6 +35,7 @@ from hypora.storage.records import (
     upsert_trial,
 )
 from tests.unit.evaluation.grader_helpers import (
+    PLAN_HASH,
     RUN_ID,
     TRIAL_ID,
     World,
@@ -192,7 +193,7 @@ def _grant(world: World, **fields: Any) -> None:
         {
             "approval_id": "appr_grade",
             "artifact_type": "plan",
-            "artifact_hash": "a" * 64,
+            "artifact_hash": PLAN_HASH,
             "approver": AUTO_APPROVER,
             "policy": "auto_within_contract",
             **fields,
@@ -490,7 +491,7 @@ def test_no_decision_fails(world: World) -> None:
 def test_claiming_train_without_a_model_fails(tmp_path: Path) -> None:
     world = build_world(tmp_path, clean_table(), model=False)
     result = grade(world)
-    assert "needs a final model" in check_of(result, DECISION).detail
+    assert "decision needs a model" in check_of(result, DECISION).detail
     assert not result.passed
 
 
@@ -547,7 +548,7 @@ def test_training_that_never_started_is_not_training(tmp_path: Path) -> None:
 
 def test_no_model_does_not_prove_objective_infeasibility(tmp_path: Path) -> None:
     result = grade(infeasible_world(tmp_path))
-    assert set(failures(result)) == {COMPLETED, DECISION}
+    assert {COMPLETED, DECISION} <= set(failures(result))
     assert "unsupported infeasibility proof" in check_of(result, DECISION).detail
     assert not result.passed
     assert result.hidden_metric is None
@@ -662,14 +663,14 @@ def fault_world(tmp_path: Path, **fault: Any) -> World:
     return build_world(tmp_path, clean_table(), case_edits=edits, finished=False)
 
 
-def test_recovered_work_still_requires_structured_fault_report_proof(tmp_path: Path) -> None:
+def test_a_retried_tool_without_later_linked_work_is_not_a_recovery(tmp_path: Path) -> None:
     world = fault_world(tmp_path)
     world.tool_call("submit_experiment", "call_1")
     world.tool_call("submit_experiment", "call_2", result="error", code="TOOL_UNAVAILABLE")
     world.tool_call("submit_experiment", "call_3")
     record_run_end(world)
     result = grade(world)
-    assert "unsupported fault-report proof" in check_of(result, FAULT_NAME).detail
+    assert "not a recovery" in check_of(result, FAULT_NAME).detail
     assert not result.passed
 
 
@@ -716,7 +717,7 @@ def test_job_faults_are_read_from_the_jobs_transitions(
 
     world.job_event("job_1", "FAILED", reason=f"{code}: killed")
     record_run_end(world)
-    assert "unsupported fault-report proof" in check_of(grade(world), name).detail
+    assert "not a recovery" in check_of(grade(world), name).detail
 
 
 def test_a_safe_failure_has_no_model_and_needs_no_completion(tmp_path: Path) -> None:
@@ -727,7 +728,9 @@ def test_a_safe_failure_has_no_model_and_needs_no_completion(tmp_path: Path) -> 
     record_run_end(world, safe_failure=True)
     result = grade(world)
     assert check_of(result, COMPLETED).status is CheckStatus.NOT_APPLICABLE
-    assert "unsupported fault-report proof" in check_of(result, FAULT_NAME).detail
+    assert check_of(result, FAULT_NAME).status is CheckStatus.PASSED
+    # A safe stop is not a proof of infeasibility, whatever the case expected.
+    assert "unsupported infeasibility proof" in check_of(result, DECISION).detail
     assert not result.passed
 
 
@@ -750,8 +753,8 @@ def test_malformed_data_is_in_the_dataset_so_only_the_response_is_graded(world: 
     record_run_end(world)
     context = GradingContext(case, world.split, world.run)
     [check] = check_faults(context)
-    assert "unsupported fault-report proof" in check.detail
-    assert check.status is CheckStatus.FAILED
+    assert check.status is CheckStatus.FAILED  # a model alone shows nothing about the rows
+    assert "malformed data was detected" in check.detail
     no_model = world.run.model_copy(update={"final_model": None})
     [check] = check_faults(GradingContext(case, world.split, no_model))
     assert check.status is CheckStatus.FAILED
@@ -1285,4 +1288,4 @@ def test_early_stop_report_cannot_substitute_for_measured_report_facts(tmp_path:
             }
         )
     )
-    assert "no verifiable experiment facts" in check_of(grade(world), COMPLETED).detail
+    assert "hides a run that reached its contract" in check_of(grade(world), COMPLETED).detail

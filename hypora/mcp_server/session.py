@@ -22,6 +22,7 @@ from hypora.core.schemas import (
     Identifier,
     Record,
     StrictModel,
+    ToolName,
 )
 from hypora.core.schemas.common import NonEmptyStr
 from hypora.execution.harness.data import apply_contract
@@ -61,6 +62,9 @@ class SessionConfig(Record):
         ge=0,
         le=MAX_STATUS_WAIT_SECONDS,
         description="How long one get_experiment_status call may wait for its job to change.",
+    )
+    permitted_tools: tuple[ToolName, ...] | None = Field(
+        None, description="Optional trusted per-case restriction; can only narrow role permissions."
     )
 
     @model_validator(mode="after")

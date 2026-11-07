@@ -51,7 +51,8 @@ but clean regression cases receive no additional constant-baseline pass criterio
   trap's intended positive class.
 - Reuse: require a completed as-is evaluation of the exact pinned model behind the final trial.
   The decision check rejects started non-baseline training jobs when reuse suffices.
-- Decision class: match train/reuse/infeasible and verify trial kind or absence of a final model.
+- Decision class: match train/reuse/infeasible; verify the final trial and job, or the outcome
+  evidence below when the run rightly has no model.
 
 The budget check uses every model attempt's actual cost and tokens, all executed tool steps,
 recorded trials, elapsed event/run time, and complete sandbox stage logs. Missing or torn accounting fails; the terminal outcome stage count
@@ -61,24 +62,47 @@ compared conservatively using the larger measure. A limit firing after an overru
 
 Approval request/grant evidence must precede each exact job's first execution boundary. A
 never-executed cancellation needs durable zero-attempt cancellation proof. Completion requires
-the stored run status and latest report-stage terminal transition to agree. A reported-unverified
-FAILED state and no-model report establish ordinary failure, not objective infeasibility.
-INFEASIBLE claims currently fail closed: no existing structured field proves that the case objective
-cannot be achieved. A missing model, narrative, or decision label cannot substitute for that proof.
+the stored run status and latest report-stage terminal transition to agree.
 
-Fault checks require evidence that the configured tool occurrence returned the expected error, or
-that an OOM/timeout appeared in job transitions, before checking recovery or safe failure. Recovery needs the exact final job's successful
-completion after the fault, followed by a terminal report transition and a typed report matching the
-verified final model. Safe failure needs a terminal reported-unverified failure after the fault and
-no final model. Structured report facts and source references must exactly match a fresh
-`build_report` from durable platform records. Free-form notes and narrative are not grading evidence;
-no fault-code or decision-word substrings are required. Missing sources, invented facts, and early-stop
-reports without verifiable experiment facts fail closed. Missing outcome/report evidence fails closed.
-Even when those ordinary facts are consistent, fault cases currently receive an explicit unsupported
-failure: the reporting contract has no structured case-specific fault-report evidence. No free-form
-prose is treated as proof of correct fault reporting. Supporting these claims would require an approved
-structured evidence design; this step does not add or change that contract.
-Malformed-data faults are verified during case loading; the grader checks the response.
+## Outcome evidence (D-032)
+
+Ordinary report facts can't show that a decision or a fault response was right for a case, and
+free text never does. `hypora/core/roles/outcome_evidence.py` derives structured evidence from
+durable records only: the event log before the run enters REPORT, job requests, the task spec, the
+contract, and the approved plan after its hash matches the contract. `build_report` stores it in
+`report.json`. The grader recomputes it and rejects any difference, then binds it to the case, the
+final model, and the terminal state (`graders/outcomes.py`). Notes and narrative never count.
+
+- **Infeasible** means only: the enforced tools and contract leave no authorized route to a model.
+  The agent's `role_started` event records the tools its MCP session served. The certificate needs
+  no `submit_experiment` there or in the case's permitted tools, no approved model ref in the case
+  or contract, no job, and no call of that tool. A failed pipeline, a spent budget, or a stopped
+  search can't produce it, and it makes no claim about whether the task is learnable elsewhere.
+  The controller checks the route before the agent starts, and spends no agent turn when none exists.
+- **Intended decision:** the hash-checked approved plan's recommendation. A plan that states no single
+  intent (evaluate, then maybe fine-tune) or doesn't match the contract's hash leaves it unresolved.
+  With a final model, the decision check still reads the final trial and job.
+- **Recovery** needs ordered, linked work. For a tool fault: a later success of the same tool before
+  the work it supports starts. A candidate tool's success must name the job (`submit_experiment`) or
+  trial (`write_trial_files`) behind the final model, and that job must start after the fault and then
+  complete. Any other tool must succeed before the final job starts. For a job fault: a real retry
+  (a later attempt starts after the failure, then completes), or a replacement with the same contract,
+  dataset, operation, and pinned model that starts after the failure and then completes. A final job
+  must then complete, followed by a terminal report.
+- **Safe stop** needs no completed final job and a deterministic cause: a controller error, or the
+  candidate attempts that all failed, with the agent having finished by itself and no usable candidate
+  left. Only unresolved attempts are part of that cause: a tool error a later success overcame, or a
+  failed attempt of a job that later completed, can't be named as the reason the run stopped. A limit
+  or cancel event, a non-`complete` agent handoff, a cancelled job, or a trial written but never tried
+  leaves the cause unresolved.
+- **Malformed data** is in the dataset from the start, so nothing about timing ties a run's outcome to
+  it. It needs the platform's own finding that the data failed (`DATASET_UNREADABLE` from the controller
+  or `CONTRACT_DATA_ERROR` from a job) with the matching outcome. A run that silently works around the
+  rows, or stops for another reason such as a syntax error, fails closed.
+- **Expected safe failure** keeps the plan's TRAIN or REUSE. `hidden_metric` may be null in such a case
+  (`Case` validates this). Model-dependent checks become not applicable only after the proof holds;
+  without the proof they fail. A runtime failure is never relabeled INFEASIBLE.
+
 Attack, fine-tuning, optimization, and crash fault graders are not implemented in this step:
 cases requiring them fail explicitly instead of receiving unearned credit.
 

@@ -160,11 +160,11 @@ def _no_grader(name: str, kind: str) -> GraderCheck:
 def _with_model(
     context: GradingContext, name: str, check: Callable[[], GraderCheck]
 ) -> GraderCheck:
-    """A trap about the final model. With no model, there is nothing to violate only if the case
-    expects none; otherwise the trap's evidence is missing."""
+    """A trap about the final model. With no model, there is nothing to violate only once the
+    records prove that having none was right; otherwise the trap's evidence is missing."""
     if context.run.final_model is None:
-        if context.expects_no_model:
-            return not_applicable(name, "the case expects no model, and the run has none")
+        if context.no_model_reason is not None:
+            return not_applicable(name, context.no_model_reason)
         return failed(name, "the run has no final model, so this trap can't be checked")
     return guarded(name, check)
 

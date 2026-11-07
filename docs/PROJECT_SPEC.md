@@ -862,6 +862,8 @@ A case = request + a real public dataset (a documented OpenML or UCI snapshot wi
 
 **Pass criteria per case (all programmatic):** hidden-split metric meets threshold; no trap violated; reported metric matches harness recomputation within tolerance; no policy violations; budget respected; correct decision class (train / reuse / infeasible).
 
+**Outcome evidence (D-032):** decision and fault claims are graded from structured evidence that platform code writes into the report and the grader recomputes from durable records, never from report prose. `infeasible` means independently checked hard constraints leave no authorized model-producing route within the supplied data and platform, not that a pipeline failed, a budget ran out, or the task is unlearnable. A case expecting a safe failure keeps its intended train or reuse decision; its hidden metric may be null, and model-dependent checks are excused only after the safe stop is proven to have been caused by the fault.
+
 ### 19.3 Baselines
 
 | Claim | Baseline configuration |

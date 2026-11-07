@@ -15,6 +15,7 @@ import json
 import math
 import re
 import statistics
+from pathlib import Path
 from typing import Any, Final, Literal
 
 from pydantic import Field, model_validator
@@ -23,6 +24,7 @@ from hypora.core.llm.adapter import LLMAdapter
 from hypora.core.llm.errors import LLMError
 from hypora.core.llm.types import CallContext, Message
 from hypora.core.roles.base import CallGuard, RunLimitReached
+from hypora.core.roles.outcome_evidence import OutcomeEvidence, derive_outcome_evidence
 from hypora.core.roles.prompt_loader import load_prompt
 from hypora.core.schemas import (
     ActorRole,
@@ -123,6 +125,7 @@ class Report(StrictModel):
     narrative: ReportNarrative | None = None
     narrative_note: str | None = None
     sources: list[str] = Field(default_factory=list)
+    evidence: OutcomeEvidence | None = None
 
 
 def _finite(value: Any) -> float | None:
@@ -154,8 +157,13 @@ def build_report(
     *,
     final_trial_id: str | None,
     notes: list[str],
+    runs_root: Path | None = None,
 ) -> Report:
-    """Assemble the report's facts from the run's stored records (no model call)."""
+    """Assemble the report's facts from the run's stored records (no model call).
+
+    With `runs_root`, the report also carries the decision and fault evidence (D-032), recomputable
+    from the event log, the job folders, and the approved plan.
+    """
     spec = load_task_spec(database, run_id)
     contract = load_experiment_contract(database, run_id)
     profile_id, profile = load_dataset_profile(database, run_id)
@@ -222,13 +230,18 @@ def build_report(
         final=final,
         notes=notes,
         sources=sources,
+        evidence=None
+        if runs_root is None
+        else derive_outcome_evidence(database, runs_root, run_id),
     )
 
 
 async def write_narrative(adapter: LLMAdapter, guard: CallGuard, report: Report) -> Report:
     """Add the Reporter LLM's narrative; on any failure the report keeps no narrative."""
     prompt = load_prompt("reporter")
-    facts = report.model_dump(mode="json", exclude={"narrative", "narrative_note", "sources"})
+    facts = report.model_dump(
+        mode="json", exclude={"narrative", "narrative_note", "sources", "evidence"}
+    )
     try:
         guard.before_model_call()
         response = await adapter.complete(
@@ -343,10 +356,27 @@ def render_markdown(report: Report) -> str:
         f"- Leakage screen: {report.leakage_screen}",
         "",
     ]
+    lines += _render_evidence(report.evidence)
     if report.notes:
         lines += ["## Run notes", *(f"- {note}" for note in report.notes), ""]
     lines += ["## Sources", *(f"- `{source}`" for source in report.sources), ""]
     return "\n".join(lines)
+
+
+def _render_evidence(evidence: OutcomeEvidence | None) -> list[str]:
+    """The platform's account of the decision and of each failure it observed."""
+    if evidence is None:
+        return []
+    lines = ["## Decision and faults"]
+    if evidence.decision is not None:
+        decision = evidence.decision
+        lines.append(f"- Decision: {decision.intended} ({decision.basis})")
+    if evidence.stop is not None:
+        lines.append(f"- Stop cause: {evidence.stop.cause}")
+    for fault in evidence.faults:
+        where = fault.tool or fault.job_id or "controller"
+        lines.append(f"- Fault {fault.code} at {where}: {fault.outcome}")
+    return [*lines, ""] if len(lines) > 1 else []
 
 
 class EarlyStopReport(StrictModel):
@@ -355,12 +385,14 @@ class EarlyStopReport(StrictModel):
     run_id: str
     outcome: Literal["no_verified_model"] = "no_verified_model"
     notes: list[str]
+    evidence: OutcomeEvidence | None = None
 
 
 def render_early_stop(report: EarlyStopReport) -> str:
     """Render the report of a run that stopped before contract creation."""
     lines = [f"# Hypora run report: {report.run_id}", "", "**Outcome:** no verified model.", ""]
     lines += ["The run stopped before its experiment contract was approved.", ""]
+    lines += _render_evidence(report.evidence)
     lines += ["## Run notes", *(f"- {note}" for note in report.notes), ""]
     return "\n".join(lines)
 

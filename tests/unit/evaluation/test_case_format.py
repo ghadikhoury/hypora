@@ -253,6 +253,23 @@ def test_a_budget_equal_to_its_bound_is_inside_it() -> None:
     assert case_from(raw).budget.max_usd == 1
 
 
+def test_only_an_expected_safe_stop_lets_a_train_case_have_no_hidden_metric() -> None:
+    raw = raw_case()
+    raw["grading"]["hidden_metric"] = None
+    assert "needs a hidden_metric" in failure(raw)
+    raw["injected_faults"] = [
+        {
+            "kind": "tool_error",
+            "tool": raw["permitted_tools"][0],
+            "error_code": "TOOL_FAILED",
+            "expected": "recover",
+        }
+    ]
+    assert "needs a hidden_metric" in failure(raw)
+    raw["injected_faults"][0]["expected"] = "fail_safely"
+    assert case_from(raw).grading.hidden_metric is None
+
+
 def test_the_decision_class_and_the_hidden_metric_agree() -> None:
     raw = raw_case()
     raw["expected_decision_class"] = "infeasible"

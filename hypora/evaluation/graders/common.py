@@ -121,6 +121,8 @@ class GradingContext:
         self.run = run
         self._log: RunLog | None = None
         self._log_problem: MissingEvidence | None = None
+        self.no_model_reason: str | None = None
+        """Set by the grader once the records prove this run rightly has no model (D-032)."""
 
     def run_log(self) -> RunLog:
         """The run's records, or MissingEvidence for every check that needs them."""

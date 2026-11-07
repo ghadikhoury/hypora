@@ -29,7 +29,7 @@ from hypora.core.schemas import (
     TaskSpecification,
     TrialFile,
 )
-from hypora.core.schemas.contracts import AUTO_APPROVER
+from hypora.core.schemas.contracts import AUTO_APPROVER, ApprovedPlan
 from hypora.evaluation.case import Case, DecisionClass
 from hypora.evaluation.case_data import load_case_dataset
 from hypora.evaluation.graders import PredictionRequest
@@ -50,6 +50,7 @@ from hypora.storage.migrate import migrate
 from hypora.storage.models import Job
 from hypora.storage.records import (
     create_run,
+    load_experiment_contract,
     save_dataset_profile,
     save_experiment_contract,
     save_task_spec,
@@ -61,8 +62,40 @@ from tests.unit.evaluation.helpers import case_on
 
 RUN_ID = "run_grade"
 TRIAL_ID = "trial_final"
-PLAN_HASH = "a" * 64
 APPROVAL_ID = "appr_grade"
+
+
+def approved_plan(kind: str = "train_task_specific") -> ApprovedPlan:
+    """The plan a run was approved to follow, stated as the plan gate stores it."""
+    return ApprovedPlan.model_validate(
+        {
+            "run_id": RUN_ID,
+            "version": 1,
+            "recommendation": {"kind": kind, "rationale": "fixture"},
+            "phase_b_plan": {
+                "measurements": [
+                    {
+                        "option_id": "opt_baseline",
+                        "trial_kind": "baseline",
+                        "rationale": "fixture",
+                        "estimated_cost": {"compute_seconds": 1.0},
+                    }
+                ]
+            },
+            "data_contract_version": 1,
+            "data_contract_hash": "b" * 64,
+            "budget": {},
+            "approval_policy": "auto_within_contract",
+        }
+    )
+
+
+PLAN_HASH = approved_plan().content_hash()
+
+
+def _plan_for(case: Case) -> ApprovedPlan:
+    reuse = case.expected_decision_class is DecisionClass.REUSE
+    return approved_plan("reuse_pretrained" if reuse else "train_task_specific")
 
 
 def contract_for(case: Case, features: list[str], **edits: Any) -> ExperimentContract:
@@ -84,7 +117,7 @@ def contract_for(case: Case, features: list[str], **edits: Any) -> ExperimentCon
         {
             "run_id": RUN_ID,
             "version": 1,
-            "approved_plan_hash": PLAN_HASH,
+            "approved_plan_hash": _plan_for(case).content_hash(),
             "approval_id": APPROVAL_ID,
             "family": case.family.value,
             "task_type": constraints.task_type.value,
@@ -176,14 +209,22 @@ class World:
                 actor=ActorRole.POLICY_ENGINE,
             )
         if result is not None:
-            self.tool_result(tool, call_id, result, decision.get("code"))
+            self.tool_result(tool, call_id, result, decision.get("code"), decision.get("summary"))
 
-    def tool_result(self, tool: str, call_id: str, status: str, code: str | None = None) -> None:
+    def tool_result(
+        self,
+        tool: str,
+        call_id: str,
+        status: str,
+        code: str | None = None,
+        summary: dict[str, Any] | None = None,
+    ) -> None:
         payload: dict[str, Any] = {
             "call_id": call_id,
             "tool": tool,
             "status": status,
             "latency_ms": 1.0,
+            "result_summary": summary or {},
         }
         if status != "ok":
             payload["error"] = {
@@ -224,10 +265,16 @@ class World:
         )
 
 
-def seed_records(world: World, *, trial_kind: str = "candidate") -> None:
+def seed_records(
+    world: World, *, trial_kind: str = "candidate", final_job_started: bool = True
+) -> None:
     """The records every graded run keeps: a run row, a log, and, with a model, its provenance."""
     database = world.database
     create_run(database, RUN_ID, "workspace")
+    run_dir = world.runs_root / RUN_ID
+    run_dir.mkdir(parents=True, exist_ok=True)
+    plan = _plan_for(world.case)
+    (run_dir / "approved_plan.json").write_text(plan.model_dump_json(), encoding="utf-8")
     world.event(
         EventType.STAGE_TRANSITION,
         {"stage": Stage.INTAKE.value, "status": RunStatus.INTAKE.value, "reason": "start"},
@@ -257,6 +304,26 @@ def seed_records(world: World, *, trial_kind: str = "candidate") -> None:
         }
     )
     save_dataset_profile(database, profile)
+    world.event(
+        EventType.APPROVAL_REQUESTED,
+        {
+            "approval_id": APPROVAL_ID,
+            "artifact_type": "plan",
+            "artifact_hash": plan.content_hash(),
+            "policy": "auto_within_contract",
+            "summary": "plan",
+        },
+    )
+    world.event(
+        EventType.APPROVAL_GRANTED,
+        {
+            "approval_id": APPROVAL_ID,
+            "artifact_type": "plan",
+            "artifact_hash": plan.content_hash(),
+            "approver": AUTO_APPROVER,
+            "policy": "auto_within_contract",
+        },
+    )
     if world.contract is None:
         columns = list(pd.read_parquet(world.split.system_dataset()).columns)
         features = [column for column in columns if column != world.case.constraints.target]
@@ -271,30 +338,11 @@ def seed_records(world: World, *, trial_kind: str = "candidate") -> None:
             ),
         )
         return
-    world.event(
-        EventType.APPROVAL_REQUESTED,
-        {
-            "approval_id": APPROVAL_ID,
-            "artifact_type": "plan",
-            "artifact_hash": PLAN_HASH,
-            "policy": "auto_within_contract",
-            "summary": "plan",
-        },
-    )
-    world.event(
-        EventType.APPROVAL_GRANTED,
-        {
-            "approval_id": APPROVAL_ID,
-            "artifact_type": "plan",
-            "artifact_hash": PLAN_HASH,
-            "approver": AUTO_APPROVER,
-            "policy": "auto_within_contract",
-        },
-    )
     save_experiment_contract(database, world.contract)
     assert world.final is not None
     upsert_trial(database, RUN_ID, trial_file(world.final.trial_id, trial_kind), "trials/final")
-    record_final_job(world, operation="eval_as_is" if trial_kind == "eval_as_is" else "fit")
+    operation = "eval_as_is" if trial_kind == "eval_as_is" else "fit"
+    record_final_job(world, operation=operation, started=final_job_started)
 
 
 def trial_file(trial_id: str, kind: str = "candidate") -> TrialFile:
@@ -323,6 +371,7 @@ def build_world(
     decision: str | None = None,
     trial_kind: str = "candidate",
     finished: bool = True,
+    final_job_started: bool = True,
 ) -> World:
     """A passing run of a case on `frame`; tests break one thing at a time."""
     snapshots = tmp_path / "snapshots"
@@ -369,7 +418,7 @@ def build_world(
         run=run,
         predictor=ScriptedPredictor(labels, classes),
     )
-    seed_records(world, trial_kind=trial_kind)
+    seed_records(world, trial_kind=trial_kind, final_job_started=final_job_started)
     if finished:
         record_run_end(world)
     return world
@@ -429,16 +478,23 @@ def failures(grade: CaseGrade) -> list[str]:
     return [check.name for check in grade.checks if check.status is CheckStatus.FAILED]
 
 
-def record_final_job(world: World, operation: str = "fit") -> None:
+def start_final_job(world: World, operation: str = "fit") -> None:
+    """The final job's first start, for a test that records earlier work first."""
+    assert world.final is not None
+    world.job_event(
+        "job_final", "RUNNING", operation=operation, trial_id=world.final.trial_id, attempt=1
+    )
+
+
+def record_final_job(world: World, operation: str = "fit", *, started: bool = True) -> None:
     """Hand-build the immutable final-job evidence that a real worker records."""
     assert world.final is not None
     final = world.final
     folder = world.runs_root / RUN_ID / "jobs" / "job_final"
     if not folder.exists():
         folder = add_job(world, "job_final", operation, "COMPLETED", final.trial_id)
-        world.job_event(
-            "job_final", "RUNNING", operation=operation, trial_id=final.trial_id, attempt=1
-        )
+        if started:
+            start_final_job(world, operation)
         append_stage_log(
             folder,
             StageLog(
@@ -519,6 +575,7 @@ def record_run_end(world: World, *, safe_failure: bool = False) -> None:
         notes=["The requested quality target cannot be achieved within the budget."]
         if world.final is None
         else ["The worker recovered and produced this model."],
+        runs_root=world.runs_root,
     )
     (run_dir / "report.json").write_text(report.model_dump_json(), encoding="utf-8")
     event = (
@@ -547,4 +604,79 @@ def record_run_end(world: World, *, safe_failure: bool = False) -> None:
             "status": status.value,
             "reason": f"{event.value}: report written",
         },
+    )
+
+
+def agent_started(world: World, tools: list[str]) -> int:
+    """The agent's start event, recording the tools its session really served."""
+    return world.event(
+        EventType.ROLE_STARTED,
+        {"role_instance_id": "ri_agent", "tier": "lead", "allowed_tools": tools},
+        actor=ActorRole.SINGLE_AGENT,
+    )
+
+
+def agent_handoff(world: World, status: str = "complete") -> None:
+    """The agent hands back; only `complete` means it ended the work by itself."""
+    world.event(
+        EventType.HANDOFF,
+        {
+            "role_instance_id": "ri_agent",
+            "handoff": {
+                "run_id": RUN_ID,
+                "from_role": "single_agent",
+                "to": "controller",
+                "status": status,
+            },
+        },
+        actor=ActorRole.SINGLE_AGENT,
+    )
+
+
+def add_experiment_job(
+    world: World, job_id: str, status: str = "COMPLETED", *, operation: str = "fit", **edits: Any
+) -> None:
+    """A real non-final job with its immutable request and matching transitions."""
+    trial_id = world.final.trial_id if world.final else TRIAL_ID
+    contract = load_experiment_contract(world.database, RUN_ID)
+    if world.final is None:
+        upsert_trial(world.database, RUN_ID, trial_file(trial_id), "trials/final")
+    folder = add_job(world, job_id, operation, status, trial_id)
+    request = SubmitExperimentRequest.model_validate(
+        {
+            "run_id": RUN_ID,
+            "trial_id": trial_id,
+            "operation": operation,
+            "family": contract.family,
+            "contract_version": edits.get("contract_version", contract.version),
+            "model_ref": edits.get("model_ref"),
+            "limits": contract.default_job_limits,
+            "approval_ref": contract.approval_id,
+            "idempotency_key": f"{RUN_ID}:{job_id}",
+        }
+    )
+    envelope = ExperimentRequest(
+        request=request,
+        dataset_id="fixture",
+        dataset_path=str(world.split.system_dataset()),
+        dataset_sha256=edits.get("dataset_sha256", world.split.visible_sha256),
+        trial_files={"pipeline.py": "c" * 64},
+        phase=ExperimentPhase.VALIDATE,
+    )
+    (folder / "request.json").write_text(envelope.model_dump_json(), encoding="utf-8")
+    if status != "QUEUED":
+        world.job_event(job_id, "RUNNING", operation=operation, trial_id=trial_id, attempt=1)
+    append_stage_log(
+        folder,
+        StageLog(attempt=1, stage=0, action="fit", status="completed", duration_s=0.0, lines=[]),
+    )
+    outcome = ExperimentOutcome(job_id=job_id, succeeded=status == "COMPLETED", stages=1)
+    (folder / "outcome.json").write_text(outcome.model_dump_json(), encoding="utf-8")
+    world.job_event(
+        job_id,
+        status,
+        edits.get("reason", "moved"),
+        operation=operation,
+        trial_id=trial_id,
+        attempt=1,
     )
