@@ -16,7 +16,7 @@ compared fairly: same dataset, same budget, same harness, same sandbox, same evi
 | Model | `templates/tabular/gradient_boosting/pipeline.py`, unchanged, empty config | Default HistGradientBoosting |
 | Trials | One | No search, no retry |
 | Primary metric | The case's; if unnamed, D-019's default for the task: `roc_auc` (binary), `f1_macro` (multiclass), `mae` (regression) | The same default the agent's Intake applies |
-| Reported metrics | Every metric the platform computes for the task | So the honesty check has a stated value whichever metric a case grades when its constraints name none. `brier_score` only if named (below) |
+| Reported metrics | Every metric the platform computes for the task | So the honesty check has a stated value whichever metric a case grades when its constraints name none, including `brier_score` |
 | Decision class | `train`, once its contract is approved; none if it stopped before that | It always trains, so it fails `reuse` and `infeasible` cases, as it should |
 | Job limits | The configured limits, lowered to the case's `max_job_limits`; no GPU | `auto_within_contract` approves only inside the bounds |
 
@@ -94,9 +94,9 @@ No platform code injects faults yet, so the baseline applies what it can and say
 
 ## Known limits
 
-- `brier_score` is left out unless named, because the harness raises instead of reporting it unavailable
-  when a scored fold misses a class (`execution/harness/metrics.py`). If a case names it, that fold
-  fails the job.
+- Every supported metric is required, including `brier_score` for binary tasks. The current harness
+  raises when a scored fold cannot produce Brier (for example, a fold missing a class). Such a job
+  fails explicitly and the baseline reports its error; it never silently omits a grading metric.
 - A random split can leave a rare class out of a training fold, which the harness refuses
   (`labels outside the training class vocabulary`). The run then fails with that job's code. That is
   what a naive split costs.

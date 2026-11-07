@@ -141,7 +141,7 @@ def test_the_contract_reports_every_metric_a_case_could_grade() -> None:
     assert {MetricName.PR_AUC, MetricName.F1, MetricName.ACCURACY, MetricName.LOG_LOSS} <= set(
         binary
     )
-    assert MetricName.BRIER_SCORE not in binary  # the harness refuses it on a fold missing a class
+    assert MetricName.BRIER_SCORE in binary  # hidden grading may choose it without naming it
     named = reported_metrics_for(
         TaskType.BINARY_CLASSIFICATION, MetricName.ROC_AUC, (MetricName.BRIER_SCORE,)
     )

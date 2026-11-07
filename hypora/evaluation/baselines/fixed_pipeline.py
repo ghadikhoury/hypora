@@ -143,10 +143,10 @@ def reported_metrics_for(
     """Every metric the platform computes for `task`, except the primary: all of them reach the
     report, so the honesty check has a stated value for whichever one a case grades.
 
-    `brier_score` is left out unless a case names it: the harness refuses it, rather than reporting
-    it unavailable, on a fold that misses a class.
+    Include every supported metric without reading hidden grading rules. If a scoring fold cannot
+    produce a required metric, the harness explicitly fails the job rather than dropping evidence.
     """
-    allowed = metrics_for(task) - {MetricName.BRIER_SCORE}
+    allowed = metrics_for(task)
     return tuple(m for m in MetricName if m is not primary and (m in allowed or m in named))
 
 

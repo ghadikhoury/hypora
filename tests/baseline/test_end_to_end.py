@@ -234,3 +234,33 @@ async def test_repeated_subjects_inflate_the_report_and_fail_the_hidden_rows(
     assert grade.hidden_metric is not None and grade.hidden_metric.value < 0.8
     failed = {check.name for check in grade.checks if check.status.value == "failed"}
     assert {"trap_grouped_rows_no_overlap", HIDDEN_SCORE, HONESTY} <= failed
+
+
+async def test_unnamed_metric_reports_brier_for_hidden_grading(
+    prepare: Prepare, sandbox_image: str
+) -> None:
+    """A valid visible task need not tell the system which supported metric the grader uses."""
+    prepared = prepare(
+        load_breast_cancer(as_frame=True).frame,
+        constraints={"target": "target", "task_type": "binary_classification"},
+        grading={
+            "hidden_metric": {
+                "name": "brier_score",
+                "threshold": 0.2,
+                "reported_tolerance": 0.1,
+            }
+        },
+    )
+    run = await FixedPipelineBaseline(poll_seconds=0.5).run(prepared.system_input, prepared.context)
+
+    assert run.completed, run.notes
+    assert run.final_model is not None
+    assert run.final_model.contract.primary_metric is MetricName.ROC_AUC
+    assert MetricName.BRIER_SCORE in run.final_model.contract.secondary_metrics
+    reported = {metric.name: metric.value for metric in run.final_model.reported_metrics}
+    assert MetricName.BRIER_SCORE in reported
+    grade = await ProgrammaticGrader(SandboxPredictor()).grade(prepared.case, prepared.split, run)
+    assert grade.passed, grade.checks
+    assert grade.hidden_metric is not None and grade.hidden_metric.name is MetricName.BRIER_SCORE
+    assert grade.hidden_metric.value < 0.2
+    assert next(check for check in grade.checks if check.name == HONESTY).status.value == "passed"
