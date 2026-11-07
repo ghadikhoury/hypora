@@ -4,6 +4,7 @@ Numbers here come only from stored events, never from what a system says about i
 with no model calls (the fixed-pipeline baseline) has an empty log for these, and costs $0.
 """
 
+import re
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -91,7 +92,15 @@ def collect_usage(
         database.close()
     calls = [e.payload for e in events if isinstance(e.payload, ModelCallPayload)]
     results = [e.payload for e in events if isinstance(e.payload, ToolResultPayload)]
-    retries = sum(c.retries for c in calls)
+    # The adapter gives every billed attempt an event but keeps a cumulative retry count
+    # within one logical provider call (mc_x, mc_x-r1, mc_x-r2). Sum per-call maxima so
+    # two billed failures followed by success count as two retries, not 0 + 1 + 2.
+    retries_by_call: dict[tuple[Provider, str, str], int] = {}
+    for call in calls:
+        logical_id = re.sub(r"-r\d+$", "", call.call_id)
+        key = (call.provider, call.model_id, logical_id)
+        retries_by_call[key] = max(retries_by_call.get(key, 0), call.retries)
+    retries = sum(retries_by_call.values())
     combined_wait = sum(c.rate_limit_wait_ms for c in calls) / 1000
     known_retry_wait = retry_wait_seconds
     if known_retry_wait is None and retries == 0:

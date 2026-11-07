@@ -227,7 +227,7 @@ commits from WSL so the pre-commit hooks can run. All text files use LF line end
 | `make check` | Full validation: `lint` + `typecheck` + `test` + `secrets`; local usage below |
 | `make run` | Run the agent end to end (`hypora run`): the demo task on OpenML 46918, or `DATA=<file> GOAL="..." [TARGET=<col>]`. Makes live model calls on the active profile, so it follows "Live runs" below |
 | `make snapshot SOURCE=openml\|uci ID=<id>` | Fetch a real dataset into `data/snapshots/` with its manifest entry (D-015, D-021) |
-| `make eval` | Placeholder until the evaluation runner (S2.4) |
+| `make eval` | Compare agent and baseline on a case set; saves graded records, statistics, and regression flags (S2.4) |
 | `make up` / `make worker-up` / `make down` | Mode 1 compose stack: the API placeholder; the opt-in compose experiment worker (D-020); stop both |
 
 The `hypora` CLI (`uv run hypora run | status | trace | cancel | approve`) is documented in
