@@ -25,3 +25,7 @@ and does not replace them. Add a line when review catches a new kind of bug.
 - **Project rules:** every model call, tool call, state transition, and policy decision emits an event;
   new compared behavior has a feature flag; evaluation and demos use real data.
 - **The fix is complete:** sibling code paths have the same fix, and a test fails without it.
+
+- **Hidden metric parity:** systems report every supported task metric without reading the hidden
+  grading rule; an undefined required metric fails explicitly rather than silently losing evidence
+  (PR #27).

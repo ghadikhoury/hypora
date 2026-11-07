@@ -59,6 +59,7 @@ from hypora.core.roles.outcome_evidence import derive_outcome_evidence, has_auth
 from hypora.core.roles.prompt_loader import load_prompt
 from hypora.core.roles.reporter import (
     EarlyStopReport,
+    Report,
     build_report,
     metric_summary,
     render_early_stop,
@@ -71,6 +72,8 @@ from hypora.core.schemas import (
     ActorRole,
     ApprovalArtifactType,
     ApprovalPolicy,
+    ApprovalRecord,
+    ApprovedPlan,
     Budget,
     CheckStatus,
     DatasetProfile,
@@ -318,6 +321,7 @@ class _Run:
         self.dataset = self.request.dataset.resolve()
         self.run_dir = c.runs_root / self.run_id
         self.budget = self.request.budget or c.run_config.budgets.run
+        self.family = Family.TABULAR
         self.guard = RunGuard(
             run_id=self.run_id, budget=self.budget, database=c.database, runs_root=c.runs_root
         )
@@ -387,7 +391,7 @@ class _Run:
             self.database,
             self.run_id,
             self.controller.workspace_id,
-            family=Family.TABULAR,
+            family=self.family,
             status=START.status,
             approval_policy=ApprovalPolicy.AUTO_WITHIN_CONTRACT,
             budget_usd=None if b.max_usd is None else Decimal(str(b.max_usd)),
@@ -453,7 +457,22 @@ class _Run:
         (self.run_dir / "approved_plan.json").write_text(
             plan.model_dump_json(indent=2), encoding="utf-8"
         )
-        approval = approve_by_policy(plan)
+        approval = self._approve(plan, STAGE1_NOTE)
+        contract = build_experiment_contract(
+            spec,
+            data,
+            approval,
+            budget=self.budget,
+            job_limits=self.controller.run_config.budgets.job_limits,
+        )
+        save_experiment_contract(self.database, contract)
+        self.notes.append(STAGE1_NOTE)
+        self.notes += stage1_flag_notes(self.controller.run_config.flags)
+        return contract
+
+    def _approve(self, plan: ApprovedPlan, note: str) -> ApprovalRecord:
+        """Approve `plan` by policy and record the request, the decision, and both their events."""
+        approval = approve_by_policy(plan, reason=note)
         self._event(
             EventType.APPROVAL_REQUESTED,
             ApprovalRequestedPayload(
@@ -461,7 +480,7 @@ class _Run:
                 artifact_type=ApprovalArtifactType.PLAN,
                 artifact_hash=approval.artifact_hash,
                 policy=approval.policy,
-                summary=f"Phase B plan v{plan.version} within budget; {STAGE1_NOTE}",
+                summary=f"Phase B plan v{plan.version} within budget; {note}",
             ),
         )
         save_approval(self.database, approval)
@@ -476,17 +495,7 @@ class _Run:
             ),
             actor=ActorRole.POLICY_ENGINE,
         )
-        contract = build_experiment_contract(
-            spec,
-            data,
-            approval,
-            budget=self.budget,
-            job_limits=self.controller.run_config.budgets.job_limits,
-        )
-        save_experiment_contract(self.database, contract)
-        self.notes.append(STAGE1_NOTE)
-        self.notes += stage1_flag_notes(self.controller.run_config.flags)
-        return contract
+        return approval
 
     async def _phase_b(
         self, spec: TaskSpecification, contract: ExperimentContract, profile: DatasetProfile
@@ -761,8 +770,8 @@ class _Run:
                 return self.queue.get(job_id).status
             await anyio.sleep(self.controller.poll_seconds)
 
-    async def _report(self) -> bool:
-        """Write report.json and report.md; returns whether the final model was verified."""
+    def _write_facts(self, narrative_note: str | None = None) -> Report | None:
+        """Write the report from stored records; None if the run stopped before its contract."""
         json_path, md_path = self.run_dir / "report.json", self.run_dir / "report.md"
         self._notice_cancel()
         final = (
@@ -788,10 +797,19 @@ class _Run:
             )
             json_path.write_text(early.model_dump_json(indent=2), encoding="utf-8")
             md_path.write_text(render_early_stop(early), encoding="utf-8")
-            return False
-        # The facts first, so a failing narrative still leaves a complete report.
+            return None
+        report = report.model_copy(update={"narrative_note": narrative_note})
         json_path.write_text(report.model_dump_json(indent=2), encoding="utf-8")
         md_path.write_text(render_markdown(report), encoding="utf-8")
+        return report
+
+    async def _report(self) -> bool:
+        """Write report.json and report.md; returns whether the final model was verified."""
+        json_path, md_path = self.run_dir / "report.json", self.run_dir / "report.md"
+        # The facts first, so a failing narrative still leaves a complete report.
+        report = self._write_facts()
+        if report is None:
+            return False
         instance = self._role_started(ActorRole.REPORTER, ModelTier.CHEAP)
         report = await write_narrative(self.controller.adapter, self.guard, report)
         self._notice_cancel()
