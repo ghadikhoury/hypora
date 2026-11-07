@@ -230,7 +230,7 @@ def test_an_infeasible_case_grades_no_hidden_metric(tmp_path: Path) -> None:
     result = grade(world)
     for name in (HIDDEN_SCORE, HONESTY, BEATS_BASELINE):
         assert check_of(result, name).status is CheckStatus.NOT_APPLICABLE
-    assert result.passed
+    assert not result.passed  # No structured infeasibility proof exists in the current contract.
     assert world.predictor.requests == []
 
 

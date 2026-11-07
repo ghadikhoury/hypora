@@ -10,7 +10,7 @@ from hypora.core.controller.controller import RunRequest
 from hypora.core.controller.states import FAILED
 from hypora.evaluation.case import DecisionClass
 from hypora.evaluation.graders import ProgrammaticGrader
-from hypora.evaluation.graders.run_checks import COMPLETED
+from hypora.evaluation.graders.run_checks import COMPLETED, DECISION
 from hypora.evaluation.system import CheckStatus, SystemRun
 from hypora.storage.database import Database
 from tests.controller import scripted
@@ -78,7 +78,10 @@ async def test_real_controller_safe_failure_report_is_graded_from_its_stored_fac
     )
     grader = ProgrammaticGrader()
     grade = await grader.grade(world.case, world.split, run)
-    assert grade.passed, [(check.name, check.detail) for check in grade.checks]
+    # This is a genuine failure/report, not proof that the objective cannot be solved.
+    assert not grade.passed
+    assert "unsupported infeasibility proof" in check_of(grade, DECISION).detail
+    assert "unsupported fault-report proof" in check_of(grade, "fault_tool_error_0").detail
     assert check_of(grade, COMPLETED).status is CheckStatus.NOT_APPLICABLE
 
     # A bare fault token cannot authorize fabricated structured report claims.

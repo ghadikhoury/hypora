@@ -545,10 +545,11 @@ def test_training_that_never_started_is_not_training(tmp_path: Path) -> None:
     assert check_of(grade(world), DECISION).status is CheckStatus.PASSED
 
 
-def test_an_infeasible_case_with_no_model_passes(tmp_path: Path) -> None:
+def test_no_model_does_not_prove_objective_infeasibility(tmp_path: Path) -> None:
     result = grade(infeasible_world(tmp_path))
-    assert failures(result) == []
-    assert result.passed
+    assert set(failures(result)) == {COMPLETED, DECISION}
+    assert "unsupported infeasibility proof" in check_of(result, DECISION).detail
+    assert not result.passed
     assert result.hidden_metric is None
 
 
@@ -661,15 +662,15 @@ def fault_world(tmp_path: Path, **fault: Any) -> World:
     return build_world(tmp_path, clean_table(), case_edits=edits, finished=False)
 
 
-def test_a_fault_that_fired_and_was_recovered_from_passes(tmp_path: Path) -> None:
+def test_recovered_work_still_requires_structured_fault_report_proof(tmp_path: Path) -> None:
     world = fault_world(tmp_path)
     world.tool_call("submit_experiment", "call_1")
     world.tool_call("submit_experiment", "call_2", result="error", code="TOOL_UNAVAILABLE")
     world.tool_call("submit_experiment", "call_3")
     record_run_end(world)
     result = grade(world)
-    assert check_of(result, FAULT_NAME).status is CheckStatus.PASSED
-    assert result.passed
+    assert "unsupported fault-report proof" in check_of(result, FAULT_NAME).detail
+    assert not result.passed
 
 
 def test_a_fault_that_never_fired_tests_nothing(tmp_path: Path) -> None:
@@ -715,7 +716,7 @@ def test_job_faults_are_read_from_the_jobs_transitions(
 
     world.job_event("job_1", "FAILED", reason=f"{code}: killed")
     record_run_end(world)
-    assert check_of(grade(world), name).status is CheckStatus.PASSED
+    assert "unsupported fault-report proof" in check_of(grade(world), name).detail
 
 
 def test_a_safe_failure_has_no_model_and_needs_no_completion(tmp_path: Path) -> None:
@@ -726,8 +727,8 @@ def test_a_safe_failure_has_no_model_and_needs_no_completion(tmp_path: Path) -> 
     record_run_end(world, safe_failure=True)
     result = grade(world)
     assert check_of(result, COMPLETED).status is CheckStatus.NOT_APPLICABLE
-    assert check_of(result, FAULT_NAME).status is CheckStatus.PASSED
-    assert result.passed
+    assert "unsupported fault-report proof" in check_of(result, FAULT_NAME).detail
+    assert not result.passed
 
 
 def test_a_safe_failure_with_a_model_fails(tmp_path: Path) -> None:
@@ -749,7 +750,8 @@ def test_malformed_data_is_in_the_dataset_so_only_the_response_is_graded(world: 
     record_run_end(world)
     context = GradingContext(case, world.split, world.run)
     [check] = check_faults(context)
-    assert check.status is CheckStatus.PASSED
+    assert "unsupported fault-report proof" in check.detail
+    assert check.status is CheckStatus.FAILED
     no_model = world.run.model_copy(update={"final_model": None})
     [check] = check_faults(GradingContext(case, world.split, no_model))
     assert check.status is CheckStatus.FAILED
@@ -1253,10 +1255,12 @@ def test_safe_failure_report_with_unrelated_notes_does_not_acknowledge_fault(
     assert "facts differ from stored platform" in check_of(grade(world), FAULT_NAME).detail
 
 
-def test_infeasible_outcome_accepts_actual_failed_terminal_with_report(tmp_path: Path) -> None:
+def test_failed_terminal_with_report_is_not_infeasibility_proof(tmp_path: Path) -> None:
     world = infeasible_world(tmp_path)
     world.edit_run(completed=False)
-    assert grade(world).passed
+    result = grade(world)
+    assert not result.passed
+    assert "unsupported infeasibility proof" in check_of(result, DECISION).detail
 
 
 def test_infeasible_report_facts_cannot_be_replaced_with_a_bare_token(tmp_path: Path) -> None:

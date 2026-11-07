@@ -544,8 +544,16 @@ def check_decision(context: GradingContext) -> GraderCheck:
     log = context.run_log()
     final = run.final_model
     if expected is DecisionClass.INFEASIBLE:
-        problems = ["the run produced a final model on an infeasible case"] if final else []
-        return verdict(DECISION, problems, "infeasible, and the run has no final model", [log.ref])
+        if final is not None:
+            return failed(
+                DECISION, "the run produced a final model on an infeasible case", [log.ref]
+            )
+        return failed(
+            DECISION,
+            "unsupported infeasibility proof: no model and a failed run do not establish "
+            "that the objective is infeasible",
+            [log.ref],
+        )
     if final is None:
         raise MissingEvidence(f"a {expected.value} decision needs a final model", [log.ref])
     kinds = _trial_kinds(log)
@@ -666,9 +674,10 @@ def check_completed(context: GradingContext) -> GraderCheck:
     if context.expects_no_model and context.run.final_model is None and not safe_expected:
         terminal = _terminal(context, safe_failure=True)
         report_ref = _reported_outcome(context, safe_failure=True)
-        return passed(
+        return failed(
             COMPLETED,
-            "the infeasible objective was durably reported",
+            "unsupported infeasibility proof: the durable no-model report proves only "
+            "that no verified model was produced",
             [event_ref(terminal), report_ref],
         )
     if context.run.completed:
@@ -765,9 +774,10 @@ def _check_fault(context: GradingContext, fault: InjectedFault, name: str) -> Gr
         report_ref = _reported_outcome(context, safe_failure=True)
     if terminal.seq <= max(fault_seq, outcome_seq):
         raise MissingEvidence("no terminal outcome report follows the fault and work", refs)
-    return passed(
+    return failed(
         name,
-        f"{happened}; {fault.expected.value}",
+        f"unsupported fault-report proof: {happened}; ordinary outcome facts do not "
+        "establish a case-specific correct fault report",
         [*refs, event_ref(terminal), report_ref],
     )
 
