@@ -132,6 +132,8 @@ class HyporaMCPServer(MCPServer):
         self.tools = tools or HyporaTools(session)
         if session.config.defenses.allowlist:
             self.allowed = allowed_tools(session.role)
+            if session.config.permitted_tools is not None:
+                self.allowed &= frozenset(session.config.permitted_tools)
         else:  # F6 ablation: every tool, whatever the role
             self.allowed = frozenset(TOOL_ORDER)
         definitions = build_tools(self.tools, self.allowed)

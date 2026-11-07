@@ -26,7 +26,7 @@ the directory must match `split`, so a case can't sit in the wrong set.
 | `approval_policy` | Always `auto_within_contract` (spec §10.3) |
 | `contract_bounds` | The pre-approved contract: `max_budget`, `max_job_limits`, `approved_model_refs`, `approved_dependencies`, `approved_download_hosts`. The budget must fit inside it |
 | `hidden_split` | `strategy`, `fraction` (at most 0.5), `seed`, and `group_key` or `time_key` |
-| `grading` | `hidden_metric` (`name`, `threshold`, `reported_tolerance`), or null for `infeasible`. It must be a metric the constraints name, if they name any, so a reported value exists to compare. The other pass criteria of spec §19.2 take no parameters and always apply |
+| `grading` | `hidden_metric` (`name`, `threshold`, `reported_tolerance`), or null for `infeasible` or a case with a `fail_safely` fault (D-032). It must be a metric the constraints name, if they name any, so a reported value exists to compare. The other pass criteria of spec §19.2 take no parameters and always apply |
 | `traps` | Typed by `kind` (below); empty for a clean control |
 | `injected_faults` | `kind`, `expected` (`recover` / `fail_safely`), and for tool faults `tool`, `occurrence`, `error_code` |
 | `expected_decision_class` | `train`, `reuse`, or `infeasible` |

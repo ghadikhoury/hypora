@@ -725,3 +725,23 @@ one it supersedes.
 - Consequences: spec §12's table still holds. S3.C2's trial workers inherit the wait, and need the same
   guard check while they wait. The Stage 1 runs in `results/stage1/` used `single_agent@v1`, so S2.6
   re-measures cost per run.
+
+## D-032 — Structured outcome evidence for infeasibility and fault grading (S2.2)
+
+- Date: 2026-11-07. Decided by Ghadi ("Approve scoped changes; finish S2.2"), resolving triggers 8 and
+  4 for this scope after the Reviewer rejected both unsupported credit and unconditional failure.
+- Decision: platform code writes decision and fault evidence into the internal `Report` and
+  `EarlyStopReport` models, and the grader recomputes it from durable records. `infeasible` means a
+  verified hard-constraint impossibility within the authorized platform: not a pipeline failure, a
+  spent budget, or a global claim about learnability. An expected safe failure keeps its intended
+  train or reuse decision and may have a null hidden metric once a causal stop is proven.
+- Scope: no change to `core/schemas/`, event types, MCP signatures, or `SystemRun`. The optional
+  per-case tool restriction approved for S2.4 (D-031) lands here because the infeasibility
+  certificate needs an enforced tool list; it only narrows role permissions, and defaults are unchanged.
+- Malformed data (Ghadi, 2026-11-07, after review found no record can tie an outcome to the rows): its
+  grader moves to S3.H3 with the bad-data cases. Until then these cases fail explicitly, like attack and
+  crash faults. Building it in S2.2 was rejected: it would change the merged case format, and no Stage 2
+  case needs it.
+- Why: report prose and ordinary facts can't prove a case-specific outcome, and S2.2 needs positive and
+  negative support for both checks. Details: `docs/notes/graders.md`.
+

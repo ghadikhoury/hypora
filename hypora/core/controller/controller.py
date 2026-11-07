@@ -55,6 +55,7 @@ from hypora.core.controller.states import START, RunEvent, RunState, next_state
 from hypora.core.llm.adapter import LLMAdapter
 from hypora.core.roles.base import USER_CANCEL, RunLimitReached
 from hypora.core.roles.intake import IntakeError, IntakeForm, run_intake
+from hypora.core.roles.outcome_evidence import derive_outcome_evidence, has_authorized_model_route
 from hypora.core.roles.prompt_loader import load_prompt
 from hypora.core.roles.reporter import (
     EarlyStopReport,
@@ -88,6 +89,7 @@ from hypora.core.schemas import (
     SubmitExperimentRequest,
     TaskSpecification,
     TaskType,
+    ToolName,
 )
 from hypora.core.schemas.events import (
     ApprovalGrantedPayload,
@@ -146,6 +148,7 @@ class RunRequest:
     forbidden_columns: tuple[str, ...] = ()
     budget: Budget | None = None  # None: the configured run budget (configs/budgets.yaml)
     run_id: str | None = None
+    permitted_tools: tuple[ToolName, ...] | None = None
 
     def __post_init__(self) -> None:
         if self.run_id is not None:
@@ -505,6 +508,8 @@ class _Run:
         self, spec: TaskSpecification, contract: ExperimentContract, profile: DatasetProfile
     ) -> None:
         outcome = await self._agent(spec, contract, profile)
+        if outcome is None:
+            return
         self.notes.append(_describe(outcome))
         self.notes += await self._drain(cancel=outcome.stop is not None)
         nominated = outcome.final.final_trial_id if outcome.final else None
@@ -517,7 +522,8 @@ class _Run:
 
     async def _agent(
         self, spec: TaskSpecification, contract: ExperimentContract, profile: DatasetProfile
-    ) -> AgentOutcome:
+    ) -> AgentOutcome | None:
+        """Run the agent, or return None when its enforced tools leave no route to a model."""
         c = self.controller
         session = write_session(
             self.run_dir / "mcp" / "session.json",
@@ -527,6 +533,7 @@ class _Run:
             runs_root=c.runs_root,
             dataset=self.dataset,
             flags=c.run_config.flags,
+            permitted_tools=self.request.permitted_tools,
         )
         log = self.run_dir / "logs" / "mcp-server.log"
         log.parent.mkdir(parents=True, exist_ok=True)
@@ -544,6 +551,13 @@ class _Run:
                         f"experiment_contract:{self.run_id}.v{contract.version}",
                     ],
                 )
+                if not has_authorized_model_route([tool.name for tool in tools], contract):
+                    self._handoff(instance, ActorRole.SINGLE_AGENT, HandoffStatus.PARTIAL)
+                    self.notes.append(
+                        "No authorized route to a model: this run's enforced tools and contract "
+                        "permit no job and no approved model, so no experiment was attempted."
+                    )
+                    return None
                 outcome = await run_single_agent(
                     c.adapter,
                     self.guard,
@@ -758,10 +772,20 @@ class _Run:
         )
         try:
             report = build_report(
-                self.database, self.run_id, final_trial_id=final, notes=self.notes
+                self.database,
+                self.run_id,
+                final_trial_id=final,
+                notes=self.notes,
+                runs_root=self.controller.runs_root,
             )
         except RecordNotFound:  # stopped before the contract: nothing was measured
-            early = EarlyStopReport(run_id=self.run_id, notes=self.notes)
+            early = EarlyStopReport(
+                run_id=self.run_id,
+                notes=self.notes,
+                evidence=derive_outcome_evidence(
+                    self.database, self.controller.runs_root, self.run_id
+                ),
+            )
             json_path.write_text(early.model_dump_json(indent=2), encoding="utf-8")
             md_path.write_text(render_early_stop(early), encoding="utf-8")
             return False

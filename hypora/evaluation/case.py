@@ -249,7 +249,8 @@ class GradingRules(FrozenModel):
     """
 
     hidden_metric: GradedMetric | None = Field(
-        description="Null only when the right outcome produces no model (decision `infeasible`)."
+        description="Null only when the right outcome produces no model: decision `infeasible`, "
+        "or a fault that must stop the run safely."
     )
 
 
@@ -468,9 +469,10 @@ class Case(FrozenRecord):
     def _grading_problems(self) -> list[str]:
         metric = self.grading.hidden_metric
         no_model = self.expected_decision_class is DecisionClass.INFEASIBLE
+        stops_safely = any(f.expected is FaultResponse.FAIL_SAFELY for f in self.injected_faults)
         if no_model and metric is not None:
             return ["an infeasible case produces no model: hidden_metric must be null"]
-        if not no_model and metric is None:
+        if not no_model and not stops_safely and metric is None:
             return [f"a {self.expected_decision_class.value} case needs a hidden_metric"]
         if metric is not None and metric.name not in metrics_for(self.constraints.task_type):
             return [f"{metric.name.value} does not apply to {self.constraints.task_type.value}"]
