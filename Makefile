@@ -22,6 +22,10 @@ DEMO_TARGET := good_or_bad_customer
 DATA ?=
 GOAL ?=
 TARGET ?=
+CASES ?= dev
+SYSTEMS ?= agent,baseline
+CONFIG ?= single_agent
+PROFILE ?=
 ARGS ?=
 
 # Mode 1 compose stack (D-020). The worker file is the opt-in service holding the Docker socket.
@@ -48,9 +52,9 @@ snapshot: ## Fetch a real dataset into data/snapshots/: make snapshot SOURCE=ope
 		|| { echo 'usage: make snapshot SOURCE=openml|uci ID=<dataset id>' >&2; exit 2; }
 	$(RUN) python scripts/snapshot_dataset.py $(SOURCE) $(ID)
 
-eval: ## Placeholder: the evaluation runner arrives in PLAN.md S2.4
-	@echo 'make eval: the evaluation runner (hypora eval, spec §19.6) arrives in PLAN.md S2.4.' >&2
-	@exit 1
+eval: ## Compare systems: CASES=dev SYSTEMS=agent,baseline CONFIG=single_agent [PROFILE=dev]
+	$(RUN) hypora eval --cases "$(CASES)" --systems "$(SYSTEMS)" --config "$(CONFIG)" \
+		$(if $(PROFILE),--profile "$(PROFILE)") $(ARGS)
 
 up: ## Mode 1 compose stack: the API placeholder on http://127.0.0.1:8000/health (needs Docker)
 	mkdir -p runs

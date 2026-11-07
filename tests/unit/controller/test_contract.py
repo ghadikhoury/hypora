@@ -85,3 +85,20 @@ def test_flags_that_stage_1_cannot_honour_are_called_out() -> None:
         {"agent_mode": "single", "approval_policy": "auto_within_contract"}
     )
     assert stage1_flag_notes(stage1) == []
+
+
+def test_explicit_secondary_metrics_are_unioned_with_defaults_and_quality_target() -> None:
+    task = spec(
+        primary_metric=MetricName.ROC_AUC,
+        secondary_metrics=[MetricName.ACCURACY, MetricName.F1_MACRO],
+        quality_target=0.8,
+    )
+    data = build_data_contract(task, COLUMNS)
+    approval = approve_by_policy(build_plan(task, data, Budget()))
+    contract = build_experiment_contract(task, data, approval, budget=Budget(), job_limits=LIMITS)
+    assert contract.secondary_metrics == (
+        MetricName.F1_MACRO,
+        MetricName.LOG_LOSS,
+        MetricName.ACCURACY,
+    )
+    assert contract.quality_threshold == 0.8

@@ -155,7 +155,11 @@ def build_experiment_contract(
     """The frozen terms of Phase B, tied to the approved plan's hash."""
     if spec.primary_metric is None:
         raise ContractError("the task spec has no primary metric")
-    secondary = tuple(m for m in METRIC_SETS[data.task_type] if m is not spec.primary_metric)
+    secondary = tuple(
+        metric
+        for metric in dict.fromkeys((*METRIC_SETS[data.task_type], *spec.secondary_metrics))
+        if metric is not spec.primary_metric
+    )
     return ExperimentContract(
         run_id=spec.run_id,
         version=1,

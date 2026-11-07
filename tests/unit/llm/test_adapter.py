@@ -125,6 +125,7 @@ async def test_transient_errors_are_retried_with_growing_backoff(
     [payload] = payloads(events)
     assert payload.retries == 2
     assert payload.rate_limit_wait_ms == pytest.approx(sum(backoffs) * 1000)
+    assert adapter.retry_wait_s == pytest.approx(sum(backoffs))
 
 
 @pytest.mark.asyncio

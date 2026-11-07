@@ -726,6 +726,17 @@ one it supersedes.
   guard check while they wait. The Stage 1 runs in `results/stage1/` used `single_agent@v1`, so S2.6
   re-measures cost per run.
 
+## D-031 - Evaluation record protection and per-case tool restrictions
+- Date: 2026-11-06
+- Step: S2.4 (trigger 3 approval)
+- Decided by: Ghadi, explicitly approving both scoped changes through the coding lead
+- Decision: retain and finish credential-value redaction and hidden-data/path checks before public
+  result records are saved. Add optional permitted tools to trusted MCP sessions, intersected with
+  existing role permissions; omission preserves existing behavior. The allowlist-off ablation
+  continues to bypass both restrictions. Fault injection respects the effective restriction and
+  records only the role/case check it actually performed, never inner argument/contract checks.
+- Scope: no broader auth/policy rewrite, frozen schema change, or new fault protocol is authorized.
+
 ## D-032 — Structured outcome evidence for infeasibility and fault grading (S2.2)
 
 - Date: 2026-11-07. Decided by Ghadi ("Approve scoped changes; finish S2.2"), resolving triggers 8 and
@@ -744,4 +755,3 @@ one it supersedes.
   case needs it.
 - Why: report prose and ordinary facts can't prove a case-specific outcome, and S2.2 needs positive and
   negative support for both checks. Details: `docs/notes/graders.md`.
-

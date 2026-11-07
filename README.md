@@ -83,11 +83,15 @@ Only datasets with a clearly named license are stored. Many older OpenML uploads
 ## Run the evaluation
 
 ```bash
-make eval
+make eval CASES=dev SYSTEMS=agent,baseline CONFIG=single_agent PROFILE=dev
 ```
 
-Placeholder: the evaluation runner arrives in PLAN.md S2.4. Until then `make eval` says so and
-fails.
+The runner writes one primary result per case/system, a Markdown report with 95% intervals,
+and newly failing cases compared with the nearest parent results for the same config. Named
+configs live in `configs/eval/`; `PROFILE` overrides their model profile. `CASES` also accepts a
+case directory. The tree must be clean for recorded results. See
+[the runner guide](docs/notes/eval-runner.md) for bounded parallelism, resume, and repeat samples.
+The first dev cases are added in S2.5; an empty case set is refused before calls.
 
 ## The Docker Compose stack (Mode 1)
 

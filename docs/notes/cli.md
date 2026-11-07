@@ -88,3 +88,10 @@ how to see that approval in the trace; it exits 1.
 creating no run; option wiring and exit codes; the compose worker handle with a fake Docker client;
 and one sandbox-marked end-to-end run (`test_a_cli_run_on_a_snapshot_ends_verified_and_is_inspectable`):
 scripted provider, real MCP server, worker process, sandbox, verifier, then `status` and `trace` on it.
+
+## Evaluate systems
+
+`make eval CASES=dev SYSTEMS=agent,baseline CONFIG=single_agent PROFILE=dev` uses the same runner as
+`uv run hypora eval --cases dev --systems agent,baseline --config single_agent --profile dev`.
+It saves per-case evidence, intervals, timing/cost summaries and regressions under the source
+commit. See [eval-runner.md](eval-runner.md) for profile directories, repeat samples, and resume.

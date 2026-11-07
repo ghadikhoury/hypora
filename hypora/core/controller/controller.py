@@ -22,6 +22,7 @@ import contextlib
 import hashlib
 import json
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from decimal import Decimal
 from importlib import resources
@@ -66,7 +67,12 @@ from hypora.core.roles.reporter import (
     render_markdown,
     write_narrative,
 )
-from hypora.core.roles.single_agent import AgentOutcome, McpToolChannel, run_single_agent
+from hypora.core.roles.single_agent import (
+    AgentOutcome,
+    McpToolChannel,
+    ToolChannel,
+    run_single_agent,
+)
 from hypora.core.schemas import (
     AUTO_APPROVER,
     ActorRole,
@@ -152,6 +158,9 @@ class RunRequest:
     budget: Budget | None = None  # None: the configured run budget (configs/budgets.yaml)
     run_id: str | None = None
     permitted_tools: tuple[ToolName, ...] | None = None
+    secondary_metrics: tuple[MetricName, ...] = ()
+    quality_target: float | None = None
+    visible_constraints: str | None = None
 
     def __post_init__(self) -> None:
         if self.run_id is not None:
@@ -283,8 +292,12 @@ class RunController:
         max_agent_turns: int = MAX_AGENT_TURNS,
         poll_seconds: float = POLL_SECONDS,
         worker_factory: WorkerFactory = WorkerProcess,
+        tool_channel_wrapper: Callable[[ToolChannel], ToolChannel] | None = None,
     ) -> None:
+        """`tool_channel_wrapper` is the evaluation harness's fault injection point (spec §19.2):
+        it wraps the agent's connection to the MCP server. The agent can't see or reach it."""
         self.worker_factory = worker_factory
+        self.tool_channel_wrapper = tool_channel_wrapper
         self.database = database
         path = database.engine.url.database
         if not path:
@@ -419,6 +432,8 @@ class _Run:
                     target=r.target,
                     task_type=r.task_type,
                     primary_metric=r.primary_metric,
+                    secondary_metrics=r.secondary_metrics,
+                    quality_target=r.quality_target,
                     forbidden_columns=r.forbidden_columns,
                     budget=self.budget,
                 ),
@@ -549,8 +564,11 @@ class _Run:
         with log.open("a", encoding="utf-8") as errlog:
             transport = mcp_transport(session, errlog)
             async with Client(transport, read_timeout_seconds=MCP_READ_TIMEOUT_S) as client:
-                channel = McpToolChannel(client)
-                tools = await channel.specs()
+                mcp_channel = McpToolChannel(client)
+                tools = await mcp_channel.specs()
+                channel: ToolChannel = mcp_channel
+                if c.tool_channel_wrapper is not None:
+                    channel = c.tool_channel_wrapper(channel)
                 instance = self._role_started(
                     ActorRole.SINGLE_AGENT,
                     ModelTier.LEAD,
@@ -609,6 +627,8 @@ class _Run:
                 + ", ".join(m.value for m in contract.secondary_metrics),
             ]
         )
+        if self.request.visible_constraints is not None:
+            task += "\n- Structured user constraints: " + self.request.visible_constraints
         terms = "\n".join(
             [
                 f"- Contract version {contract.version}, approval {contract.approval_id}",
