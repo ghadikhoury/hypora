@@ -1,0 +1,5048 @@
+{
+  "cap_usd": 8.0,
+  "attempt_reservation_usd": 0.36,
+  "measured_usd": 0.06326554,
+  "unknown_reserved_usd": 0,
+  "attempts": [
+    {
+      "at": "2026-11-08T15:17:29.588888+00:00",
+      "id": "4ec39c6cc6fe4eb89e8359fdcfc7b1bf",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_229e9b484787",
+      "actual_usd": 0.0001158,
+      "usage": {
+        "cache_write_tokens": 0,
+        "cached_input_tokens": 0,
+        "input_tokens": 723,
+        "output_tokens": 87,
+        "reasoning_tokens": 34
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:17:38.974906+00:00",
+      "id": "2d7f9e37c92140589689d82dca40ba2c",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_229e9b484787",
+      "actual_usd": 0.00066605,
+      "usage": {
+        "cache_write_tokens": 5226,
+        "cached_input_tokens": 0,
+        "input_tokens": 5229,
+        "output_tokens": 25,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:17:41.064466+00:00",
+      "id": "0e3ac2cfc04144d5a004c1c8e2c83c5d",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_229e9b484787",
+      "actual_usd": 0.000835685,
+      "usage": {
+        "cache_write_tokens": 3605,
+        "cached_input_tokens": 5226,
+        "input_tokens": 8834,
+        "output_tokens": 665,
+        "reasoning_tokens": 245
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:17:46.972035+00:00",
+      "id": "ffd4f45775c64b80b3579244cc11efc1",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_229e9b484787",
+      "actual_usd": 0.00023061000000000002,
+      "usage": {
+        "cache_write_tokens": 964,
+        "cached_input_tokens": 8831,
+        "input_tokens": 9798,
+        "output_tokens": 43,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:17:48.620417+00:00",
+      "id": "31bf7cab023b45879f4ae77296d2cbb2",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_229e9b484787",
+      "actual_usd": 0.00070375,
+      "usage": {
+        "cache_write_tokens": 180,
+        "cached_input_tokens": 9795,
+        "input_tokens": 9978,
+        "output_tokens": 1166,
+        "reasoning_tokens": 244
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:17:55.171938+00:00",
+      "id": "f7b44ecf925442d8bc091bbb621f169f",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_229e9b484787",
+      "actual_usd": 0.000400425,
+      "usage": {
+        "cache_write_tokens": 1779,
+        "cached_input_tokens": 9975,
+        "input_tokens": 11757,
+        "output_tokens": 156,
+        "reasoning_tokens": 28
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:18:32.445915+00:00",
+      "id": "2e031f5259cf4ef3ac394aa28031fd9c",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_229e9b484787",
+      "actual_usd": 0.00028184000000000005,
+      "usage": {
+        "cache_write_tokens": 796,
+        "cached_input_tokens": 11754,
+        "input_tokens": 12553,
+        "output_tokens": 129,
+        "reasoning_tokens": 18
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:19:19.362676+00:00",
+      "id": "0c9fdf2bea034cc09eab0e9c1c24b34b",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_229e9b484787",
+      "actual_usd": 0.0004293,
+      "usage": {
+        "cache_write_tokens": 2048,
+        "cached_input_tokens": 12550,
+        "input_tokens": 14601,
+        "output_tokens": 95,
+        "reasoning_tokens": 12
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:20:03.318396+00:00",
+      "id": "59d07fc41e814031b257591548ff6e38",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_229e9b484787",
+      "actual_usd": 0.000267155,
+      "usage": {
+        "cache_write_tokens": 587,
+        "cached_input_tokens": 14598,
+        "input_tokens": 15188,
+        "output_tokens": 95,
+        "reasoning_tokens": 12
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:20:18.253771+00:00",
+      "id": "f37fed8cb15e4905a0e50cd1bed33654",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_229e9b484787",
+      "actual_usd": 0.000541025,
+      "usage": {
+        "cache_write_tokens": 2147,
+        "cached_input_tokens": 15185,
+        "input_tokens": 17335,
+        "output_tokens": 241,
+        "reasoning_tokens": 188
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:20:21.693967+00:00",
+      "id": "15d96b77224c40a0b7c299a705b5ed59",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_229e9b484787",
+      "actual_usd": 0.00076162,
+      "usage": {
+        "cache_write_tokens": 1908,
+        "cached_input_tokens": 17332,
+        "input_tokens": 19243,
+        "output_tokens": 699,
+        "reasoning_tokens": 216
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:20:27.330634+00:00",
+      "id": "d177e0a8932949c886aa1689ce8efcc3",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_229e9b484787",
+      "actual_usd": 0.00033945000000000004,
+      "usage": {
+        "cache_write_tokens": 1002,
+        "cached_input_tokens": 19240,
+        "input_tokens": 20245,
+        "output_tokens": 43,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:20:28.833613+00:00",
+      "id": "ad284711cf984b5bb4f06f52ebf5be3c",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_229e9b484787",
+      "actual_usd": 0.00024197000000000002,
+      "usage": {
+        "cache_write_tokens": 182,
+        "cached_input_tokens": 20242,
+        "input_tokens": 20427,
+        "output_tokens": 33,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:21:13.917571+00:00",
+      "id": "d13aaa3bcd354039be542c04c9f7f7a4",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_229e9b484787",
+      "actual_usd": 0.00024129000000000002,
+      "usage": {
+        "cache_write_tokens": 162,
+        "cached_input_tokens": 20424,
+        "input_tokens": 20589,
+        "output_tokens": 33,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:21:15.749386+00:00",
+      "id": "6558864581814415aecec362c0e5ccb4",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_229e9b484787",
+      "actual_usd": 0.00027191000000000004,
+      "usage": {
+        "cache_write_tokens": 394,
+        "cached_input_tokens": 20586,
+        "input_tokens": 20983,
+        "output_tokens": 33,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:21:16.977669+00:00",
+      "id": "790637287b5842438391f28822d8c130",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_229e9b484787",
+      "actual_usd": 0.000547975,
+      "usage": {
+        "cache_write_tokens": 1711,
+        "cached_input_tokens": 20980,
+        "input_tokens": 22694,
+        "output_tokens": 248,
+        "reasoning_tokens": 93
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:21:19.693969+00:00",
+      "id": "8cfcd22a9642498f96a3018e84523f08",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_229e9b484787",
+      "actual_usd": 0.00248305,
+      "usage": {
+        "cache_write_tokens": 19750,
+        "cached_input_tokens": 0,
+        "input_tokens": 19753,
+        "output_tokens": 28,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:22:44.559521+00:00",
+      "id": "ad449bd3a72748f383d2191b4a117b95",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_229e9b484787",
+      "actual_usd": 0.00041017500000000004,
+      "usage": {
+        "cache_write_tokens": 1819,
+        "cached_input_tokens": 0,
+        "input_tokens": 1822,
+        "output_tokens": 365,
+        "reasoning_tokens": 178
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:24:56.013040+00:00",
+      "id": "8a85516b403f4db989b3135fd4d63728",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_7e5d5077f853",
+      "actual_usd": 0.0001089,
+      "usage": {
+        "cache_write_tokens": 0,
+        "cached_input_tokens": 0,
+        "input_tokens": 659,
+        "output_tokens": 86,
+        "reasoning_tokens": 32
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:25:02.619244+00:00",
+      "id": "ddad6215811043a58cda6892c003fe54",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_7e5d5077f853",
+      "actual_usd": 0.000186375,
+      "usage": {
+        "cache_write_tokens": 1059,
+        "cached_input_tokens": 4120,
+        "input_tokens": 5182,
+        "output_tokens": 25,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:25:04.916641+00:00",
+      "id": "e005e64e5eb94cc39f636aaa49cf18a0",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_7e5d5077f853",
+      "actual_usd": 0.000458965,
+      "usage": {
+        "cache_write_tokens": 1643,
+        "cached_input_tokens": 5179,
+        "input_tokens": 6825,
+        "output_tokens": 403,
+        "reasoning_tokens": 146
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:25:10.156806+00:00",
+      "id": "75a217e8877c4689a541f0b7e8e051af",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_7e5d5077f853",
+      "actual_usd": 0.00018077,
+      "usage": {
+        "cache_write_tokens": 714,
+        "cached_input_tokens": 6822,
+        "input_tokens": 7539,
+        "output_tokens": 46,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:25:11.481041+00:00",
+      "id": "405b8e63becc4690bb32bf4e6d333ad4",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_7e5d5077f853",
+      "actual_usd": 0.00033690999999999994,
+      "usage": {
+        "cache_write_tokens": 186,
+        "cached_input_tokens": 7536,
+        "input_tokens": 7725,
+        "output_tokens": 476,
+        "reasoning_tokens": 106
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:25:16.787099+00:00",
+      "id": "bd5bbc16a0ac452ebcd7267e79824dbc",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_7e5d5077f853",
+      "actual_usd": 0.00020001999999999997,
+      "usage": {
+        "cache_write_tokens": 792,
+        "cached_input_tokens": 7722,
+        "input_tokens": 8517,
+        "output_tokens": 47,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:25:18.202243+00:00",
+      "id": "0e7af8c91f48499faa329a1ca25c4062",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_7e5d5077f853",
+      "actual_usd": 0.00027068999999999997,
+      "usage": {
+        "cache_write_tokens": 190,
+        "cached_input_tokens": 8514,
+        "input_tokens": 8707,
+        "output_tokens": 323,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:25:21.516558+00:00",
+      "id": "71aa8c0aaa394d58a8cd06a8f2c1ace7",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_7e5d5077f853",
+      "actual_usd": 0.00019109000000000002,
+      "usage": {
+        "cache_write_tokens": 646,
+        "cached_input_tokens": 8704,
+        "input_tokens": 9353,
+        "output_tokens": 46,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:25:23.004443+00:00",
+      "id": "c4ac4d5b1b6d41178386cd68c3bc70e3",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_7e5d5077f853",
+      "actual_usd": 0.00014755,
+      "usage": {
+        "cache_write_tokens": 186,
+        "cached_input_tokens": 9350,
+        "input_tokens": 9539,
+        "output_tokens": 61,
+        "reasoning_tokens": 26
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:25:53.533378+00:00",
+      "id": "599ffcb1403243299cb01f220d80600f",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_7e5d5077f853",
+      "actual_usd": 0.000164535,
+      "usage": {
+        "cache_write_tokens": 415,
+        "cached_input_tokens": 9536,
+        "input_tokens": 9954,
+        "output_tokens": 34,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:26:37.051811+00:00",
+      "id": "48a551afea6e4cba9ba69260af8d0a2a",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_7e5d5077f853",
+      "actual_usd": 0.00016656,
+      "usage": {
+        "cache_write_tokens": 402,
+        "cached_input_tokens": 9951,
+        "input_tokens": 10356,
+        "output_tokens": 33,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:27:22.395542+00:00",
+      "id": "7d6ab44829c749778b7e060cf7455c80",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_7e5d5077f853",
+      "actual_usd": 0.000170205,
+      "usage": {
+        "cache_write_tokens": 163,
+        "cached_input_tokens": 10353,
+        "input_tokens": 10519,
+        "output_tokens": 92,
+        "reasoning_tokens": 11
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:27:24.483872+00:00",
+      "id": "67a5412d982548afbe68a487f102661a",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_7e5d5077f853",
+      "actual_usd": 0.00028258499999999997,
+      "usage": {
+        "cache_write_tokens": 1241,
+        "cached_input_tokens": 10516,
+        "input_tokens": 11760,
+        "output_tokens": 44,
+        "reasoning_tokens": 9
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:27:25.734816+00:00",
+      "id": "9e3a6f96e99d4be0829a898b361505dd",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_7e5d5077f853",
+      "actual_usd": 0.000184995,
+      "usage": {
+        "cache_write_tokens": 405,
+        "cached_input_tokens": 11757,
+        "input_tokens": 12165,
+        "output_tokens": 33,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:27:25.341563+00:00",
+      "id": "014fb21e550e490c97c45d1a1ba2b8b6",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_7e5d5077f853",
+      "actual_usd": 0.00042792000000000004,
+      "usage": {
+        "cache_write_tokens": 608,
+        "cached_input_tokens": 12162,
+        "input_tokens": 12773,
+        "output_tokens": 460,
+        "reasoning_tokens": 144
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:27:30.006353+00:00",
+      "id": "b56da3eab9e94d0bb09ead649d9d9822",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_7e5d5077f853",
+      "actual_usd": 0.000246875,
+      "usage": {
+        "cache_write_tokens": 771,
+        "cached_input_tokens": 12770,
+        "input_tokens": 13544,
+        "output_tokens": 45,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:27:33.043779+00:00",
+      "id": "a8d4132889a844dabf4e256f8a0baa3e",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_7e5d5077f853",
+      "actual_usd": 0.00017596000000000002,
+      "usage": {
+        "cache_write_tokens": 186,
+        "cached_input_tokens": 13541,
+        "input_tokens": 13730,
+        "output_tokens": 34,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:28:15.338059+00:00",
+      "id": "4d067dfeae9241e6b21d46b6c17f5a36",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_7e5d5077f853",
+      "actual_usd": 0.00020332000000000003,
+      "usage": {
+        "cache_write_tokens": 390,
+        "cached_input_tokens": 13727,
+        "input_tokens": 14120,
+        "output_tokens": 34,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:28:17.131168+00:00",
+      "id": "e48149d04d684921ab1682627235b14a",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_7e5d5077f853",
+      "actual_usd": 0.00033947000000000003,
+      "usage": {
+        "cache_write_tokens": 604,
+        "cached_input_tokens": 14117,
+        "input_tokens": 14724,
+        "output_tokens": 245,
+        "reasoning_tokens": 64
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:28:20.327131+00:00",
+      "id": "8e0dba3649eb4c29950528de7cbac7ea",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_7e5d5077f853",
+      "actual_usd": 0.001485925,
+      "usage": {
+        "cache_write_tokens": 11777,
+        "cached_input_tokens": 0,
+        "input_tokens": 11780,
+        "output_tokens": 27,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:29:23.681419+00:00",
+      "id": "8527094d3f284eb79794e24105384c14",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_7e5d5077f853",
+      "actual_usd": 0.0003923,
+      "usage": {
+        "cache_write_tokens": 1476,
+        "cached_input_tokens": 0,
+        "input_tokens": 1479,
+        "output_tokens": 415,
+        "reasoning_tokens": 258
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:31:29.689837+00:00",
+      "id": "1e584212620a4b55a473522e2660ba7a",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_1f6af2bb64f9",
+      "actual_usd": 0.0001322,
+      "usage": {
+        "cache_write_tokens": 0,
+        "cached_input_tokens": 0,
+        "input_tokens": 792,
+        "output_tokens": 106,
+        "reasoning_tokens": 42
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:31:36.711484+00:00",
+      "id": "668a9ab3cd81453bbae517451a4b5efe",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_1f6af2bb64f9",
+      "actual_usd": 0.00019675,
+      "usage": {
+        "cache_write_tokens": 1134,
+        "cached_input_tokens": 4120,
+        "input_tokens": 5257,
+        "output_tokens": 27,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:31:38.280064+00:00",
+      "id": "a49aeee6e81742198e1c152434d34650",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_1f6af2bb64f9",
+      "actual_usd": 0.000806215,
+      "usage": {
+        "cache_write_tokens": 4543,
+        "cached_input_tokens": 5254,
+        "input_tokens": 9800,
+        "output_tokens": 371,
+        "reasoning_tokens": 134
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:31:42.147085+00:00",
+      "id": "4a8b816bd0f442e990a4f6a249c01a89",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_1f6af2bb64f9",
+      "actual_usd": 0.00020676999999999997,
+      "usage": {
+        "cache_write_tokens": 680,
+        "cached_input_tokens": 9797,
+        "input_tokens": 10480,
+        "output_tokens": 47,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:31:43.741854+00:00",
+      "id": "abe5fd4ca1624554a52c409f227cd6b5",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_1f6af2bb64f9",
+      "actual_usd": 0.0005279449999999999,
+      "usage": {
+        "cache_write_tokens": 187,
+        "cached_input_tokens": 10477,
+        "input_tokens": 10667,
+        "output_tokens": 799,
+        "reasoning_tokens": 227
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:31:51.422728+00:00",
+      "id": "f9114156b79944c18732963772690696",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_1f6af2bb64f9",
+      "actual_usd": 0.00036794,
+      "usage": {
+        "cache_write_tokens": 1432,
+        "cached_input_tokens": 10664,
+        "input_tokens": 12099,
+        "output_tokens": 164,
+        "reasoning_tokens": 29
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:32:27.924181+00:00",
+      "id": "4b1bf67c3d5140ec993eb203664b0820",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_1f6af2bb64f9",
+      "actual_usd": 0.000288885,
+      "usage": {
+        "cache_write_tokens": 801,
+        "cached_input_tokens": 12096,
+        "input_tokens": 12900,
+        "output_tokens": 135,
+        "reasoning_tokens": 27
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:33:20.279717+00:00",
+      "id": "131620968a6643729960e1b1800a3791",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_1f6af2bb64f9",
+      "actual_usd": 0.00029252,
+      "usage": {
+        "cache_write_tokens": 954,
+        "cached_input_tokens": 12897,
+        "input_tokens": 13854,
+        "output_tokens": 88,
+        "reasoning_tokens": 9
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:34:04.168524+00:00",
+      "id": "6cd91820ae0447948bf22d4f390aa4fc",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_1f6af2bb64f9",
+      "actual_usd": 0.00028006,
+      "usage": {
+        "cache_write_tokens": 782,
+        "cached_input_tokens": 13851,
+        "input_tokens": 14636,
+        "output_tokens": 87,
+        "reasoning_tokens": 8
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:34:06.434850+00:00",
+      "id": "2ed6133273a04d18a352415000f54498",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_1f6af2bb64f9",
+      "actual_usd": 0.000624755,
+      "usage": {
+        "cache_write_tokens": 1237,
+        "cached_input_tokens": 14633,
+        "input_tokens": 15873,
+        "output_tokens": 647,
+        "reasoning_tokens": 364
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:34:13.299064+00:00",
+      "id": "84a4b9d43f5547358c5d010cba5fdb3f",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_1f6af2bb64f9",
+      "actual_usd": 0.000303375,
+      "usage": {
+        "cache_write_tokens": 967,
+        "cached_input_tokens": 15870,
+        "input_tokens": 16840,
+        "output_tokens": 47,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:34:15.974508+00:00",
+      "id": "60af0fcb84c74b40b9397c0544805053",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_1f6af2bb64f9",
+      "actual_usd": 0.00020929500000000002,
+      "usage": {
+        "cache_write_tokens": 189,
+        "cached_input_tokens": 16837,
+        "input_tokens": 17029,
+        "output_tokens": 34,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:35:00.731255+00:00",
+      "id": "e53d9395b1224c128fd101746fc9dcbb",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_1f6af2bb64f9",
+      "actual_usd": 0.000208185,
+      "usage": {
+        "cache_write_tokens": 165,
+        "cached_input_tokens": 17026,
+        "input_tokens": 17194,
+        "output_tokens": 34,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:35:17.868819+00:00",
+      "id": "2e40774c86c0459b86e1dbc57769a778",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_1f6af2bb64f9",
+      "actual_usd": 0.000237585,
+      "usage": {
+        "cache_write_tokens": 387,
+        "cached_input_tokens": 17191,
+        "input_tokens": 17581,
+        "output_tokens": 34,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:35:19.333603+00:00",
+      "id": "8109ef219af940049a6302f1720e5070",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_1f6af2bb64f9",
+      "actual_usd": 0.00033370500000000006,
+      "usage": {
+        "cache_write_tokens": 609,
+        "cached_input_tokens": 17578,
+        "input_tokens": 18190,
+        "output_tokens": 163,
+        "reasoning_tokens": 63
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:35:21.749691+00:00",
+      "id": "d93b5cd62dff44f7b334e21e6ef649d8",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_1f6af2bb64f9",
+      "actual_usd": 0.001908925,
+      "usage": {
+        "cache_write_tokens": 15161,
+        "cached_input_tokens": 0,
+        "input_tokens": 15164,
+        "output_tokens": 27,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:36:53.407969+00:00",
+      "id": "2ac81b7802b24240885b99a63362ea30",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_1f6af2bb64f9",
+      "actual_usd": 0.00044705,
+      "usage": {
+        "cache_write_tokens": 1486,
+        "cached_input_tokens": 0,
+        "input_tokens": 1489,
+        "output_tokens": 522,
+        "reasoning_tokens": 337
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:39:02.099163+00:00",
+      "id": "bd8778ca1c144d1180c2beca4a98e53c",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_923aeadb28b4",
+      "actual_usd": 0.000123,
+      "usage": {
+        "cache_write_tokens": 0,
+        "cached_input_tokens": 0,
+        "input_tokens": 770,
+        "output_tokens": 92,
+        "reasoning_tokens": 29
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:39:08.772210+00:00",
+      "id": "ee82e207c84b48ca9aadaaf67642b364",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_923aeadb28b4",
+      "actual_usd": 0.000199375,
+      "usage": {
+        "cache_write_tokens": 1151,
+        "cached_input_tokens": 4120,
+        "input_tokens": 5274,
+        "output_tokens": 28,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:39:10.942371+00:00",
+      "id": "c88c735bcb364cf2a2d8c2ac4c61d46d",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_923aeadb28b4",
+      "actual_usd": 0.00085326,
+      "usage": {
+        "cache_write_tokens": 4194,
+        "cached_input_tokens": 5271,
+        "input_tokens": 9468,
+        "output_tokens": 552,
+        "reasoning_tokens": 86
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:39:17.940843+00:00",
+      "id": "3704275fa1584e5aba3ce993f94bae1b",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_923aeadb28b4",
+      "actual_usd": 0.00022295,
+      "usage": {
+        "cache_write_tokens": 852,
+        "cached_input_tokens": 9465,
+        "input_tokens": 10320,
+        "output_tokens": 43,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:39:17.642729+00:00",
+      "id": "97fd10fee5e94ff78bb83fa83f4eb01e",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_923aeadb28b4",
+      "actual_usd": 0.000810845,
+      "usage": {
+        "cache_write_tokens": 183,
+        "cached_input_tokens": 10317,
+        "input_tokens": 10503,
+        "output_tokens": 1369,
+        "reasoning_tokens": 291
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:40:00.586417+00:00",
+      "id": "d6d9384d04a14d5590334d32a23f71b0",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_923aeadb28b4",
+      "actual_usd": 0.00049055,
+      "usage": {
+        "cache_write_tokens": 2334,
+        "cached_input_tokens": 10500,
+        "input_tokens": 12837,
+        "output_tokens": 187,
+        "reasoning_tokens": 57
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:40:03.515176+00:00",
+      "id": "6fac624fdba34392aed0ae5bd568ae2b",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_923aeadb28b4",
+      "actual_usd": 0.00044414,
+      "usage": {
+        "cache_write_tokens": 2096,
+        "cached_input_tokens": 12834,
+        "input_tokens": 14933,
+        "output_tokens": 107,
+        "reasoning_tokens": 27
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:41:29.762416+00:00",
+      "id": "99c2f6b620344d23af2088a9f47b4539",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_923aeadb28b4",
+      "actual_usd": 0.00027235000000000003,
+      "usage": {
+        "cache_write_tokens": 586,
+        "cached_input_tokens": 14930,
+        "input_tokens": 15519,
+        "output_tokens": 99,
+        "reasoning_tokens": 19
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:41:34.367797+00:00",
+      "id": "8124b190594848c0a545ae8e9dcc0ac1",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_923aeadb28b4",
+      "actual_usd": 0.00046158500000000003,
+      "usage": {
+        "cache_write_tokens": 2093,
+        "cached_input_tokens": 15516,
+        "input_tokens": 17612,
+        "output_tokens": 89,
+        "reasoning_tokens": 54
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:41:36.207222+00:00",
+      "id": "152ca31097384273b0bb708991392eda",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_923aeadb28b4",
+      "actual_usd": 0.000865765,
+      "usage": {
+        "cache_write_tokens": 1695,
+        "cached_input_tokens": 17609,
+        "input_tokens": 19307,
+        "output_tokens": 955,
+        "reasoning_tokens": 416
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:41:44.872167+00:00",
+      "id": "e3788e13383c4ab09e1a7235e8ca36ac",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_923aeadb28b4",
+      "actual_usd": 0.00037371500000000005,
+      "usage": {
+        "cache_write_tokens": 1267,
+        "cached_input_tokens": 19304,
+        "input_tokens": 20574,
+        "output_tokens": 44,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:41:46.601571+00:00",
+      "id": "1ae7c015374b434fad3e7f1912e12f8d",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_923aeadb28b4",
+      "actual_usd": 0.00024463500000000005,
+      "usage": {
+        "cache_write_tokens": 181,
+        "cached_input_tokens": 20571,
+        "input_tokens": 20755,
+        "output_tokens": 32,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:42:30.658994+00:00",
+      "id": "7ccb2ba828a94aa9887056c97be7c850",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_923aeadb28b4",
+      "actual_usd": 0.00027219500000000003,
+      "usage": {
+        "cache_write_tokens": 387,
+        "cached_input_tokens": 20752,
+        "input_tokens": 21142,
+        "output_tokens": 32,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:42:31.992949+00:00",
+      "id": "52af0e469bbb436f86e0cdf64a93b3e4",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_923aeadb28b4",
+      "actual_usd": 0.0005206900000000001,
+      "usage": {
+        "cache_write_tokens": 1656,
+        "cached_input_tokens": 21139,
+        "input_tokens": 22798,
+        "output_tokens": 204,
+        "reasoning_tokens": 78
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:42:34.831796+00:00",
+      "id": "b8b4744165b2411e86fc04547b1c157e",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_923aeadb28b4",
+      "actual_usd": 0.00248905,
+      "usage": {
+        "cache_write_tokens": 19810,
+        "cached_input_tokens": 0,
+        "input_tokens": 19813,
+        "output_tokens": 25,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:43:33.810896+00:00",
+      "id": "53097cdd17b64b93a5a069b3751c40f0",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_923aeadb28b4",
+      "actual_usd": 0.0004173,
+      "usage": {
+        "cache_write_tokens": 1832,
+        "cached_input_tokens": 0,
+        "input_tokens": 1835,
+        "output_tokens": 376,
+        "reasoning_tokens": 185
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:45:41.748964+00:00",
+      "id": "887594bb9de24cf39aab73e01fe60bff",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_9f9a20c459a6",
+      "actual_usd": 0.000129,
+      "usage": {
+        "cache_write_tokens": 0,
+        "cached_input_tokens": 0,
+        "input_tokens": 710,
+        "output_tokens": 116,
+        "reasoning_tokens": 61
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:45:49.205215+00:00",
+      "id": "34fff0b1bd164bf78798291446324d3f",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_9f9a20c459a6",
+      "actual_usd": 0.000188125,
+      "usage": {
+        "cache_write_tokens": 1077,
+        "cached_input_tokens": 4120,
+        "input_tokens": 5200,
+        "output_tokens": 24,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:45:51.305136+00:00",
+      "id": "84086b2d14f243d192ca78fe2658b719",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_9f9a20c459a6",
+      "actual_usd": 0.00083002,
+      "usage": {
+        "cache_write_tokens": 3550,
+        "cached_input_tokens": 5197,
+        "input_tokens": 8750,
+        "output_tokens": 668,
+        "reasoning_tokens": 233
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:45:56.545221+00:00",
+      "id": "d8b8627cb240495dba483867253faaa0",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_9f9a20c459a6",
+      "actual_usd": 0.00023576999999999997,
+      "usage": {
+        "cache_write_tokens": 988,
+        "cached_input_tokens": 8747,
+        "input_tokens": 9738,
+        "output_tokens": 49,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:45:57.863831+00:00",
+      "id": "692a08820f874a42a87a27e1bc3e0851",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_9f9a20c459a6",
+      "actual_usd": 0.000538525,
+      "usage": {
+        "cache_write_tokens": 191,
+        "cached_input_tokens": 9735,
+        "input_tokens": 9929,
+        "output_tokens": 834,
+        "reasoning_tokens": 582
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:46:07.069754+00:00",
+      "id": "b6fcd93827734b6ca825aa9cc007d544",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_9f9a20c459a6",
+      "actual_usd": 0.00026731,
+      "usage": {
+        "cache_write_tokens": 1154,
+        "cached_input_tokens": 9926,
+        "input_tokens": 11083,
+        "output_tokens": 47,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:46:08.536544+00:00",
+      "id": "274035113fd447ba8bb4540926125872",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_9f9a20c459a6",
+      "actual_usd": 0.0004919750000000001,
+      "usage": {
+        "cache_write_tokens": 191,
+        "cached_input_tokens": 11080,
+        "input_tokens": 11274,
+        "output_tokens": 714,
+        "reasoning_tokens": 226
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:46:15.396342+00:00",
+      "id": "aa6750c223714ecb915216fe8fcba890",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_9f9a20c459a6",
+      "actual_usd": 0.000264635,
+      "usage": {
+        "cache_write_tokens": 1029,
+        "cached_input_tokens": 11271,
+        "input_tokens": 12303,
+        "output_tokens": 46,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:46:17.128692+00:00",
+      "id": "4a30b4034ddd4bd8986fa97f7e93c8ac",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_9f9a20c459a6",
+      "actual_usd": 0.000205925,
+      "usage": {
+        "cache_write_tokens": 185,
+        "cached_input_tokens": 12300,
+        "input_tokens": 12488,
+        "output_tokens": 119,
+        "reasoning_tokens": 8
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:48:00.806188+00:00",
+      "id": "5b46b20aaf7a49998ef20adf7e984a77",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_9f9a20c459a6",
+      "actual_usd": 0.0003079,
+      "usage": {
+        "cache_write_tokens": 966,
+        "cached_input_tokens": 12485,
+        "input_tokens": 13454,
+        "output_tokens": 124,
+        "reasoning_tokens": 13
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:48:06.111106+00:00",
+      "id": "903eca46b525448cb28846e3d9a1d639",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_9f9a20c459a6",
+      "actual_usd": 0.00034256,
+      "usage": {
+        "cache_write_tokens": 1530,
+        "cached_input_tokens": 13451,
+        "input_tokens": 14984,
+        "output_tokens": 33,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:48:07.338111+00:00",
+      "id": "7417b4847dc644c4ae7b11e36df35120",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_9f9a20c459a6",
+      "actual_usd": 0.00032911,
+      "usage": {
+        "cache_write_tokens": 596,
+        "cached_input_tokens": 14981,
+        "input_tokens": 15580,
+        "output_tokens": 209,
+        "reasoning_tokens": 58
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:48:10.519574+00:00",
+      "id": "2695cf64c08341fc95eb7d4f5d74745c",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_9f9a20c459a6",
+      "actual_usd": 0.0015884249999999999,
+      "usage": {
+        "cache_write_tokens": 12597,
+        "cached_input_tokens": 0,
+        "input_tokens": 12600,
+        "output_tokens": 27,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:48:57.445913+00:00",
+      "id": "e5d530ac39f741339e7ae4a48f91eb09",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_9f9a20c459a6",
+      "actual_usd": 0.000392925,
+      "usage": {
+        "cache_write_tokens": 1405,
+        "cached_input_tokens": 0,
+        "input_tokens": 1408,
+        "output_tokens": 434,
+        "reasoning_tokens": 233
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:51:38.098031+00:00",
+      "id": "13d8c37c16df4bfd8a08aa4058f549f9",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_37363e5c028c",
+      "actual_usd": 0.0001189,
+      "usage": {
+        "cache_write_tokens": 0,
+        "cached_input_tokens": 0,
+        "input_tokens": 744,
+        "output_tokens": 89,
+        "reasoning_tokens": 37
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:51:44.604430+00:00",
+      "id": "ed9c49f94c0c4189bbcdd005c87fcb99",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_37363e5c028c",
+      "actual_usd": 0.00019675,
+      "usage": {
+        "cache_write_tokens": 1130,
+        "cached_input_tokens": 4120,
+        "input_tokens": 5253,
+        "output_tokens": 28,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:51:47.093868+00:00",
+      "id": "885cd95b0f2b46a297606c74eb273872",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_37363e5c028c",
+      "actual_usd": 0.00081755,
+      "usage": {
+        "cache_write_tokens": 3866,
+        "cached_input_tokens": 5250,
+        "input_tokens": 9119,
+        "output_tokens": 563,
+        "reasoning_tokens": 125
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:51:52.971209+00:00",
+      "id": "4510c95e045d4d5fa6b16efe0370f04f",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_37363e5c028c",
+      "actual_usd": 0.00022258499999999997,
+      "usage": {
+        "cache_write_tokens": 873,
+        "cached_input_tokens": 9116,
+        "input_tokens": 9992,
+        "output_tokens": 44,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:51:54.421333+00:00",
+      "id": "6f2661a857894eeb9cc970637d362c37",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_37363e5c028c",
+      "actual_usd": 0.00014394,
+      "usage": {
+        "cache_write_tokens": 122,
+        "cached_input_tokens": 9989,
+        "input_tokens": 10114,
+        "output_tokens": 57,
+        "reasoning_tokens": 11
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:51:55.802804+00:00",
+      "id": "3076e185ee5f4042acaec40644f70078",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_37363e5c028c",
+      "actual_usd": 0.00015866,
+      "usage": {
+        "cache_write_tokens": 194,
+        "cached_input_tokens": 10111,
+        "input_tokens": 10308,
+        "output_tokens": 66,
+        "reasoning_tokens": 32
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:52:38.355382+00:00",
+      "id": "57777cfc24c1471dafc800a4b8ddb032",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_37363e5c028c",
+      "actual_usd": 0.00030997500000000004,
+      "usage": {
+        "cache_write_tokens": 421,
+        "cached_input_tokens": 10305,
+        "input_tokens": 10729,
+        "output_tokens": 308,
+        "reasoning_tokens": 274
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:52:42.453954+00:00",
+      "id": "bbfdb7ff59a44b62a0422338f57a8f2a",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_37363e5c028c",
+      "actual_usd": 0.0006571849999999999,
+      "usage": {
+        "cache_write_tokens": 1929,
+        "cached_input_tokens": 10726,
+        "input_tokens": 12658,
+        "output_tokens": 617,
+        "reasoning_tokens": 175
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:52:47.501572+00:00",
+      "id": "2016432f3d9b4ed7a6f46cb61c9c5f06",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_37363e5c028c",
+      "actual_usd": 0.00026372500000000003,
+      "usage": {
+        "cache_write_tokens": 919,
+        "cached_input_tokens": 12655,
+        "input_tokens": 13577,
+        "output_tokens": 44,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:52:48.921747+00:00",
+      "id": "10f2fae1453140fa81ebe8471dc25c5a",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_37363e5c028c",
+      "actual_usd": 0.00017541500000000003,
+      "usage": {
+        "cache_write_tokens": 183,
+        "cached_input_tokens": 13574,
+        "input_tokens": 13760,
+        "output_tokens": 33,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:53:32.111236+00:00",
+      "id": "fcbf0e1f8ee7401ca8afbf23832a2def",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_37363e5c028c",
+      "actual_usd": 0.00022012,
+      "usage": {
+        "cache_write_tokens": 390,
+        "cached_input_tokens": 13757,
+        "input_tokens": 14150,
+        "output_tokens": 67,
+        "reasoning_tokens": 32
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:53:33.762707+00:00",
+      "id": "e349033c4cb8493bbffff54848df6269",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_37363e5c028c",
+      "actual_usd": 0.000706395,
+      "usage": {
+        "cache_write_tokens": 1705,
+        "cached_input_tokens": 14147,
+        "input_tokens": 15855,
+        "output_tokens": 703,
+        "reasoning_tokens": 252
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:53:39.246635+00:00",
+      "id": "83d9253d917e4d59b9a4674c47a7b6ee",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_37363e5c028c",
+      "actual_usd": 0.00030782000000000004,
+      "usage": {
+        "cache_write_tokens": 1016,
+        "cached_input_tokens": 15852,
+        "input_tokens": 16871,
+        "output_tokens": 44,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:53:40.580109+00:00",
+      "id": "4a7372b3a7364ab58981ec0fd496b099",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_37363e5c028c",
+      "actual_usd": 0.00020835500000000002,
+      "usage": {
+        "cache_write_tokens": 183,
+        "cached_input_tokens": 16868,
+        "input_tokens": 17054,
+        "output_tokens": 33,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:54:25.268487+00:00",
+      "id": "97dc38202f3b476184603fd59c78e135",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_37363e5c028c",
+      "actual_usd": 0.000235185,
+      "usage": {
+        "cache_write_tokens": 383,
+        "cached_input_tokens": 17051,
+        "input_tokens": 17437,
+        "output_tokens": 33,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:54:26.665813+00:00",
+      "id": "38e858f4b853467b9ee82a13f47e7951",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_37363e5c028c",
+      "actual_usd": 0.00074914,
+      "usage": {
+        "cache_write_tokens": 1676,
+        "cached_input_tokens": 17434,
+        "input_tokens": 19113,
+        "output_tokens": 730,
+        "reasoning_tokens": 284
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:54:32.997935+00:00",
+      "id": "518802aa9ef547aeb5bed471ee26848d",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_37363e5c028c",
+      "actual_usd": 0.000343275,
+      "usage": {
+        "cache_write_tokens": 1039,
+        "cached_input_tokens": 19110,
+        "input_tokens": 20152,
+        "output_tokens": 44,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:54:34.743578+00:00",
+      "id": "6cf09d6b87bc4ee2afd5c6ae97bc17aa",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_37363e5c028c",
+      "actual_usd": 0.00024116500000000003,
+      "usage": {
+        "cache_write_tokens": 183,
+        "cached_input_tokens": 20149,
+        "input_tokens": 20335,
+        "output_tokens": 33,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:55:18.204475+00:00",
+      "id": "13c2d6ee47f14430bc2fd825bc016d1b",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_37363e5c028c",
+      "actual_usd": 0.00026887,
+      "usage": {
+        "cache_write_tokens": 390,
+        "cached_input_tokens": 20332,
+        "input_tokens": 20725,
+        "output_tokens": 33,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:55:19.897100+00:00",
+      "id": "afb26606a8524c609de7ff771ebaf3f0",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_37363e5c028c",
+      "actual_usd": 0.00047726999999999996,
+      "usage": {
+        "cache_write_tokens": 1678,
+        "cached_input_tokens": 20722,
+        "input_tokens": 22403,
+        "output_tokens": 120,
+        "reasoning_tokens": 29
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:55:22.083859+00:00",
+      "id": "076d524131dc474781063bd8f630d25c",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_37363e5c028c",
+      "actual_usd": 0.002429675,
+      "usage": {
+        "cache_write_tokens": 19331,
+        "cached_input_tokens": 0,
+        "input_tokens": 19334,
+        "output_tokens": 26,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:56:21.860526+00:00",
+      "id": "407f3895db2548c098416d1217e13496",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_37363e5c028c",
+      "actual_usd": 0.000440675,
+      "usage": {
+        "cache_write_tokens": 1811,
+        "cached_input_tokens": 0,
+        "input_tokens": 1814,
+        "output_tokens": 428,
+        "reasoning_tokens": 252
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:57:03.198343+00:00",
+      "id": "62b369ff3ba14ee280a14ede6057ae80",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_credit_g_e504d2d224",
+      "actual_usd": 0.000103,
+      "usage": {
+        "cache_write_tokens": 0,
+        "cached_input_tokens": 0,
+        "input_tokens": 640,
+        "output_tokens": 78,
+        "reasoning_tokens": 27
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:57:10.428756+00:00",
+      "id": "b962eedfb87540898e50da558601e402",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_credit_g_e504d2d224",
+      "actual_usd": 0.000185,
+      "usage": {
+        "cache_write_tokens": 1036,
+        "cached_input_tokens": 4120,
+        "input_tokens": 5159,
+        "output_tokens": 28,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:57:12.215739+00:00",
+      "id": "fee960f261794be4ba0ee2c304cbba3a",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_credit_g_e504d2d224",
+      "actual_usd": 0.000797735,
+      "usage": {
+        "cache_write_tokens": 3767,
+        "cached_input_tokens": 5156,
+        "input_tokens": 8926,
+        "output_tokens": 550,
+        "reasoning_tokens": 118
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:57:19.003015+00:00",
+      "id": "6d031a97da9d48b3a5cb3a5d30762a9c",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_credit_g_e504d2d224",
+      "actual_usd": 0.000220405,
+      "usage": {
+        "cache_write_tokens": 867,
+        "cached_input_tokens": 8923,
+        "input_tokens": 9793,
+        "output_tokens": 45,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:57:18.961444+00:00",
+      "id": "d40d9a3e4e9e4af5ada933f6471eb787",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_credit_g_e504d2d224",
+      "actual_usd": 0.000710075,
+      "usage": {
+        "cache_write_tokens": 183,
+        "cached_input_tokens": 9790,
+        "input_tokens": 9976,
+        "output_tokens": 1178,
+        "reasoning_tokens": 149
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:57:28.124307+00:00",
+      "id": "74d43268907f421483c344b256ebb585",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_credit_g_e504d2d224",
+      "actual_usd": 0.00038978,
+      "usage": {
+        "cache_write_tokens": 1814,
+        "cached_input_tokens": 9973,
+        "input_tokens": 11790,
+        "output_tokens": 126,
+        "reasoning_tokens": 16
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:57:30.369633+00:00",
+      "id": "a17834318d784a79bbbbe83bb3a0d95e",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_credit_g_e504d2d224",
+      "actual_usd": 0.00023017000000000003,
+      "usage": {
+        "cache_write_tokens": 408,
+        "cached_input_tokens": 11787,
+        "input_tokens": 12198,
+        "output_tokens": 122,
+        "reasoning_tokens": 12
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:59:26.138808+00:00",
+      "id": "a3bf2095d9e541de870651643514b600",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_credit_g_e504d2d224",
+      "actual_usd": 0.000307875,
+      "usage": {
+        "cache_write_tokens": 973,
+        "cached_input_tokens": 12195,
+        "input_tokens": 13171,
+        "output_tokens": 128,
+        "reasoning_tokens": 18
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:59:34.015678+00:00",
+      "id": "a8f24667e6214330899ea03c1330050d",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_credit_g_e504d2d224",
+      "actual_usd": 0.000625855,
+      "usage": {
+        "cache_write_tokens": 3819,
+        "cached_input_tokens": 13168,
+        "input_tokens": 16990,
+        "output_tokens": 33,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:59:35.963444+00:00",
+      "id": "87086c0d14944d57b5961be75c73cff9",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_credit_g_e504d2d224",
+      "actual_usd": 0.0008049200000000001,
+      "usage": {
+        "cache_write_tokens": 1690,
+        "cached_input_tokens": 16987,
+        "input_tokens": 18680,
+        "output_tokens": 847,
+        "reasoning_tokens": 321
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:59:43.045118+00:00",
+      "id": "f5f59e01dd154becb4cf2be478e97f1e",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_credit_g_e504d2d224",
+      "actual_usd": 0.00035882000000000004,
+      "usage": {
+        "cache_write_tokens": 1178,
+        "cached_input_tokens": 18677,
+        "input_tokens": 19858,
+        "output_tokens": 49,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T15:59:44.653009+00:00",
+      "id": "4702b05ac8ce40dbb810aca82fe6e07c",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_credit_g_e504d2d224",
+      "actual_usd": 0.000238475,
+      "usage": {
+        "cache_write_tokens": 189,
+        "cached_input_tokens": 19855,
+        "input_tokens": 20047,
+        "output_tokens": 32,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:00:29.583061+00:00",
+      "id": "9cc648f16720431bb86b7ad29fcc4134",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_credit_g_e504d2d224",
+      "actual_usd": 0.00026474,
+      "usage": {
+        "cache_write_tokens": 384,
+        "cached_input_tokens": 20044,
+        "input_tokens": 20431,
+        "output_tokens": 32,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:00:31.258869+00:00",
+      "id": "d0aec05ad1e1451e93058eaa49b3e0a0",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_credit_g_e504d2d224",
+      "actual_usd": 0.00046395500000000005,
+      "usage": {
+        "cache_write_tokens": 1679,
+        "cached_input_tokens": 20428,
+        "input_tokens": 22110,
+        "output_tokens": 99,
+        "reasoning_tokens": 21
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:00:33.286633+00:00",
+      "id": "5a497274b0fb4b4380ae410e1ae6bd0a",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_credit_g_e504d2d224",
+      "actual_usd": 0.002391425,
+      "usage": {
+        "cache_write_tokens": 19017,
+        "cached_input_tokens": 0,
+        "input_tokens": 19020,
+        "output_tokens": 28,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:01:34.610842+00:00",
+      "id": "c94066f55e724a10b14306d24c99a0cf",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_credit_g_e504d2d224",
+      "actual_usd": 0.000438925,
+      "usage": {
+        "cache_write_tokens": 1833,
+        "cached_input_tokens": 0,
+        "input_tokens": 1836,
+        "output_tokens": 419,
+        "reasoning_tokens": 202
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:01:39.252222+00:00",
+      "id": "3ee2a2d188114f0db76b1e5f33b86ad5",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_fish_toxicity_a2f82c4766",
+      "actual_usd": 9.37e-05,
+      "usage": {
+        "cache_write_tokens": 0,
+        "cached_input_tokens": 0,
+        "input_tokens": 557,
+        "output_tokens": 76,
+        "reasoning_tokens": 24
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:01:45.316488+00:00",
+      "id": "b2fe7b79d5ce4cab94331f691dca5a1f",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_fish_toxicity_a2f82c4766",
+      "actual_usd": 0.000175875,
+      "usage": {
+        "cache_write_tokens": 975,
+        "cached_input_tokens": 4120,
+        "input_tokens": 5098,
+        "output_tokens": 25,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:01:49.681466+00:00",
+      "id": "878174ec01ff4ae38fa3a1d7d5e39d5b",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_fish_toxicity_a2f82c4766",
+      "actual_usd": 0.000415375,
+      "usage": {
+        "cache_write_tokens": 1645,
+        "cached_input_tokens": 5095,
+        "input_tokens": 6743,
+        "output_tokens": 317,
+        "reasoning_tokens": 66
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:01:55.166085+00:00",
+      "id": "c8909a0a0df84262a522c2c1f40aabb4",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_fish_toxicity_a2f82c4766",
+      "actual_usd": 0.00017582499999999998,
+      "usage": {
+        "cache_write_tokens": 657,
+        "cached_input_tokens": 6740,
+        "input_tokens": 7400,
+        "output_tokens": 52,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:01:57.312884+00:00",
+      "id": "a376d4d284cd48979657399352e58c8e",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_fish_toxicity_a2f82c4766",
+      "actual_usd": 0.000497395,
+      "usage": {
+        "cache_write_tokens": 193,
+        "cached_input_tokens": 7397,
+        "input_tokens": 7593,
+        "output_tokens": 798,
+        "reasoning_tokens": 110
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:02:03.813818+00:00",
+      "id": "1059de6926284de0a6bb8001a3e5519f",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_fish_toxicity_a2f82c4766",
+      "actual_usd": 0.00032669999999999997,
+      "usage": {
+        "cache_write_tokens": 1476,
+        "cached_input_tokens": 7590,
+        "input_tokens": 9069,
+        "output_tokens": 132,
+        "reasoning_tokens": 16
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:02:06.395011+00:00",
+      "id": "65600896610a4551bf82c983ed2ce4f3",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_fish_toxicity_a2f82c4766",
+      "actual_usd": 0.00020171,
+      "usage": {
+        "cache_write_tokens": 410,
+        "cached_input_tokens": 9066,
+        "input_tokens": 9479,
+        "output_tokens": 119,
+        "reasoning_tokens": 10
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:03:23.533757+00:00",
+      "id": "1b13bea75a9d4955bbb7704c21c15b4c",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_fish_toxicity_a2f82c4766",
+      "actual_usd": 0.000210685,
+      "usage": {
+        "cache_write_tokens": 741,
+        "cached_input_tokens": 9476,
+        "input_tokens": 10220,
+        "output_tokens": 46,
+        "reasoning_tokens": 11
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:03:25.621019+00:00",
+      "id": "79594a3b4a9d426db20b9477792ba820",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_fish_toxicity_a2f82c4766",
+      "actual_usd": 0.000223595,
+      "usage": {
+        "cache_write_tokens": 621,
+        "cached_input_tokens": 10217,
+        "input_tokens": 10841,
+        "output_tokens": 87,
+        "reasoning_tokens": 7
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:04:08.878296+00:00",
+      "id": "649b76bcbc514d31842da7ab66f3cb92",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_fish_toxicity_a2f82c4766",
+      "actual_usd": 0.00020118,
+      "usage": {
+        "cache_write_tokens": 568,
+        "cached_input_tokens": 10838,
+        "input_tokens": 11409,
+        "output_tokens": 43,
+        "reasoning_tokens": 8
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:04:10.484494+00:00",
+      "id": "03a5cd60ff3246b1acf7c350a56b6ad4",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_fish_toxicity_a2f82c4766",
+      "actual_usd": 0.00021386000000000002,
+      "usage": {
+        "cache_write_tokens": 616,
+        "cached_input_tokens": 11406,
+        "input_tokens": 12025,
+        "output_tokens": 45,
+        "reasoning_tokens": 10
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:04:12.056450+00:00",
+      "id": "cc7b2e08362e471f8fe9d7bf4c2b633e",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_fish_toxicity_a2f82c4766",
+      "actual_usd": 0.00018764499999999998,
+      "usage": {
+        "cache_write_tokens": 405,
+        "cached_input_tokens": 12022,
+        "input_tokens": 12430,
+        "output_tokens": 33,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:04:13.251240+00:00",
+      "id": "16b5252bf2fd42b0945c7eaf2cfa5f5b",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_fish_toxicity_a2f82c4766",
+      "actual_usd": 0.00047594499999999997,
+      "usage": {
+        "cache_write_tokens": 607,
+        "cached_input_tokens": 12427,
+        "input_tokens": 13037,
+        "output_tokens": 551,
+        "reasoning_tokens": 230
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:04:18.139428+00:00",
+      "id": "101d0cf405114a3b9e7a679a7229c366",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_fish_toxicity_a2f82c4766",
+      "actual_usd": 0.00026789,
+      "usage": {
+        "cache_write_tokens": 890,
+        "cached_input_tokens": 13034,
+        "input_tokens": 13927,
+        "output_tokens": 52,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:04:20.462273+00:00",
+      "id": "0683a63d874847aa9acd83f6a18f1de2",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_fish_toxicity_a2f82c4766",
+      "actual_usd": 0.000180165,
+      "usage": {
+        "cache_write_tokens": 193,
+        "cached_input_tokens": 13924,
+        "input_tokens": 14120,
+        "output_tokens": 33,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:05:03.802109+00:00",
+      "id": "ab88c203d9214db283fc6cafe8e86f4c",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_fish_toxicity_a2f82c4766",
+      "actual_usd": 0.00017834500000000003,
+      "usage": {
+        "cache_write_tokens": 163,
+        "cached_input_tokens": 14117,
+        "input_tokens": 14283,
+        "output_tokens": 33,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:05:08.320624+00:00",
+      "id": "6768df5c0eae4fce87ea3aac38ea9a42",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_fish_toxicity_a2f82c4766",
+      "actual_usd": 0.00020860000000000003,
+      "usage": {
+        "cache_write_tokens": 392,
+        "cached_input_tokens": 14280,
+        "input_tokens": 14675,
+        "output_tokens": 33,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:05:10.808071+00:00",
+      "id": "a99becef8c374afb9d1e5bdd05c2c512",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_fish_toxicity_a2f82c4766",
+      "actual_usd": 0.00029327,
+      "usage": {
+        "cache_write_tokens": 606,
+        "cached_input_tokens": 14672,
+        "input_tokens": 15281,
+        "output_tokens": 141,
+        "reasoning_tokens": 40
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:05:13.441623+00:00",
+      "id": "eabfbcb4152249c081f0099a9941943f",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_fish_toxicity_a2f82c4766",
+      "actual_usd": 0.0015420499999999999,
+      "usage": {
+        "cache_write_tokens": 12230,
+        "cached_input_tokens": 0,
+        "input_tokens": 12233,
+        "output_tokens": 26,
+        "reasoning_tokens": 0
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    },
+    {
+      "at": "2026-11-08T16:06:18.013697+00:00",
+      "id": "d413bae8ae8c4ee5b7ec7e92bc25161a",
+      "kind": "reserve",
+      "maximum_usd": 0.36,
+      "run_id": "run_s26_eval_fish_toxicity_a2f82c4766",
+      "actual_usd": 0.000335175,
+      "usage": {
+        "cache_write_tokens": 1487,
+        "cached_input_tokens": 0,
+        "input_tokens": 1490,
+        "output_tokens": 298,
+        "reasoning_tokens": 140
+      },
+      "price": {
+        "long_context": {
+          "above_input_tokens": 272000,
+          "cache_write_usd_per_mtok": 0.25,
+          "cached_input_usd_per_mtok": 0.02,
+          "input_usd_per_mtok": 0.2,
+          "output_usd_per_mtok": 0.75
+        },
+        "model_id": "gpt-6-luna",
+        "notes": "Long-context prices derived from the page's stated rule (\"2x input and cache rates and 1.5x output for the full request\"). Used by the owner-approved S2.6 collection (D-033).",
+        "provider": "openai",
+        "retrieved_on": "2026-11-07",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "standard": {
+          "cache_write_usd_per_mtok": 0.125,
+          "cached_input_usd_per_mtok": 0.01,
+          "input_usd_per_mtok": 0.1,
+          "output_usd_per_mtok": 0.5
+        }
+      }
+    }
+  ]
+}

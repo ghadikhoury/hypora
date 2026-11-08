@@ -284,3 +284,37 @@ async def test_paid_client_forces_global_standard_despite_environment(
     with suppress(ProviderError):
         await client.generate(REQUEST)
     assert observed["service_tier"] == "default"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("verified, expected", [(True, 0), (False, 1)])
+async def test_retained_matching_smoke_preserves_failure_exit_status(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, verified: bool, expected: int
+) -> None:
+    from types import SimpleNamespace
+
+    import scripts.stage2_eval as collector
+    from hypora.core.config.run_config import RunConfig
+
+    monkeypatch.setattr(collector, "ROOT", tmp_path)
+    monkeypatch.setattr(collector, "STATE", tmp_path / "state")
+    monkeypatch.setattr(collector, "recorded_code", lambda: {"commit": "source", "dirty": False})
+    monkeypatch.setattr(collector.smoke, "TASKS", [SimpleNamespace(task_id="example")])
+    config = RunConfig.build(
+        load_settings_for_eval("single_agent", profile=ModelProfile.EVAL),
+        eval_config="single_agent",
+    )
+    record = {
+        "recorded": True,
+        "profile": "eval",
+        "config_hash": config.hash,
+        "code": {"commit": "source", "dirty": False},
+        "models": ["openai/gpt-6-luna"],
+        "llm": {"per_call": []},
+        "run": {"run_id": "run", "verified": verified},
+    }
+    destination = tmp_path / "results/stage1/eval/example.json"
+    destination.parent.mkdir(parents=True)
+    destination.write_text(json.dumps(record))
+    monkeypatch.setattr(collector.smoke, "load_records", lambda variant: [])
+    assert await collector.matching_smokes(SpendLedger(tmp_path / "ledger")) == expected

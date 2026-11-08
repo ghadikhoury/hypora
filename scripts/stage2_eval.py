@@ -480,6 +480,7 @@ async def matching_smokes(ledger: SpendLedger) -> int:
                     raise SpendError("smoke intent conflicts with published evidence")
                 pending.unlink()
             print(f"Keep matching eval smoke: {task.task_id}")
+            failures += not old["run"]["verified"]
             continue
         snapshot = smoke.snapshot_for(task)
         run_id = f"run_s26_eval_{task.task_id.replace('-', '_')}_{uuid4().hex[:10]}"

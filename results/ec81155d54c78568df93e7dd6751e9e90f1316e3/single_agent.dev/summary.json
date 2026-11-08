@@ -1,0 +1,255 @@
+{
+  "commit": "ec81155d54c78568df93e7dd6751e9e90f1316e3",
+  "dirty": false,
+  "config": "single_agent",
+  "profile": "dev",
+  "flags": {
+    "agent_mode": "single",
+    "planning": "on",
+    "retrieval_mode": "hybrid",
+    "defenses": {
+      "allowlist": true,
+      "sandbox_network": true,
+      "firewall": true,
+      "approval": true,
+      "injection_filter": true
+    },
+    "durable_mode": "on",
+    "breadth_mode": "adaptive",
+    "parallel_mode": "on",
+    "phase_a_mode": "parallel",
+    "approval_policy": "auto_within_contract",
+    "max_research_workers": 4,
+    "max_diagnostic_workers": 4,
+    "max_parallel_trials": 3
+  },
+  "run_config_hashes": [
+    "4c3632276e14eb2b33043ea7546b282f111e7b1a7f4752663a7c805ab6642efa"
+  ],
+  "sandbox_images": [
+    "hypora-sandbox-tabular:f50772e217853fa1"
+  ],
+  "tools_contract_sha256": [
+    "70ca5ce75eee1a4b664d47f14e1024964f8bf48862da02fc5dc8a831a9cced10"
+  ],
+  "python_versions": [
+    "3.12.14"
+  ],
+  "tiers": {
+    "lead": {
+      "provider": "gemini",
+      "model_id": "gemini-3.5-flash-lite",
+      "temperature": 1.0
+    },
+    "worker": {
+      "provider": "gemini",
+      "model_id": "gemini-3.5-flash-lite",
+      "temperature": 1.0
+    },
+    "cheap": {
+      "provider": "gemini",
+      "model_id": "gemini-3.5-flash-lite",
+      "temperature": 1.0
+    }
+  },
+  "retry_policy": {
+    "max_retries": 3,
+    "base_delay_s": 2.0,
+    "max_delay_s": 60.0,
+    "request_timeout_s": 120.0
+  },
+  "systems": [
+    {
+      "system": "agent",
+      "pass_rate": {
+        "passed": 3,
+        "tasks": 6,
+        "rate": 0.5,
+        "measured_tasks": 6,
+        "complete": true,
+        "wilson_low": 0.18761630648265054,
+        "wilson_high": 0.8123836935173494
+      },
+      "harness_errors": [],
+      "latency_system": {
+        "mean": 245.23200243316873,
+        "p95": 287.0200767329952,
+        "method": "nearest-rank"
+      },
+      "latency_active": {
+        "mean": 245.2292860708185,
+        "p95": 287.0170025549305,
+        "method": "nearest-rank"
+      },
+      "list_cost_total_usd": 0.2281943,
+      "list_cost_per_task_usd": 0.03803238333333333,
+      "actual_spend_total_usd": 0.0,
+      "actual_spend_per_task_usd": 0.0,
+      "model_calls": 116,
+      "input_tokens": 1738315,
+      "output_tokens": 20435,
+      "rate_limit_wait_seconds": 0.01629817410139367,
+      "retry_wait_seconds": 0.0,
+      "setup_seconds": 7.67295970399573
+    },
+    {
+      "system": "baseline",
+      "pass_rate": {
+        "passed": 2,
+        "tasks": 6,
+        "rate": 0.3333333333333333,
+        "measured_tasks": 6,
+        "complete": true,
+        "wilson_low": 0.09677141110578047,
+        "wilson_high": 0.700006684861608
+      },
+      "harness_errors": [],
+      "latency_system": {
+        "mean": 102.51304998533062,
+        "p95": 150.39196335799352,
+        "method": "nearest-rank"
+      },
+      "latency_active": {
+        "mean": 102.51304998533062,
+        "p95": 150.39196335799352,
+        "method": "nearest-rank"
+      },
+      "list_cost_total_usd": 0.0,
+      "list_cost_per_task_usd": 0.0,
+      "actual_spend_total_usd": 0.0,
+      "actual_spend_per_task_usd": 0.0,
+      "model_calls": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "rate_limit_wait_seconds": 0.0,
+      "retry_wait_seconds": 0.0,
+      "setup_seconds": 7.695960594006465
+    }
+  ],
+  "paired": {
+    "first": "agent",
+    "second": "baseline",
+    "cases": 6,
+    "both_pass": 2,
+    "first_only": 1,
+    "second_only": 0,
+    "both_fail": 3,
+    "difference": 0.16666666666666666,
+    "ci_low": 0.0,
+    "ci_high": 0.5,
+    "resamples": 10000,
+    "seed": 1990,
+    "verdict": "inconclusive",
+    "unpaired_cases": [],
+    "incomplete_cases": []
+  },
+  "failure_categories": {
+    "decision_class": {
+      "baseline": 1
+    },
+    "fault_tool_error_0": {
+      "baseline": 1
+    },
+    "final_model_provenance": {
+      "baseline": 1
+    },
+    "hidden_split_score": {
+      "agent": 1,
+      "baseline": 2
+    },
+    "reported_metric_honesty": {
+      "agent": 1,
+      "baseline": 2
+    },
+    "run_completed": {
+      "baseline": 1
+    },
+    "trap_grouped_rows_no_overlap": {
+      "agent": 1,
+      "baseline": 1
+    },
+    "trap_target_leakage_excluded": {
+      "agent": 1,
+      "baseline": 1
+    },
+    "trap_temporal_order_excluded": {
+      "agent": 1,
+      "baseline": 1
+    },
+    "trap_temporal_order_split": {
+      "agent": 1,
+      "baseline": 1
+    }
+  },
+  "cases": [
+    {
+      "case_id": "dev_class_imbalance",
+      "outcomes": {
+        "agent": "pass",
+        "baseline": "pass"
+      }
+    },
+    {
+      "case_id": "dev_clean_control",
+      "outcomes": {
+        "agent": "pass",
+        "baseline": "pass"
+      }
+    },
+    {
+      "case_id": "dev_grouped_rows",
+      "outcomes": {
+        "agent": "fail",
+        "baseline": "fail"
+      }
+    },
+    {
+      "case_id": "dev_target_leakage",
+      "outcomes": {
+        "agent": "fail",
+        "baseline": "fail"
+      }
+    },
+    {
+      "case_id": "dev_temporal_order",
+      "outcomes": {
+        "agent": "fail",
+        "baseline": "fail"
+      }
+    },
+    {
+      "case_id": "dev_tool_failure",
+      "outcomes": {
+        "agent": "pass",
+        "baseline": "fail"
+      }
+    }
+  ],
+  "repeats": [],
+  "models": [
+    {
+      "provider": "gemini",
+      "model_id": "gemini-3.5-flash-lite",
+      "price_retrieved_on": "2026-11-07"
+    }
+  ],
+  "regression": {
+    "schema_version": 1,
+    "commit": "ec81155d54c78568df93e7dd6751e9e90f1316e3",
+    "config": "single_agent.dev",
+    "status": "no_baseline",
+    "message": "No regression check: no results for config single_agent.dev on the parent of ec81155d54c7 or the 31 commit(s) before it. These results can be the base for the next commit.",
+    "base_commit": null,
+    "commits_back": null,
+    "newly_failing": [],
+    "recovered": [],
+    "new_cases": [],
+    "missing_cases": [],
+    "not_comparable": []
+  },
+  "recovery_overhead": [],
+  "total_list_cost_usd": 0.2281943,
+  "total_actual_spend_usd": 0.0,
+  "total_unobserved_spend_reserved_usd": 0.0,
+  "usage_complete": true
+}

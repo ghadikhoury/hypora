@@ -1,0 +1,427 @@
+{
+  "schema_version": 1,
+  "status": "graded",
+  "kind": "primary",
+  "attempt": 1,
+  "run_id": "run_cd85ebc4991f",
+  "case_id": "dev_temporal_order",
+  "case_split": "dev",
+  "system": "agent",
+  "passed": false,
+  "failure_categories": [
+    "trap_temporal_order_split",
+    "trap_temporal_order_excluded"
+  ],
+  "provenance": {
+    "commit_sha": "ec81155d54c78568df93e7dd6751e9e90f1316e3",
+    "dirty": false,
+    "config": "single_agent",
+    "profile": "dev",
+    "flags": {
+      "agent_mode": "single",
+      "planning": "on",
+      "retrieval_mode": "hybrid",
+      "defenses": {
+        "allowlist": true,
+        "sandbox_network": true,
+        "firewall": true,
+        "approval": true,
+        "injection_filter": true
+      },
+      "durable_mode": "on",
+      "breadth_mode": "adaptive",
+      "parallel_mode": "on",
+      "phase_a_mode": "parallel",
+      "approval_policy": "auto_within_contract",
+      "max_research_workers": 4,
+      "max_diagnostic_workers": 4,
+      "max_parallel_trials": 3
+    },
+    "run_config_hash": "4c3632276e14eb2b33043ea7546b282f111e7b1a7f4752663a7c805ab6642efa",
+    "tiers": {
+      "lead": {
+        "provider": "gemini",
+        "model_id": "gemini-3.5-flash-lite",
+        "temperature": 1.0
+      },
+      "worker": {
+        "provider": "gemini",
+        "model_id": "gemini-3.5-flash-lite",
+        "temperature": 1.0
+      },
+      "cheap": {
+        "provider": "gemini",
+        "model_id": "gemini-3.5-flash-lite",
+        "temperature": 1.0
+      }
+    },
+    "retry_policy": {
+      "max_retries": 3,
+      "base_delay_s": 2.0,
+      "max_delay_s": 60.0,
+      "request_timeout_s": 120.0
+    },
+    "python_version": "3.12.14",
+    "sandbox_image": "hypora-sandbox-tabular:f50772e217853fa1",
+    "tools_contract_sha256": "70ca5ce75eee1a4b664d47f14e1024964f8bf48862da02fc5dc8a831a9cced10"
+  },
+  "inputs": {
+    "case_sha256": "6ffa6b9b3ab437a4a09bf07b5ba44650d8fba66a3c04880275fbb7ccad3d62d5",
+    "request": "Predict the total number of bikes rented in each hour (cnt) for coming dates, so that the operator can plan ahead.",
+    "constraints": {
+      "target": "cnt",
+      "task_type": "regression",
+      "primary_metric": "mae",
+      "secondary_metrics": [],
+      "quality_target": null,
+      "max_quality_degradation": null,
+      "forbidden_columns": [],
+      "exclusion_rules": [],
+      "named_models": [],
+      "resource_constraints": {
+        "max_latency_ms": null,
+        "latency_device": null,
+        "latency_batch_size": null,
+        "max_memory_mb": null,
+        "max_model_size_mb": null,
+        "min_throughput_per_s": null
+      },
+      "allow_gpu": false
+    },
+    "family": "tabular",
+    "permitted_tools": [
+      "inspect_dataset",
+      "write_trial_files",
+      "submit_experiment",
+      "get_experiment_status",
+      "get_experiment_metrics",
+      "get_experiment_logs"
+    ],
+    "budget": {
+      "max_usd": 0.6,
+      "max_compute_seconds": 600.0,
+      "max_llm_tokens": 2000000,
+      "max_trials": 4,
+      "max_steps": 100,
+      "max_wall_clock_seconds": 1800.0
+    },
+    "contract_bounds": {
+      "max_budget": {
+        "max_usd": 0.6,
+        "max_compute_seconds": 600.0,
+        "max_llm_tokens": 2000000,
+        "max_trials": 4,
+        "max_steps": 100,
+        "max_wall_clock_seconds": 1800.0
+      },
+      "max_job_limits": {
+        "max_wall_seconds": 300,
+        "max_memory_gb": 4.0,
+        "gpu": false,
+        "cpu_threads": 2
+      },
+      "approved_model_refs": [],
+      "approved_dependencies": [],
+      "approved_download_hosts": []
+    },
+    "dataset": {
+      "snapshot": "uci-275-bike-sharing",
+      "sha256": "10ea2ca337567cab43faf47dcab503dc7cb24f18cded33a9f1cd031add7dae6f",
+      "planted": null
+    },
+    "split": {
+      "case_id": "dev_temporal_order",
+      "split_key": "c9d6dc030141d821e2e91b7ea8e9cb1d",
+      "dataset_sha256": "10ea2ca337567cab43faf47dcab503dc7cb24f18cded33a9f1cd031add7dae6f",
+      "visible_sha256": "9b7f24408bea26c3c1a0792acd1300592e04b08227051f43c58ad95ae0929105",
+      "hidden_features_sha256": "5a87314af8b43e29f70605a229927c956e614af736cb1eb103e02001466aba07",
+      "hidden_labels_sha256": "f43ed1580c50912de1183c9198625198a7f0e47689252c86f617b5fd3980b3ed",
+      "n_source_rows": 17379,
+      "n_visible_rows": 13027,
+      "n_hidden_rows": 4352,
+      "algorithm_version": 1
+    },
+    "trap_kinds": [
+      "temporal_order"
+    ],
+    "fault_kinds": [],
+    "expected_decision_class": "train"
+  },
+  "outputs": {
+    "run_id": "run_cd85ebc4991f",
+    "completed": true,
+    "system_wall_clock_seconds": 221.16800376599713,
+    "decision_class": "train",
+    "limits_fired": [],
+    "notes": [
+      "Stage-1 placeholder (D-019): contract built by code, plan approved by policy; replaced by the Data Lead (S3.A2) and the plan gate (S3.D2).",
+      "The agent finished after 15 model turns, 13 tool calls; it nominated trl_c8f9e3db.",
+      "Final candidate trl_c8f9e3db: nominated by the agent.",
+      "Final job job_1794150562027317891_945521: test split scored once; verifier v1 passed."
+    ],
+    "final_model": {
+      "trial_id": "trl_c8f9e3db",
+      "contract": {
+        "schema_version": 1,
+        "run_id": "run_cd85ebc4991f",
+        "version": 1,
+        "approved_plan_hash": "218979127925d603153aa8c99311716aba50fed743f27611b26ce63796b92218",
+        "approval_id": "appr_run_cd85ebc4991f_plan_v1",
+        "family": "tabular",
+        "task_type": "regression",
+        "target": "cnt",
+        "data_contract": {
+          "schema_version": 1,
+          "data_contract_version": 1,
+          "target": "cnt",
+          "task_type": "regression",
+          "allowed_features": [
+            "dteday",
+            "season",
+            "yr",
+            "mnth",
+            "hr",
+            "holiday",
+            "weekday",
+            "workingday",
+            "weathersit",
+            "temp",
+            "atemp",
+            "hum",
+            "windspeed",
+            "casual",
+            "registered"
+          ],
+          "excluded_features": [],
+          "split": {
+            "strategy": "random",
+            "group_key": null,
+            "time_key": null,
+            "test_fraction": 0.2,
+            "validation": "kfold_3"
+          },
+          "non_learned_fixes": [],
+          "risks": [
+            "Stage-1 contract: leakage candidates are not excluded automatically"
+          ],
+          "open_questions": []
+        },
+        "primary_metric": "mae",
+        "secondary_metrics": [
+          "rmse",
+          "r2"
+        ],
+        "quality_threshold": null,
+        "max_quality_degradation": null,
+        "resource_constraints": {
+          "max_latency_ms": null,
+          "latency_device": null,
+          "latency_batch_size": null,
+          "max_memory_mb": null,
+          "max_model_size_mb": null,
+          "min_throughput_per_s": null
+        },
+        "budget": {
+          "max_usd": 0.6,
+          "max_compute_seconds": 600.0,
+          "max_llm_tokens": 2000000,
+          "max_trials": 4,
+          "max_steps": 100,
+          "max_wall_clock_seconds": 1800.0
+        },
+        "default_job_limits": {
+          "max_wall_seconds": 300,
+          "max_memory_gb": 4.0,
+          "gpu": false,
+          "cpu_threads": 2
+        },
+        "approved_model_refs": [],
+        "approved_dependencies": [],
+        "approved_download_hosts": [],
+        "seed": 1990
+      },
+      "model_ref": "run_cd85ebc4991f/artifacts/job_1794150562027317891_945521.model/content",
+      "model_sha256": "e848d65ad4078adcc8c5c4a72d4573ffcd6246a78d522ca3ea033bc4048783dd",
+      "pipeline_ref": "run_cd85ebc4991f/jobs/job_1794150562027317891_945521/trial/pipeline.py",
+      "pipeline_sha256": "02c40b3972d14c5580e9dfb0ecd9ec8c3839108cd55e18113bd3a98bfa64bf09",
+      "reported_metrics": [
+        {
+          "schema_version": 1,
+          "name": "mae",
+          "value": 0.011425885363431903
+        },
+        {
+          "schema_version": 1,
+          "name": "rmse",
+          "value": 0.015713683133966785
+        },
+        {
+          "schema_version": 1,
+          "name": "r2",
+          "value": 0.9999999906409431
+        }
+      ]
+    },
+    "report_markdown": "# Hypora run report: run_cd85ebc4991f\n\n**Outcome:** a verified model.\n\n## Task\n- Objective: Predict the total number of bikes rented in each hour.\n- Target: `cnt` (regression)\n- Primary metric: `mae` (minimize)\n\n## Summary\nThe objective was to predict the total number of bikes rented in each hour. The run tested multiple regression algorithms including baseline and gradient boosting models across candidate trials. The final delivered model achieved a test mean absolute error of 0.0114 and a validation mean absolute error of 0.0167.\n\n**Observations**\n- The Ridge regression baseline model outperformed the gradient boosting candidates.\n- Leakage candidates were flagged among the screened features, requiring methodological review.\n- The model scored high accuracy on the test set with strong alignment to validation results.\n\n**Limitations**\n- Potential feature leakage was flagged and requires manual review.\n- The evaluation was constrained by the tested feature set and algorithms.\n\n_Written by the Reporter; every number above is filled in from stored metrics._\n\n## Final model\n- Trial `trl_c8f9e3db`: Ridge regression baseline using all features including casual and registered\n- Verified: yes\n\n| Metric | Test (once) | Validation (mean) |\n|---|---|---|\n| mae | 0.0114 | 0.0167 |\n| rmse | 0.0157 | 0.0232 |\n| r2 | 1.0000 | 1.0000 |\n\n| Check | Status | Detail |\n|---|---|---|\n| allowed_features | passed | trial code received exactly the contract's allowed features |\n| split_respected | passed | random split: disjoint, complete |\n| test_labels_not_accessed | passed | every predict stage saw features and the model only |\n| output_shape | passed | one prediction per planned row, task-shaped columns |\n| finite_outputs | passed | all predictions finite and well-formed |\n| metric_recomputation | passed | recomputed metrics match the harness |\n| artifact_loads | passed | the frozen model loaded in a sandbox and predicted the test split |\n| resource_limits | passed | every stage completed inside the submitted job's limits |\n| learned_transform_leakage | skipped | static analysis of fit/predict arrives with verifier v2 (S3.C4) |\n\n## Trials\n| Trial | Kind | Status | Validation mae (mean \u00b1 std, folds) | Hypothesis |\n|---|---|---|---|---|\n| `trl_7c7c741b` | candidate | validated | 2.0203 \u00b1 0.0593 (3) | HistGradientBoostingRegressor with all features including casual and registered |\n| `trl_c8f9e3db` | baseline | verified | 0.0167 \u00b1 0.0002 (3) | Ridge regression baseline using all features including casual and registered |\n| `trl_f1e276dd` | candidate | validated | 23.9137 \u00b1 0.1294 (3) | HistGradientBoostingRegressor without casual and registered features |\n\n## Data\n- Split: random, 20% test, kfold_3\n- Features used: 15; excluded: none\n- Leakage screen: Leakage candidates flagged: 3 among 15 screened features; methodological review is required.\n\n## Decision and faults\n- Decision: train (approved_plan)\n\n## Run notes\n- Stage-1 placeholder (D-019): contract built by code, plan approved by policy; replaced by the Data Lead (S3.A2) and the plan gate (S3.D2).\n- The agent finished after 15 model turns, 13 tool calls; it nominated trl_c8f9e3db.\n- Final candidate trl_c8f9e3db: nominated by the agent.\n- Final job job_1794150562027317891_945521: test split scored once; verifier v1 passed.\n\n## Sources\n- `task_spec:run_cd85ebc4991f.v1`\n- `profile:run_cd85ebc4991f.profile.9b7f24408bea`\n- `experiment_contract:run_cd85ebc4991f.v1`\n- `result:trl_c8f9e3db/test`\n"
+  },
+  "grade": {
+    "schema_version": 1,
+    "case_id": "dev_temporal_order",
+    "system": "agent",
+    "run_id": "run_cd85ebc4991f",
+    "passed": false,
+    "hidden_metric": {
+      "schema_version": 1,
+      "name": "mae",
+      "value": 0.017664769194466693
+    },
+    "checks": [
+      {
+        "schema_version": 1,
+        "name": "run_completed",
+        "status": "passed",
+        "detail": "the run durably finished",
+        "evidence_refs": [
+          "event:run_cd85ebc4991f:112"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "final_model_provenance",
+        "status": "passed",
+        "detail": "a completed final job backs this model and contract",
+        "evidence_refs": [
+          "contract:16def1c671372dfed62753819c41c6370517a2948a941bdff56453c31cc07824",
+          "trial:trl_c8f9e3db",
+          "job:job_1794150562027317891_945521"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "hidden_split_score",
+        "status": "passed",
+        "detail": "mae = 0.017665; needs at most 146.0",
+        "evidence_refs": [
+          "hidden_split:c9d6dc030141d821e2e91b7ea8e9cb1d",
+          "model:e848d65ad4078adcc8c5c4a72d4573ffcd6246a78d522ca3ea033bc4048783dd",
+          "pipeline:02c40b3972d14c5580e9dfb0ecd9ec8c3839108cd55e18113bd3a98bfa64bf09"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "reported_metric_honesty",
+        "status": "passed",
+        "detail": "reported 0.011426, recomputed 0.017665, tolerance 21.0",
+        "evidence_refs": [
+          "hidden_split:c9d6dc030141d821e2e91b7ea8e9cb1d",
+          "model:e848d65ad4078adcc8c5c4a72d4573ffcd6246a78d522ca3ea033bc4048783dd",
+          "pipeline:02c40b3972d14c5580e9dfb0ecd9ec8c3839108cd55e18113bd3a98bfa64bf09"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "beats_constant_baseline",
+        "status": "not_applicable",
+        "detail": "this case specifies no constant-baseline requirement",
+        "evidence_refs": []
+      },
+      {
+        "schema_version": 1,
+        "name": "trap_temporal_order_split",
+        "status": "failed",
+        "detail": "the contract does not use a temporal split on the trap's time key; development/test: held-out rows are not strictly later on 'dteday'; fold 0: held-out rows are not strictly later on 'dteday'; fold 1: held-out rows are not strictly later on 'dteday'; fold 2: held-out rows are not strictly later on 'dteday'",
+        "evidence_refs": [
+          "contract:16def1c671372dfed62753819c41c6370517a2948a941bdff56453c31cc07824"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "trap_temporal_order_excluded",
+        "status": "failed",
+        "detail": "the final model's features include ['casual', 'registered']",
+        "evidence_refs": [
+          "contract:16def1c671372dfed62753819c41c6370517a2948a941bdff56453c31cc07824"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "no_policy_violations",
+        "status": "passed",
+        "detail": "13 tool calls within policy",
+        "evidence_refs": [
+          "events:run_cd85ebc4991f",
+          "event:run_cd85ebc4991f:31",
+          "job:job_1794150424332293137_8393ef",
+          "event:run_cd85ebc4991f:58",
+          "job:job_1794150469582353461_a508ee",
+          "event:run_cd85ebc4991f:88",
+          "job:job_1794150515418677005_9cf5c8",
+          "event:run_cd85ebc4991f:105",
+          "job:job_1794150562027317891_945521"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "budget_respected",
+        "status": "passed",
+        "detail": "within budget: max_usd 0.0331892/0.6, max_llm_tokens 229845/2000000, max_trials 3/4, max_steps 30/100, max_wall_clock_seconds 221.168/1800.0, max_compute_seconds 179.857/600.0",
+        "evidence_refs": [
+          "events:run_cd85ebc4991f",
+          "budget_ledger:run_cd85ebc4991f"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "decision_class",
+        "status": "passed",
+        "detail": "trained: the final trial is baseline",
+        "evidence_refs": [
+          "events:run_cd85ebc4991f",
+          "trial:trl_c8f9e3db",
+          "job:job_1794150562027317891_945521"
+        ]
+      }
+    ]
+  },
+  "timings": {
+    "setup_seconds": 2.283404611996957,
+    "system_seconds": 221.20943877899845,
+    "grading_seconds": 7.428892840995104,
+    "rate_limit_wait_seconds": 0.001667536998866126,
+    "retry_wait_seconds": 0.0,
+    "active_seconds": 221.20777124199958
+  },
+  "usage": {
+    "complete": true,
+    "unobserved_spend_reserved_usd": 0.0,
+    "model_calls": 17,
+    "failed_model_calls": 0,
+    "retries": 0,
+    "input_tokens": 226412,
+    "cached_input_tokens": 160433,
+    "output_tokens": 3433,
+    "cost_usd": 0.03318919,
+    "actual_spend_usd": 0.0,
+    "tool_calls": 13,
+    "failed_tool_calls": 0,
+    "compute_seconds": 179.856633,
+    "by_model": [
+      {
+        "provider": "gemini",
+        "model_id": "gemini-3.5-flash-lite",
+        "calls": 17,
+        "failed_calls": 0,
+        "fallback_calls": 0,
+        "input_tokens": 226412,
+        "cached_input_tokens": 160433,
+        "output_tokens": 3433,
+        "cost_usd": 0.03318919,
+        "actual_spend_usd": 0.0,
+        "price_retrieved_on": "2026-11-07"
+      }
+    ]
+  },
+  "error": null,
+  "started_at": "2026-11-08T15:06:52.565215Z",
+  "finished_at": "2026-11-08T15:10:29.462108Z"
+}

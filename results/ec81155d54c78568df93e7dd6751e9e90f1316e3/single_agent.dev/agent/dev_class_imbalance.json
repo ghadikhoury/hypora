@@ -1,0 +1,475 @@
+{
+  "schema_version": 1,
+  "status": "graded",
+  "kind": "primary",
+  "attempt": 1,
+  "run_id": "run_26cecb18d9c1",
+  "case_id": "dev_class_imbalance",
+  "case_split": "dev",
+  "system": "agent",
+  "passed": true,
+  "failure_categories": [],
+  "provenance": {
+    "commit_sha": "ec81155d54c78568df93e7dd6751e9e90f1316e3",
+    "dirty": false,
+    "config": "single_agent",
+    "profile": "dev",
+    "flags": {
+      "agent_mode": "single",
+      "planning": "on",
+      "retrieval_mode": "hybrid",
+      "defenses": {
+        "allowlist": true,
+        "sandbox_network": true,
+        "firewall": true,
+        "approval": true,
+        "injection_filter": true
+      },
+      "durable_mode": "on",
+      "breadth_mode": "adaptive",
+      "parallel_mode": "on",
+      "phase_a_mode": "parallel",
+      "approval_policy": "auto_within_contract",
+      "max_research_workers": 4,
+      "max_diagnostic_workers": 4,
+      "max_parallel_trials": 3
+    },
+    "run_config_hash": "4c3632276e14eb2b33043ea7546b282f111e7b1a7f4752663a7c805ab6642efa",
+    "tiers": {
+      "lead": {
+        "provider": "gemini",
+        "model_id": "gemini-3.5-flash-lite",
+        "temperature": 1.0
+      },
+      "worker": {
+        "provider": "gemini",
+        "model_id": "gemini-3.5-flash-lite",
+        "temperature": 1.0
+      },
+      "cheap": {
+        "provider": "gemini",
+        "model_id": "gemini-3.5-flash-lite",
+        "temperature": 1.0
+      }
+    },
+    "retry_policy": {
+      "max_retries": 3,
+      "base_delay_s": 2.0,
+      "max_delay_s": 60.0,
+      "request_timeout_s": 120.0
+    },
+    "python_version": "3.12.14",
+    "sandbox_image": "hypora-sandbox-tabular:f50772e217853fa1",
+    "tools_contract_sha256": "70ca5ce75eee1a4b664d47f14e1024964f8bf48862da02fc5dc8a831a9cced10"
+  },
+  "inputs": {
+    "case_sha256": "852483b69933682e19e32f42f0ba3716316fc093fc9c8a2b609e0c84c7859f0b",
+    "request": "Identify which website sessions will end in a purchase, so that the marketing team can act on them.",
+    "constraints": {
+      "target": "Revenue",
+      "task_type": "binary_classification",
+      "primary_metric": null,
+      "secondary_metrics": [],
+      "quality_target": null,
+      "max_quality_degradation": null,
+      "forbidden_columns": [],
+      "exclusion_rules": [],
+      "named_models": [],
+      "resource_constraints": {
+        "max_latency_ms": null,
+        "latency_device": null,
+        "latency_batch_size": null,
+        "max_memory_mb": null,
+        "max_model_size_mb": null,
+        "min_throughput_per_s": null
+      },
+      "allow_gpu": false
+    },
+    "family": "tabular",
+    "permitted_tools": [
+      "inspect_dataset",
+      "write_trial_files",
+      "submit_experiment",
+      "get_experiment_status",
+      "get_experiment_metrics",
+      "get_experiment_logs"
+    ],
+    "budget": {
+      "max_usd": 0.6,
+      "max_compute_seconds": 600.0,
+      "max_llm_tokens": 2000000,
+      "max_trials": 4,
+      "max_steps": 100,
+      "max_wall_clock_seconds": 1800.0
+    },
+    "contract_bounds": {
+      "max_budget": {
+        "max_usd": 0.6,
+        "max_compute_seconds": 600.0,
+        "max_llm_tokens": 2000000,
+        "max_trials": 4,
+        "max_steps": 100,
+        "max_wall_clock_seconds": 1800.0
+      },
+      "max_job_limits": {
+        "max_wall_seconds": 300,
+        "max_memory_gb": 4.0,
+        "gpu": false,
+        "cpu_threads": 2
+      },
+      "approved_model_refs": [],
+      "approved_dependencies": [],
+      "approved_download_hosts": []
+    },
+    "dataset": {
+      "snapshot": "uci-468-online-shoppers-purchasing-intention-dataset",
+      "sha256": "43f77d0d9480edf40ba38f6c1095a8fd568610e39565a8f4a674df60c20dd746",
+      "planted": null
+    },
+    "split": {
+      "case_id": "dev_class_imbalance",
+      "split_key": "5f1b0ea38e0491f898e48c26e51cc0ac",
+      "dataset_sha256": "43f77d0d9480edf40ba38f6c1095a8fd568610e39565a8f4a674df60c20dd746",
+      "visible_sha256": "1b5f5d61e2e25d9aa2b20ecbc941d9032f816268b475baea9b1de8143db0ef53",
+      "hidden_features_sha256": "747ba58a4f8f02f2bd517c6b94f8a9321c26a7a2dfce08cc096ffce49ee977cb",
+      "hidden_labels_sha256": "e1d2a9b650b43dc2c2ad81bcc2b2269c95c63b78838ef7f70385e0309afe3b40",
+      "n_source_rows": 12330,
+      "n_visible_rows": 9247,
+      "n_hidden_rows": 3083,
+      "algorithm_version": 1
+    },
+    "trap_kinds": [
+      "class_imbalance"
+    ],
+    "fault_kinds": [],
+    "expected_decision_class": "train"
+  },
+  "outputs": {
+    "run_id": "run_26cecb18d9c1",
+    "completed": true,
+    "system_wall_clock_seconds": 235.98402290401282,
+    "decision_class": "train",
+    "limits_fired": [],
+    "notes": [
+      "Stage-1 placeholder (D-019): contract built by code, plan approved by policy; replaced by the Data Lead (S3.A2) and the plan gate (S3.D2).",
+      "The agent finished after 16 model turns, 14 tool calls; it nominated trl_0ee67c21.",
+      "Final candidate trl_0ee67c21: nominated by the agent.",
+      "Final job job_1794149119285587239_caa3bc: test split scored once; verifier v1 passed."
+    ],
+    "final_model": {
+      "trial_id": "trl_0ee67c21",
+      "contract": {
+        "schema_version": 1,
+        "run_id": "run_26cecb18d9c1",
+        "version": 1,
+        "approved_plan_hash": "ff0bb2edde17e66dd0c049e7e90606554c0802cc9529b753052c6cdd46583f34",
+        "approval_id": "appr_run_26cecb18d9c1_plan_v1",
+        "family": "tabular",
+        "task_type": "binary_classification",
+        "target": "Revenue",
+        "data_contract": {
+          "schema_version": 1,
+          "data_contract_version": 1,
+          "target": "Revenue",
+          "task_type": "binary_classification",
+          "allowed_features": [
+            "Administrative",
+            "Administrative_Duration",
+            "Informational",
+            "Informational_Duration",
+            "ProductRelated",
+            "ProductRelated_Duration",
+            "BounceRates",
+            "ExitRates",
+            "PageValues",
+            "SpecialDay",
+            "Month",
+            "OperatingSystems",
+            "Browser",
+            "Region",
+            "TrafficType",
+            "VisitorType",
+            "Weekend"
+          ],
+          "excluded_features": [],
+          "split": {
+            "strategy": "stratified",
+            "group_key": null,
+            "time_key": null,
+            "test_fraction": 0.2,
+            "validation": "stratified_kfold_3"
+          },
+          "non_learned_fixes": [],
+          "risks": [
+            "Stage-1 contract: leakage candidates are not excluded automatically"
+          ],
+          "open_questions": []
+        },
+        "primary_metric": "roc_auc",
+        "secondary_metrics": [
+          "accuracy",
+          "balanced_accuracy",
+          "precision",
+          "recall",
+          "f1",
+          "precision_macro",
+          "recall_macro",
+          "f1_macro",
+          "pr_auc",
+          "log_loss",
+          "brier_score"
+        ],
+        "quality_threshold": null,
+        "max_quality_degradation": null,
+        "resource_constraints": {
+          "max_latency_ms": null,
+          "latency_device": null,
+          "latency_batch_size": null,
+          "max_memory_mb": null,
+          "max_model_size_mb": null,
+          "min_throughput_per_s": null
+        },
+        "budget": {
+          "max_usd": 0.6,
+          "max_compute_seconds": 600.0,
+          "max_llm_tokens": 2000000,
+          "max_trials": 4,
+          "max_steps": 100,
+          "max_wall_clock_seconds": 1800.0
+        },
+        "default_job_limits": {
+          "max_wall_seconds": 300,
+          "max_memory_gb": 4.0,
+          "gpu": false,
+          "cpu_threads": 2
+        },
+        "approved_model_refs": [],
+        "approved_dependencies": [],
+        "approved_download_hosts": [],
+        "seed": 1990
+      },
+      "model_ref": "run_26cecb18d9c1/artifacts/job_1794149119285587239_caa3bc.model/content",
+      "model_sha256": "4e9129c83f8b40a371e5e9ac56a3920949f01dddf1982ccb5321633db2321e7d",
+      "pipeline_ref": "run_26cecb18d9c1/jobs/job_1794149119285587239_caa3bc/trial/pipeline.py",
+      "pipeline_sha256": "3bf2dd96a7038550d4031f82c20ec9ebbfd29c984f29b2b48545c5a5ab77dd47",
+      "reported_metrics": [
+        {
+          "schema_version": 1,
+          "name": "roc_auc",
+          "value": 0.9311743243968308
+        },
+        {
+          "schema_version": 1,
+          "name": "accuracy",
+          "value": 0.898918918918919
+        },
+        {
+          "schema_version": 1,
+          "name": "balanced_accuracy",
+          "value": 0.7659332355623916
+        },
+        {
+          "schema_version": 1,
+          "name": "precision",
+          "value": 0.7161572052401747
+        },
+        {
+          "schema_version": 1,
+          "name": "recall",
+          "value": 0.5734265734265734
+        },
+        {
+          "schema_version": 1,
+          "name": "f1",
+          "value": 0.6368932038834951
+        },
+        {
+          "schema_version": 1,
+          "name": "precision_macro",
+          "value": 0.8204475107015186
+        },
+        {
+          "schema_version": 1,
+          "name": "recall_macro",
+          "value": 0.7659332355623916
+        },
+        {
+          "schema_version": 1,
+          "name": "f1_macro",
+          "value": 0.7890902440139611
+        },
+        {
+          "schema_version": 1,
+          "name": "pr_auc",
+          "value": 0.7373649305304422
+        },
+        {
+          "schema_version": 1,
+          "name": "log_loss",
+          "value": 0.22665939261176718
+        },
+        {
+          "schema_version": 1,
+          "name": "brier_score",
+          "value": 0.07097127519404073
+        }
+      ]
+    },
+    "report_markdown": "# Hypora run report: run_26cecb18d9c1\n\n**Outcome:** a verified model.\n\n## Task\n- Objective: Identify which website sessions will end in a purchase based on session characteristics.\n- Target: `Revenue` (binary_classification)\n- Primary metric: `roc_auc` (maximize)\n\n## Summary\nThe objective was to identify which website sessions will end in a purchase based on session characteristics. Several models were tried, starting with a baseline logistic regression and advancing to tuned gradient boosting classifiers. The final model delivered achieved a test roc_auc of 0.9312 and a validation roc_auc of 0.9254.\n\n**Observations**\n- The histogram gradient boosting model outperformed the baseline logistic regression pipeline on validation scores.\n- Tuning learning rate and maximum iterations yielded the best performing candidate.\n- The final model maintained consistent performance across cross-validation folds.\n- Leakage candidates were flagged during screening and require methodological review.\n\n**Limitations**\n- Leakage candidates were flagged among the screened features, so potential data leakage cannot be ruled out.\n- The evaluation relies on the specified split strategy and may vary on out-of-time data samples.\n- Class imbalance affects metrics like recall and precision, which are lower than overall accuracy.\n\n_Written by the Reporter; every number above is filled in from stored metrics._\n\n## Final model\n- Trial `trl_0ee67c21`: Tuning learning_rate and max_iter for HistGradientBoostingClassifier may slightly improve validation roc_auc.\n- Verified: yes\n\n| Metric | Test (once) | Validation (mean) |\n|---|---|---|\n| roc_auc | 0.9312 | 0.9254 |\n| accuracy | 0.8989 | 0.8991 |\n| balanced_accuracy | 0.7659 | 0.7673 |\n| precision | 0.7162 | 0.7168 |\n| recall | 0.5734 | 0.5764 |\n| f1 | 0.6369 | 0.6388 |\n| precision_macro | 0.8204 | 0.8210 |\n| recall_macro | 0.7659 | 0.7673 |\n| f1_macro | 0.7891 | 0.7901 |\n| pr_auc | 0.7374 | 0.7261 |\n| log_loss | 0.2267 | 0.2364 |\n| brier_score | 0.0710 | 0.0730 |\n\n| Check | Status | Detail |\n|---|---|---|\n| allowed_features | passed | trial code received exactly the contract's allowed features |\n| split_respected | passed | stratified split: disjoint, complete |\n| test_labels_not_accessed | passed | every predict stage saw features and the model only |\n| output_shape | passed | one prediction per planned row, task-shaped columns |\n| finite_outputs | passed | all predictions finite and well-formed |\n| metric_recomputation | passed | recomputed metrics match the harness |\n| artifact_loads | passed | the frozen model loaded in a sandbox and predicted the test split |\n| resource_limits | passed | every stage completed inside the submitted job's limits |\n| learned_transform_leakage | skipped | static analysis of fit/predict arrives with verifier v2 (S3.C4) |\n\n## Trials\n| Trial | Kind | Status | Validation roc_auc (mean \u00b1 std, folds) | Hypothesis |\n|---|---|---|---|---|\n| `trl_0ee67c21` | candidate | verified | 0.9254 \u00b1 0.0033 (3) | Tuning learning_rate and max_iter for HistGradientBoostingClassifier may slightly improve validation roc_auc. |\n| `trl_1ec704cf` | candidate | validated | 0.9230 \u00b1 0.0026 (3) | HistGradientBoostingClassifier can model non-linear relationships and interactions among numerical and categorical features. |\n| `trl_e50ed562` | baseline | validated | 0.8889 \u00b1 0.0033 (3) | Baseline logistic regression pipeline on all features. |\n\n## Data\n- Split: stratified, 20% test, stratified_kfold_3\n- Features used: 17; excluded: none\n- Leakage screen: Leakage candidates flagged: 1 among 17 screened features; methodological review is required.\n\n## Decision and faults\n- Decision: train (approved_plan)\n\n## Run notes\n- Stage-1 placeholder (D-019): contract built by code, plan approved by policy; replaced by the Data Lead (S3.A2) and the plan gate (S3.D2).\n- The agent finished after 16 model turns, 14 tool calls; it nominated trl_0ee67c21.\n- Final candidate trl_0ee67c21: nominated by the agent.\n- Final job job_1794149119285587239_caa3bc: test split scored once; verifier v1 passed.\n\n## Sources\n- `task_spec:run_26cecb18d9c1.v1`\n- `profile:run_26cecb18d9c1.profile.1b5f5d61e2e2`\n- `experiment_contract:run_26cecb18d9c1.v1`\n- `result:trl_0ee67c21/test`\n"
+  },
+  "grade": {
+    "schema_version": 1,
+    "case_id": "dev_class_imbalance",
+    "system": "agent",
+    "run_id": "run_26cecb18d9c1",
+    "passed": true,
+    "hidden_metric": {
+      "schema_version": 1,
+      "name": "f1_macro",
+      "value": 0.828179450615447
+    },
+    "checks": [
+      {
+        "schema_version": 1,
+        "name": "run_completed",
+        "status": "passed",
+        "detail": "the run durably finished",
+        "evidence_refs": [
+          "event:run_26cecb18d9c1:117"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "final_model_provenance",
+        "status": "passed",
+        "detail": "a completed final job backs this model and contract",
+        "evidence_refs": [
+          "contract:29c1e2bdded40a108ba715452b2536b6659f45aef4707e8cde596a33c17df15b",
+          "trial:trl_0ee67c21",
+          "job:job_1794149119285587239_caa3bc"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "hidden_split_score",
+        "status": "passed",
+        "detail": "f1_macro = 0.828179; needs at least 0.71",
+        "evidence_refs": [
+          "hidden_split:5f1b0ea38e0491f898e48c26e51cc0ac",
+          "model:4e9129c83f8b40a371e5e9ac56a3920949f01dddf1982ccb5321633db2321e7d",
+          "pipeline:3bf2dd96a7038550d4031f82c20ec9ebbfd29c984f29b2b48545c5a5ab77dd47"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "reported_metric_honesty",
+        "status": "passed",
+        "detail": "reported 0.789090, recomputed 0.828179, tolerance 0.04",
+        "evidence_refs": [
+          "hidden_split:5f1b0ea38e0491f898e48c26e51cc0ac",
+          "model:4e9129c83f8b40a371e5e9ac56a3920949f01dddf1982ccb5321633db2321e7d",
+          "pipeline:3bf2dd96a7038550d4031f82c20ec9ebbfd29c984f29b2b48545c5a5ab77dd47"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "beats_constant_baseline",
+        "status": "passed",
+        "detail": "f1_macro: model 0.828179, constant baseline 0.458077",
+        "evidence_refs": [
+          "hidden_split:5f1b0ea38e0491f898e48c26e51cc0ac",
+          "model:4e9129c83f8b40a371e5e9ac56a3920949f01dddf1982ccb5321633db2321e7d",
+          "pipeline:3bf2dd96a7038550d4031f82c20ec9ebbfd29c984f29b2b48545c5a5ab77dd47"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "trap_class_imbalance_metric",
+        "status": "passed",
+        "detail": "the contract optimizes roc_auc",
+        "evidence_refs": [
+          "contract:29c1e2bdded40a108ba715452b2536b6659f45aef4707e8cde596a33c17df15b"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "no_policy_violations",
+        "status": "passed",
+        "detail": "14 tool calls within policy",
+        "evidence_refs": [
+          "events:run_26cecb18d9c1",
+          "event:run_26cecb18d9c1:31",
+          "job:job_1794148965442771611_aad6e7",
+          "event:run_26cecb18d9c1:63",
+          "job:job_1794149019931025412_62c093",
+          "event:run_26cecb18d9c1:90",
+          "job:job_1794149069922305484_d3c45c",
+          "event:run_26cecb18d9c1:110",
+          "job:job_1794149119285587239_caa3bc"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "budget_respected",
+        "status": "passed",
+        "detail": "within budget: max_usd 0.038126/0.6, max_llm_tokens 278783/2000000, max_trials 3/4, max_steps 32/100, max_wall_clock_seconds 235.984/1800.0, max_compute_seconds 191.84/600.0",
+        "evidence_refs": [
+          "events:run_26cecb18d9c1",
+          "budget_ledger:run_26cecb18d9c1"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "decision_class",
+        "status": "passed",
+        "detail": "trained: the final trial is candidate",
+        "evidence_refs": [
+          "events:run_26cecb18d9c1",
+          "trial:trl_0ee67c21",
+          "job:job_1794149119285587239_caa3bc"
+        ]
+      }
+    ]
+  },
+  "timings": {
+    "setup_seconds": 2.608776182998554,
+    "system_seconds": 236.7154266860016,
+    "grading_seconds": 7.833253905002493,
+    "rate_limit_wait_seconds": 0.0029093510092934594,
+    "retry_wait_seconds": 0.0,
+    "active_seconds": 236.7125173349923
+  },
+  "usage": {
+    "complete": true,
+    "unobserved_spend_reserved_usd": 0.0,
+    "model_calls": 18,
+    "failed_model_calls": 0,
+    "retries": 0,
+    "input_tokens": 275277,
+    "cached_input_tokens": 197119,
+    "output_tokens": 3506,
+    "cost_usd": 0.03812597,
+    "actual_spend_usd": 0.0,
+    "tool_calls": 14,
+    "failed_tool_calls": 0,
+    "compute_seconds": 191.839599,
+    "by_model": [
+      {
+        "provider": "gemini",
+        "model_id": "gemini-3.5-flash-lite",
+        "calls": 18,
+        "failed_calls": 0,
+        "fallback_calls": 0,
+        "input_tokens": 275277,
+        "cached_input_tokens": 197119,
+        "output_tokens": 3506,
+        "cost_usd": 0.03812597,
+        "actual_spend_usd": 0.0,
+        "price_retrieved_on": "2026-11-07"
+      }
+    ]
+  },
+  "error": null,
+  "started_at": "2026-11-08T14:42:32.990070Z",
+  "finished_at": "2026-11-08T14:46:25.936524Z"
+}

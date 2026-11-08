@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "commit": "ec81155d54c78568df93e7dd6751e9e90f1316e3",
+  "config": "single_agent",
+  "status": "no_baseline",
+  "message": "No regression check: no results for config single_agent on the parent of ec81155d54c7 or the 31 commit(s) before it. These results can be the base for the next commit.",
+  "base_commit": null,
+  "commits_back": null,
+  "newly_failing": [],
+  "recovered": [],
+  "new_cases": [],
+  "missing_cases": [],
+  "not_comparable": []
+}

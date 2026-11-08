@@ -1,0 +1,394 @@
+{
+  "schema": "hypora.stage1_smoke/v1",
+  "step": "S2.6",
+  "recorded": true,
+  "label": "matching S1.7 smoke on actual pinned eval profile (S2.6, D-016, D-033)",
+  "variant": "eval",
+  "profile": "eval",
+  "models": [
+    "openai/gpt-6-luna"
+  ],
+  "billing": "paid: list price is what OpenAI bills",
+  "code": {
+    "commit": "ec81155d54c78568df93e7dd6751e9e90f1316e3",
+    "dirty": false
+  },
+  "collected_with": {
+    "commit": "ec81155d54c78568df93e7dd6751e9e90f1316e3",
+    "dirty": false
+  },
+  "config_hash": "01ac323362b8f9770aa733d5509dc6470b29fc9aa0c4a0749467048d594aaf46",
+  "task": {
+    "task_id": "fish-toxicity",
+    "goal": "Predict a chemical's acute toxicity to fish (LC50) from its molecular descriptors",
+    "target": "LC50"
+  },
+  "dataset": {
+    "snapshot": "openml-46954-qsar-fish-toxicity",
+    "source": "openml",
+    "dataset_id": 46954,
+    "title": "QSAR_fish_toxicity",
+    "version": "8",
+    "license": "CC-BY-4.0",
+    "source_url": "https://www.openml.org/d/46954",
+    "rows": 907,
+    "columns": 7,
+    "sha256": "3b6dba16ff93c7edb9d63cf23c44be5ea26e76faedbe0d4db9250284f240d98e",
+    "profiled_fingerprint_matches": true
+  },
+  "run": {
+    "run_id": "run_s26_eval_fish_toxicity_a2f82c4766",
+    "status": "DONE",
+    "last_stage": null,
+    "verified": true,
+    "final_trial_id": "trl_d243c82a",
+    "test_metric": "mae",
+    "test_value": 0.6068741266995028,
+    "trials": {
+      "validated": 3,
+      "verified": 1
+    },
+    "jobs": {
+      "COMPLETED": 5
+    },
+    "wall_clock_s": 282.2,
+    "sandbox_compute_s": 251.247383,
+    "budget_usd": 0.45,
+    "limits_fired": [],
+    "errors": {},
+    "narrative_written": true,
+    "notes": [
+      "Stage-1 placeholder (D-019): contract built by code, plan approved by policy; replaced by the Data Lead (S3.A2) and the plan gate (S3.D2).",
+      "The agent finished after 18 model turns, 21 tool calls; it nominated trl_d243c82a.",
+      "Final candidate trl_d243c82a: nominated by the agent.",
+      "Final job job_1794153915462805389_5268b2: test split scored once; verifier v1 passed."
+    ]
+  },
+  "llm": {
+    "calls": 20,
+    "calls_failed": 0,
+    "failed_by_code": {},
+    "schema_retries": 0,
+    "retries": 0,
+    "input_tokens": 201910,
+    "cached_input_tokens": 176421,
+    "output_tokens": 2940,
+    "cost_usd": 0.006405,
+    "spent_usd_ledger": 0.00640498,
+    "latency_s": 52.5,
+    "rate_limit_wait_s": 0.0,
+    "by_role": {
+      "intake": {
+        "calls": 1,
+        "input_tokens": 557,
+        "output_tokens": 76,
+        "cost_usd": 9.4e-05
+      },
+      "reporter": {
+        "calls": 1,
+        "input_tokens": 1490,
+        "output_tokens": 298,
+        "cost_usd": 0.000335
+      },
+      "single_agent": {
+        "calls": 18,
+        "input_tokens": 199863,
+        "output_tokens": 2566,
+        "cost_usd": 0.005976
+      }
+    },
+    "per_call": [
+      {
+        "role": "intake",
+        "tier": "cheap",
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "profile": "eval",
+        "temperature": "not_configurable",
+        "fallback_used": false,
+        "input_tokens": 557,
+        "cached_input_tokens": 0,
+        "output_tokens": 76,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "profile": "eval",
+        "temperature": "not_configurable",
+        "fallback_used": false,
+        "input_tokens": 5098,
+        "cached_input_tokens": 4120,
+        "output_tokens": 25,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "profile": "eval",
+        "temperature": "not_configurable",
+        "fallback_used": false,
+        "input_tokens": 6743,
+        "cached_input_tokens": 5095,
+        "output_tokens": 317,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "profile": "eval",
+        "temperature": "not_configurable",
+        "fallback_used": false,
+        "input_tokens": 7400,
+        "cached_input_tokens": 6740,
+        "output_tokens": 52,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "profile": "eval",
+        "temperature": "not_configurable",
+        "fallback_used": false,
+        "input_tokens": 7593,
+        "cached_input_tokens": 7397,
+        "output_tokens": 798,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "profile": "eval",
+        "temperature": "not_configurable",
+        "fallback_used": false,
+        "input_tokens": 9069,
+        "cached_input_tokens": 7590,
+        "output_tokens": 132,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "profile": "eval",
+        "temperature": "not_configurable",
+        "fallback_used": false,
+        "input_tokens": 9479,
+        "cached_input_tokens": 9066,
+        "output_tokens": 119,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "profile": "eval",
+        "temperature": "not_configurable",
+        "fallback_used": false,
+        "input_tokens": 10220,
+        "cached_input_tokens": 9476,
+        "output_tokens": 46,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "profile": "eval",
+        "temperature": "not_configurable",
+        "fallback_used": false,
+        "input_tokens": 10841,
+        "cached_input_tokens": 10217,
+        "output_tokens": 87,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "profile": "eval",
+        "temperature": "not_configurable",
+        "fallback_used": false,
+        "input_tokens": 11409,
+        "cached_input_tokens": 10838,
+        "output_tokens": 43,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "profile": "eval",
+        "temperature": "not_configurable",
+        "fallback_used": false,
+        "input_tokens": 12025,
+        "cached_input_tokens": 11406,
+        "output_tokens": 45,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "profile": "eval",
+        "temperature": "not_configurable",
+        "fallback_used": false,
+        "input_tokens": 12430,
+        "cached_input_tokens": 12022,
+        "output_tokens": 33,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "profile": "eval",
+        "temperature": "not_configurable",
+        "fallback_used": false,
+        "input_tokens": 13037,
+        "cached_input_tokens": 12427,
+        "output_tokens": 551,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "profile": "eval",
+        "temperature": "not_configurable",
+        "fallback_used": false,
+        "input_tokens": 13927,
+        "cached_input_tokens": 13034,
+        "output_tokens": 52,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "profile": "eval",
+        "temperature": "not_configurable",
+        "fallback_used": false,
+        "input_tokens": 14120,
+        "cached_input_tokens": 13924,
+        "output_tokens": 33,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "profile": "eval",
+        "temperature": "not_configurable",
+        "fallback_used": false,
+        "input_tokens": 14283,
+        "cached_input_tokens": 14117,
+        "output_tokens": 33,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "profile": "eval",
+        "temperature": "not_configurable",
+        "fallback_used": false,
+        "input_tokens": 14675,
+        "cached_input_tokens": 14280,
+        "output_tokens": 33,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "profile": "eval",
+        "temperature": "not_configurable",
+        "fallback_used": false,
+        "input_tokens": 15281,
+        "cached_input_tokens": 14672,
+        "output_tokens": 141,
+        "status": "ok"
+      },
+      {
+        "role": "single_agent",
+        "tier": "lead",
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "profile": "eval",
+        "temperature": "not_configurable",
+        "fallback_used": false,
+        "input_tokens": 12233,
+        "cached_input_tokens": 0,
+        "output_tokens": 26,
+        "status": "ok"
+      },
+      {
+        "role": "reporter",
+        "tier": "cheap",
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "profile": "eval",
+        "temperature": "not_configurable",
+        "fallback_used": false,
+        "input_tokens": 1490,
+        "cached_input_tokens": 0,
+        "output_tokens": 298,
+        "status": "ok"
+      }
+    ]
+  },
+  "tools": {
+    "calls": 21,
+    "by_tool": {
+      "get_experiment_metrics": 4,
+      "get_experiment_status": 8,
+      "inspect_dataset": 1,
+      "submit_experiment": 4,
+      "write_trial_files": 4
+    },
+    "failed": {}
+  },
+  "events": {
+    "count": 154,
+    "bytes": 95901,
+    "by_type": {
+      "approval_granted": 1,
+      "approval_requested": 1,
+      "handoff": 4,
+      "job_transition": 35,
+      "model_call": 20,
+      "policy_decision": 42,
+      "role_started": 3,
+      "stage_transition": 6,
+      "tool_call": 21,
+      "tool_result": 21
+    }
+  },
+  "paid_accounting": {
+    "ledger": "results/stage2/paid-accounting.json",
+    "unknown_reserved_usd": 0
+  }
+}

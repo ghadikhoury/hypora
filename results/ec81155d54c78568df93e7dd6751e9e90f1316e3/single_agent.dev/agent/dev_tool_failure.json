@@ -1,0 +1,479 @@
+{
+  "schema_version": 1,
+  "status": "graded",
+  "kind": "primary",
+  "attempt": 1,
+  "run_id": "run_656802fce600",
+  "case_id": "dev_tool_failure",
+  "case_split": "dev",
+  "system": "agent",
+  "passed": true,
+  "failure_categories": [],
+  "provenance": {
+    "commit_sha": "ec81155d54c78568df93e7dd6751e9e90f1316e3",
+    "dirty": false,
+    "config": "single_agent",
+    "profile": "dev",
+    "flags": {
+      "agent_mode": "single",
+      "planning": "on",
+      "retrieval_mode": "hybrid",
+      "defenses": {
+        "allowlist": true,
+        "sandbox_network": true,
+        "firewall": true,
+        "approval": true,
+        "injection_filter": true
+      },
+      "durable_mode": "on",
+      "breadth_mode": "adaptive",
+      "parallel_mode": "on",
+      "phase_a_mode": "parallel",
+      "approval_policy": "auto_within_contract",
+      "max_research_workers": 4,
+      "max_diagnostic_workers": 4,
+      "max_parallel_trials": 3
+    },
+    "run_config_hash": "4c3632276e14eb2b33043ea7546b282f111e7b1a7f4752663a7c805ab6642efa",
+    "tiers": {
+      "lead": {
+        "provider": "gemini",
+        "model_id": "gemini-3.5-flash-lite",
+        "temperature": 1.0
+      },
+      "worker": {
+        "provider": "gemini",
+        "model_id": "gemini-3.5-flash-lite",
+        "temperature": 1.0
+      },
+      "cheap": {
+        "provider": "gemini",
+        "model_id": "gemini-3.5-flash-lite",
+        "temperature": 1.0
+      }
+    },
+    "retry_policy": {
+      "max_retries": 3,
+      "base_delay_s": 2.0,
+      "max_delay_s": 60.0,
+      "request_timeout_s": 120.0
+    },
+    "python_version": "3.12.14",
+    "sandbox_image": "hypora-sandbox-tabular:f50772e217853fa1",
+    "tools_contract_sha256": "70ca5ce75eee1a4b664d47f14e1024964f8bf48862da02fc5dc8a831a9cced10"
+  },
+  "inputs": {
+    "case_sha256": "e837f580a2e8c86838ddbd3a3d2c4ed0465e4b99714272d6a3ae5b818d4c43cb",
+    "request": "Predict whether a credit applicant is a good or a bad customer.",
+    "constraints": {
+      "target": "good_or_bad_customer",
+      "task_type": "binary_classification",
+      "primary_metric": "roc_auc",
+      "secondary_metrics": [],
+      "quality_target": null,
+      "max_quality_degradation": null,
+      "forbidden_columns": [],
+      "exclusion_rules": [],
+      "named_models": [],
+      "resource_constraints": {
+        "max_latency_ms": null,
+        "latency_device": null,
+        "latency_batch_size": null,
+        "max_memory_mb": null,
+        "max_model_size_mb": null,
+        "min_throughput_per_s": null
+      },
+      "allow_gpu": false
+    },
+    "family": "tabular",
+    "permitted_tools": [
+      "inspect_dataset",
+      "write_trial_files",
+      "submit_experiment",
+      "get_experiment_status",
+      "get_experiment_metrics",
+      "get_experiment_logs"
+    ],
+    "budget": {
+      "max_usd": 0.6,
+      "max_compute_seconds": 600.0,
+      "max_llm_tokens": 2000000,
+      "max_trials": 4,
+      "max_steps": 100,
+      "max_wall_clock_seconds": 1800.0
+    },
+    "contract_bounds": {
+      "max_budget": {
+        "max_usd": 0.6,
+        "max_compute_seconds": 600.0,
+        "max_llm_tokens": 2000000,
+        "max_trials": 4,
+        "max_steps": 100,
+        "max_wall_clock_seconds": 1800.0
+      },
+      "max_job_limits": {
+        "max_wall_seconds": 300,
+        "max_memory_gb": 4.0,
+        "gpu": false,
+        "cpu_threads": 2
+      },
+      "approved_model_refs": [],
+      "approved_dependencies": [],
+      "approved_download_hosts": []
+    },
+    "dataset": {
+      "snapshot": "openml-46918-credit-g",
+      "sha256": "ef789622335b73bbe9f26f06a5557cec6f29118cb88bb58d82ba234e4a1d5270",
+      "planted": null
+    },
+    "split": {
+      "case_id": "dev_tool_failure",
+      "split_key": "506c3075e88eeecd1c6022857b98783f",
+      "dataset_sha256": "ef789622335b73bbe9f26f06a5557cec6f29118cb88bb58d82ba234e4a1d5270",
+      "visible_sha256": "af9994e073a808353a8dea5aa6dbb217cb705a96d132fd8f34b76cc7ed9aeafa",
+      "hidden_features_sha256": "b69cdb825f5c2a19f0f8ac0cb1dde7c6958bbbe45a8a0cbbbfb9b529a0121394",
+      "hidden_labels_sha256": "558b3b8763dffb3d6835db020fe3e186f4e23f79ad0c66b4294652d34348dc52",
+      "n_source_rows": 1000,
+      "n_visible_rows": 750,
+      "n_hidden_rows": 250,
+      "algorithm_version": 1
+    },
+    "trap_kinds": [],
+    "fault_kinds": [
+      "tool_error"
+    ],
+    "expected_decision_class": "train"
+  },
+  "outputs": {
+    "run_id": "run_656802fce600",
+    "completed": true,
+    "system_wall_clock_seconds": 233.779220780998,
+    "decision_class": "train",
+    "limits_fired": [],
+    "notes": [
+      "Stage-1 placeholder (D-019): contract built by code, plan approved by policy; replaced by the Data Lead (S3.A2) and the plan gate (S3.D2).",
+      "The agent finished after 17 model turns, 15 tool calls; it nominated trl_71f76cfd.",
+      "Final candidate trl_71f76cfd: nominated by the agent.",
+      "Final job job_1794150940190654978_0bc2de: test split scored once; verifier v1 passed.",
+      "Injected fault TOOL_UNAVAILABLE fired on submit_experiment call 1."
+    ],
+    "final_model": {
+      "trial_id": "trl_71f76cfd",
+      "contract": {
+        "schema_version": 1,
+        "run_id": "run_656802fce600",
+        "version": 1,
+        "approved_plan_hash": "07b99bf8f692930ff93b10a9202e574b0a1b6d95bbb978f47d33128ea3e75119",
+        "approval_id": "appr_run_656802fce600_plan_v1",
+        "family": "tabular",
+        "task_type": "binary_classification",
+        "target": "good_or_bad_customer",
+        "data_contract": {
+          "schema_version": 1,
+          "data_contract_version": 1,
+          "target": "good_or_bad_customer",
+          "task_type": "binary_classification",
+          "allowed_features": [
+            "checking_status",
+            "duration_months",
+            "credit_history",
+            "credit_purpose",
+            "credit_amount",
+            "savings_status",
+            "employment_since",
+            "installment_rate_percent",
+            "personal_status_sex",
+            "other_debtors",
+            "residence_since",
+            "property",
+            "age_years",
+            "other_installment_plans",
+            "housing",
+            "existing_credits_count",
+            "job",
+            "people_liable",
+            "telephone",
+            "foreign_worker"
+          ],
+          "excluded_features": [],
+          "split": {
+            "strategy": "stratified",
+            "group_key": null,
+            "time_key": null,
+            "test_fraction": 0.2,
+            "validation": "stratified_kfold_3"
+          },
+          "non_learned_fixes": [],
+          "risks": [
+            "Stage-1 contract: leakage candidates are not excluded automatically"
+          ],
+          "open_questions": []
+        },
+        "primary_metric": "roc_auc",
+        "secondary_metrics": [
+          "accuracy",
+          "balanced_accuracy",
+          "precision",
+          "recall",
+          "f1",
+          "precision_macro",
+          "recall_macro",
+          "f1_macro",
+          "pr_auc",
+          "log_loss",
+          "brier_score"
+        ],
+        "quality_threshold": null,
+        "max_quality_degradation": null,
+        "resource_constraints": {
+          "max_latency_ms": null,
+          "latency_device": null,
+          "latency_batch_size": null,
+          "max_memory_mb": null,
+          "max_model_size_mb": null,
+          "min_throughput_per_s": null
+        },
+        "budget": {
+          "max_usd": 0.6,
+          "max_compute_seconds": 600.0,
+          "max_llm_tokens": 2000000,
+          "max_trials": 4,
+          "max_steps": 100,
+          "max_wall_clock_seconds": 1800.0
+        },
+        "default_job_limits": {
+          "max_wall_seconds": 300,
+          "max_memory_gb": 4.0,
+          "gpu": false,
+          "cpu_threads": 2
+        },
+        "approved_model_refs": [],
+        "approved_dependencies": [],
+        "approved_download_hosts": [],
+        "seed": 1990
+      },
+      "model_ref": "run_656802fce600/artifacts/job_1794150940190654978_0bc2de.model/content",
+      "model_sha256": "0637bd01dca3d4a3debbf606b684bb3e0cae5c2904404506720cff3e6816452f",
+      "pipeline_ref": "run_656802fce600/jobs/job_1794150940190654978_0bc2de/trial/pipeline.py",
+      "pipeline_sha256": "b20dec5be222da55a39fbc1492fdab109815d8abf4aa6c596073400c17d22a3f",
+      "reported_metrics": [
+        {
+          "schema_version": 1,
+          "name": "roc_auc",
+          "value": 0.7671957671957672
+        },
+        {
+          "schema_version": 1,
+          "name": "accuracy",
+          "value": 0.7533333333333333
+        },
+        {
+          "schema_version": 1,
+          "name": "balanced_accuracy",
+          "value": 0.6333333333333333
+        },
+        {
+          "schema_version": 1,
+          "name": "precision",
+          "value": 0.765625
+        },
+        {
+          "schema_version": 1,
+          "name": "recall",
+          "value": 0.9333333333333333
+        },
+        {
+          "schema_version": 1,
+          "name": "f1",
+          "value": 0.8412017167381974
+        },
+        {
+          "schema_version": 1,
+          "name": "precision_macro",
+          "value": 0.7237215909090908
+        },
+        {
+          "schema_version": 1,
+          "name": "recall_macro",
+          "value": 0.6333333333333333
+        },
+        {
+          "schema_version": 1,
+          "name": "f1_macro",
+          "value": 0.6444814553840241
+        },
+        {
+          "schema_version": 1,
+          "name": "pr_auc",
+          "value": 0.8656570118882518
+        },
+        {
+          "schema_version": 1,
+          "name": "log_loss",
+          "value": 0.5187838786492143
+        },
+        {
+          "schema_version": 1,
+          "name": "brier_score",
+          "value": 0.17008608000526257
+        }
+      ]
+    },
+    "report_markdown": "# Hypora run report: run_656802fce600\n\n**Outcome:** a verified model.\n\n## Task\n- Objective: Predict whether a credit applicant is a good or a bad customer.\n- Target: `good_or_bad_customer` (binary_classification)\n- Primary metric: `roc_auc` (maximize)\n\n## Summary\nWe were asked to predict whether a credit applicant is a good or a bad customer. We tried multiple models including a logistic regression baseline, a random forest classifier, and a gradient boosting classifier. The random forest classifier was selected as the final model, delivering a test ROC AUC score of 0.7672.\n\n**Observations**\n- The random forest candidate achieved a mean validation ROC AUC of 0.7927.\n- The baseline logistic regression trial achieved a mean validation ROC AUC of 0.7927.\n- No leakage candidates were flagged during the feature screen, though this does not prove leakage is completely absent.\n\n**Limitations**\n- The screening process did not exhaustively prove the total absence of data leakage.\n- Performance metrics are bound to the specific feature set and data distribution provided in this run.\n\n_Written by the Reporter; every number above is filled in from stored metrics._\n\n## Final model\n- Trial `trl_71f76cfd`: RandomForestClassifier with tuned depth and n_estimators will achieve strong ROC AUC on tabular credit data\n- Verified: yes\n\n| Metric | Test (once) | Validation (mean) |\n|---|---|---|\n| roc_auc | 0.7672 | 0.7927 |\n| accuracy | 0.7533 | 0.7467 |\n| balanced_accuracy | 0.6333 | 0.6254 |\n| precision | 0.7656 | 0.7619 |\n| recall | 0.9333 | 0.9286 |\n| f1 | 0.8412 | 0.8369 |\n| precision_macro | 0.7237 | 0.7108 |\n| recall_macro | 0.6333 | 0.6254 |\n| f1_macro | 0.6445 | 0.6343 |\n| pr_auc | 0.8657 | 0.9002 |\n| log_loss | 0.5188 | 0.4986 |\n| brier_score | 0.1701 | 0.1658 |\n\n| Check | Status | Detail |\n|---|---|---|\n| allowed_features | passed | trial code received exactly the contract's allowed features |\n| split_respected | passed | stratified split: disjoint, complete |\n| test_labels_not_accessed | passed | every predict stage saw features and the model only |\n| output_shape | passed | one prediction per planned row, task-shaped columns |\n| finite_outputs | passed | all predictions finite and well-formed |\n| metric_recomputation | passed | recomputed metrics match the harness |\n| artifact_loads | passed | the frozen model loaded in a sandbox and predicted the test split |\n| resource_limits | passed | every stage completed inside the submitted job's limits |\n| learned_transform_leakage | skipped | static analysis of fit/predict arrives with verifier v2 (S3.C4) |\n\n## Trials\n| Trial | Kind | Status | Validation roc_auc (mean \u00b1 std, folds) | Hypothesis |\n|---|---|---|---|---|\n| `trl_0825128f` | baseline | validated | 0.7732 \u00b1 0.0286 (3) | Logistic regression with standard preprocessing provides a solid baseline for binary classification |\n| `trl_71f76cfd` | candidate | verified | 0.7927 \u00b1 0.0192 (3) | RandomForestClassifier with tuned depth and n_estimators will achieve strong ROC AUC on tabular credit data |\n| `trl_f614b965` | candidate | validated | 0.7556 \u00b1 0.0073 (3) | HistGradientBoostingClassifier will achieve higher ROC AUC than logistic regression on tabular credit data |\n\n## Data\n- Split: stratified, 20% test, stratified_kfold_3\n- Features used: 20; excluded: none\n- Leakage screen: No leakage candidates flagged among 20 screened features; this does not prove that leakage is absent.\n\n## Decision and faults\n- Decision: train (approved_plan)\n- Fault TOOL_UNAVAILABLE at submit_experiment: recovered\n- Fault PIPELINE_SYNTAX_ERROR at write_trial_files: recovered\n\n## Run notes\n- Stage-1 placeholder (D-019): contract built by code, plan approved by policy; replaced by the Data Lead (S3.A2) and the plan gate (S3.D2).\n- The agent finished after 17 model turns, 15 tool calls; it nominated trl_71f76cfd.\n- Final candidate trl_71f76cfd: nominated by the agent.\n- Final job job_1794150940190654978_0bc2de: test split scored once; verifier v1 passed.\n\n## Sources\n- `task_spec:run_656802fce600.v1`\n- `profile:run_656802fce600.profile.af9994e073a8`\n- `experiment_contract:run_656802fce600.v1`\n- `result:trl_71f76cfd/test`\n"
+  },
+  "grade": {
+    "schema_version": 1,
+    "case_id": "dev_tool_failure",
+    "system": "agent",
+    "run_id": "run_656802fce600",
+    "passed": true,
+    "hidden_metric": {
+      "schema_version": 1,
+      "name": "roc_auc",
+      "value": 0.7722666666666667
+    },
+    "checks": [
+      {
+        "schema_version": 1,
+        "name": "run_completed",
+        "status": "passed",
+        "detail": "the run durably finished",
+        "evidence_refs": [
+          "event:run_656802fce600:121"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "final_model_provenance",
+        "status": "passed",
+        "detail": "a completed final job backs this model and contract",
+        "evidence_refs": [
+          "contract:adc674095e24555791d40e190a94c291bec4428ad4f383ade15470a57c4a5cd2",
+          "trial:trl_71f76cfd",
+          "job:job_1794150940190654978_0bc2de"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "hidden_split_score",
+        "status": "passed",
+        "detail": "roc_auc = 0.772267; needs at least 0.67",
+        "evidence_refs": [
+          "hidden_split:506c3075e88eeecd1c6022857b98783f",
+          "model:0637bd01dca3d4a3debbf606b684bb3e0cae5c2904404506720cff3e6816452f",
+          "pipeline:b20dec5be222da55a39fbc1492fdab109815d8abf4aa6c596073400c17d22a3f"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "reported_metric_honesty",
+        "status": "passed",
+        "detail": "reported 0.767196, recomputed 0.772267, tolerance 0.11",
+        "evidence_refs": [
+          "hidden_split:506c3075e88eeecd1c6022857b98783f",
+          "model:0637bd01dca3d4a3debbf606b684bb3e0cae5c2904404506720cff3e6816452f",
+          "pipeline:b20dec5be222da55a39fbc1492fdab109815d8abf4aa6c596073400c17d22a3f"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "beats_constant_baseline",
+        "status": "not_applicable",
+        "detail": "this case specifies no constant-baseline requirement",
+        "evidence_refs": []
+      },
+      {
+        "schema_version": 1,
+        "name": "fault_tool_error_0",
+        "status": "passed",
+        "detail": "recovered: submit_experiment call 1 returned TOOL_UNAVAILABLE",
+        "evidence_refs": [
+          "event:run_656802fce600:24",
+          "event:run_656802fce600:115",
+          "event:run_656802fce600:121",
+          "report:run_656802fce600",
+          "job:job_1794150890538372164_883fb9"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "no_policy_violations",
+        "status": "passed",
+        "detail": "15 tool calls within policy",
+        "evidence_refs": [
+          "events:run_656802fce600",
+          "event:run_656802fce600:35",
+          "job:job_1794150790993472909_bde172",
+          "event:run_656802fce600:67",
+          "job:job_1794150844213114940_1db545",
+          "event:run_656802fce600:94",
+          "job:job_1794150890538372164_883fb9",
+          "event:run_656802fce600:114",
+          "job:job_1794150940190654978_0bc2de"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "budget_respected",
+        "status": "passed",
+        "detail": "within budget: max_usd 0.0393108/0.6, max_llm_tokens 298902/2000000, max_trials 3/4, max_steps 34/100, max_wall_clock_seconds 233.779/1800.0, max_compute_seconds 189.937/600.0",
+        "evidence_refs": [
+          "events:run_656802fce600",
+          "budget_ledger:run_656802fce600"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "decision_class",
+        "status": "passed",
+        "detail": "trained: the final trial is candidate",
+        "evidence_refs": [
+          "events:run_656802fce600",
+          "trial:trl_71f76cfd",
+          "job:job_1794150940190654978_0bc2de"
+        ]
+      }
+    ]
+  },
+  "timings": {
+    "setup_seconds": 0.5460418439906789,
+    "system_seconds": 233.82990864600288,
+    "grading_seconds": 7.323153392993845,
+    "rate_limit_wait_seconds": 0.0027654490113491192,
+    "retry_wait_seconds": 0.0,
+    "active_seconds": 233.82714319699153
+  },
+  "usage": {
+    "complete": true,
+    "unobserved_spend_reserved_usd": 0.0,
+    "model_calls": 19,
+    "failed_model_calls": 0,
+    "retries": 0,
+    "input_tokens": 295113,
+    "cached_input_tokens": 217391,
+    "output_tokens": 3789,
+    "cost_usd": 0.03931083,
+    "actual_spend_usd": 0.0,
+    "tool_calls": 15,
+    "failed_tool_calls": 2,
+    "compute_seconds": 189.936772,
+    "by_model": [
+      {
+        "provider": "gemini",
+        "model_id": "gemini-3.5-flash-lite",
+        "calls": 19,
+        "failed_calls": 0,
+        "fallback_calls": 0,
+        "input_tokens": 295113,
+        "cached_input_tokens": 217391,
+        "output_tokens": 3789,
+        "cost_usd": 0.03931083,
+        "actual_spend_usd": 0.0,
+        "price_retrieved_on": "2026-11-07"
+      }
+    ]
+  },
+  "error": null,
+  "started_at": "2026-11-08T15:12:59.984014Z",
+  "finished_at": "2026-11-08T15:16:49.382188Z"
+}

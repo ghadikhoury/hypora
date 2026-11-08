@@ -1,0 +1,409 @@
+{
+  "schema_version": 1,
+  "status": "graded",
+  "kind": "primary",
+  "attempt": 1,
+  "run_id": "run_ba6474e8b39b",
+  "case_id": "dev_grouped_rows",
+  "case_split": "dev",
+  "system": "baseline",
+  "passed": false,
+  "failure_categories": [
+    "hidden_split_score",
+    "reported_metric_honesty",
+    "trap_grouped_rows_no_overlap"
+  ],
+  "provenance": {
+    "commit_sha": "ec81155d54c78568df93e7dd6751e9e90f1316e3",
+    "dirty": false,
+    "config": "single_agent",
+    "profile": "eval",
+    "flags": {
+      "agent_mode": "single",
+      "planning": "on",
+      "retrieval_mode": "hybrid",
+      "defenses": {
+        "allowlist": true,
+        "sandbox_network": true,
+        "firewall": true,
+        "approval": true,
+        "injection_filter": true
+      },
+      "durable_mode": "on",
+      "breadth_mode": "adaptive",
+      "parallel_mode": "on",
+      "phase_a_mode": "parallel",
+      "approval_policy": "auto_within_contract",
+      "max_research_workers": 4,
+      "max_diagnostic_workers": 4,
+      "max_parallel_trials": 3
+    },
+    "run_config_hash": "01ac323362b8f9770aa733d5509dc6470b29fc9aa0c4a0749467048d594aaf46",
+    "tiers": {
+      "lead": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "worker": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "cheap": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      }
+    },
+    "retry_policy": {
+      "max_retries": 3,
+      "base_delay_s": 2.0,
+      "max_delay_s": 60.0,
+      "request_timeout_s": 120.0
+    },
+    "python_version": "3.12.14",
+    "sandbox_image": "hypora-sandbox-tabular:f50772e217853fa1",
+    "tools_contract_sha256": "70ca5ce75eee1a4b664d47f14e1024964f8bf48862da02fc5dc8a831a9cced10"
+  },
+  "inputs": {
+    "case_sha256": "a42e7ee98a3de98924c7efff03e1345610c9a606f7e0028f0fff4ea273226680",
+    "request": "Predict the total UPDRS score of a Parkinson's patient from voice recordings made at home. The model will be used on patients it has not seen.",
+    "constraints": {
+      "target": "total_UPDRS",
+      "task_type": "regression",
+      "primary_metric": "mae",
+      "secondary_metrics": [],
+      "quality_target": null,
+      "max_quality_degradation": null,
+      "forbidden_columns": [],
+      "exclusion_rules": [],
+      "named_models": [],
+      "resource_constraints": {
+        "max_latency_ms": null,
+        "latency_device": null,
+        "latency_batch_size": null,
+        "max_memory_mb": null,
+        "max_model_size_mb": null,
+        "min_throughput_per_s": null
+      },
+      "allow_gpu": false
+    },
+    "family": "tabular",
+    "permitted_tools": [
+      "inspect_dataset",
+      "write_trial_files",
+      "submit_experiment",
+      "get_experiment_status",
+      "get_experiment_metrics",
+      "get_experiment_logs"
+    ],
+    "budget": {
+      "max_usd": 0.6,
+      "max_compute_seconds": 600.0,
+      "max_llm_tokens": 2000000,
+      "max_trials": 4,
+      "max_steps": 100,
+      "max_wall_clock_seconds": 1800.0
+    },
+    "contract_bounds": {
+      "max_budget": {
+        "max_usd": 0.6,
+        "max_compute_seconds": 600.0,
+        "max_llm_tokens": 2000000,
+        "max_trials": 4,
+        "max_steps": 100,
+        "max_wall_clock_seconds": 1800.0
+      },
+      "max_job_limits": {
+        "max_wall_seconds": 300,
+        "max_memory_gb": 4.0,
+        "gpu": false,
+        "cpu_threads": 2
+      },
+      "approved_model_refs": [],
+      "approved_dependencies": [],
+      "approved_download_hosts": []
+    },
+    "dataset": {
+      "snapshot": "uci-189-parkinsons-telemonitoring",
+      "sha256": "76e9ba949527cc14461e25dccaa794aa86afc5c041549b872d9c7fcea062abed",
+      "planted": {
+        "script": "hypora/evaluation/cases/dev/plant_grouped_rows.py",
+        "file": "dev_grouped_rows.parquet",
+        "sha256": "8321f6f9d9585072cfaef9e2d33ee3ba79c926987d2e0d9c65c6a449244ba6a7"
+      }
+    },
+    "split": {
+      "case_id": "dev_grouped_rows",
+      "split_key": "1d4a995f7a883b072b60becfa8823a3e",
+      "dataset_sha256": "8321f6f9d9585072cfaef9e2d33ee3ba79c926987d2e0d9c65c6a449244ba6a7",
+      "visible_sha256": "7ab08025cb89ec6e292f9da9867a5b16c38e9126d9e524520e15fe2addd172b2",
+      "hidden_features_sha256": "870e5a10e723dd1dd3830e77c7e5106be7eb3a76e9236938dd3aebb058a5117b",
+      "hidden_labels_sha256": "bff408f294e668eee6e3fd3762cc7227965c35792f58a36fefa0c33c189a73da",
+      "n_source_rows": 5875,
+      "n_visible_rows": 4517,
+      "n_hidden_rows": 1358,
+      "algorithm_version": 1
+    },
+    "trap_kinds": [
+      "grouped_rows"
+    ],
+    "fault_kinds": [],
+    "expected_decision_class": "train"
+  },
+  "outputs": {
+    "run_id": "run_ba6474e8b39b",
+    "completed": true,
+    "system_wall_clock_seconds": 114.3729394700058,
+    "decision_class": "train",
+    "limits_fired": [],
+    "notes": [
+      "Fixed-pipeline baseline (spec \u00a719.3): random split, every column but the forbidden ones, default HistGradientBoosting, one trial. Contract built by code, plan approved by policy.",
+      "Final candidate trl_a6747694: best mean validation mae.",
+      "Final job job_1794152276285136381_a804bb: test split scored once; verifier v1 passed."
+    ],
+    "final_model": {
+      "trial_id": "trl_a6747694",
+      "contract": {
+        "schema_version": 1,
+        "run_id": "run_ba6474e8b39b",
+        "version": 1,
+        "approved_plan_hash": "69c2e57bfc5567c97c97cfb7e082307e778bcb4b31366c65244ee6450456ce3e",
+        "approval_id": "appr_run_ba6474e8b39b_plan_v1",
+        "family": "tabular",
+        "task_type": "regression",
+        "target": "total_UPDRS",
+        "data_contract": {
+          "schema_version": 1,
+          "data_contract_version": 1,
+          "target": "total_UPDRS",
+          "task_type": "regression",
+          "allowed_features": [
+            "patient_id",
+            "age",
+            "sex",
+            "test_time",
+            "Jitter(%)",
+            "Jitter(Abs)",
+            "Jitter:RAP",
+            "Jitter:PPQ5",
+            "Jitter:DDP",
+            "Shimmer",
+            "Shimmer(dB)",
+            "Shimmer:APQ3",
+            "Shimmer:APQ5",
+            "Shimmer:APQ11",
+            "Shimmer:DDA",
+            "NHR",
+            "HNR",
+            "RPDE",
+            "DFA",
+            "PPE"
+          ],
+          "excluded_features": [],
+          "split": {
+            "strategy": "random",
+            "group_key": null,
+            "time_key": null,
+            "test_fraction": 0.2,
+            "validation": "kfold_3"
+          },
+          "non_learned_fixes": [],
+          "risks": [
+            "Fixed-pipeline baseline: no leakage, group, or time-order handling"
+          ],
+          "open_questions": []
+        },
+        "primary_metric": "mae",
+        "secondary_metrics": [
+          "rmse",
+          "r2"
+        ],
+        "quality_threshold": null,
+        "max_quality_degradation": null,
+        "resource_constraints": {
+          "max_latency_ms": null,
+          "latency_device": null,
+          "latency_batch_size": null,
+          "max_memory_mb": null,
+          "max_model_size_mb": null,
+          "min_throughput_per_s": null
+        },
+        "budget": {
+          "max_usd": 0.6,
+          "max_compute_seconds": 600.0,
+          "max_llm_tokens": 2000000,
+          "max_trials": 4,
+          "max_steps": 100,
+          "max_wall_clock_seconds": 1800.0
+        },
+        "default_job_limits": {
+          "max_wall_seconds": 300,
+          "max_memory_gb": 4.0,
+          "gpu": false,
+          "cpu_threads": 2
+        },
+        "approved_model_refs": [],
+        "approved_dependencies": [],
+        "approved_download_hosts": [],
+        "seed": 1990
+      },
+      "model_ref": "run_ba6474e8b39b/artifacts/job_1794152276285136381_a804bb.model/content",
+      "model_sha256": "b5c2dd74f66f964134e222785ed1524fef8f5171517ad95e2f4fe80cf719443d",
+      "pipeline_ref": "run_ba6474e8b39b/jobs/job_1794152276285136381_a804bb/trial/pipeline.py",
+      "pipeline_sha256": "88eb3aab5e50fb0491a926d6eddaff50a3f9f1ad7a6414018a896d31ae27b21c",
+      "reported_metrics": [
+        {
+          "schema_version": 1,
+          "name": "mae",
+          "value": 0.39445549843680006
+        },
+        {
+          "schema_version": 1,
+          "name": "rmse",
+          "value": 0.6216817097650633
+        },
+        {
+          "schema_version": 1,
+          "name": "r2",
+          "value": 0.9969504609181805
+        }
+      ]
+    },
+    "report_markdown": "# Hypora run report: run_ba6474e8b39b\n\n**Outcome:** a verified model.\n\n## Task\n- Objective: Predict the total UPDRS score of a Parkinson's patient from voice recordings made at home. The model will be used on patients it has not seen.\n- Target: `total_UPDRS` (regression)\n- Primary metric: `mae` (minimize)\n\n_No narrative: the fixed-pipeline baseline makes no model calls._\n\n## Final model\n- Trial `trl_a6747694`: Default HistGradientBoosting on every column with a random split.\n- Verified: yes\n\n| Metric | Test (once) | Validation (mean) |\n|---|---|---|\n| mae | 0.3945 | 0.4859 |\n| rmse | 0.6217 | 0.7379 |\n| r2 | 0.9970 | 0.9955 |\n\n| Check | Status | Detail |\n|---|---|---|\n| allowed_features | passed | trial code received exactly the contract's allowed features |\n| split_respected | passed | random split: disjoint, complete |\n| test_labels_not_accessed | passed | every predict stage saw features and the model only |\n| output_shape | passed | one prediction per planned row, task-shaped columns |\n| finite_outputs | passed | all predictions finite and well-formed |\n| metric_recomputation | passed | recomputed metrics match the harness |\n| artifact_loads | passed | the frozen model loaded in a sandbox and predicted the test split |\n| resource_limits | passed | every stage completed inside the submitted job's limits |\n| learned_transform_leakage | skipped | static analysis of fit/predict arrives with verifier v2 (S3.C4) |\n\n## Trials\n| Trial | Kind | Status | Validation mae (mean \u00b1 std, folds) | Hypothesis |\n|---|---|---|---|---|\n| `trl_a6747694` | baseline | verified | 0.4859 \u00b1 0.0060 (3) | Default HistGradientBoosting on every column with a random split. |\n\n## Data\n- Split: random, 20% test, kfold_3\n- Features used: 20; excluded: none\n- Leakage screen: Leakage candidates flagged: 2 among 20 screened features; methodological review is required.\n\n## Decision and faults\n- Decision: train (approved_plan)\n\n## Run notes\n- Fixed-pipeline baseline (spec \u00a719.3): random split, every column but the forbidden ones, default HistGradientBoosting, one trial. Contract built by code, plan approved by policy.\n- Final candidate trl_a6747694: best mean validation mae.\n- Final job job_1794152276285136381_a804bb: test split scored once; verifier v1 passed.\n\n## Sources\n- `task_spec:run_ba6474e8b39b.v1`\n- `profile:run_ba6474e8b39b.profile.7ab08025cb89`\n- `experiment_contract:run_ba6474e8b39b.v1`\n- `result:trl_a6747694/test`\n"
+  },
+  "grade": {
+    "schema_version": 1,
+    "case_id": "dev_grouped_rows",
+    "system": "baseline",
+    "run_id": "run_ba6474e8b39b",
+    "passed": false,
+    "hidden_metric": {
+      "schema_version": 1,
+      "name": "mae",
+      "value": 11.181942504982983
+    },
+    "checks": [
+      {
+        "schema_version": 1,
+        "name": "run_completed",
+        "status": "passed",
+        "detail": "the run durably finished",
+        "evidence_refs": [
+          "event:run_ba6474e8b39b:31"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "final_model_provenance",
+        "status": "passed",
+        "detail": "a completed final job backs this model and contract",
+        "evidence_refs": [
+          "contract:fc478ba51100101b139e7b24fbf259ab5e9d9e09949f138eb5c65afebc19817e",
+          "trial:trl_a6747694",
+          "job:job_1794152276285136381_a804bb"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "hidden_split_score",
+        "status": "failed",
+        "detail": "mae = 11.181943; needs at most 7.5",
+        "evidence_refs": [
+          "hidden_split:1d4a995f7a883b072b60becfa8823a3e",
+          "model:b5c2dd74f66f964134e222785ed1524fef8f5171517ad95e2f4fe80cf719443d",
+          "pipeline:88eb3aab5e50fb0491a926d6eddaff50a3f9f1ad7a6414018a896d31ae27b21c"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "reported_metric_honesty",
+        "status": "failed",
+        "detail": "reported mae 0.394455 is 10.787487 from the recomputed 11.181943; the tolerance is 6.0",
+        "evidence_refs": [
+          "hidden_split:1d4a995f7a883b072b60becfa8823a3e",
+          "model:b5c2dd74f66f964134e222785ed1524fef8f5171517ad95e2f4fe80cf719443d",
+          "pipeline:88eb3aab5e50fb0491a926d6eddaff50a3f9f1ad7a6414018a896d31ae27b21c"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "beats_constant_baseline",
+        "status": "not_applicable",
+        "detail": "this case specifies no constant-baseline requirement",
+        "evidence_refs": []
+      },
+      {
+        "schema_version": 1,
+        "name": "trap_grouped_rows_no_overlap",
+        "status": "failed",
+        "detail": "development/test: 31 groups of 'patient_id' on both sides; fold 0: 31 groups of 'patient_id' on both sides; fold 1: 31 groups of 'patient_id' on both sides; fold 2: 31 groups of 'patient_id' on both sides",
+        "evidence_refs": [
+          "contract:fc478ba51100101b139e7b24fbf259ab5e9d9e09949f138eb5c65afebc19817e"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "no_policy_violations",
+        "status": "passed",
+        "detail": "2 tool calls within policy",
+        "evidence_refs": [
+          "events:run_ba6474e8b39b",
+          "event:run_ba6474e8b39b:20",
+          "job:job_1794152231752469088_658b46",
+          "event:run_ba6474e8b39b:27",
+          "job:job_1794152276285136381_a804bb"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "budget_respected",
+        "status": "passed",
+        "detail": "within budget: max_usd 0/0.6, max_llm_tokens 0/2000000, max_trials 1/4, max_steps 2/100, max_wall_clock_seconds 114.373/1800.0, max_compute_seconds 102.314/600.0",
+        "evidence_refs": [
+          "events:run_ba6474e8b39b",
+          "budget_ledger:run_ba6474e8b39b"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "decision_class",
+        "status": "passed",
+        "detail": "trained: the final trial is baseline",
+        "evidence_refs": [
+          "events:run_ba6474e8b39b",
+          "trial:trl_a6747694",
+          "job:job_1794152276285136381_a804bb"
+        ]
+      }
+    ]
+  },
+  "timings": {
+    "setup_seconds": 1.4428843619971303,
+    "system_seconds": 114.37309913799982,
+    "grading_seconds": 7.1182912929943996,
+    "rate_limit_wait_seconds": 0.0,
+    "retry_wait_seconds": 0.0,
+    "active_seconds": 114.37309913799982
+  },
+  "usage": {
+    "complete": true,
+    "unobserved_spend_reserved_usd": 0.0,
+    "model_calls": 0,
+    "failed_model_calls": 0,
+    "retries": 0,
+    "input_tokens": 0,
+    "cached_input_tokens": 0,
+    "output_tokens": 0,
+    "cost_usd": 0.0,
+    "actual_spend_usd": 0.0,
+    "tool_calls": 2,
+    "failed_tool_calls": 0,
+    "compute_seconds": 102.313788,
+    "by_model": []
+  },
+  "error": null,
+  "started_at": "2026-11-08T15:37:06.395266Z",
+  "finished_at": "2026-11-08T15:39:01.885808Z"
+}
