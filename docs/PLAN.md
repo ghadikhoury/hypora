@@ -86,8 +86,8 @@ Two model **profiles** live in `configs/models.yaml`:
 
 | Profile | Primary | Fallback | Used for |
 |---|---|---|---|
-| `dev` | Gemini (free tier) for all tiers (`lead`, `worker`, `cheap`): `gemini-3.5-flash-lite` (D-007) | OpenAI (same tier mapping as `eval`) on rate-limit (429), quota, or 5xx after bounded retries; **disabled until S2.6** (D-007) | All development, debugging, unrecorded test runs |
-| `eval` | **Pinned exact model IDs** per tier, fixed temperature (or "not configurable"); provider and model chosen at S2.6 by the cost-per-pass procedure in D-007 | **None — fallback disabled** | Every **recorded** evaluation: the first recorded dev eval (S2.6), all Stage 4–5 recorded runs, and the demo |
+| `dev` | Gemini (free tier) for all tiers (`lead`, `worker`, `cheap`): `gemini-3.5-flash-lite` (D-007) | OpenAI (same tier mapping as `eval`) on rate-limit (429), quota, or 5xx after bounded retries; **kept disabled for S2.6** (D-033) | All development, debugging, unrecorded test runs |
+| `eval` | **Pinned exact model IDs** per tier, fixed temperature (or "not configurable"); temporarily `openai/gpt-6-luna` on every tier at S2.6 (D-033); reselect by D-007 after Stage 3 data planning | **None — fallback disabled** | Every **recorded** evaluation: the first recorded dev eval (S2.6), all Stage 4–5 recorded runs, and the demo |
 
 Rules:
 - Every model call records provider, model ID, profile, and whether a fallback occurred (event log, spec §15.1).
@@ -95,7 +95,7 @@ Rules:
 - **Stage gates (D-016, D-029):** S1.7 ran its smoke tasks on `dev`; matching `eval` evidence is added at S2.6 after the eval model is pinned. S2.6 runs the dev case set on **both** profiles and commits both result sets, catching profile-specific behavior differences. S3.Z and S4.3 commit `eval` results; `dev` stays free for debugging.
 - **Live runs (D-029):** scripted models by default; see `AGENTS.md`, "Live runs".
 - Changing the `eval` profile after S2.6 invalidates recorded results; it requires `🧑 HUMAN · DECIDE` and a re-run of affected evals.
-- **Model selection (D-007):** S2.6 chooses the `eval` provider/model by measured cost per passed trap (`docs/DECISIONS.md` D-007).
+- **Model selection (D-007):** S2.6 temporarily locks `eval` to Luna under D-033; repeat selection after Stage 3 data planning using measured cost per passed trap (`docs/DECISIONS.md` D-007).
 - The two providers also serve as the "two models" required for the F5 MCP evaluation (S5.3).
 
 ---
@@ -430,8 +430,10 @@ Done when: all cases validate; the baseline fails the trap cases it should fail 
 ### S2.6 — First recorded evaluation and model lock
 **PR:** `s2.6-first-eval` · `→ SERIAL` · **Depends on:** S2.5 · **Spec:** §17, §19.5
 `🧑 HUMAN · SECRET` — Before the comparison: add `OPENAI_API_KEY` to local `.env` and GitHub Actions secrets, fund the OpenAI account, and set its monthly spend limit; enable billing on the Hypora Google project only if the full-Flash candidate is compared (D-007).
-`🧑 HUMAN · DECIDE` — Choose the winning provider/model by D-007's cost-per-pass procedure, then pin the exact model IDs for each tier in the `eval` profile (and temperature). Record the choice in `docs/DECISIONS.md`.
+`🧑 HUMAN · DECIDE` — Fulfilled for this step by the temporary Luna lock and eligibility exception in D-033. Retain failures honestly; repeat D-007 selection after Stage 3 data planning, with approval before changing the pinned profile.
 `🧑 HUMAN · COURSE` — Check-in (Nov 4): record a 30 s–2 min video of `hypora run` and `make eval`; submit the one-page update and the repo link at the merge commit of this step.
+
+D-033 records the owner-approved temporary Luna lock and $8 aggregate cap; the structural leakage/group failures remain failures. Repeat D-007 model selection after Stage 3 data planning. Existing model/key approvals need no reconfirmation.
 
 Build: run the dev set on agent + baseline with the **`eval` profile** (first recorded eval) and with the `dev` profile; commit both result sets. After pinning the eval model, also run the same S1.7 smoke tasks and snapshots on `eval` and add the matching evidence under `results/stage1/` (D-016). Generate `docs/notes/checkin-summary.md` (what works, what is next, two biggest risks, dev-case pointers, first dev-eval date) as material for the update.
 

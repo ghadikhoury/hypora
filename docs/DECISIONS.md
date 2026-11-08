@@ -663,9 +663,6 @@ one it supersedes.
     instructor by Nov 13** (the handout is kept outside this repository).
 
 ## D-029 — Faster delivery: parts, stacked PRs, narrower local checks, fewer live runs
-
-> D-034 supersedes the local full-check and mandatory fresh author-audit rules below, and changes
-> stacking to explicit owner authorization. Other decisions still apply.
 - Date: 2026-11-06
 - Step: process; applies to every later step. Supersedes the planned `make check-fast` (D-022) and CI
   split (D-023), S2.1's stop in D-025, and D-016's both-profile runs at S3.Z and S4.3
@@ -759,6 +756,31 @@ one it supersedes.
 - Why: report prose and ordinary facts can't prove a case-specific outcome, and S2.2 needs positive and
   negative support for both checks. Details: `docs/notes/graders.md`.
 
+
+## D-033 — Temporary Stage 2 Luna lock and bounded collection
+
+- Date: 2026-11-07. Decided by Ghadi, explicitly approving `gpt-6-luna`, the aggregate $8 cap,
+  and the exception to D-007's model-selection eligibility gate through the coding lead.
+- Decision: pin every `eval` tier to `openai/gpt-6-luna`, temperature `not_configurable`, no
+  fallback. The Responses client omits temperature and retains the provider's default reasoning
+  setting. Keep `dev` on free Gemini with fallback disabled.
+- The Stage 1 deterministic contract cannot pass the leakage/grouped methodology traps, regardless
+  of model. Do not pretend Luna won D-007's eligible-model comparison. Retain all Stage 2 failures
+  honestly, label the lock temporary, and repeat D-007 selection after Stage 3 data planning exists.
+  A later model change requires approval and re-running affected recorded evidence.
+- Collect all six dev cases on agent/baseline under both profiles and both matching S1.7 snapshot
+  tasks on the actual pinned eval profile. Preserve the old dev and one-off Luna smoke records.
+- A shared durable paid-attempt ledger caps known plus unknown exposure at $8 across comparisons,
+  smokes, retries, interruptions and restarts. Reserve $0.36 before each paid SDK attempt, settle
+  only reported usage, and retain ambiguous charges. This exceeds Luna's absolute published bound:
+  1.05M input tokens at the highest long-context input/cache-write rate ($0.25/M), plus 128K output
+  at $0.75/M, totals $0.3585. No output cap, retry, model parameter, or dev behavior is changed.
+- Sources checked 2026-11-07: https://developers.openai.com/api/docs/models/gpt-6-luna,
+  https://developers.openai.com/api/docs/guides/latest-model and
+  https://ai.google.dev/gemini-api/docs/pricing. No dated Luna snapshot is exposed; records retain
+  the exact provider model ID and run date, as the handout permits for provider aliases.
+- The final-test repeat sample belongs to S5.2; S2.6's six dev cases are development evidence,
+  not held-out test results. The course check-in materials are prepared for Ghadi to record/submit.
 ## D-034 — Use CI for full validation; choose local tests for the change
 
 - Date: 2026-11-07

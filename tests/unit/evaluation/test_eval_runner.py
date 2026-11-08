@@ -713,3 +713,17 @@ async def test_refused_fallback_is_unrecorded_without_cancelling_other_cases(
         record.case_id == "case_1" for record in outcome.recorded
     )
     assert len(list((outcome.directory / "pending").glob("*.json"))) == 2
+
+
+@pytest.mark.asyncio
+async def test_unknown_paid_exposure_is_never_a_complete_passing_record(tmp_path: Path) -> None:
+    class UnknownSpend(System):
+        def unobserved_spend_reserved_usd(self, run_id: str) -> float:
+            return 0.36
+
+    plan = plan_at(tmp_path, count=1)
+    system = UnknownSpend("agent", {"active": 0, "peak": 0})
+    outcome = await run_eval(replace(plan, systems=(system,)), lambda _: None)
+    [record] = outcome.recorded
+    assert not outcome.clean and not record.finished and not record.passed
+    assert not record.usage.complete and record.usage.unobserved_spend_reserved_usd == 0.36

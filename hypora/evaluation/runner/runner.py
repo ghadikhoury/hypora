@@ -106,6 +106,15 @@ class ReportsRetryWaits(Protocol):
         ...
 
 
+@runtime_checkable
+class ReportsUnobservedSpend(Protocol):
+    """Optional collection-ledger exposure; no change to SystemRun or frozen event contracts."""
+
+    def unobserved_spend_reserved_usd(self, run_id: str) -> float:
+        """Conservative extra provider charges whose outcome is still unknown."""
+        ...
+
+
 @dataclass(frozen=True)
 class EvalPlan:
     """Everything one eval was asked for, resolved."""
@@ -476,6 +485,22 @@ class _Eval:
                 )
                 collected = collect_usage(database_path, run_id, retry_wait_seconds=reported)
                 usage = collected.usage
+                if isinstance(system, ReportsUnobservedSpend):
+                    unknown = system.unobserved_spend_reserved_usd(run_id)
+                    if unknown < 0:
+                        raise ValueError("unobserved spend reservation must be nonnegative")
+                    if unknown:
+                        error = (
+                            error
+                            or "provider billing is uncertain; unknown charges remain reserved"
+                        )
+                        usage = Usage.model_validate(
+                            {
+                                **usage.model_dump(),
+                                "complete": False,
+                                "unobserved_spend_reserved_usd": unknown,
+                            }
+                        )
                 rate_wait, retry_wait = (
                     collected.rate_limit_wait_seconds,
                     collected.retry_wait_seconds,
@@ -493,7 +518,9 @@ class _Eval:
             usage = usage.model_copy(
                 update={
                     "complete": False,
-                    "unobserved_spend_reserved_usd": max(0.0, ceiling - usage.actual_spend_usd),
+                    "unobserved_spend_reserved_usd": max(
+                        usage.unobserved_spend_reserved_usd, ceiling - usage.actual_spend_usd, 0.0
+                    ),
                 }
             )
         timings = Timings(

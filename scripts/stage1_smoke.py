@@ -9,7 +9,9 @@
 Each task runs through the same path as `hypora run` (preflight, controller, MCP server, worker,
 sandbox, verifier, reporter) on the `dev` profile, with plan approval by policy. Every run here is
 **dev / unrecorded**: a smoke check that the system works, not an evaluation and not a model
-selection (D-027). The `eval` profile is never used or changed.
+selection (D-027). The CLI never uses or changes the `eval` profile. S2.6 imports the collector
+for new matching eval runs; that path validates actual eval-profile events and never relabels
+old dev records.
 
 Variants:
 - `gemini`: the repo's `dev` profile as configured (gemini-3.5-flash-lite on every tier).
@@ -120,7 +122,7 @@ TASKS: Final = (
 
 @dataclass(frozen=True)
 class Variant:
-    """Which model serves every tier of the `dev` profile for a smoke run."""
+    """Provider/model expected for one smoke collection variant."""
 
     name: str
     provider: Provider
@@ -240,7 +242,7 @@ def _git(*args: str) -> str:
 
 def code_state() -> dict[str, Any]:
     """The checked-out commit, and whether tracked or new files differ from it (results aside)."""
-    status = _git("status", "--porcelain", "--", ".", ":(exclude)results/stage1")
+    status = _git("status", "--porcelain", "--", ".", ":(exclude)results")
     return {"commit": _git("rev-parse", "HEAD"), "dirty": bool(status)}
 
 
@@ -338,11 +340,25 @@ def collect_record(
     span = (events[-1].created_at - events[0].created_at).total_seconds() if events else 0.0
     trials = list_trials(database, run_id)
     jobs = run_jobs(database, run_id)
+    recorded = context.profile == ModelProfile.EVAL.value
+    if recorded and (
+        variant.remap
+        or any(
+            payload.profile is not ModelProfile.EVAL
+            or payload.fallback_used
+            or payload.provider is not variant.provider
+            or payload.model_id != variant.model_id
+            for payload in payloads
+        )
+    ):
+        raise SmokeError("matching eval evidence must use the pinned eval profile without fallback")
     return {
         "schema": RECORD_SCHEMA,
-        "step": "S1.7",
-        "recorded": False,
-        "label": "dev/unrecorded smoke run (D-016, D-027); not an evaluation or model selection",
+        "step": "S2.6" if recorded else "S1.7",
+        "recorded": recorded,
+        "label": "matching S1.7 smoke on actual pinned eval profile (S2.6, D-016, D-033)"
+        if recorded
+        else "dev/unrecorded smoke run (D-016, D-027); not an evaluation or model selection",
         "variant": variant.name,
         "profile": context.profile,
         "models": sorted({f"{p.provider.value}/{p.model_id}" for p in payloads}),
@@ -395,6 +411,11 @@ def collect_record(
                 {
                     "role": role,
                     "tier": p.tier.value,
+                    "provider": p.provider.value,
+                    "model_id": p.model_id,
+                    "profile": p.profile.value,
+                    "temperature": p.temperature,
+                    "fallback_used": p.fallback_used,
                     "input_tokens": p.input_tokens,
                     "cached_input_tokens": p.cached_input_tokens,
                     "output_tokens": p.output_tokens,

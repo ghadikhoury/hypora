@@ -355,8 +355,8 @@ Two model profiles live in `configs/models.yaml`:
 
 | Profile | Primary | Fallback | Used for |
 |---|---|---|---|
-| `dev` | Gemini (free tier) for all tiers (`lead`, `worker`, `cheap`): `gemini-3.5-flash-lite` (D-007) | OpenAI (same tier mapping as `eval`) on rate-limit (429), quota, or 5xx after bounded retries; **disabled until S2.6** (D-007) | All development, debugging, unrecorded test runs |
-| `eval` | **Pinned exact model IDs** per tier, fixed temperature (or "not configurable"); provider and model chosen at S2.6 by the cost-per-pass procedure in D-007 | **None — fallback disabled** | Every **recorded** evaluation: the first recorded dev eval (S2.6), all Stage 4–5 recorded runs, and the demo |
+| `dev` | Gemini (free tier) for all tiers (`lead`, `worker`, `cheap`): `gemini-3.5-flash-lite` (D-007) | OpenAI (same tier mapping as `eval`) on rate-limit (429), quota, or 5xx after bounded retries; **kept disabled for S2.6** (D-033) | All development, debugging, unrecorded test runs |
+| `eval` | **Pinned exact model IDs** per tier, fixed temperature (or "not configurable"); temporarily `openai/gpt-6-luna` on every tier at S2.6 (D-033); reselect by D-007 after Stage 3 data planning | **None — fallback disabled** | Every **recorded** evaluation: the first recorded dev eval (S2.6), all Stage 4–5 recorded runs, and the demo |
 
 - Every model call records provider, model ID, profile, and whether a fallback occurred.
 - **Recorded runs never mix models.** In `eval`, a provider failure is retried with backoff and then

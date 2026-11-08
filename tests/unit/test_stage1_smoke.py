@@ -210,7 +210,7 @@ LIMIT_REACHED = {
 }
 
 
-def seed_run(tmp_path: Path, fingerprint: str = TASK.sha256) -> Database:
+def seed_run(tmp_path: Path, fingerprint: str = TASK.sha256, **call_changes: Any) -> Database:
     """A run with a profile, two model calls (one schema retry), a failed tool call, a limit
     that fired, and a report.json; the caller closes the database."""
     database = Database(tmp_path / "hypora.sqlite")
@@ -220,8 +220,12 @@ def seed_run(tmp_path: Path, fingerprint: str = TASK.sha256) -> Database:
     profile.update(run_id=RUN_ID, fingerprint=fingerprint)
     save_dataset_profile(database, DatasetProfile.model_validate(profile))
     log = EventLog(database)
-    log.append(RUN_ID, "model_call", "intake", fixture_payload("model_call", tier="cheap"))
-    schema_retry = fixture_payload("model_call", status="error", error_code="OUTPUT_SCHEMA_INVALID")
+    log.append(
+        RUN_ID, "model_call", "intake", fixture_payload("model_call", tier="cheap", **call_changes)
+    )
+    schema_retry = fixture_payload(
+        "model_call", status="error", error_code="OUTPUT_SCHEMA_INVALID", **call_changes
+    )
     log.append(RUN_ID, "model_call", "single_agent", schema_retry)
     log.append(RUN_ID, "tool_call", "mcp_server", fixture_payload("tool_call"))
     log.append(RUN_ID, "tool_result", "mcp_server", fixture_payload("tool_result_error"))
@@ -364,3 +368,51 @@ def test_an_estimate_needs_every_task(tmp_path: Path) -> None:
     lines = smoke.estimate_lines([record, second], LUNA_LIKE)
     assert lines[1].lstrip().startswith("credit-g")
     assert lines[-1].lstrip().startswith("total")
+
+
+def test_matching_eval_smoke_uses_actual_eval_event_evidence(tmp_path: Path) -> None:
+    database = seed_run(
+        tmp_path,
+        provider="openai",
+        model_id="gpt-6-luna",
+        profile="eval",
+        temperature="not_configurable",
+    )
+    variant = smoke.Variant(
+        "eval", Provider.OPENAI, "gpt-6-luna", "not_configurable", paid=True, remap=False
+    )
+    context = smoke.RunContext(
+        profile="eval", config_hash="c" * 64, budget_usd=0.45, code=CONTEXT.code
+    )
+    try:
+        record = smoke.collect_record(
+            database, tmp_path, RUN_ID, task=TASK, dataset=DATASET, variant=variant, context=context
+        )
+    finally:
+        database.close()
+    assert record["recorded"] is True and record["step"] == "S2.6"
+    assert record["profile"] == "eval" and record["models"] == ["openai/gpt-6-luna"]
+    assert all(
+        call["profile"] == "eval" and not call["fallback_used"]
+        for call in record["llm"]["per_call"]
+    )
+
+
+def test_old_dev_luna_smoke_cannot_be_relabelled_as_eval(tmp_path: Path) -> None:
+    database = seed_run(tmp_path)
+    context = smoke.RunContext(
+        profile="eval", config_hash="c" * 64, budget_usd=0.45, code=CONTEXT.code
+    )
+    try:
+        with pytest.raises(smoke.SmokeError, match="pinned eval profile"):
+            smoke.collect_record(
+                database,
+                tmp_path,
+                RUN_ID,
+                task=TASK,
+                dataset=DATASET,
+                variant=smoke.VARIANTS["luna"],
+                context=context,
+            )
+    finally:
+        database.close()
