@@ -137,6 +137,8 @@ def encode_messages(messages: tuple[Message, ...]) -> list[dict[str, Any]]:
 
 def parse_response(response: Any, requested_model: str) -> ProviderResult:
     """Responses API result -> provider-neutral result."""
+    # A malformed paid bill must fail before status handling can retry a server error.
+    usage = parse_usage(getattr(response, "usage", None))
     texts: list[str] = []
     calls: list[ToolCall] = []
     refused = False
@@ -166,7 +168,7 @@ def parse_response(response: Any, requested_model: str) -> ProviderResult:
         text="".join(texts),
         tool_calls=tuple(calls),
         finish_reason=finish,
-        usage=parse_usage(response.usage),
+        usage=usage,
         replay=ProviderReplay(
             provider=Provider.OPENAI,
             model_id=requested_model,
@@ -177,17 +179,29 @@ def parse_response(response: Any, requested_model: str) -> ProviderResult:
 
 
 def parse_usage(usage: Any) -> Usage:
-    if usage is None:
-        return Usage()
-    input_details = usage.input_tokens_details
-    output_details = usage.output_tokens_details
-    return Usage(
-        input_tokens=usage.input_tokens or 0,
-        output_tokens=usage.output_tokens or 0,
-        cached_input_tokens=getattr(input_details, "cached_tokens", None) or 0,
-        cache_write_tokens=getattr(input_details, "cache_write_tokens", None) or 0,
-        reasoning_tokens=getattr(output_details, "reasoning_tokens", None) or 0,
-    )
+    """Read explicit cost-bearing counts; missing or malformed usage means unknown spend.
+
+    The pinned Responses SDK requires input/output totals and cached/cache-write counts.
+    A measured zero is valid, but an omitted/null counter must never normalize to zero.
+    """
+    try:
+        return Usage.model_validate(
+            {
+                "input_tokens": usage.input_tokens,
+                "output_tokens": usage.output_tokens,
+                "cached_input_tokens": usage.input_tokens_details.cached_tokens,
+                "cache_write_tokens": usage.input_tokens_details.cache_write_tokens,
+                "reasoning_tokens": getattr(
+                    getattr(usage, "output_tokens_details", None), "reasoning_tokens", 0
+                ),
+            },
+            strict=True,
+        )
+    except (AttributeError, TypeError, ValueError):
+        raise ProviderError(
+            ProviderErrorKind.INVALID_RESPONSE,
+            "OpenAI returned incomplete or invalid token usage; billed spend is unknown.",
+        ) from None
 
 
 def classify_error(exc: openai.APIError) -> ProviderError:

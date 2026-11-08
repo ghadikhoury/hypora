@@ -167,3 +167,31 @@ recorded.
 - The OpenAI test is marked `paid` and runs only on explicit request
   (`uv run --locked pytest -m "live and paid"`).
 - `make test` / `make check` / CI never run live tests (`addopts = -m "not live"`).
+
+## OpenAI usage completeness (S0.5 follow-up for S2.6)
+
+The pinned OpenAI SDK (3.35.1) declares integer input/output totals and input details for cached
+reads and cache writes. These cost-bearing fields must be explicit nonnegative integers;
+missing/null/invalid fields are not measured zeros. The provider client validates usage before
+decoding response content or status, so even a failed response with an unknown bill stops with a
+nonretryable PROVIDER_RESPONSE_INVALID rather than triggering more paid attempts.
+
+ProviderError.usage remains None for unknown usage, including through decode_completed and the
+adapter's LLMCallError.cause. This is the signal a paid-run reservation must preserve until spend
+can be reconciled. The unchanged frozen error event has numeric zero defaults for unavailable
+counts/costs: those error fields are a measured lower bound, never evidence that an unknown bill
+was free. S2.6's aggregate spending wrapper must retain the unknown-spend reservation.
+
+Complete failed responses still carry their known usage and are recorded before bounded retries.
+The existing cache-write parsing and pricing are retained: ordinary input excludes cached and
+cache-write tokens; writes are charged once at the configured write rate. Successful transcripts
+retain the write count, and event/logical-call cost includes it without changing frozen events.
+
+Official references:
+- [Responses usage fields](https://developers.openai.com/api/reference/resources/responses/methods/retrieve)
+- [Prompt caching accounting](https://developers.openai.com/api/docs/guides/prompt-caching)
+
+Offline tests use native SDK response objects and permissive malformed payloads. They cover
+explicit zero, missing/null/malformed counters, completed and failed statuses, known billed retries
+followed by unknown usage, and cache-write cost through response, transcript, event, and logical
+budget totals. No credentials or provider calls are used.
