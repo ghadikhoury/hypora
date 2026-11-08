@@ -59,13 +59,21 @@ def test_cross_process_concurrency_cannot_double_admit(tmp_path: Path) -> None:
     processes = [
         context.Process(target=_reserve_in_process, args=(str(path), result)) for _ in range(8)
     ]
-    for process in processes:
-        process.start()
-    for process in processes:
-        process.join(timeout=10)
-        assert process.exitcode == 0
-    assert sum(result.get(timeout=2) for _ in processes) == 2
-    assert SpendLedger(path, cap_usd=0.72).snapshot().reserved_usd == pytest.approx(0.72)
+    try:
+        for process in processes:
+            process.start()
+        for process in processes:
+            # Spawn imports the full collector in each process and can be slow on shared CI.
+            process.join(timeout=60)
+            assert process.exitcode == 0
+        assert sum(result.get(timeout=5) for _ in processes) == 2
+        assert SpendLedger(path, cap_usd=0.72).snapshot().reserved_usd == pytest.approx(0.72)
+    finally:
+        for process in processes:
+            if process.is_alive():
+                process.terminate()
+                process.join(timeout=5)
+        result.close()
 
 
 @pytest.mark.parametrize(

@@ -398,8 +398,15 @@ def test_null_prices_count_as_unknown(make_adapter: AdapterFactory, prices: Any)
 
 
 def test_eval_profile_with_placeholders_is_refused(make_adapter: AdapterFactory) -> None:
+    from hypora.core.config import ModelsConfig
+
+    data = repo_models().model_dump(mode="json")
+    data["eval"]["tiers"]["lead"]["model_id"] = "placeholder-lead"
+    models = ModelsConfig.model_validate(data)
     with pytest.raises(ConfigError, match="placeholder model IDs"):
-        make_adapter(FakeProvider(provider=Provider.OPENAI), profile=ModelProfile.EVAL)
+        make_adapter(
+            FakeProvider(provider=Provider.OPENAI), models=models, profile=ModelProfile.EVAL
+        )
 
 
 def test_a_missing_client_is_refused(make_adapter: AdapterFactory) -> None:
