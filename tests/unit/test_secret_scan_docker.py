@@ -200,7 +200,7 @@ def test_inherited_git_location_cannot_scan_a_different_repo(
 
 
 @pytest.mark.docker
-@pytest.mark.parametrize("scenario", ["allowed", "outside", "secret_inside"])
+@pytest.mark.parametrize("scenario", ["allowed", "outside", "unrecorded", "secret_inside"])
 def test_stage2_split_allowlist_is_narrow(fixture_repo: Path, image: str, scenario: str) -> None:
     """The approved split IDs pass; other paths and real credential patterns still fail."""
     import hashlib
@@ -209,7 +209,8 @@ def test_stage2_split_allowlist_is_narrow(fixture_repo: Path, image: str, scenar
     prefix = "results/ec81155d54c78568df93e7dd6751e9e90f1316e3/single_agent/agent"
     if scenario == "outside":
         prefix = "results/unapproved/agent"
-    path = fixture_repo / prefix / "dev_example.json"
+    name = "dev_unrecorded.json" if scenario == "unrecorded" else "dev_clean_control.json"
+    path = fixture_repo / prefix / name
     path.parent.mkdir(parents=True)
     fake_id = hashlib.sha256(b"public split fixture").hexdigest()[:32]
     line = f'  "split_key": "{fake_id}"'
