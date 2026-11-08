@@ -1,8 +1,8 @@
 # Model profiles (PLAN.md §1, spec §17), self-imposed rate limits, and the retry policy (S0.5).
 #   - dev: Gemini free tier on the dedicated "Hypora" Google project (D-007). Flash-Lite is the
 #     smallest tier: dev results on it answer "does the system work", not "how good is Hypora".
-#   - eval: NOT decided yet. S2.6 (DECIDE) picks the recorded eval/demo model by the procedure in
-#     docs/DECISIONS.md D-007 and pins it here; the placeholders below are not a choice.
+#   - eval: temporary Stage 2 lock to gpt-6-luna, owner-approved D-033. Structural trap
+#     failures remain failures; reselect by D-007 after Stage 3 data planning exists.
 #     Changing eval after S2.6 invalidates recorded results.
 # Select a profile with HYPORA_MODEL_PROFILE=dev|eval (default: dev).
 # Gemini 3 temperature: Google strongly recommends the default 1.0 (lower values may cause looping).
@@ -14,15 +14,15 @@ models:
       worker: {provider: gemini, model_id: gemini-3.5-flash-lite, temperature: 1.0}
       cheap:  {provider: gemini, model_id: gemini-3.5-flash-lite, temperature: 1.0}
     fallback:
-      # Disabled until S2.6 (D-007): there is no OpenAI funding for development. When enabled it
+      # Kept disabled for the S2.6 free-dev comparison (D-033). If enabled later it
       # must be `tiers_from: eval` with triggers from [rate_limit, quota, server_error].
       enabled: false
   eval:
-    description: Recorded evaluations and the demo. Pinned at S2.6; never falls back.
+    description: Temporary Stage 2 eval lock, gpt-6-luna (D-033); no fallback; reselect after Stage 3.
     tiers:
-      lead:   {provider: openai, model_id: placeholder-eval-lead,   temperature: 0.0}
-      worker: {provider: openai, model_id: placeholder-eval-worker, temperature: 0.0}
-      cheap:  {provider: openai, model_id: placeholder-eval-cheap,  temperature: 0.0}
+      lead:   {provider: openai, model_id: gpt-6-luna, temperature: not_configurable}
+      worker: {provider: openai, model_id: gpt-6-luna, temperature: not_configurable}
+      cheap:  {provider: openai, model_id: gpt-6-luna, temperature: not_configurable}
     fallback:
       enabled: false
 

@@ -790,7 +790,7 @@ Config: `durable_mode ∈ {on, off}` (off disables checkpoint-resume for compari
 - **Provider adapter:** one interface (`complete(messages, tools, output_schema, tier) → response`) with Gemini and OpenAI implementations using native SDKs, so every prompt and token is inspectable; another provider plugs into the same interface.
 - **Model tiers:** `lead` (strong model for Leads, Supervisor, Reviewer), `worker` (capable, cheaper model for research/diagnostic/trial workers), `cheap` (intake parsing, summarization). Mapped to providers/models in config.
 - **Development (`dev` profile):** free-tier Gemini, with the model IDs and self-imposed rate limits in `configs/models.yaml` (D-007). Only real public OpenML/UCI datasets are used (D-015), consistent with free-tier data-use terms.
-- **Final evaluation and demo (`eval` profile):** pinned exact model IDs, chosen at S2.6 by measured cost per passed trap (D-007), with no fallback. Recorded runs never mix models. Results describe the agent as configured; changing the model requires re-running the evaluation.
+- **Final evaluation and demo (`eval` profile):** pinned exact model IDs, temporarily locked at S2.6 to `gpt-6-luna` by owner approval (D-033); repeat D-007 selection after Stage 3 data planning, with no fallback. Recorded runs never mix models. Results describe the agent as configured; changing the model requires re-running the evaluation.
 - Every run records provider, model identifier/version, temperature (or "not configurable"), and run date.
 
 ---

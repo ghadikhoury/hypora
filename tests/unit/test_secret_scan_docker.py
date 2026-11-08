@@ -197,3 +197,34 @@ def test_inherited_git_location_cannot_scan_a_different_repo(
     assert result.returncode != 0
     assert "fixture-marker" in result.stdout + result.stderr
     assert "Secret scan passed" not in result.stdout
+
+
+@pytest.mark.docker
+@pytest.mark.parametrize("scenario", ["allowed", "outside", "unrecorded", "secret_inside"])
+def test_stage2_split_allowlist_is_narrow(fixture_repo: Path, image: str, scenario: str) -> None:
+    """The approved split IDs pass; other paths and real credential patterns still fail."""
+    import hashlib
+
+    (fixture_repo / ".gitleaks.toml").write_text((ROOT / ".gitleaks.toml").read_text())
+    prefix = "results/ec81155d54c78568df93e7dd6751e9e90f1316e3/single_agent/agent"
+    if scenario == "outside":
+        prefix = "results/unapproved/agent"
+    name = "dev_unrecorded.json" if scenario == "unrecorded" else "dev_clean_control.json"
+    path = fixture_repo / prefix / name
+    path.parent.mkdir(parents=True)
+    fake_id = hashlib.sha256(b"public split fixture").hexdigest()[:32]
+    line = f'  "split_key": "{fake_id}"'
+    if scenario == "secret_inside":
+        # Synthetic format fixture only; never a real credential.
+        line += ',\n  "token": "' + "ghp_" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8" + '"'
+    path.write_text("{\n" + line + "\n}\n")
+    git(fixture_repo, "add", ".")
+    git(fixture_repo, "commit", "-m", "Test split allowlist")
+    result = run_scan(fixture_repo, image)
+    output = result.stdout + result.stderr
+    if scenario == "allowed":
+        assert result.returncode == 0, output
+    else:
+        assert result.returncode != 0
+        assert "Secret scan passed" not in output
+        assert "generic-api-key" in output or "github-pat" in output

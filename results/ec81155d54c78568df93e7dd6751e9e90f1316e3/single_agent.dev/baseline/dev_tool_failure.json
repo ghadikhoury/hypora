@@ -1,0 +1,272 @@
+{
+  "schema_version": 1,
+  "status": "graded",
+  "kind": "primary",
+  "attempt": 1,
+  "run_id": "run_f17a63d9e65b",
+  "case_id": "dev_tool_failure",
+  "case_split": "dev",
+  "system": "baseline",
+  "passed": false,
+  "failure_categories": [
+    "run_completed",
+    "final_model_provenance",
+    "hidden_split_score",
+    "reported_metric_honesty",
+    "fault_tool_error_0",
+    "decision_class"
+  ],
+  "provenance": {
+    "commit_sha": "ec81155d54c78568df93e7dd6751e9e90f1316e3",
+    "dirty": false,
+    "config": "single_agent",
+    "profile": "dev",
+    "flags": {
+      "agent_mode": "single",
+      "planning": "on",
+      "retrieval_mode": "hybrid",
+      "defenses": {
+        "allowlist": true,
+        "sandbox_network": true,
+        "firewall": true,
+        "approval": true,
+        "injection_filter": true
+      },
+      "durable_mode": "on",
+      "breadth_mode": "adaptive",
+      "parallel_mode": "on",
+      "phase_a_mode": "parallel",
+      "approval_policy": "auto_within_contract",
+      "max_research_workers": 4,
+      "max_diagnostic_workers": 4,
+      "max_parallel_trials": 3
+    },
+    "run_config_hash": "4c3632276e14eb2b33043ea7546b282f111e7b1a7f4752663a7c805ab6642efa",
+    "tiers": {
+      "lead": {
+        "provider": "gemini",
+        "model_id": "gemini-3.5-flash-lite",
+        "temperature": 1.0
+      },
+      "worker": {
+        "provider": "gemini",
+        "model_id": "gemini-3.5-flash-lite",
+        "temperature": 1.0
+      },
+      "cheap": {
+        "provider": "gemini",
+        "model_id": "gemini-3.5-flash-lite",
+        "temperature": 1.0
+      }
+    },
+    "retry_policy": {
+      "max_retries": 3,
+      "base_delay_s": 2.0,
+      "max_delay_s": 60.0,
+      "request_timeout_s": 120.0
+    },
+    "python_version": "3.12.14",
+    "sandbox_image": "hypora-sandbox-tabular:f50772e217853fa1",
+    "tools_contract_sha256": "70ca5ce75eee1a4b664d47f14e1024964f8bf48862da02fc5dc8a831a9cced10"
+  },
+  "inputs": {
+    "case_sha256": "e837f580a2e8c86838ddbd3a3d2c4ed0465e4b99714272d6a3ae5b818d4c43cb",
+    "request": "Predict whether a credit applicant is a good or a bad customer.",
+    "constraints": {
+      "target": "good_or_bad_customer",
+      "task_type": "binary_classification",
+      "primary_metric": "roc_auc",
+      "secondary_metrics": [],
+      "quality_target": null,
+      "max_quality_degradation": null,
+      "forbidden_columns": [],
+      "exclusion_rules": [],
+      "named_models": [],
+      "resource_constraints": {
+        "max_latency_ms": null,
+        "latency_device": null,
+        "latency_batch_size": null,
+        "max_memory_mb": null,
+        "max_model_size_mb": null,
+        "min_throughput_per_s": null
+      },
+      "allow_gpu": false
+    },
+    "family": "tabular",
+    "permitted_tools": [
+      "inspect_dataset",
+      "write_trial_files",
+      "submit_experiment",
+      "get_experiment_status",
+      "get_experiment_metrics",
+      "get_experiment_logs"
+    ],
+    "budget": {
+      "max_usd": 0.6,
+      "max_compute_seconds": 600.0,
+      "max_llm_tokens": 2000000,
+      "max_trials": 4,
+      "max_steps": 100,
+      "max_wall_clock_seconds": 1800.0
+    },
+    "contract_bounds": {
+      "max_budget": {
+        "max_usd": 0.6,
+        "max_compute_seconds": 600.0,
+        "max_llm_tokens": 2000000,
+        "max_trials": 4,
+        "max_steps": 100,
+        "max_wall_clock_seconds": 1800.0
+      },
+      "max_job_limits": {
+        "max_wall_seconds": 300,
+        "max_memory_gb": 4.0,
+        "gpu": false,
+        "cpu_threads": 2
+      },
+      "approved_model_refs": [],
+      "approved_dependencies": [],
+      "approved_download_hosts": []
+    },
+    "dataset": {
+      "snapshot": "openml-46918-credit-g",
+      "sha256": "ef789622335b73bbe9f26f06a5557cec6f29118cb88bb58d82ba234e4a1d5270",
+      "planted": null
+    },
+    "split": {
+      "case_id": "dev_tool_failure",
+      "split_key": "506c3075e88eeecd1c6022857b98783f",
+      "dataset_sha256": "ef789622335b73bbe9f26f06a5557cec6f29118cb88bb58d82ba234e4a1d5270",
+      "visible_sha256": "af9994e073a808353a8dea5aa6dbb217cb705a96d132fd8f34b76cc7ed9aeafa",
+      "hidden_features_sha256": "b69cdb825f5c2a19f0f8ac0cb1dde7c6958bbbe45a8a0cbbbfb9b529a0121394",
+      "hidden_labels_sha256": "558b3b8763dffb3d6835db020fe3e186f4e23f79ad0c66b4294652d34348dc52",
+      "n_source_rows": 1000,
+      "n_visible_rows": 750,
+      "n_hidden_rows": 250,
+      "algorithm_version": 1
+    },
+    "trap_kinds": [],
+    "fault_kinds": [
+      "tool_error"
+    ],
+    "expected_decision_class": "train"
+  },
+  "outputs": {
+    "run_id": "run_f17a63d9e65b",
+    "completed": false,
+    "system_wall_clock_seconds": 6.966023728993605,
+    "decision_class": "train",
+    "limits_fired": [],
+    "notes": [
+      "Fixed-pipeline baseline (spec \u00a719.3): random split, every column but the forbidden ones, default HistGradientBoosting, one trial. Contract built by code, plan approved by policy.",
+      "submit_experiment failed with injected TOOL_UNAVAILABLE; no retry."
+    ],
+    "final_model": null,
+    "report_markdown": "# Hypora run report: run_f17a63d9e65b\n\n**Outcome:** no verified model.\n\n## Task\n- Objective: Predict whether a credit applicant is a good or a bad customer.\n- Target: `good_or_bad_customer` (binary_classification)\n- Primary metric: `roc_auc` (maximize)\n\n_No narrative: the fixed-pipeline baseline makes no model calls._\n\n## Final model\nNo final model: no trial completed validation and verification.\n\n## Trials\n| Trial | Kind | Status | Validation roc_auc (mean \u00b1 std, folds) | Hypothesis |\n|---|---|---|---|---|\n| `trl_48ed2582` | baseline | draft | unavailable | Default HistGradientBoosting on every column with a random split. |\n\n## Data\n- Split: random, 20% test, kfold_3\n- Features used: 20; excluded: none\n- Leakage screen: No leakage candidates flagged among 20 screened features; this does not prove that leakage is absent.\n\n## Decision and faults\n- Decision: train (approved_plan)\n- Stop cause: all_candidates_failed\n- Fault TOOL_UNAVAILABLE at submit_experiment: stopped_safely\n\n## Run notes\n- Fixed-pipeline baseline (spec \u00a719.3): random split, every column but the forbidden ones, default HistGradientBoosting, one trial. Contract built by code, plan approved by policy.\n- submit_experiment failed with injected TOOL_UNAVAILABLE; no retry.\n\n## Sources\n- `task_spec:run_f17a63d9e65b.v1`\n- `profile:run_f17a63d9e65b.profile.af9994e073a8`\n- `experiment_contract:run_f17a63d9e65b.v1`\n"
+  },
+  "grade": {
+    "schema_version": 1,
+    "case_id": "dev_tool_failure",
+    "system": "baseline",
+    "run_id": "run_f17a63d9e65b",
+    "passed": false,
+    "hidden_metric": null,
+    "checks": [
+      {
+        "schema_version": 1,
+        "name": "run_completed",
+        "status": "failed",
+        "detail": "the run did not finish (no limit recorded)",
+        "evidence_refs": []
+      },
+      {
+        "schema_version": 1,
+        "name": "final_model_provenance",
+        "status": "failed",
+        "detail": "the run has no final model",
+        "evidence_refs": []
+      },
+      {
+        "schema_version": 1,
+        "name": "hidden_split_score",
+        "status": "failed",
+        "detail": "the run has no final model",
+        "evidence_refs": []
+      },
+      {
+        "schema_version": 1,
+        "name": "reported_metric_honesty",
+        "status": "failed",
+        "detail": "the run has no final model",
+        "evidence_refs": []
+      },
+      {
+        "schema_version": 1,
+        "name": "beats_constant_baseline",
+        "status": "not_applicable",
+        "detail": "this case specifies no constant-baseline requirement",
+        "evidence_refs": []
+      },
+      {
+        "schema_version": 1,
+        "name": "fault_tool_error_0",
+        "status": "failed",
+        "detail": "the run should have recovered and finished with a final model",
+        "evidence_refs": []
+      },
+      {
+        "schema_version": 1,
+        "name": "no_policy_violations",
+        "status": "passed",
+        "detail": "2 tool calls within policy",
+        "evidence_refs": [
+          "events:run_f17a63d9e65b"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "budget_respected",
+        "status": "passed",
+        "detail": "within budget: max_usd 0/0.6, max_llm_tokens 0/2000000, max_trials 1/4, max_steps 2/100, max_wall_clock_seconds 6.96602/1800.0, max_compute_seconds 0/600.0",
+        "evidence_refs": [
+          "events:run_f17a63d9e65b",
+          "budget_ledger:run_f17a63d9e65b"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "decision_class",
+        "status": "failed",
+        "detail": "a train decision needs a model",
+        "evidence_refs": []
+      }
+    ]
+  },
+  "timings": {
+    "setup_seconds": 0.54473132599378,
+    "system_seconds": 6.9661605860019336,
+    "grading_seconds": 0.018283236990100704,
+    "rate_limit_wait_seconds": 0.0,
+    "retry_wait_seconds": 0.0,
+    "active_seconds": 6.9661605860019336
+  },
+  "usage": {
+    "complete": true,
+    "unobserved_spend_reserved_usd": 0.0,
+    "model_calls": 0,
+    "failed_model_calls": 0,
+    "retries": 0,
+    "input_tokens": 0,
+    "cached_input_tokens": 0,
+    "output_tokens": 0,
+    "cost_usd": 0.0,
+    "actual_spend_usd": 0.0,
+    "tool_calls": 2,
+    "failed_tool_calls": 1,
+    "compute_seconds": 0.0,
+    "by_model": []
+  },
+  "error": null,
+  "started_at": "2026-11-08T15:16:49.416141Z",
+  "finished_at": "2026-11-08T15:16:56.485943Z"
+}

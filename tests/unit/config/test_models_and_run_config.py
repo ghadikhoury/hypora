@@ -22,7 +22,7 @@ from hypora.core.schemas import ApprovalPolicy, ModelProfile, ModelTier, Provide
 
 
 def build(settings: Any, **kwargs: Any) -> RunConfig:
-    """RunConfig.build for tests: the repo configs still hold placeholder model IDs."""
+    """RunConfig.build helper permitting test-local placeholder fixtures."""
     return RunConfig.build(settings, allow_placeholders=True, **kwargs)
 
 
@@ -149,8 +149,12 @@ def test_run_config_records_the_active_profile() -> None:
 
 
 def test_run_config_refuses_placeholder_models_in_the_active_profile(config_dir: Path) -> None:
+    configured = load_settings_for_eval("default", config_dir)
+    data = configured.models.model_dump(mode="json")
+    data["eval"]["tiers"]["lead"]["model_id"] = "placeholder-unit-test"
+    settings = configured.model_copy(update={"models": ModelsConfig.model_validate(data)})
     with pytest.raises(ConfigError, match=r"profile 'eval' still has placeholder model IDs"):
-        RunConfig.build(load_settings_for_eval("default"), hardware=HARDWARE)
+        RunConfig.build(settings, hardware=HARDWARE)
     models = (config_dir / "models.yaml").read_text(encoding="utf-8")
     unset_dev = models.replace("model_id: gemini-3.5-flash-lite, ", "model_id: placeholder-x, ")
     (config_dir / "models.yaml").write_text(unset_dev, encoding="utf-8")

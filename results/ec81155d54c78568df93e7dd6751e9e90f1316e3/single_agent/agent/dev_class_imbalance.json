@@ -1,0 +1,477 @@
+{
+  "schema_version": 1,
+  "status": "graded",
+  "kind": "primary",
+  "attempt": 1,
+  "run_id": "run_229e9b484787",
+  "case_id": "dev_class_imbalance",
+  "case_split": "dev",
+  "system": "agent",
+  "passed": true,
+  "failure_categories": [],
+  "provenance": {
+    "commit_sha": "ec81155d54c78568df93e7dd6751e9e90f1316e3",
+    "dirty": false,
+    "config": "single_agent",
+    "profile": "eval",
+    "flags": {
+      "agent_mode": "single",
+      "planning": "on",
+      "retrieval_mode": "hybrid",
+      "defenses": {
+        "allowlist": true,
+        "sandbox_network": true,
+        "firewall": true,
+        "approval": true,
+        "injection_filter": true
+      },
+      "durable_mode": "on",
+      "breadth_mode": "adaptive",
+      "parallel_mode": "on",
+      "phase_a_mode": "parallel",
+      "approval_policy": "auto_within_contract",
+      "max_research_workers": 4,
+      "max_diagnostic_workers": 4,
+      "max_parallel_trials": 3
+    },
+    "run_config_hash": "01ac323362b8f9770aa733d5509dc6470b29fc9aa0c4a0749467048d594aaf46",
+    "tiers": {
+      "lead": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "worker": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "cheap": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      }
+    },
+    "retry_policy": {
+      "max_retries": 3,
+      "base_delay_s": 2.0,
+      "max_delay_s": 60.0,
+      "request_timeout_s": 120.0
+    },
+    "python_version": "3.12.14",
+    "sandbox_image": "hypora-sandbox-tabular:f50772e217853fa1",
+    "tools_contract_sha256": "70ca5ce75eee1a4b664d47f14e1024964f8bf48862da02fc5dc8a831a9cced10"
+  },
+  "inputs": {
+    "case_sha256": "852483b69933682e19e32f42f0ba3716316fc093fc9c8a2b609e0c84c7859f0b",
+    "request": "Identify which website sessions will end in a purchase, so that the marketing team can act on them.",
+    "constraints": {
+      "target": "Revenue",
+      "task_type": "binary_classification",
+      "primary_metric": null,
+      "secondary_metrics": [],
+      "quality_target": null,
+      "max_quality_degradation": null,
+      "forbidden_columns": [],
+      "exclusion_rules": [],
+      "named_models": [],
+      "resource_constraints": {
+        "max_latency_ms": null,
+        "latency_device": null,
+        "latency_batch_size": null,
+        "max_memory_mb": null,
+        "max_model_size_mb": null,
+        "min_throughput_per_s": null
+      },
+      "allow_gpu": false
+    },
+    "family": "tabular",
+    "permitted_tools": [
+      "inspect_dataset",
+      "write_trial_files",
+      "submit_experiment",
+      "get_experiment_status",
+      "get_experiment_metrics",
+      "get_experiment_logs"
+    ],
+    "budget": {
+      "max_usd": 0.6,
+      "max_compute_seconds": 600.0,
+      "max_llm_tokens": 2000000,
+      "max_trials": 4,
+      "max_steps": 100,
+      "max_wall_clock_seconds": 1800.0
+    },
+    "contract_bounds": {
+      "max_budget": {
+        "max_usd": 0.6,
+        "max_compute_seconds": 600.0,
+        "max_llm_tokens": 2000000,
+        "max_trials": 4,
+        "max_steps": 100,
+        "max_wall_clock_seconds": 1800.0
+      },
+      "max_job_limits": {
+        "max_wall_seconds": 300,
+        "max_memory_gb": 4.0,
+        "gpu": false,
+        "cpu_threads": 2
+      },
+      "approved_model_refs": [],
+      "approved_dependencies": [],
+      "approved_download_hosts": []
+    },
+    "dataset": {
+      "snapshot": "uci-468-online-shoppers-purchasing-intention-dataset",
+      "sha256": "43f77d0d9480edf40ba38f6c1095a8fd568610e39565a8f4a674df60c20dd746",
+      "planted": null
+    },
+    "split": {
+      "case_id": "dev_class_imbalance",
+      "split_key": "5f1b0ea38e0491f898e48c26e51cc0ac",
+      "dataset_sha256": "43f77d0d9480edf40ba38f6c1095a8fd568610e39565a8f4a674df60c20dd746",
+      "visible_sha256": "1b5f5d61e2e25d9aa2b20ecbc941d9032f816268b475baea9b1de8143db0ef53",
+      "hidden_features_sha256": "747ba58a4f8f02f2bd517c6b94f8a9321c26a7a2dfce08cc096ffce49ee977cb",
+      "hidden_labels_sha256": "e1d2a9b650b43dc2c2ad81bcc2b2269c95c63b78838ef7f70385e0309afe3b40",
+      "n_source_rows": 12330,
+      "n_visible_rows": 9247,
+      "n_hidden_rows": 3083,
+      "algorithm_version": 1
+    },
+    "trap_kinds": [
+      "class_imbalance"
+    ],
+    "fault_kinds": [],
+    "expected_decision_class": "train"
+  },
+  "outputs": {
+    "run_id": "run_229e9b484787",
+    "completed": true,
+    "system_wall_clock_seconds": 336.0477978709969,
+    "decision_class": "train",
+    "limits_fired": [],
+    "notes": [
+      "Stage-1 placeholder (D-019): contract built by code, plan approved by policy; replaced by the Data Lead (S3.A2) and the plan gate (S3.D2).",
+      "The agent finished after 16 model turns, 21 tool calls; it nominated trl_4867b5e4.",
+      "Final candidate trl_4867b5e4: nominated by the agent.",
+      "Final job job_1794151283029073158_c31f82: test split scored once; verifier v1 passed."
+    ],
+    "final_model": {
+      "trial_id": "trl_4867b5e4",
+      "contract": {
+        "schema_version": 1,
+        "run_id": "run_229e9b484787",
+        "version": 1,
+        "approved_plan_hash": "740a4470de7221783005cef5f0c8a7b94263d33b2e143dd21d4d45adb3e8be3a",
+        "approval_id": "appr_run_229e9b484787_plan_v1",
+        "family": "tabular",
+        "task_type": "binary_classification",
+        "target": "Revenue",
+        "data_contract": {
+          "schema_version": 1,
+          "data_contract_version": 1,
+          "target": "Revenue",
+          "task_type": "binary_classification",
+          "allowed_features": [
+            "Administrative",
+            "Administrative_Duration",
+            "Informational",
+            "Informational_Duration",
+            "ProductRelated",
+            "ProductRelated_Duration",
+            "BounceRates",
+            "ExitRates",
+            "PageValues",
+            "SpecialDay",
+            "Month",
+            "OperatingSystems",
+            "Browser",
+            "Region",
+            "TrafficType",
+            "VisitorType",
+            "Weekend"
+          ],
+          "excluded_features": [],
+          "split": {
+            "strategy": "stratified",
+            "group_key": null,
+            "time_key": null,
+            "test_fraction": 0.2,
+            "validation": "stratified_kfold_3"
+          },
+          "non_learned_fixes": [],
+          "risks": [
+            "Stage-1 contract: leakage candidates are not excluded automatically"
+          ],
+          "open_questions": []
+        },
+        "primary_metric": "roc_auc",
+        "secondary_metrics": [
+          "accuracy",
+          "balanced_accuracy",
+          "precision",
+          "recall",
+          "f1",
+          "precision_macro",
+          "recall_macro",
+          "f1_macro",
+          "pr_auc",
+          "log_loss",
+          "brier_score"
+        ],
+        "quality_threshold": null,
+        "max_quality_degradation": null,
+        "resource_constraints": {
+          "max_latency_ms": null,
+          "latency_device": null,
+          "latency_batch_size": null,
+          "max_memory_mb": null,
+          "max_model_size_mb": null,
+          "min_throughput_per_s": null
+        },
+        "budget": {
+          "max_usd": 0.6,
+          "max_compute_seconds": 600.0,
+          "max_llm_tokens": 2000000,
+          "max_trials": 4,
+          "max_steps": 100,
+          "max_wall_clock_seconds": 1800.0
+        },
+        "default_job_limits": {
+          "max_wall_seconds": 300,
+          "max_memory_gb": 4.0,
+          "gpu": false,
+          "cpu_threads": 2
+        },
+        "approved_model_refs": [],
+        "approved_dependencies": [],
+        "approved_download_hosts": [],
+        "seed": 1990
+      },
+      "model_ref": "run_229e9b484787/artifacts/job_1794151283029073158_c31f82.model/content",
+      "model_sha256": "ddf4180203598ba3c30f4e2b38434adb151cd758d1505618d7017625cd109ab9",
+      "pipeline_ref": "run_229e9b484787/jobs/job_1794151283029073158_c31f82/trial/pipeline.py",
+      "pipeline_sha256": "dc896a59854be0c8c22ff42c94c7d649d827e32e06147cce644691b9d0205fe5",
+      "reported_metrics": [
+        {
+          "schema_version": 1,
+          "name": "roc_auc",
+          "value": 0.9314940174914601
+        },
+        {
+          "schema_version": 1,
+          "name": "accuracy",
+          "value": 0.8735135135135135
+        },
+        {
+          "schema_version": 1,
+          "name": "balanced_accuracy",
+          "value": 0.8137642408742153
+        },
+        {
+          "schema_version": 1,
+          "name": "precision",
+          "value": 0.5714285714285714
+        },
+        {
+          "schema_version": 1,
+          "name": "recall",
+          "value": 0.7272727272727273
+        },
+        {
+          "schema_version": 1,
+          "name": "f1",
+          "value": 0.64
+        },
+        {
+          "schema_version": 1,
+          "name": "precision_macro",
+          "value": 0.7594693328206115
+        },
+        {
+          "schema_version": 1,
+          "name": "recall_macro",
+          "value": 0.8137642408742153
+        },
+        {
+          "schema_version": 1,
+          "name": "f1_macro",
+          "value": 0.7816393442622951
+        },
+        {
+          "schema_version": 1,
+          "name": "pr_auc",
+          "value": 0.7505955077120962
+        },
+        {
+          "schema_version": 1,
+          "name": "log_loss",
+          "value": 0.24737311918804147
+        },
+        {
+          "schema_version": 1,
+          "name": "brier_score",
+          "value": 0.08000030664540037
+        }
+      ]
+    },
+    "report_markdown": "# Hypora run report: run_229e9b484787\n\n**Outcome:** a verified model.\n\n## Task\n- Objective: Identify which website sessions will end in a purchase so the marketing team can act on them.\n- Target: `Revenue` (binary_classification)\n- Primary metric: `roc_auc` (maximize)\n\n## Summary\nThe run aimed to identify website sessions likely to end in a purchase, so the marketing team can act on them. Several candidate models and a logistic regression baseline were evaluated, and a verified ExtraTrees model was delivered. Its test ROC AUC was 0.9315.\n\n**Observations**\n- The selected model achieved validation ROC AUC of 0.9251.\n- On the test split, precision was 0.5714 and recall was 0.7273.\n- The model passed the reported verification checks, and its frozen artifact loaded and made test-split predictions.\n\n**Limitations**\n- A leakage candidate was flagged and requires methodological review; this run does not establish that leakage is absent.\n- The learned-transform leakage check was skipped, so this aspect was not verified.\n- Test metrics describe this split and do not establish performance in future sessions or other settings.\n\n_Written by the Reporter; every number above is filled in from stored metrics._\n\n## Final model\n- Trial `trl_4867b5e4`: An ExtraTrees ensemble will capture complex interactions in the behavioral metrics and provide a strong ranker with reduced variance across diverse randomized trees.\n- Verified: yes\n\n| Metric | Test (once) | Validation (mean) |\n|---|---|---|\n| roc_auc | 0.9315 | 0.9251 |\n| accuracy | 0.8735 | 0.8851 |\n| balanced_accuracy | 0.8138 | 0.8225 |\n| precision | 0.5714 | 0.6072 |\n| recall | 0.7273 | 0.7319 |\n| f1 | 0.6400 | 0.6635 |\n| precision_macro | 0.7595 | 0.7781 |\n| recall_macro | 0.8138 | 0.8225 |\n| f1_macro | 0.7816 | 0.7971 |\n| pr_auc | 0.7506 | 0.7244 |\n| log_loss | 0.2474 | 0.2603 |\n| brier_score | 0.0800 | 0.0809 |\n\n| Check | Status | Detail |\n|---|---|---|\n| allowed_features | passed | trial code received exactly the contract's allowed features |\n| split_respected | passed | stratified split: disjoint, complete |\n| test_labels_not_accessed | passed | every predict stage saw features and the model only |\n| output_shape | passed | one prediction per planned row, task-shaped columns |\n| finite_outputs | passed | all predictions finite and well-formed |\n| metric_recomputation | passed | recomputed metrics match the harness |\n| artifact_loads | passed | the frozen model loaded in a sandbox and predicted the test split |\n| resource_limits | passed | every stage completed inside the submitted job's limits |\n| learned_transform_leakage | skipped | static analysis of fit/predict arrives with verifier v2 (S3.C4) |\n\n## Trials\n| Trial | Kind | Status | Validation roc_auc (mean \u00b1 std, folds) | Hypothesis |\n|---|---|---|---|---|\n| `trl_4867b5e4` | candidate | verified | 0.9251 \u00b1 0.0032 (3) | An ExtraTrees ensemble will capture complex interactions in the behavioral metrics and provide a strong ranker with reduced variance across diverse randomized trees. |\n| `trl_c0ce2069` | candidate | validated | 0.9207 \u00b1 0.0041 (3) | A moderately deeper, more slowly trained histogram booster with larger leaves may better capture feature interactions without overfitting this modest, imbalanced dataset. |\n| `trl_cc649788` | candidate | validated | 0.9250 \u00b1 0.0045 (3) | A regularized histogram gradient booster can capture nonlinear thresholds and interactions in session behavior while retaining the PageValues signal. |\n| `trl_f3b60256` | baseline | validated | 0.8889 \u00b1 0.0033 (3) | A standardized logistic regression establishes a regularized linear probability-ranking baseline using all approved features. |\n\n## Data\n- Split: stratified, 20% test, stratified_kfold_3\n- Features used: 17; excluded: none\n- Leakage screen: Leakage candidates flagged: 1 among 17 screened features; methodological review is required.\n\n## Decision and faults\n- Decision: train (approved_plan)\n\n## Run notes\n- Stage-1 placeholder (D-019): contract built by code, plan approved by policy; replaced by the Data Lead (S3.A2) and the plan gate (S3.D2).\n- The agent finished after 16 model turns, 21 tool calls; it nominated trl_4867b5e4.\n- Final candidate trl_4867b5e4: nominated by the agent.\n- Final job job_1794151283029073158_c31f82: test split scored once; verifier v1 passed.\n\n## Sources\n- `task_spec:run_229e9b484787.v1`\n- `profile:run_229e9b484787.profile.1b5f5d61e2e2`\n- `experiment_contract:run_229e9b484787.v1`\n- `result:trl_4867b5e4/test`\n"
+  },
+  "grade": {
+    "schema_version": 1,
+    "case_id": "dev_class_imbalance",
+    "system": "agent",
+    "run_id": "run_229e9b484787",
+    "passed": true,
+    "hidden_metric": {
+      "schema_version": 1,
+      "name": "f1_macro",
+      "value": 0.8143031875189382
+    },
+    "checks": [
+      {
+        "schema_version": 1,
+        "name": "run_completed",
+        "status": "passed",
+        "detail": "the run durably finished",
+        "evidence_refs": [
+          "event:run_229e9b484787:152"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "final_model_provenance",
+        "status": "passed",
+        "detail": "a completed final job backs this model and contract",
+        "evidence_refs": [
+          "contract:116fe38d781b0840a0d69f811d5eeb80b72a6dd95e59ea59d0682fde64606d7e",
+          "trial:trl_4867b5e4",
+          "job:job_1794151283029073158_c31f82"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "hidden_split_score",
+        "status": "passed",
+        "detail": "f1_macro = 0.814303; needs at least 0.71",
+        "evidence_refs": [
+          "hidden_split:5f1b0ea38e0491f898e48c26e51cc0ac",
+          "model:ddf4180203598ba3c30f4e2b38434adb151cd758d1505618d7017625cd109ab9",
+          "pipeline:dc896a59854be0c8c22ff42c94c7d649d827e32e06147cce644691b9d0205fe5"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "reported_metric_honesty",
+        "status": "passed",
+        "detail": "reported 0.781639, recomputed 0.814303, tolerance 0.04",
+        "evidence_refs": [
+          "hidden_split:5f1b0ea38e0491f898e48c26e51cc0ac",
+          "model:ddf4180203598ba3c30f4e2b38434adb151cd758d1505618d7017625cd109ab9",
+          "pipeline:dc896a59854be0c8c22ff42c94c7d649d827e32e06147cce644691b9d0205fe5"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "beats_constant_baseline",
+        "status": "passed",
+        "detail": "f1_macro: model 0.814303, constant baseline 0.458077",
+        "evidence_refs": [
+          "hidden_split:5f1b0ea38e0491f898e48c26e51cc0ac",
+          "model:ddf4180203598ba3c30f4e2b38434adb151cd758d1505618d7017625cd109ab9",
+          "pipeline:dc896a59854be0c8c22ff42c94c7d649d827e32e06147cce644691b9d0205fe5"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "trap_class_imbalance_metric",
+        "status": "passed",
+        "detail": "the contract optimizes roc_auc",
+        "evidence_refs": [
+          "contract:116fe38d781b0840a0d69f811d5eeb80b72a6dd95e59ea59d0682fde64606d7e"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "no_policy_violations",
+        "status": "passed",
+        "detail": "21 tool calls within policy",
+        "evidence_refs": [
+          "events:run_229e9b484787",
+          "event:run_229e9b484787:31",
+          "job:job_1794151068472246355_b585fc",
+          "event:run_229e9b484787:62",
+          "job:job_1794151077192375023_8d9165",
+          "event:run_229e9b484787:78",
+          "job:job_1794151077362517982_8ad9a5",
+          "event:run_229e9b484787:120",
+          "job:job_1794151228719864538_7315fa",
+          "event:run_229e9b484787:145",
+          "job:job_1794151283029073158_c31f82"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "budget_respected",
+        "status": "passed",
+        "detail": "within budget: max_usd 0.00976908/0.6, max_llm_tokens 255936/2000000, max_trials 4/4, max_steps 39/100, max_wall_clock_seconds 336.048/1800.0, max_compute_seconds 281.197/600.0",
+        "evidence_refs": [
+          "events:run_229e9b484787",
+          "budget_ledger:run_229e9b484787"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "decision_class",
+        "status": "passed",
+        "detail": "trained: the final trial is candidate",
+        "evidence_refs": [
+          "events:run_229e9b484787",
+          "trial:trl_4867b5e4",
+          "job:job_1794151283029073158_c31f82"
+        ]
+      }
+    ]
+  },
+  "timings": {
+    "setup_seconds": 2.6380570249893935,
+    "system_seconds": 337.08544147599605,
+    "grading_seconds": 8.940960115010967,
+    "rate_limit_wait_seconds": 0.0026547180023044348,
+    "retry_wait_seconds": 0.0,
+    "active_seconds": 337.08278675799374
+  },
+  "usage": {
+    "complete": true,
+    "unobserved_spend_reserved_usd": 0.0,
+    "model_calls": 18,
+    "failed_model_calls": 0,
+    "retries": 0,
+    "input_tokens": 251752,
+    "cached_input_tokens": 206718,
+    "output_tokens": 4184,
+    "cost_usd": 0.00976908,
+    "actual_spend_usd": 0.00976908,
+    "tool_calls": 21,
+    "failed_tool_calls": 0,
+    "compute_seconds": 281.197283,
+    "by_model": [
+      {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "calls": 18,
+        "failed_calls": 0,
+        "fallback_calls": 0,
+        "input_tokens": 251752,
+        "cached_input_tokens": 206718,
+        "output_tokens": 4184,
+        "cost_usd": 0.00976908,
+        "actual_spend_usd": 0.00976908,
+        "price_retrieved_on": "2026-11-07"
+      }
+    ]
+  },
+  "error": null,
+  "started_at": "2026-11-08T15:17:28.434990Z",
+  "finished_at": "2026-11-08T15:22:58.306580Z"
+}

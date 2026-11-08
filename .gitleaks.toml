@@ -1,0 +1,14 @@
+title = "Hypora narrow recorded split identifier exception"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+  [[rules.allowlists]]
+  description = "Deterministic public split IDs in the first recorded Stage 2 results (D-035)"
+  condition = "AND"
+  regexTarget = "line"
+  regexes = ['''^\s*"split_key":\s*"[0-9a-f]{32}"\s*,?\s*$''']
+  paths = ['''^results/ec81155d54c78568df93e7dd6751e9e90f1316e3/single_agent(\.dev)?/(agent|baseline)/dev_(class_imbalance|clean_control|grouped_rows|target_leakage|temporal_order|tool_failure)\.json$''']

@@ -19,7 +19,7 @@ prices:
         output_usd_per_mtok: 2.50          # includes thinking tokens
       long_context: null                   # flat price at every prompt length
       source: https://ai.google.dev/gemini-api/docs/pricing
-      retrieved_on: 2026-10-24
+      retrieved_on: 2026-11-07
       notes: Page last updated 2026-10-22. Free tier is free of charge.
 
     - provider: openai
@@ -36,7 +36,7 @@ prices:
         cache_write_usd_per_mtok: 0.25
         output_usd_per_mtok: 0.75
       source: https://developers.openai.com/api/docs/models/gpt-6-luna
-      retrieved_on: 2026-10-24
+      retrieved_on: 2026-11-07
       notes: >-
         Long-context prices derived from the page's stated rule ("2x input and cache rates and
-        1.5x output for the full request"). Only used by the opt-in paid live test until S2.6.
+        1.5x output for the full request"). Used by the owner-approved S2.6 collection (D-033).

@@ -31,10 +31,8 @@ def test_repo_configs_load_and_validate() -> None:
     assert settings.model_profile is ModelProfile.DEV
     assert settings.flags == FeatureFlags()  # flags.yaml restates the code defaults
     assert settings.budgets.run.max_usd is not None and settings.budgets.run.max_usd <= 5
-    # S0.5 set the dev models (D-007); the eval models stay unset until S2.6.
-    assert set(settings.models.placeholder_tiers()) == {
-        f"eval.{t}" for t in ("lead", "worker", "cheap")
-    }
+    # S2.6 pins every eval tier, while dev remains the default profile.
+    assert not settings.models.placeholder_tiers()
 
 
 def test_every_eval_config_loads() -> None:
