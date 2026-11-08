@@ -41,8 +41,16 @@ from hypora.core.schemas.events import Provider
 class OpenAIClient:
     """One Responses API attempt per `generate` call."""
 
-    def __init__(self, api_key: str, *, timeout_s: float, client: Any | None = None) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        *,
+        timeout_s: float,
+        client: Any | None = None,
+        service_tier: str | None = None,
+    ) -> None:
         self._client = client or AsyncOpenAI(api_key=api_key, max_retries=0, timeout=timeout_s)
+        self._service_tier = service_tier
 
     @property
     def provider(self) -> Provider:
@@ -50,7 +58,10 @@ class OpenAIClient:
 
     async def generate(self, request: ProviderRequest) -> ProviderResult:
         try:
-            response = await self._client.responses.create(**build_request(request))
+            kwargs = build_request(request)
+            if self._service_tier is not None:
+                kwargs["service_tier"] = self._service_tier
+            response = await self._client.responses.create(**kwargs)
         except openai.APIError as exc:
             raise classify_error(exc) from None
         except Exception as exc:

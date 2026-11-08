@@ -141,15 +141,7 @@ class SpendLedger:
                         raise ValueError("invalid/duplicate settlement")
                     if not isinstance(event["usage"], dict) or not isinstance(event["price"], dict):
                         raise ValueError("missing cost evidence")
-                    if event["usage"] is not None:
-                        from hypora.core.llm.pricing import ModelPrice
-                        from hypora.core.llm.types import Usage
-
-                        computed = ModelPrice.model_validate(event["price"]).cost_usd(
-                            Usage.model_validate(event["usage"])
-                        )
-                        if not math.isclose(computed, actual, rel_tol=1e-12, abs_tol=1e-12):
-                            raise ValueError("charge differs from usage/price evidence")
+                    self._validate_settlement(actual, event["usage"], event["price"])
                     row["actual_usd"] = actual
                     row["usage"] = event["usage"]
                     row["price"] = event["price"]
@@ -160,6 +152,26 @@ class SpendLedger:
             raise SpendError(
                 "malformed paid ledger; inspect accounting before new paid calls"
             ) from exc
+
+    @staticmethod
+    def _validate_settlement(actual: float, usage: dict[str, Any], price: dict[str, Any]) -> None:
+        # Pydantic's Usage defaults and coercions are useful elsewhere but unsafe for a
+        # persisted bill: missing or coercible counters cannot establish known spend.
+        from hypora.core.llm.pricing import ModelPrice
+        from hypora.core.llm.types import Usage
+
+        fields = {
+            "input_tokens",
+            "output_tokens",
+            "cached_input_tokens",
+            "cache_write_tokens",
+            "reasoning_tokens",
+        }
+        if set(usage) != fields or any(type(usage[k]) is not int or usage[k] < 0 for k in fields):
+            raise ValueError("invalid or incomplete usage counters")
+        computed = ModelPrice.model_validate(price).cost_usd(Usage.model_validate(usage))
+        if not math.isclose(computed, actual, rel_tol=1e-12, abs_tol=1e-12):
+            raise ValueError("charge differs from usage/price evidence")
 
     @staticmethod
     def _snapshot(attempts: dict[str, dict[str, Any]]) -> SpendSnapshot:
@@ -213,6 +225,10 @@ class SpendLedger:
             raise SpendError("invalid reported charge")
         if usage is None or price is None:
             raise SpendError("settlement requires provider usage and price evidence")
+        try:
+            self._validate_settlement(actual_usd, usage, price)
+        except (TypeError, ValueError, KeyError) as exc:
+            raise SpendError("invalid settlement evidence") from exc
         with self._locked() as stream:
             attempts = self._read(stream)
             if identifier not in attempts:
@@ -320,6 +336,21 @@ class ReservedClient:
         return result
 
 
+def build_paid_client(key: str, timeout: float) -> ProviderClient:
+    """Pin S2.6 to the global Standard endpoint used in the spend bound."""
+    from openai import AsyncOpenAI
+
+    from hypora.core.llm.providers.openai_client import OpenAIClient
+
+    sdk = AsyncOpenAI(
+        api_key=key,
+        base_url="https://api.openai.com/v1",
+        max_retries=0,
+        timeout=timeout,
+    )
+    return OpenAIClient(key, timeout_s=timeout, client=sdk, service_tier="default")
+
+
 class AdapterFactory:
     """Real clients and shared admission, with the paid ledger applied to every OpenAI attempt."""
 
@@ -337,12 +368,15 @@ class AdapterFactory:
         providers = {config.active_profile.tiers.for_tier(tier).provider for tier in ModelTier}
         clients: dict[Provider, ProviderClient] = {}
         for provider in providers:
-            client = build_client(provider, credentials, config.models.retry.request_timeout_s)
-            clients[provider] = (
-                ReservedClient(client, self.ledger, run_id)
-                if provider is Provider.OPENAI
-                else client
-            )
+            if provider is Provider.OPENAI:
+                client = build_paid_client(
+                    credentials.api_key(provider), config.models.retry.request_timeout_s
+                )
+                clients[provider] = ReservedClient(client, self.ledger, run_id)
+            else:
+                clients[provider] = build_client(
+                    provider, credentials, config.models.retry.request_timeout_s
+                )
         if self.admission is None:
             self.admission = ProviderAdmission(
                 config.models.rate_limits, config.pools.llm_concurrency

@@ -32,7 +32,9 @@ these six dev cases do not substitute for held-out tests.
 One append-only journal under ignored `runs/stage2/paid-attempts.jsonl` admits every actual OpenAI
 SDK attempt, including adapter retries and both smokes. File locking serializes admission across
 processes, and file plus directory-chain fsync precedes dispatch. The SDK performs no hidden
-retries. There is no model-parameter/output-limit change to either profile.
+retries. Paid requests explicitly use Standard service and the global OpenAI endpoint, preventing
+project auto-tier or endpoint overrides from invalidating the price bound. The cache lifetime is
+the provider default of 30 minutes. There is no model-parameter/output-limit change to either profile.
 
 Before each attempt, reserve $0.36. Luna's verified absolute maximum is below that: 1.05M input
 tokens at the highest long-context input/cache-write price ($0.25/M), plus 128K output tokens at
@@ -51,5 +53,4 @@ contains no prompts, raw data, credentials or machine paths.
 
 The public case records retain all outcomes and uncertainty intervals. A bootstrap interval
 including zero is inconclusive. The first run may have no comparable parent results; the report
-states that limitation. The stage gate's full local `make check`, required CI and independent
-review remain required before merge. No check-in materials are submitted by the agent.
+states that limitation. Targeted local checks, required CI and independent review remain required before merge (D-034). No check-in materials are submitted by the agent.

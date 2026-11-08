@@ -205,3 +205,82 @@ def test_settlement_without_usage_evidence_never_releases_exposure(tmp_path: Pat
     with pytest.raises(SpendError, match="requires provider usage"):
         ledger.settle(identifier, 0)
     assert ledger.snapshot().reserved_usd == ATTEMPT_RESERVATION_USD
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "input_tokens",
+        "output_tokens",
+        "cached_input_tokens",
+        "cache_write_tokens",
+        "reasoning_tokens",
+    ],
+)
+@pytest.mark.parametrize("bad", [None, True, "0", -1, "missing"])
+def test_invalid_settlement_counters_never_release_exposure(
+    tmp_path: Path,
+    field: str,
+    bad: object,
+) -> None:
+    ledger = SpendLedger(tmp_path / "paid.jsonl")
+    identifier = ledger.reserve("unknown")
+    usage = Usage().model_dump(mode="json")
+    if bad == "missing":
+        del usage[field]
+    else:
+        usage[field] = bad
+    price = load_price_table().require(Provider.OPENAI, "gpt-6-luna").model_dump(mode="json")
+    with pytest.raises(SpendError, match="invalid settlement evidence"):
+        ledger.settle(identifier, 0.0, usage=usage, price=price)
+    assert ledger.snapshot().reserved_usd == ATTEMPT_RESERVATION_USD
+
+    # Also fail closed on a damaged pre-existing journal.
+    event = {
+        "kind": "settle",
+        "id": identifier,
+        "actual_usd": 0.0,
+        "at": "x",
+        "usage": usage,
+        "price": price,
+    }
+    with ledger.path.open("a") as stream:
+        stream.write(json.dumps(event) + "\n")
+    with pytest.raises(SpendError, match="malformed paid ledger"):
+        ledger.reserve("another")
+
+
+@pytest.mark.asyncio
+async def test_paid_client_forces_global_standard_despite_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from contextlib import suppress
+    from types import SimpleNamespace
+
+    from hypora.core.llm.providers.openai_client import OpenAIClient
+    from scripts.stage2_eval import build_paid_client
+    from tests.unit.llm.test_openai_usage import reported_usage
+
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://example.invalid/v1")
+    client = build_paid_client("test-key", 5)
+    assert isinstance(client, OpenAIClient)
+    assert str(client._client.base_url) == "https://api.openai.com/v1/"
+    assert client._client.max_retries == 0
+
+    observed = {}
+
+    async def create(**kwargs):
+        observed.update(kwargs)
+        return SimpleNamespace(
+            usage=reported_usage(),
+            status="completed",
+            output=[],
+            incomplete_details=None,
+            error=None,
+        )
+
+    client._client = SimpleNamespace(responses=SimpleNamespace(create=create))
+    # The stub need only reach the actual SDK call; decoding is covered elsewhere.
+    with suppress(ProviderError):
+        await client.generate(REQUEST)
+    assert observed["service_tier"] == "default"
