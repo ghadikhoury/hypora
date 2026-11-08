@@ -770,9 +770,9 @@ one it supersedes.
     behavior, `make lint`, and `make typecheck`. Include relevant Docker, cross-process, and security
     allow/deny tests; run any test the step explicitly requires on WSL/Docker Desktop on that platform.
     Markdown-only PRs run the tests that read the changed files.
-  - A stage gate or trigger-3 scope no longer automatically requires a full local `make check`.
-    Run the full local suite when there is a concrete reason, such as a suspected WSL-only or broad
-    regression that targeted tests cannot resolve; document the reason and result in the PR.
+  - Full `make check` runs in CI, not locally. If the full local suite appears necessary, such as for
+    a suspected WSL-only or broad regression that targeted tests cannot resolve, explain the reason
+    and obtain Ghadi's explicit authorization for that specific local run first; document its result.
   - Every PR still needs the required `make check` and `gitleaks` CI checks green on the reviewed
     head (including a pure rebase verified under Reviewer flow), plus independent review. An unavailable, pending, or failing CI is not a merge
     approval. Stage-specific evaluation runs and evidence remain required.

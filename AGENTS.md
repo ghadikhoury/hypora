@@ -259,11 +259,11 @@ This section applies to implementing agents. Reviewers follow "Reviewer flow" ab
   when their boundaries change, and security allow/deny tests for affected security paths. Run
   relevant tests on WSL/Docker Desktop when changed behavior depends on that environment; a test
   explicitly required there by the step still runs there. These targeted checks do not replace CI.
-- **Full local `make check` is not automatic** for a stage gate or trigger-3 change. Run it when a
-  concrete reason warrants broad local coverage, such as investigating a suspected WSL-specific or
-  broad regression that targeted tests cannot resolve. Record the reason and result in the PR.
-  Otherwise let CI run the full suite while the Reviewer reviews. A trigger-3 stop-and-ask and its
-  approval, the required step-specific local tests, and the stage's evaluation evidence still apply.
+- **Full `make check` runs in CI, not locally.** If the full local suite appears genuinely necessary
+  (for example, a suspected WSL-specific or broad regression that targeted tests cannot resolve),
+  explain the reason and ask Ghadi to authorize that specific local run before starting it. Record
+  any authorized run and its result in the PR. A trigger-3 stop-and-ask and its approval, required
+  step-specific local tests, and the stage's evaluation evidence still apply.
 - **Docs-only PRs** (Markdown only) run the tests that read the changed files (e.g.
   `tests/unit/test_repo_conventions.py` for AGENTS.md), rather than lint/types or the full local suite;
   the required full CI checks still apply.

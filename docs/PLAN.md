@@ -129,10 +129,10 @@ The "explain-it check" exists so Ghadi can verify his understanding of every mer
 
 **Local and CI checks (D-034):** For code changes, run relevant local tests, lint and types before
 opening a PR and after review fixes. Include affected security, sandbox, cross-process and explicitly
-required WSL-specific tests; docs-only changes run the tests that read the changed files. A stage gate
-or trigger-3 change does not by itself require the full local `make check`: run it when a concrete
-broad or WSL-specific concern warrants it. Every PR still requires the full `make check` and `gitleaks`
-CI checks on the reviewed commit. This changes no step's evaluation evidence, explicit platform-specific
+required WSL-specific tests; docs-only changes run the tests that read the changed files. The full
+`make check` runs in CI, not locally. If a full local run appears necessary, explain why and obtain
+Ghadi's explicit authorization for that run first. Every PR still requires the full `make check` and
+`gitleaks` CI checks on the reviewed commit. This changes no step's evaluation evidence, explicit platform-specific
 test, security approval, or merge requirement. See `AGENTS.md` for the detailed policy.
 
 **Proportionate author checks and coordination (D-034):** Authors self-check changed behavior and
