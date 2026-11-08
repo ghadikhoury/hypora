@@ -359,8 +359,8 @@ async def test_an_undecodable_completed_response_still_records_its_billed_usage(
         usage=SimpleNamespace(
             input_tokens=120,
             output_tokens=60,
-            input_tokens_details=None,
-            output_tokens_details=None,
+            input_tokens_details=SimpleNamespace(cached_tokens=0, cache_write_tokens=0),
+            output_tokens_details=SimpleNamespace(reasoning_tokens=0),
         ),
     )
     sdk = OpenAISdkStub(broken)
