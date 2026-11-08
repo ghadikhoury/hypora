@@ -663,6 +663,9 @@ one it supersedes.
     instructor by Nov 13** (the handout is kept outside this repository).
 
 ## D-029 — Faster delivery: parts, stacked PRs, narrower local checks, fewer live runs
+
+> D-034 supersedes the local full-check and mandatory fresh author-audit rules below, and changes
+> stacking to explicit owner authorization. Other decisions still apply.
 - Date: 2026-11-06
 - Step: process; applies to every later step. Supersedes the planned `make check-fast` (D-022) and CI
   split (D-023), S2.1's stop in D-025, and D-016's both-profile runs at S3.Z and S4.3
@@ -755,3 +758,40 @@ one it supersedes.
   case needs it.
 - Why: report prose and ordinary facts can't prove a case-specific outcome, and S2.2 needs positive and
   negative support for both checks. Details: `docs/notes/graders.md`.
+
+## D-034 — Use CI for full validation; choose local tests for the change
+
+- Date: 2026-11-07
+- Step: process; updates D-029's local full-check requirement for future PRs.
+- Decided by: Ghadi, who approved removing excessive repeated local checks while retaining checks
+  that are actually needed.
+- Decision:
+  - Before opening an implementation PR and after review fixes, run targeted tests for the changed
+    behavior, `make lint`, and `make typecheck`. Include relevant Docker, cross-process, and security
+    allow/deny tests; run any test the step explicitly requires on WSL/Docker Desktop on that platform.
+    Markdown-only PRs run the tests that read the changed files.
+  - A stage gate or trigger-3 scope no longer automatically requires a full local `make check`.
+    Run the full local suite when there is a concrete reason, such as a suspected WSL-only or broad
+    regression that targeted tests cannot resolve; document the reason and result in the PR.
+  - Every PR still needs the required `make check` and `gitleaks` CI checks green on the reviewed
+    head (including a pure rebase verified under Reviewer flow), plus independent review. An unavailable, pending, or failing CI is not a merge
+    approval. Stage-specific evaluation runs and evidence remain required.
+  - Authors self-check changed behavior and the complete changed-file list against the step and
+    relevant checklist items; high-impact, security, frozen-contract, grading and review-focus work
+    retains a fresh-context whole-diff author pass. The separate Reviewer still conducts every full
+    first review and incremental re-reviews.
+  - Use completion notifications or reasonable polling instead of busy polling and duplicate
+    monitors. Do not repeat a live run when its relevant inputs and behavior are unchanged; retain
+    all required evidence and existing paid-call and model-policy approvals.
+  - Work on independent steps in parallel when allowed. Stacking requires Ghadi's explicit
+    authorization and D-029's remaining conditions; recorded-result gates still start from merged code.
+  - All security stop-and-ask triggers and owner approvals remain unchanged; this decision does not
+    grant authority for changes to security, contracts, or cases.
+- Why: S2.4's local full check took 43m56s on WSL/Docker Desktop; the same full `make check` on its
+  final CI head took 14m15s. Requiring both for every stage gate repeats broad checks serially, while
+  targeted local boundary tests and explicit WSL requirements retain platform-specific evidence.
+  Duplicate author passes and polling can also consume time without adding evidence for routine changes.
+- Tradeoff: CI's Ubuntu runner does not prove all Windows/WSL behavior. The author must select local
+  tests for affected platform-specific behavior, and investigate any WSL-only concern before merging.
+- Consequences: AGENTS.md and PLAN.md §2 carry the policy. CI workflows, required check names, the
+  no-parallel-pytest rule, reviewer flow and all historical step acceptance records are unchanged.

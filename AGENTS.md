@@ -52,10 +52,12 @@ splits, held-out labels, and metrics. Every step is recorded in an append-only e
   registries), keep the change minimal, rebase on `main` right before opening the PR, and resolve
   conflicts without overwriting the other agent's work.
 - **Opening a PR:** run the pre-PR checks ("Checks before a PR and in CI" below), verify every "Done
-  when" criterion yourself, then review your whole diff in a fresh pass (a subagent with no prior
-  context if your tool has one) against `docs/notes/review-checklist.md` and fix what it finds. Fill
-  in `.github/pull_request_template.md` completely (including a genuine Explain-it check), then report
-  the PR number, link, a 3–5 line summary, anything surprising or deferred, and "Ready for review."
+  when" criterion, and self-check the changed behavior and complete changed-file list against the
+  step and relevant items in `docs/notes/review-checklist.md`. For high-impact work (security,
+  frozen contracts, grading, `🔍 REVIEW FOCUS`), make a fresh-context whole-diff author pass (use a
+  subagent with no prior context if available) and fix its findings. Every PR still gets the separate
+  Reviewer's full first review. Fill in `.github/pull_request_template.md` completely (including a
+  genuine Explain-it check), then report the PR number, link, summary, surprises, and "Ready for review."
 - **Review comments:** read all of them (`gh pr view <N> --comments` plus inline comments via
   `gh api repos/{owner}/{repo}/pulls/<N>/comments`). Fix every blocking comment on the same branch
   and reply to each saying what changed. Fix the whole kind of bug, not only the reported line: check
@@ -73,18 +75,19 @@ Ghadi may assign a whole part (`S2`), stream (`S3.C`), or list of steps in one p
 assigned to you. Once a PR is open, go straight to the next step and do not ask Ghadi to relay anything.
 
 **Priority order:** review comments on your open PRs, then a red check on your PR, then the next step.
-Check your open PRs before starting each step and at natural pauses. When nothing else is left, check
-every few minutes until your PRs merge.
+Check open PRs before starting each step and at natural pauses. When waiting, use completion
+notifications where available or poll at reasonable intervals; avoid busy polling and duplicate monitors.
+Verify actual review, CI and merge state rather than treating a delay as completion.
 
 **How to start the next step:**
 
 | The next step depends on | What to do |
 |---|---|
 | Only merged work | Branch from the latest `origin/main`, even if your other PRs are still open |
-| Your own open PR | Stack on it, under the conditions below |
+| Your own open PR | Work on another independent assigned step, or wait; stack only if Ghadi explicitly authorizes it and the conditions below hold |
 | Another agent's open PR | Do not stack. Take another assigned step; wait only if there is none |
 
-**You may stack on your own open PR when all of these hold:**
+**Only when Ghadi explicitly authorizes stacking**, you may stack on your own open PR when all of these hold:
 - It has no unresolved blocking comment and no red check.
 - If it has `🔍 REVIEW FOCUS`, touches trigger-3 code, or defines a contract the next step builds on,
   its first review has finished with no blocking comment.
@@ -120,7 +123,7 @@ Comment the old and new head commits on the PR so the Reviewer can compare them.
   changed. If the parent needs major rework, mark the child as a draft until the parent passes review.
 - **Parent already merged:** open a small fix PR from `origin/main` with a regression test
   (`<parent-step-branch>-fix`, as with PR #9), then rebase your step once it merges. If your step can't
-  proceed without the fix, stack on the fix PR.
+  proceed without the fix, wait for its merge unless Ghadi explicitly authorizes stacking.
 - **The design itself looks wrong,** or the spec can't work as written: stop that chain and use trigger
   8. Continue only with steps that do not depend on it.
 
@@ -145,7 +148,8 @@ the sake of it. If your tool has no sub-agents, work through the steps one at a 
   worktree, or `/mnt/c`: `git clone https://github.com/ghadikhoury/hypora.git ~/hypora-<step>`, then
   `make setup`.
 - **Same bar:** each sub-agent handles one step and opens one PR, with its own branch, checks, fresh
-  review pass, and Explain-it check. Give it the step ID, "Done when", spec sections, and directories.
+  self-check, any required fresh-context pass, and Explain-it check. Give it the step ID, "Done
+  when", spec sections, and directories.
 - **No merging:** sub-agents never merge. PRs from your sub-agents count as your own for stacking.
 - **You coordinate:** assign steps so shared files don't collide, verify each result yourself, and see
   that review comments get fixed. Sub-agents report to you, and you raise any 🧑 block for Ghadi.
@@ -155,9 +159,10 @@ the sake of it. If your tool has no sub-agents, work through the steps one at a 
 
 ### Reviewer flow (D-024, D-026, D-029)
 
-- **Watch the queue until told to stop.** Check `gh pr list` every few minutes and review every open
-  PR, oldest first and parents before children. Do not wait for Ghadi to relay PR numbers. While a
-  PR's CI is pending, move on to the next PR and come back to merge.
+- **Watch the queue until told to stop.** Use notifications where available or poll at reasonable
+  intervals; avoid duplicate monitors and busy polling. Review open PRs oldest first and parents
+  before children without waiting for Ghadi to relay numbers. While CI is pending, review other PRs
+  and return to merge; confirm actual CI completion on the reviewed head.
 - **Start reviewing as soon as the PR is open.** Do not wait for CI or anything else.
 - If CI is red, still finish the whole review, so the author gets all feedback in one round.
 - **Review depth does not change when work arrives as a part.** Ghadi relies on this review for now:
@@ -240,22 +245,28 @@ The `hypora` CLI (`uv run hypora run | status | trace | cancel | approve`) is do
 **Dependencies:** anything named in spec §22 or in the current step is pre-approved; pin it in
 `pyproject.toml` and commit `uv.lock`. Anything else triggers stop-and-ask.
 
-### Coding-agent checks before a PR and in CI (D-022, D-029)
+### Coding-agent checks before a PR and in CI (D-029, D-034)
 
 This section applies to implementing agents. Reviewers follow "Reviewer flow" above (D-026).
 
-- **CI is the merge gate.** It runs the full `make check` (ruff, mypy, every test including the
-  Docker-based ones, gitleaks) on every PR; the required checks are `make check` and `gitleaks`. A full
-  local `make check` takes about 22–27 min under Docker Desktop and WSL (about 7 min on CI), so local
-  full runs are the exception, not the default.
-- **Before opening a PR and after each review fix:** run the tests for what you changed (their
-  Docker-based ones included) plus `make lint` and `make typecheck`, then push and let CI run the rest.
-- **Run the full `make check` locally only:** (a) once before opening the PR of a step that touches the
-  sandbox, the data firewall, the policy engine, auth, or secret handling (trigger 3), and again only
-  if a later fix touches that code; (b) once in each stage gate step, to catch problems specific to
-  Docker Desktop and WSL that CI's Ubuntu runner can't see.
-- **Docs-only PRs** (Markdown only) skip the full run: run the tests that read the changed files (e.g.
-  `tests/unit/test_repo_conventions.py` for AGENTS.md) and let CI cover the rest.
+- **CI is the merge gate.** Every PR needs the full `make check` and `gitleaks` required checks
+  to pass on the PR head reviewed, including a pure rebase verified under Reviewer flow. CI's
+  `make check` runs lint, types, the full
+  non-live test suite including Docker tests, and the full-history secret scan. Do not merge if CI
+  is unavailable, pending, or failing.
+- **Before opening a PR and after each review fix:** run tests appropriate to the changed behavior,
+  plus `make lint` and `make typecheck`. Include the relevant Docker/sandbox and cross-process tests
+  when their boundaries change, and security allow/deny tests for affected security paths. Run
+  relevant tests on WSL/Docker Desktop when changed behavior depends on that environment; a test
+  explicitly required there by the step still runs there. These targeted checks do not replace CI.
+- **Full local `make check` is not automatic** for a stage gate or trigger-3 change. Run it when a
+  concrete reason warrants broad local coverage, such as investigating a suspected WSL-specific or
+  broad regression that targeted tests cannot resolve. Record the reason and result in the PR.
+  Otherwise let CI run the full suite while the Reviewer reviews. A trigger-3 stop-and-ask and its
+  approval, the required step-specific local tests, and the stage's evaluation evidence still apply.
+- **Docs-only PRs** (Markdown only) run the tests that read the changed files (e.g.
+  `tests/unit/test_repo_conventions.py` for AGENTS.md), rather than lint/types or the full local suite;
+  the required full CI checks still apply.
 - **A red check you did not cause:** read the failure first. `test_memory_limit_kills_the_job` is a
   known flake until S2.0 merges, and the PR's author may rerun it once with `gh run rerun <id> --failed`.
   Any other unexplained failure falls under trigger 7.
@@ -296,7 +307,7 @@ This section applies to implementing agents. Reviewers follow "Reviewer flow" ab
 | Label | Meaning |
 |---|---|
 | `⇉ PARALLEL · <group>` | Can be implemented at the same time as every other step with the same group tag, by separate coding agents on separate branches. Dependencies listed on the step still apply. |
-| `→ SERIAL` | Must merge in order, before any step that follows it in the stage. Steps that do not depend on it may run alongside it, and the next step may stack on it under "Working through a part". |
+| `→ SERIAL` | Must merge in order, before any step that follows it in the stage. Steps that do not depend on it may run alongside it; stacking needs Ghadi's explicit authorization and the conditions in "Working through a part". |
 
 **Scope label:**
 
@@ -366,9 +377,10 @@ Two model profiles live in `configs/models.yaml`:
 - **Default to no provider calls.** Test agent behavior with scripted models (`tests/controller/scripted.py`).
 - **Free `dev` runs need no extra approval** when a step's "Done when" requires one, or when a prompt
   or a role's model-facing behavior changed and scripted tests can't show the result. Use the
-  smallest task that proves the point, and don't repeat a run after a review fix that leaves
-  model-facing behavior unchanged.
+  smallest task that proves the point. Reuse valid evidence when inputs and relevant behavior have
+  not changed; do not repeat a live run just because a review fix left model-facing behavior unchanged.
 - **Agents share the daily free-tier cap** (about 11 single-agent runs a day). Re-run the failing case
   and one control after a fix, not the whole set; run the full set once when the fixes are in.
 - **Paid calls:** none before S2.6 without Ghadi's go. After that, ask before anything expected to
-  cost about $1 or more. Trigger 6 still applies above $5.
+  cost about $1 or more unless Ghadi already authorized that scope and budget in the session.
+  Trigger 6 still applies above $5 per run unless already authorized.

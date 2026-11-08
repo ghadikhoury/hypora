@@ -43,7 +43,7 @@ Steps with no `🧑` label are fully automated: implement → tests → CI → A
 | Label | Meaning |
 |---|---|
 | `⇉ PARALLEL · <group>` | Can be implemented **at the same time** as every other step with the same group tag, by separate coding agents on separate branches, including coding sub-agents launched by one agent (`AGENTS.md`, "Coding sub-agents for parallel steps"). Dependencies listed on the step still apply. |
-| `→ SERIAL` | Must merge in order, before any step that follows it in the stage. Steps that do not depend on it may run alongside it, and the next step may stack on it under `AGENTS.md`'s conditions (D-029). |
+| `→ SERIAL` | Must merge in order, before any step that follows it in the stage. Steps that do not depend on it may run alongside it; stacking needs Ghadi's explicit authorization and `AGENTS.md`'s conditions (D-034). |
 
 **Scope label:**
 
@@ -126,6 +126,22 @@ Human items: none | <label + what is needed>
 Explain-it check: 3 questions a TA might ask about this PR, with short answers
 ```
 The "explain-it check" exists so Ghadi can verify his understanding of every merged PR before the demo.
+
+**Local and CI checks (D-034):** For code changes, run relevant local tests, lint and types before
+opening a PR and after review fixes. Include affected security, sandbox, cross-process and explicitly
+required WSL-specific tests; docs-only changes run the tests that read the changed files. A stage gate
+or trigger-3 change does not by itself require the full local `make check`: run it when a concrete
+broad or WSL-specific concern warrants it. Every PR still requires the full `make check` and `gitleaks`
+CI checks on the reviewed commit. This changes no step's evaluation evidence, explicit platform-specific
+test, security approval, or merge requirement. See `AGENTS.md` for the detailed policy.
+
+**Proportionate author checks and coordination (D-034):** Authors self-check changed behavior and
+all changed paths; high-impact, security, frozen-contract, grading and `🔍 REVIEW FOCUS` work also
+gets a fresh-context whole-diff author pass. The separate Reviewer still reviews every first diff in
+full and re-reviews deltas. Use notifications or reasonable polling, not duplicate monitors; reuse
+valid live evidence when relevant behavior and inputs are unchanged. Independent steps may run in
+parallel; stacking requires Ghadi's explicit authorization. This does not relax stop triggers,
+step-specific acceptance criteria, or the reviewed-head CI merge gate.
 
 **Review flow (D-024, D-026):** coding agent opens PR → AI reviewer (a different model/tool from the author) reviews the diff immediately → required CI green on the reviewed commit → merge. Reviewers rely on CI for full validation and run a targeted test only to verify a specific claim; see `AGENTS.md` for the procedure, including stacked PRs (D-029). There is no human merge approval.
 
