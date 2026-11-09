@@ -117,7 +117,9 @@ explains why this is a platform-only privilege.
 
 ## Development
 
-CI runs `make check` (lint, types, tests, secret scan) on every PR. Local checks depend on your
+CI keeps full non-live regression tests on code PRs and code pushes to main. Genuine docs-only
+changes get a lightweight required status without Python setup, pytest or Docker; runtime prompts
+are code-facing changes. Required secret scanning runs separately on every PR. Local checks depend on your
 role and the change; follow [AGENTS.md](AGENTS.md), which also holds the workflow and model policy.
 `make help` lists every target.
 
