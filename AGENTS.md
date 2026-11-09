@@ -11,7 +11,7 @@ through a part, read the shared sections once and then only what each new step a
 ## Project summary
 
 Hypora is an agent-powered autonomous ML engineering platform and the CIS 1990 (Designing LLM Agents,
-Penn) final project of Ghadi Khoury. A user provides a dataset and a plain-language objective; a
+Penn) final project of Ghadi Khoury. A user provides a dataset and a plain-language objective.
 Agent A owns clarification, planning, delegation, review and reporting. Agent B performs read-only
 research, normally first. Agent C combines data methodology and coding and alone can request bounded
 workers. A may authorize independent B/C overlap. A deterministic runtime enforces approvals, budgets
@@ -186,8 +186,9 @@ the sake of it. If your tool has no sub-agents, work through the steps one at a 
 - **Review the diff; rely on CI for full validation.** Do not run `make check`, the full test suite,
   other checks already covered by CI, or manually rerun CI jobs. Run a targeted test only when it
   is needed to verify a specific review claim.
-- **Markdown-only fixes:** review the diff; no local checks or manual CI run are needed unless a
-  specific claim needs verification. Existing required GitHub checks still govern merging.
+- **Genuine docs-only fixes:** review the diff; no local checks or manual CI run unless a specific
+  claim needs verification. D-037 routes the required status without the full suite; runtime prompt
+  Markdown remains code-facing work. Existing required GitHub statuses still govern merging.
 - If commits are pushed after your review, re-review only the changes since the commit you reviewed
   (`git diff <reviewed>..<head>`) and the code they directly affect. A new serious problem still blocks.
 - **Before merging**, confirm that the PR's head commit (`gh pr view <N> --json headRefOid`) is the
@@ -232,7 +233,8 @@ commits from WSL so the pre-commit hooks can run. All text files use LF line end
 | `make mcp-tools` | Regenerate `docs/mcp/tools.json`, the frozen MCP tool contract, after an approved tool change (a test fails if it is stale) |
 | `make sandbox-image` | Build the hash-tagged tabular sandbox image (needs Docker) |
 | `make sandbox-lock` | Re-lock the sandbox image's packages (with hashes) after editing `requirements-tabular.in` |
-| `make check` | Full validation: `lint` + `typecheck` + `test` + `secrets`; local usage below |
+| `make check` | Full validation plus history secret audit; explicit local authorization required |
+| `make check-ci` | CI full non-live regression: lint + types + all tests; gitleaks runs separately |
 | `make run` | Run the agent end to end (`hypora run`): the demo task on OpenML 46918, or `DATA=<file> GOAL="..." [TARGET=<col>]`. Makes live model calls on the active profile, so it follows "Live runs" below |
 | `make snapshot SOURCE=openml\|uci ID=<id>` | Fetch a real dataset into `data/snapshots/` with its manifest entry (D-015, D-021) |
 | `make eval` | Compare agent and baseline on a case set; saves graded records, statistics, and regression flags (S2.4) |
@@ -248,39 +250,49 @@ The `hypora` CLI (`uv run hypora run | status | trace | cancel | approve`) is do
 **Dependencies:** anything named in spec §22 or in the current step is pre-approved; pin it in
 `pyproject.toml` and commit `uv.lock`. Anything else triggers stop-and-ask.
 
-### Coding-agent checks before a PR and in CI (D-029, D-034)
+### Coding-agent checks before a PR and in CI (D-037)
 
-This section applies to implementing agents. Reviewers follow "Reviewer flow" above (D-026).
+This section owns validation policy. PLAN references it rather than repeating the rules.
 
-- **CI is the merge gate.** Every PR needs the full `make check` and `gitleaks` required checks
-  to pass on the PR head reviewed, including a pure rebase verified under Reviewer flow. CI's
-  `make check` runs lint, types, the full
-  non-live test suite including Docker tests, and the full-history secret scan. Do not merge if CI
-  is unavailable, pending, or failing.
-- **Before opening a PR and after each review fix:** run tests appropriate to the changed behavior,
-  plus `make lint` and `make typecheck`. Include the relevant Docker/sandbox and cross-process tests
-  when their boundaries change, and security allow/deny tests for affected security paths. Run
-  relevant tests on WSL/Docker Desktop when changed behavior depends on that environment; a test
-  explicitly required there by the step still runs there. These targeted checks do not replace CI.
-- **Full `make check` runs in CI, not locally.** If the full local suite appears genuinely necessary
-  (for example, a suspected WSL-specific or broad regression that targeted tests cannot resolve),
-  explain the reason and ask Ghadi to authorize that specific local run before starting it. Record
-  any authorized run and its result in the PR. A trigger-3 stop-and-ask and its approval, required
-  step-specific local tests, and the stage's evaluation evidence still apply.
-- **Docs-only PRs** (Markdown only) run the tests that read the changed files (e.g.
-  `tests/unit/test_repo_conventions.py` for AGENTS.md), rather than lint/types or the full local suite;
-  the required full CI checks still apply.
-- **A red check you did not cause:** read the failure first. `test_memory_limit_kills_the_job` is a
-  known flake until S2.0 merges, and the PR's author may rerun it once with `gh run rerun <id> --failed`.
-  Any other unexplained failure falls under trigger 7.
-- **No parallel test execution** (`pytest-xdist`) for now. `make check-fast` and the CI job split are
-  cancelled (D-029).
+- **Genuine docs-only changes:** review the diff; no local make, lint/types, pytest, live runs or
+  manual CI reruns. Run a specific check only to resolve a concrete concern. The required GitHub
+  `make check` status performs checkout and conservative file classification only; it does not
+  execute the command. The separate `gitleaks` check remains required. There is no Python dependency
+  setup, full suite or Docker run for this route.
+- **Markdown is not automatically prose.** Runtime prompts, unknown Markdown locations, generated
+  contracts, executable/mode changes, code-to-doc renames, mixed changes, CI config and ambiguous
+  Git metadata use full validation. `scripts/ci_scope.py` is the actual routing authority. Both
+  rename paths and the complete before/after main-push range are covered. Never use a label or skip-workflow
+  directive to bypass a required check.
+- **Code PRs and code pushes to main keep full non-live regression coverage.** CI runs
+  `make check-ci` (lint, types and the full test suite including Docker). It installs locked
+  dependencies without local commit hooks and caches the exact sandbox image. Existing CI
+  concurrency cancels obsolete runs. No new nightly full-test schedule is introduced.
+- **Local code iteration:** run affected tests, including relevant container/process/security and
+  required WSL tests, plus lint/types before opening and after substantive fixes. Reuse successful
+  commit-hook lint/type results for the same tree rather than running identical commands twice.
+  Add regressions for actual bugs, not tests mirroring trivial implementation details.
+- **No automatic local full suite.** A full local `make check` or full pytest run requires Ghadi's
+  explicit authorization for that specific run when targeted evidence cannot resolve the issue.
+  Authors and reviewers rely on GitHub for broad validation. Do not repeat already-green checks
+  for unchanged code or manually rerun jobs without investigating the failure first.
+- **Secret scanning:** local staged scan and required incremental PR/main scanning remain. Existing
+  daily/manual full-history scanning remains. `make secrets` stays available for explicit history
+  audits; CI does not repeat that audit inside each regression job. No secrets may be printed.
+- **Merge:** independent review plus successful required `make check` and `gitleaks` statuses on
+  the reviewed commit, including docs-only PRs. Do not remove global protection to skip docs tests.
+- **Review and PR scope:** review while CI runs, re-review deltas, and never block on nits. One step
+  is a coherent behavior change including its prompt/helpers/wiring. Do not split those into extra
+  PRs solely by file type. Continue independent authorized work while checks run. No extra review
+  or monitoring agents for unchanged status. Keep stacking authorization and step dependencies.
+- No pytest-xdist is introduced. Relevant failing tests may be rerun after diagnosis; full suite
+  retries need a concrete reason. Explicit security/data-integrity checks remain mandatory.
 
 ## Definition of Done (every PR)
 
 - Implements exactly the step's scope; references the step ID and spec sections in the PR description.
 - Unit tests for new logic; integration tests where a step crosses a process/container boundary.
-- `ruff`, `mypy`, `pytest`, and secret scanning pass in CI.
+- Required statuses pass under D-037; code changes retain lint, types, full non-live tests and secret scanning.
 - New behavior that an evaluation must compare is behind a **feature flag** (spec §19.4).
 - Every model call, tool call, state transition, and policy decision emits an **event** (spec §15.1).
 - No credentials, raw private data, or large artifacts committed.
@@ -359,3 +371,19 @@ model changes. Spec §§17–20 define the evaluation and course evidence. D-033
 Stage 2 Luna lock; D-036 sets the next single readiness collection at S4.2. Do not repeat full dev
 evaluations at every step or treat existing inactive flags as working features. Run live calls only
 under the "Live runs" authorization rules above. Never mix models inside recorded eval results.
+
+
+### Live runs (D-029, D-036, D-037)
+
+- Default to scripted models (`tests/controller/scripted.py`) and deterministic tool fixtures.
+  A normal implementation or review fix does not require any live provider call.
+- Use the smallest free dev task only when the current step explicitly requires live evidence or
+  model-facing behavior changed and scripted tests cannot answer the specific question. Record
+  what uncertainty the run resolves. Reuse valid evidence when behavior and inputs are unchanged.
+- After a live failure, run the affected case and a control when necessary. Do not rerun the full
+  dev set after every fix. S4.2 owns the next full readiness collection; Stage 5 retains its required
+  final frozen evidence. No extra runs solely for PR ceremony, review, handoff or presentation.
+- Paid scope and budget must be authorized. Existing session authorization persists within that
+  scope; do not ask again for the same run budget. Otherwise ask before work expected to cost about
+  $1 or more, and retain trigger 6 above $5 or for GPU jobs. No speculative provider/model sweeps.
+- CI excludes live calls. Never put provider keys in routine PR jobs or add live calls to make check.

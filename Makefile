@@ -33,7 +33,7 @@ COMPOSE := docker compose
 WORKER_COMPOSE := $(COMPOSE) -f docker-compose.yml -f docker-compose.worker.yml
 
 .PHONY: help setup lint typecheck test test-live secrets schemas mcp-tools sandbox-image sandbox-lock \
-	check run snapshot eval up worker-up down
+	check check-ci run snapshot eval up worker-up down
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' Makefile | awk -F ':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -103,4 +103,6 @@ sandbox-lock: ## Re-lock the sandbox image's packages (hashes, all platforms) af
 		--python-version 3.12 --exclude-newer $(SANDBOX_EXCLUDE_NEWER) --no-header --quiet \
 		-o requirements-tabular.lock
 
-check: lint typecheck test secrets ## Everything that must pass before a PR
+check: lint typecheck test secrets ## Full validation including explicit full-history secret scan
+
+check-ci: lint typecheck test ## Full non-live regression suite; required gitleaks job scans PR/push secrets

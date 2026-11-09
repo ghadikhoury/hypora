@@ -13,7 +13,7 @@
 ### 0.1 Structure
 - The build is divided into **Stages 0–6**. Each stage contains **steps**. **Every step is exactly one pull request.** An agent may be assigned a whole part, stream, or list of steps in one prompt, and still opens one reviewed PR per step (`AGENTS.md`, "Working through a part"; D-029).
 - Active future step IDs look like `S3.2` (Stage 3, step 2). Historical stream IDs map through Appendix A. The PR branch name is given with each step.
-- Each step lists: what to build, dependencies, which spec sections apply, and **"Done when"** acceptance criteria. A step is not done until every criterion is met and CI is green.
+- Each step lists: what to build, dependencies, which spec sections apply, and **"Done when"** acceptance criteria. A step is not done until every criterion is met and the applicable required GitHub statuses are green.
 
 ### 0.2 Labels
 
@@ -104,8 +104,8 @@ Rules:
 
 **Stack (spec §22):** Python 3.12 (pinned), `uv` for dependency management with a committed lockfile, FastAPI, Pydantic v2, SQLAlchemy 2 + Alembic (SQLite), official MCP Python SDK, Docker, pytest, ruff, mypy (strict on `core/`), React + TypeScript + Vite for `web/`.
 
-**Repository delivery policy:** `AGENTS.md` owns Definition of Done, the PR template,
-author checks, independent review, reviewed-commit CI requirements, live-run authorization and
+**Repository delivery policy (D-037):** `AGENTS.md` owns Definition of Done, the PR template,
+proportionate docs-only routing, author checks, independent review, reviewed-commit CI requirements, live-run authorization and
 stacking rules. Follow those procedures without duplicating full local/CI runs. This plan owns
 product scope, dependencies and acceptance criteria. A product step cannot waive security,
 secret scanning, grading or owner-approval requirements.

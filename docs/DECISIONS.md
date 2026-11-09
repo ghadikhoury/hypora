@@ -861,3 +861,30 @@ results remain intact. D-028's existing deferrals remain and additional families
   schemas, MCP signatures, runtime prompts and config remain unchanged until their concrete changes
   are reviewed and any existing stop-trigger approval is obtained. Source contracts must be changed
   before regenerating generated documentation. Historical records are never relabeled as A/B/C runs.
+
+
+## D-037 — Fast prose PRs, unchanged code regression coverage, minimal live runs
+
+**Date:** 2026-11-08. **Owner:** Ghadi explicitly approved implementation and validation of the
+one-time CI setup PR. Supersedes conflicting per-PR validation text in D-013/D-022/D-023/D-029/D-034.
+
+Genuine docs-only PRs and main pushes skip make/pytest/Docker/dependency setup. A lightweight
+classification status retains the protected `make check` name; `gitleaks` stays required. Runtime
+prompts, unknown Markdown, non-Markdown, mode changes, renamed code and uncertain metadata retain
+full non-live tests. No global protection weakening or workflow path filter leaving checks pending.
+
+Code PRs and code main pushes retain the existing full regression coverage. The owner declined
+moving it to a nightly schedule. CI installs pinned dependencies without commit hooks, caches the
+exact sandbox image before tests and uses `make check-ci`. Incremental secret scanning plus the
+existing daily/manual full-history scan replace the duplicate full-history scan inside each CI job.
+The explicit `make check` and `make secrets` commands remain available for approved history audits.
+
+Local work uses affected tests, including required security/WSL boundaries, and reuses valid
+lint/type results for the same tree. Full local pytest/make check requires explicit run authorization.
+Docs require review only unless a concrete claim needs a check. Independent review overlaps CI,
+delta reviews and nonblocking nits remain, and coherent steps include their own prompts/wiring.
+
+Restore the accidentally removed Live runs subsection in AGENTS.md. Scripted models are default;
+live calls only resolve a specified unmet evidence need. Reuse valid results, debug affected cases,
+and collect full readiness/final evidence only at planned gates. No unnecessary agent/model sweeps.
+No recorded result, grader, sandbox policy, tool contract or course minimum is changed here.

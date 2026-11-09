@@ -1,21 +1,28 @@
 # CI and secret scanning (S0.1)
 
-**Three layers, same gitleaks version (8.30.1):**
+**Validation and secret scanning are separate (D-037).** The required `make check` status
+classifies the actual change. Genuine prose-only changes skip dependency setup, make/pytest and
+Docker. Other changes keep full non-live regression on PRs and main pushes through `make check-ci`.
+Missing/ambiguous metadata, runtime prompts, unknown paths and mixed changes require full validation.
+The required status name stays stable for branch protection; no global exemption is needed.
 
-| Layer | When | Scope |
+| Secret scan | When | Scope |
 |---|---|---|
-| pre-commit hook (`.pre-commit-config.yaml`) | every local commit | staged changes |
-| `make secrets` (Docker, image pinned by digest) | `make check`: locally before every PR, and in the CI `make check` job | full git history |
-| official `gitleaks/gitleaks-action` (`.github/workflows/gitleaks.yml`) | PR, push to `main`, daily, manual | see below |
+| Local pre-commit | Each commit | Staged changes |
+| Required gitleaks action | PR and main push | Event's new commit range |
+| Existing scheduled/manual gitleaks | Daily or explicit dispatch | Full history |
+| `make secrets` | Explicit history audit | Full reachable history, verified by wrapper below |
 
-**Why the action's scope depends on the event.** The action builds its gitleaks command from
-`GITHUB_EVENT_NAME` (`src/gitleaks.js` at v3.0.0). For `pull_request` and `push` it scans only the new
-commits (`--log-opts=<base>^..<head>`); for `workflow_dispatch` and `schedule` it passes no range and
-scans the **full history**. The workflow therefore enables all four events: PRs and pushes get a fast
-incremental scan, and the daily schedule (or a manual run: `gh workflow run gitleaks.yml`) re-scans the
-entire history with the official action, including commits that predate the workflow. Every CI run
-also scans the full history through `make check` → `make secrets`, so a PR can't merge with a leak
-anywhere in history even between scheduled runs.
+CI no longer runs a duplicate full-history scan inside every `make check` job. The existing
+daily full-history secret scan remains; there is no new scheduled full pytest/regression suite.
+Historical leaks outside the changed range are detected by scheduled/manual audits rather than
+every PR. A new leak still blocks the required PR scan.
+
+CI uses `uv sync --locked` without installing development commit hooks. Dependency caching is
+provided by setup-uv; the Docker image is cached by runner OS/architecture and exact build inputs.
+Images are exported immediately after the platform prepares them, before tests/trial code execute.
+The normal content-hash tag is checked on load and missing images are built normally. Cache misses
+do not skip tests, and an unreadable cache fails validation rather than producing a false pass.
 
 **Hardening choices (public repo):**
 - Every action is pinned to a full commit SHA (tag in a comment), so a moved tag can't change CI.
