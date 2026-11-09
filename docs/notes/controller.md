@@ -1,5 +1,9 @@
 # Controller v1, single agent, verifier v1, reporter v1 (S1.5)
 
+> Implementation reference for the existing system. The target A/B/C ownership and permissions
+> are in spec §§5–9 (D-036); legacy roles/config names here are not the new runtime implementation.
+> Former roadmap IDs map through PLAN Appendix A.
+
 Spec: sections 5, 6.8, 6.9, 8.6, 15.1. Decisions: D-019 (this step), D-005 (stage alongside
 status), D-018 (MCP sessions). Packages: `hypora/core/controller/` (state machine, limits,
 Stage-1 contract, local processes, the run), `hypora/core/roles/` (intake, single agent,
@@ -36,12 +40,11 @@ user's objective.
 The state machine is the explicit table `states.TRANSITIONS: (state, event) -> state`; a pair
 not in the table is refused. Each applied row updates `runs.status` and appends its
 `stage_transition` event in one transaction. Any failure before the report is an `error` event and
-a `fail` row into `REPORT`, so every run still gets a report that says what happened. S4.1 adds
-Phase A, the join, the plan gate, and the Supervisor as new rows, not a rewrite.
+a `fail` row into `REPORT`, so every run still gets a report that says what happened. S3.1 introduces the A/B/C loop; S3.3 adds methodology decisions and S3.5 adds the interactive approval gate.
 
 ## Stage-1 placeholders (D-019 1a, 2a)
 
-Until the Data Lead (S3.A2) and the plan + budget gate (S3.D2) exist:
+Until C's data planning (S3.3) and the plan + budget gate (S3.5) exist:
 
 - **Data contract:** every column except the target and the user's forbidden columns (excluded
   with evidence `task_spec:v1`); stratified split for classification, random for regression;
@@ -109,7 +112,7 @@ training/scoring IDs and training classes, all with scikit-learn called directly
 is unchanged and its predict stage completed), and each stage's effective limits against the
 submitted job's limits. Validation, final refit, and test prediction use those same limits. The
 learned-transform leakage
-check is `skipped` until verifier v2 (S3.C4). The verdict is stored with the test result
+check is `skipped` until the affected verification is implemented in S3.5. The verdict is stored with the test result
 (`results.verification_json`) and the trial becomes `verified` or `verification_failed`.
 
 ## Reporter v1 (D-019 4a)

@@ -111,7 +111,7 @@ in `/`.
 - on Windows, the shared Docker Desktop VM.
 
 Hardening options for later: rootless Docker, a custom seccomp/AppArmor profile, gVisor or
-microVMs. S3.D4's threat model expands on this.
+microVMs. S3.5's threat model expands on this.
 
 ## Telling an OOM kill from other kills (S2.0)
 
@@ -222,7 +222,7 @@ affected, and Ghadi's machine is not one.
   `job_transition` event is written **in the same transaction**, so replay rebuilds job states from
   events alone.
 - **`enqueue`:** DRAFT → VALIDATING → AWAITING_APPROVAL → QUEUED, idempotent per
-  `idempotency_key`. The approval itself is S3.D2's; `approval_ref` is recorded.
+  `idempotency_key`. The approval itself is S3.5's; `approval_ref` is recorded.
 - **`lease`:** one atomic `UPDATE … WHERE id = (oldest QUEUED job that fits the worker's free
   CPU/GPU/memory) AND status = 'QUEUED' … RETURNING`. Two workers can never lease the same job;
   tested with 6 threads and 4 processes. Job IDs are time-ordered, so "lowest ID" means oldest.
@@ -233,7 +233,7 @@ affected, and Ghadi's machine is not one.
 - **`complete` / `fail`:** by the lease holder only. A retryable failure is requeued while attempts
   remain (`max_attempts`), whether it happened while RUNNING or before the sandbox started
   (LEASED → QUEUED); otherwise the job goes to `FAILED_TERMINAL`. Backoff per error class,
-  idempotent duplicate completions, and crash detection are S3.E2.
+  idempotent duplicate completions, and crash detection are Later durability work.
 
 ## The worker (`hypora/execution/worker/`)
 

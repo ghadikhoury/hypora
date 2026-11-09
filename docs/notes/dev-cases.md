@@ -1,5 +1,8 @@
 # Tabular dev cases and calibration (S2.5)
 
+> Stage 1/2 evidence and procedures. Preserve original model/config identities and results.
+> Current implementation priorities and future evaluation runs are defined in PLAN (D-036).
+
 Spec sections 19.2 and 5.2; PLAN S2.5; profiling follow-up D-011. Definitions, source IDs, generation
 commands, budgets, and pass rules: hypora/evaluation/cases/dev/README.md.
 

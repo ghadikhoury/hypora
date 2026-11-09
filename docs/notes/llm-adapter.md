@@ -1,5 +1,9 @@
 # LLM provider adapter (S0.5)
 
+> Implementation reference for the existing system. The target A/B/C ownership and permissions
+> are in spec §§5–9 (D-036); legacy roles/config names here are not the new runtime implementation.
+> Former roadmap IDs map through PLAN Appendix A.
+
 Package: `hypora/core/llm/`. Every model call in Hypora goes through
 `LLMAdapter.complete(messages, tier=..., context=..., tools=..., output_schema=...)`.
 
@@ -110,7 +114,7 @@ recorded.
   even for a hand-built config (tested), because a recorded run must not mix models.
 - Both attempts are recorded: the primary's failure (`status=error`), then the fallback call with
   `fallback_used=true` and `fallback_from={provider, model_id, reason}`.
-- The repo's dev fallback is **disabled until S2.6** (D-007).
+- The repo's dev fallback is **disabled through the recorded S2.6 collection** (D-033); any enablement is an explicit later configuration change.
 
 ## Cost accounting
 
