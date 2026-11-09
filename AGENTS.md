@@ -12,9 +12,10 @@ through a part, read the shared sections once and then only what each new step a
 
 Hypora is an agent-powered autonomous ML engineering platform and the CIS 1990 (Designing LLM Agents,
 Penn) final project of Ghadi Khoury. A user provides a dataset and a plain-language objective; a
-deterministic controller coordinates LLM specialist agents that research alternatives and diagnose
-the data in parallel, recommend an evidence-backed strategy, and, after the user approves a plan and
-budget, run bounded experiments in sandboxed local workers. Platform code (never LLM code) owns data
+Agent A owns clarification, planning, delegation, review and reporting. Agent B performs read-only
+research, normally first. Agent C combines data methodology and coding and alone can request bounded
+workers. A may authorize independent B/C overlap. A deterministic runtime enforces approvals, budgets
+and sandboxed execution (D-036; spec §§5–9). Platform code (never LLM code) owns data
 splits, held-out labels, and metrics. Every step is recorded in an append-only event log.
 
 ## Where things live
@@ -27,14 +28,16 @@ splits, held-out labels, and metrics. Every step is recorded in an append-only e
 | Design notes per step | `docs/notes/` |
 | Frozen schemas and MCP tool contract (generated; never hand-edit) | `docs/schemas/`, `docs/mcp/tools.json` |
 
-`AGENTS.md` summarizes the working rules in `docs/PLAN.md`; keep shared rules consistent.
+`docs/PLAN.md` owns product steps, scope, model policy and dependencies. This file owns the detailed
+repository implementation/review procedure. The product A/B/C role names never grant repository
+merge permissions. Keep short summaries linked to the authoritative section.
 
 ## Team and workflow
 
 | Who | Does | Never does |
 |---|---|---|
 | **Ghadi** (project owner) | Assigns a part, stream, or step to each agent and handles every 🧑 item | Relay PRs between agents or review each PR (D-029) |
-| **Coding Agent A**, **Coding Agent B** | Implement steps, one PR per step, often in parallel on different steps | Push to `main`, merge their own PR, edit the other agent's branches |
+| **Repository implementers** | Implement steps, one PR per step, often in parallel on different steps | Push to `main`, merge their own PR, edit the other agent's branches |
 | **Reviewer** (separate agent) | Reviews every PR with comments, starting as soon as it opens (no waiting for CI); merges once the review passes and every required check is green on the reviewed commit ("Reviewer flow" below) | Write or push code; merge on a red or pending check |
 
 - **One step = one PR.** Use the step ID, branch name, and scope exactly as written in `docs/PLAN.md`.
@@ -47,7 +50,7 @@ splits, held-out labels, and metrics. Every step is recorded in an append-only e
   force-push; D-013).
 - **Parallel work (D-025):** prefer running independent steps at the same time across Agent A and
   Agent B; no agent sits idle waiting on another PR's checks when an independent step is available.
-  Steps in the same group of `docs/PLAN.md` Appendix B may always run together. Stay inside your
+  Independent steps listed in `docs/PLAN.md` Appendix B may run together after their prerequisites merge. Stay inside your
   step's directories. If you must touch a shared file (`hypora/core/schemas/`, `configs/flags.yaml`, tool
   registries), keep the change minimal, rebase on `main` right before opening the PR, and resolve
   conflicts without overwriting the other agent's work.
@@ -66,7 +69,7 @@ splits, held-out labels, and metrics. Every step is recorded in an append-only e
 
 ### Working through a part (D-029)
 
-Ghadi may assign a whole part (`S2`), stream (`S3.C`), or list of steps in one prompt:
+Ghadi may assign a whole part (`S2`), step group (`S3.2` and `S3.3`), or list of steps in one prompt:
 
 > You are Coding Agent A. Work through S2.1, S2.2, S2.5, and S2.6 in order, following "Working through
 > a part" in AGENTS.md. Stop only for 🧑 items and stop-and-ask triggers.
@@ -131,12 +134,12 @@ Comment the old and new head commits on the PR so the Reviewer can compare them.
 
 "Sub-agents" here means **extra coding agents that an implementing agent launches to write this
 repository's code faster** (for example, Claude Code's subagents). They are a development tool only.
-They are not Hypora's product agents (Leads, worker agents, the Supervisor), and they change nothing in
+They are distinct from Hypora's product Agents A/B/C and C's workers, and they change nothing in
 the spec, the product's agent roles, or this team's roles.
 
 **Use them only for parallel steps.** When two or more of your assigned steps are ready at the same
 time, launch one sub-agent per step, as many as there are such steps. Steps qualify when both hold:
-- `docs/PLAN.md` allows them together: same `⇉ PARALLEL` group, different Stage 3 streams, or S2.1
+- `docs/PLAN.md` allows them together: same `⇉ PARALLEL` group or an explicitly independent pair in PLAN Appendix B, or historical S2.1
   alongside the `S2-prep` steps.
 - Each step's dependencies have merged, or it may stack under "Working through a part".
 
@@ -349,38 +352,10 @@ Everything else proceeds without asking.
 
 Spec §17 and §19.2 state the same rule.
 
-## Model policy (PLAN.md §1)
+## Model policy and evaluation
 
-Two model profiles live in `configs/models.yaml`:
-
-| Profile | Primary | Fallback | Used for |
-|---|---|---|---|
-| `dev` | Gemini (free tier) for all tiers (`lead`, `worker`, `cheap`): `gemini-3.5-flash-lite` (D-007) | OpenAI (same tier mapping as `eval`) on rate-limit (429), quota, or 5xx after bounded retries; **kept disabled for S2.6** (D-033) | All development, debugging, unrecorded test runs |
-| `eval` | **Pinned exact model IDs** per tier, fixed temperature (or "not configurable"); temporarily `openai/gpt-6-luna` on every tier at S2.6 (D-033); reselect by D-007 after Stage 3 data planning | **None — fallback disabled** | Every **recorded** evaluation: the first recorded dev eval (S2.6), all Stage 4–5 recorded runs, and the demo |
-
-- Every model call records provider, model ID, profile, and whether a fallback occurred.
-- **Recorded runs never mix models.** In `eval`, a provider failure is retried with backoff and then
-  recorded as a failure, never silently swapped.
-- **Stage gates (D-016, D-029):** S1.7 ran on `dev`; matching `eval` evidence is added at S2.6
-  when the eval model is pinned. S2.6 runs the dev case set on **both** profiles and commits both
-  result sets. S3.Z and S4.3 commit `eval` results; `dev` stays free for debugging.
-- Changing the `eval` profile after S2.6 invalidates recorded results; it requires
-  `🧑 HUMAN · DECIDE` and a re-run of affected evals.
-- Development uses public datasets (Gemini free-tier data-use terms), subject to the Real-data
-  rule above; synthetic data is limited to unit tests and trap-planting scripts on real datasets.
-- Dev results on Flash-Lite answer "does the system work", not "how good is Hypora" (D-007).
-- The adapter enforces each model's published rate limits from `configs/models.yaml` and stops
-  cleanly at the daily cap; every model's price lives in `configs/prices.yaml` (source + date).
-
-### Live runs (D-029)
-
-- **Default to no provider calls.** Test agent behavior with scripted models (`tests/controller/scripted.py`).
-- **Free `dev` runs need no extra approval** when a step's "Done when" requires one, or when a prompt
-  or a role's model-facing behavior changed and scripted tests can't show the result. Use the
-  smallest task that proves the point. Reuse valid evidence when inputs and relevant behavior have
-  not changed; do not repeat a live run just because a review fix left model-facing behavior unchanged.
-- **Agents share the daily free-tier cap** (about 11 single-agent runs a day). Re-run the failing case
-  and one control after a fix, not the whole set; run the full set once when the fixes are in.
-- **Paid calls:** none before S2.6 without Ghadi's go. After that, ask before anything expected to
-  cost about $1 or more unless Ghadi already authorized that scope and budget in the session.
-  Trigger 6 still applies above $5 per run unless already authorized.
+The `dev` and `eval` profiles are specified in `docs/PLAN.md` §1, which is authoritative for profiles, pinned model IDs, fallback, recorded evidence and
+model changes. Spec §§17–20 define the evaluation and course evidence. D-033 records the temporary
+Stage 2 Luna lock; D-036 sets the next single readiness collection at S4.2. Do not repeat full dev
+evaluations at every step or treat existing inactive flags as working features. Run live calls only
+under the "Live runs" authorization rules above. Never mix models inside recorded eval results.

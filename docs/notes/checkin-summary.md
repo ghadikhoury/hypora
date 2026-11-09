@@ -1,5 +1,8 @@
 # Stage 2 check-in material
 
+> Stage 1/2 evidence and procedures. Preserve original model/config identities and results.
+> Current implementation priorities and future evaluation runs are defined in PLAN (D-036).
+
 Prepared for Ghadi to adapt and submit; the agent has not recorded or submitted the course check-in.
 
 ## What works

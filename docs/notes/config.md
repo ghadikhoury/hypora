@@ -1,5 +1,9 @@
 # Configuration and feature flags (S0.4)
 
+> Implementation reference for the existing system. The target A/B/C ownership and permissions
+> are in spec §§5–9 (D-036); legacy roles/config names here are not the new runtime implementation.
+> Former roadmap IDs map through PLAN Appendix A.
+
 **Layout.** `configs/` (spec §22.1) holds the configuration *data*; `hypora/core/config/` is the
 *loader* that validates it. The spec layout has no loader package; it lives under `core/` like the
 other runtime code (same reasoning as D-001).
@@ -70,7 +74,6 @@ increase scheduler capacity or round a small positive override to zero.
 nothing can change after `build()`. It records the effective flags, both model profiles, budgets,
 resolved pools, and detected hardware; `hash` is its canonical-JSON SHA-256.
 
-**Provisional values.** S0.5 set the dev model IDs (D-007); the eval IDs stay `placeholder-*`
-until S2.6 `🧑 DECIDE`. `configs/prices.yaml` is not a settings section: the LLM adapter loads it
+**Provisional values.** S0.5 set the dev model IDs (D-007); S2.6 pinned eval to Luna temporarily (D-033). S4.2 revisits that decision after data planning works. `configs/prices.yaml` is not a settings section: the LLM adapter loads it
 (`hypora.core.llm.pricing`, see llm-adapter.md).
-Budgets and worker limits are placeholders for S4.2 `🧑 DECIDE`.
+Existing budget settings remain active until an approved change. A/B/C worker-limit and ordering mappings are implemented in S3.1/S3.4 and confirmed at S4.2.

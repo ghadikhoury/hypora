@@ -1,5 +1,8 @@
 # Cost and token estimate (S1.7)
 
+> Stage 1/2 evidence and procedures. Preserve original model/config identities and results.
+> Current implementation priorities and future evaluation runs are defined in PLAN (D-036).
+
 Spec: §16 (cost and latency), §17 (providers), §19.5 (cost per task). Plan: S1.7, §1 model policy.
 Decisions: D-007 (dev model; eval model chosen at S2.6), D-016 (S1.7 on dev), D-027 (one-off
 gpt-6-luna smoke comparison). Evidence: `results/stage1/` (per-run records, reports, summary).
@@ -109,8 +112,7 @@ price applies to them.
 ## What ~500 recorded runs would take
 
 - **Shape of these runs.** Stage 1 runs are single-agent, tabular, about 1,000 rows. The full
-  graph (S4.1) adds Intake, Research and Data leads with parallel workers, trial workers, a
-  Reviewer, and the Supervisor, so a recorded multi-agent run will make more model calls than
+  graph (S3.1–S3.5) adds A/B/C and optional C workers, so a recorded multi-agent run can make more model calls than
   these. **Treat the per-run figures above as a floor** and re-measure at the Stage 2 gate (S2.6),
   where the dev case set runs on both profiles.
 - **Planning range from these measurements** (500 runs × per-run cost): about $8–38 on
@@ -153,7 +155,7 @@ differently enough on another model to matter for the recorded evaluation.
 
 One free `dev` run on 2026-11-06, through `make run` on the same credit-g snapshot as S1.7 (same
 SHA-256). Its record is not committed, and it checks that the change works; it is not an evaluation.
-Actual spend was $0. The Luna column is the D-027 run: a Luna re-run is paid, so S2.6 measures that.
+Actual spend was $0. The Luna column is the D-027 run: a Luna re-run is paid, so S2.6 provides the later measured comparison.
 
 | credit-g | Flash-Lite, `single_agent@v1` (S1.7) | Flash-Lite, `single_agent@v2` (S2.0b) | Luna, `single_agent@v1` (D-027) |
 |---|---|---|---|
@@ -181,14 +183,14 @@ Actual spend was $0. The Luna column is the D-027 run: a Luna re-run is paid, so
 
 ## Follow-ups (recommendations, not made here)
 
-- **Status polling: done in S2.0b (D-030).** S3.C2's trial workers get the same status tool, and
+- **Status polling: done in S2.0b (D-030).** S3.4's trial workers get the same status tool, and
   need the same guard check during a wait (`_call_watching_limits`).
 - **The 1M-token run limit.** The run guard counts input plus output tokens, cached included.
   Both Luna runs hit the limit, and Gemini fish-toxicity used 994,369 of the 1,000,000 (99.4%).
   The default budgets are provisional until S4.2 (`🧑 HUMAN · DECIDE`), which should set the
   token limit with these numbers in hand and decide whether cached tokens count toward it.
-- **Re-measure at S2.6.** The Stage 2 gate runs the dev case set on both profiles; its records
-  replace these per-run figures for budgeting.
+- **Later measurements.** S2.6 committed both-profile results; use those records for Stage 2
+  budgeting. S4.2 collects the next readiness evidence for the implemented A/B/C graph.
 
 ## Reproduce
 

@@ -833,3 +833,31 @@ one it supersedes.
   these opaque deterministic hashes identify splits and are not credentials. Removing them would
   compromise recorded provenance. Real credential-pattern controls inside those paths and
   split-key-shaped controls outside them must still be detected.
+
+## D-036 — Three-agent product and shortest verified delivery path
+
+**Date:** 2026-11-08. **Owner:** Ghadi, explicit conversation approval of the final workflow and
+documentation/roadmap sweep. Supersedes the future topology in spec §§5–9, old S3/S4 stream ordering,
+and D-016/D-029's duplicate future development gates where inconsistent. Historical decisions and
+results remain intact. D-028's existing deferrals remain and additional families are also Later.
+
+- A owns user intent, plan, fixed main-role delegation to B/C, reconciliation, result review,
+  reporting and next-action decisions. No separate product intake, supervisor, reviewer or reporter
+  is required in the target graph.
+- B researches read-only, usually first; A may authorize genuinely independent B/C overlap.
+- C combines data methodology and coding. Only C requests additional workers. Runtime validates
+  scoped briefs, tools, aggregate budgets, isolation and cleanup. Workers cannot delegate. The
+  initial proposed worker ceiling is two; confirm concrete configuration before implementation.
+- Preserve deterministic enforcement, original data, training-only learned preprocessing,
+  platform-owned splits/metrics, approvals, accounting, secret protections and honest limitations.
+- Stages 0–2 are complete through PR #32. Build a minimal integrated loop first, then useful research,
+  data decisions, bounded workers and approval hardening. Reuse current components. Preserve single
+  mode for fair comparisons. The detailed migration steps replace future IDs, mapped in PLAN Appendix A.
+- One new full dev readiness collection at S4.2 replaces S3.Z plus repeated integration gates.
+  Targeted tests and specific live failure/control checks serve iteration. Reuse equivalent frozen
+  run arms, consolidate evidence PRs, and defer optional studies. Existing course minima, security
+  tests, frozen grading rules and independent repository review/CI are retained.
+- This is a documentation decision, not an implementation migration. Existing enums, generated
+  schemas, MCP signatures, runtime prompts and config remain unchanged until their concrete changes
+  are reviewed and any existing stop-trigger approval is obtained. Source contracts must be changed
+  before regenerating generated documentation. Historical records are never relabeled as A/B/C runs.

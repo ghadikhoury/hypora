@@ -1,13 +1,21 @@
 # Hypora
 
-An agent-powered autonomous ML engineering platform (CIS 1990 final project). You give it a
-dataset and a plain-language goal; a deterministic controller coordinates an LLM agent that runs
-bounded experiments in sandboxed containers on your machine, and platform code (never the LLM)
-splits the data, holds out the test labels, scores, and verifies the result.
+An agent-powered ML engineering platform for research datasets (CIS 1990 final project).
+Provide a dataset, objective and constraints; Hypora runs bounded experiments and returns measured
+results with reproducible artifacts and limitations.
 
-The design is in [docs/PROJECT_SPEC.md](docs/PROJECT_SPEC.md), the build plan in
-[docs/PLAN.md](docs/PLAN.md), and how to work in this repository in [AGENTS.md](AGENTS.md).
-Stage 1 (walking skeleton) runs one tabular task end to end with a single agent.
+**Implemented:** the tabular single-agent pipeline and Stage 2 evaluation harness through PR #32.
+The recorded six-case dev comparison passed 3/6 agent cases versus 2/6 fixed-baseline cases on each
+profile; the comparison is inconclusive. Grouping, leakage and temporal methodology remain known gaps.
+
+**Next product architecture (D-036):** A leads planning, delegation, review and reporting; B performs
+read-only research, usually first; C owns data and coding and alone may request workers. Code enforces
+approvals, budgets, isolation, splits and scoring. A can justify independent B/C overlap. This is the
+implementation target; current single-agent runs remain the comparison system.
+
+Read [the spec](docs/PROJECT_SPEC.md) for behavior, [the plan](docs/PLAN.md) for current steps and
+dependencies, and [AGENTS.md](AGENTS.md) for repository contribution/review procedures. Component guides
+live under `docs/notes/`; historical notes and results describe the version that produced them.
 
 ## Requirements
 
@@ -96,7 +104,7 @@ The first dev cases are added in S2.5; an empty case set is refused before calls
 ## The Docker Compose stack (Mode 1)
 
 ```bash
-make up            # API placeholder: http://127.0.0.1:8000/health (the real API is S3.G1)
+make up            # API placeholder: http://127.0.0.1:8000/health (the real API is Later work)
 make worker-up     # optional: the experiment worker as a compose service
 make down
 ```

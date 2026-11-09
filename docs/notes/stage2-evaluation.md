@@ -1,5 +1,8 @@
 # Stage 2 collection (S2.6)
 
+> Stage 1/2 evidence and procedures. Preserve original model/config identities and results.
+> Current implementation priorities and future evaluation runs are defined in PLAN (D-036).
+
 The temporary `eval` model is `openai/gpt-6-luna` on every tier, temperature not configurable,
 no fallback (D-033). Dev remains Gemini Flash-Lite on its free tier with no fallback. This is an
 owner-approved temporary lock, not a claim that Luna won D-007's eligibility-gated comparison.

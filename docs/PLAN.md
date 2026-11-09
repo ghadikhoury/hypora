@@ -12,7 +12,7 @@
 
 ### 0.1 Structure
 - The build is divided into **Stages 0–6**. Each stage contains **steps**. **Every step is exactly one pull request.** An agent may be assigned a whole part, stream, or list of steps in one prompt, and still opens one reviewed PR per step (`AGENTS.md`, "Working through a part"; D-029).
-- Step IDs look like `S3.B2` (Stage 3, stream B, step 2). The PR branch name is given with each step.
+- Active future step IDs look like `S3.2` (Stage 3, step 2). Historical stream IDs map through Appendix A. The PR branch name is given with each step.
 - Each step lists: what to build, dependencies, which spec sections apply, and **"Done when"** acceptance criteria. A step is not done until every criterion is met and CI is green.
 
 ### 0.2 Labels
@@ -87,15 +87,15 @@ Two model **profiles** live in `configs/models.yaml`:
 | Profile | Primary | Fallback | Used for |
 |---|---|---|---|
 | `dev` | Gemini (free tier) for all tiers (`lead`, `worker`, `cheap`): `gemini-3.5-flash-lite` (D-007) | OpenAI (same tier mapping as `eval`) on rate-limit (429), quota, or 5xx after bounded retries; **kept disabled for S2.6** (D-033) | All development, debugging, unrecorded test runs |
-| `eval` | **Pinned exact model IDs** per tier, fixed temperature (or "not configurable"); temporarily `openai/gpt-6-luna` on every tier at S2.6 (D-033); reselect by D-007 after Stage 3 data planning | **None — fallback disabled** | Every **recorded** evaluation: the first recorded dev eval (S2.6), all Stage 4–5 recorded runs, and the demo |
+| `eval` | **Pinned exact model IDs** per tier, fixed temperature (or "not configurable"); temporarily `openai/gpt-6-luna` on every tier at S2.6 (D-033); reselect by D-007 at S4.2 after Stage 3 data planning | **None — fallback disabled** | Every **recorded** evaluation: the first recorded dev eval (S2.6), all Stage 4–5 recorded runs, and the demo |
 
 Rules:
 - Every model call records provider, model ID, profile, and whether a fallback occurred (event log, spec §15.1).
 - **Recorded runs never mix models.** In the `eval` profile, a provider failure is retried with backoff and then recorded as a failure — never silently swapped.
-- **Stage gates (D-016, D-029):** S1.7 ran its smoke tasks on `dev`; matching `eval` evidence is added at S2.6 after the eval model is pinned. S2.6 runs the dev case set on **both** profiles and commits both result sets, catching profile-specific behavior differences. S3.Z and S4.3 commit `eval` results; `dev` stays free for debugging.
+- **Stage gates (D-016, D-029):** S1.7 ran its smoke tasks on `dev`; matching `eval` evidence is added at S2.6 after the eval model is pinned. S2.6 runs the dev case set on **both** profiles and commits both result sets, catching profile-specific behavior differences. S4.2 commits the single new readiness `eval` result set; `dev` stays free for debugging.
 - **Live runs (D-029):** scripted models by default; see `AGENTS.md`, "Live runs".
 - Changing the `eval` profile after S2.6 invalidates recorded results; it requires `🧑 HUMAN · DECIDE` and a re-run of affected evals.
-- **Model selection (D-007):** S2.6 temporarily locks `eval` to Luna under D-033; repeat selection after Stage 3 data planning using measured cost per passed trap (`docs/DECISIONS.md` D-007).
+- **Model selection (D-007):** S2.6 temporarily locks `eval` to Luna under D-033; repeat selection at S4.2 after Stage 3 data planning using measured cost per passed trap (`docs/DECISIONS.md` D-007).
 - The two providers also serve as the "two models" required for the F5 MCP evaluation (S5.3).
 
 ---
@@ -104,46 +104,11 @@ Rules:
 
 **Stack (spec §22):** Python 3.12 (pinned), `uv` for dependency management with a committed lockfile, FastAPI, Pydantic v2, SQLAlchemy 2 + Alembic (SQLite), official MCP Python SDK, Docker, pytest, ruff, mypy (strict on `core/`), React + TypeScript + Vite for `web/`.
 
-**Definition of Done for every PR:**
-- Implements exactly the step's scope; references the step ID and spec sections in the PR description.
-- Unit tests for new logic; integration tests where a step crosses a process/container boundary.
-- `ruff`, `mypy`, `pytest`, and secret scanning pass in CI.
-- New behavior that an evaluation must compare is behind a **feature flag** (spec §19.4).
-- Every model call, tool call, state transition, and policy decision emits an **event** (spec §15.1).
-- No credentials, raw private data, or large artifacts committed.
-- Public functions have docstrings; non-obvious decisions get a short note in `docs/notes/`.
-
-**PR description template** (`.github/pull_request_template.md`):
-```
-Step: S?.? — <title>
-Stacked on: none | #<parent PR>. Do not merge before it.
-Spec: §…
-What changed:
-Why:
-How it was tested:
-Feature flags added/changed:
-Human items: none | <label + what is needed>
-Explain-it check: 3 questions a TA might ask about this PR, with short answers
-```
-The "explain-it check" exists so Ghadi can verify his understanding of every merged PR before the demo.
-
-**Local and CI checks (D-034):** For code changes, run relevant local tests, lint and types before
-opening a PR and after review fixes. Include affected security, sandbox, cross-process and explicitly
-required WSL-specific tests; docs-only changes run the tests that read the changed files. The full
-`make check` runs in CI, not locally. If a full local run appears necessary, explain why and obtain
-Ghadi's explicit authorization for that run first. Every PR still requires the full `make check` and
-`gitleaks` CI checks on the reviewed commit. This changes no step's evaluation evidence, explicit platform-specific
-test, security approval, or merge requirement. See `AGENTS.md` for the detailed policy.
-
-**Proportionate author checks and coordination (D-034):** Authors self-check changed behavior and
-all changed paths; high-impact, security, frozen-contract, grading and `🔍 REVIEW FOCUS` work also
-gets a fresh-context whole-diff author pass. The separate Reviewer still reviews every first diff in
-full and re-reviews deltas. Use notifications or reasonable polling, not duplicate monitors; reuse
-valid live evidence when relevant behavior and inputs are unchanged. Independent steps may run in
-parallel; stacking requires Ghadi's explicit authorization. This does not relax stop triggers,
-step-specific acceptance criteria, or the reviewed-head CI merge gate.
-
-**Review flow (D-024, D-026):** coding agent opens PR → AI reviewer (a different model/tool from the author) reviews the diff immediately → required CI green on the reviewed commit → merge. Reviewers rely on CI for full validation and run a targeted test only to verify a specific claim; see `AGENTS.md` for the procedure, including stacked PRs (D-029). There is no human merge approval.
+**Repository delivery policy:** `AGENTS.md` owns Definition of Done, the PR template,
+author checks, independent review, reviewed-commit CI requirements, live-run authorization and
+stacking rules. Follow those procedures without duplicating full local/CI runs. This plan owns
+product scope, dependencies and acceptance criteria. A product step cannot waive security,
+secret scanning, grading or owner-approval requirements.
 
 ---
 
@@ -154,37 +119,35 @@ step-specific acceptance criteria, or the reviewed-head CI merge gate.
 | Oct 25 | Proposal | (done outside this plan) |
 | **Nov 4** | Check-in: repo commit, video, one-page update, ≥ 3 dev cases with grading rules | **Stages 0–2 merged** |
 | Nov 13 | Last date for instructor-approved feature changes | Feature list confirmed (D-028) |
-| Nov 23 (target) | Test set frozen (S5.1) | Stages 2–4 merged; the Later track's durable and vision work must merge first to be in the evaluation |
-| **Dec 1** | Final submission (strict) | **Stages 0–6 merged** |
-| **Dec 2** | Private demo | S6.2 complete |
+| Nov 23 (target) | Test set frozen (S5.1) | Core release ready; include only implemented/verified families and selected features |
+| **Dec 1** | Final submission (strict) | **Core Stages 0–6 merged** |
+| **Dec 2** | Private demo | S6.1 complete |
 
 ---
 
-## 4. Stage overview and parallelism map
+## 4. Current status and delivery sequence (D-036)
 
+Stages 0–2 are implemented. S2.6 merged as PR #32 at `00bf7b4`; recorded development results
+are agent 3/6 versus fixed baseline 2/6 on each profile, inconclusive. Existing leakage, group
+and time-order failures are inputs to Stage 3, not reasons to rebuild the evaluation framework.
+Historical steps below retain their original IDs and acceptance criteria as implementation history.
+
+```text
+Completed: Stages 0–2, including recorded evaluation
+Stage 3: minimal A/B/C loop → useful research + data decisions → workers + approvals
+Stage 4: targeted hardening → one recorded readiness run → packaging
+Stage 5: freeze → required final comparisons → consolidated evidence
+Stage 6: write-up materials, demo and submission
+Later: additional families, elaborate retrieval, durability, web UI and optional comparisons
 ```
-Stage 0  Foundations            S0.1 → S0.2 → [S0.3 ⇉ S0.4 ⇉ S0.5]
-Stage 1  Walking skeleton       [S1.1 ⇉ S1.2 ⇉ S1.3] → S1.4 → S1.5 → S1.6 → S1.7
-Stage 2  Evaluation harness     [S2.0 ⇉ S2.0b] ⇉ S2.1 → [S2.2 ⇉ S2.3 ⇉ S2.4] → S2.5 → S2.6
-Stage 3  Parallel workstreams   A Data · B Research+RAG · C Experiment loop · D Safety ·
-                                E Scheduler · F Time series + experimental route ·
-                                H Planning+recovery · I Observability    (all ⇉, see §Stage 3)
-Stage 4  Integration            S4.1 → S4.2 → S4.3 → S4.4
-Stage 5  Evaluation & evidence  S5.1 → S5.2 → [S5.3a, b, c, d, f, g ⇉] → S5.4
-Stage 6  Write-up, demo, submit [S6.1 ⇉ S6.2] → S6.3   (S6.4 optional)
-Later    After the core         ⏸ Durable execution · Vision · Web app · Extra comparisons
-```
 
-**Suggested tracks (each cell is one prompt):**
+The first integrated A → B → A → C → A path is S3.1, not a late integration step.
+Each step is one coherent PR; no separate PR for each prompt or small internal helper. Independent
+assigned steps can proceed while review/CI runs, without stacking dependent work unless authorized.
+Agent A/B/C below always mean product roles. Repository implementers and the PR Reviewer are separate.
 
-| Stage | Agent A | Agent B |
-|---|---|---|
-| 2 | S2.1 → S2.2 → S2.5 → S2.6 | S2.0, S2.0b, then S2.3 and S2.4 once S2.1 merges |
-| 3 | Stream B, then A | Stream C, then D |
-| 3, as those finish | S3.E1, then H | F, then I |
-| 4 | S4.1 → S4.2 → S4.3 → S4.4 | S4.3 fix PRs once S4.1 merges (a separate fix from Agent A's); drafting S5.1's test cases |
-
----
+> Stages 0–2 below are completed implementation history. Past dates, role names and build-time
+> decisions explain the existing code. Active future work begins at Stage 3 under D-036.
 
 ## Stage 0 — Foundations
 
@@ -430,10 +393,10 @@ Done when: all cases validate; the baseline fails the trap cases it should fail 
 ### S2.6 — First recorded evaluation and model lock
 **PR:** `s2.6-first-eval` · `→ SERIAL` · **Depends on:** S2.5 · **Spec:** §17, §19.5
 `🧑 HUMAN · SECRET` — Before the comparison: add `OPENAI_API_KEY` to local `.env` and GitHub Actions secrets, fund the OpenAI account, and set its monthly spend limit; enable billing on the Hypora Google project only if the full-Flash candidate is compared (D-007).
-`🧑 HUMAN · DECIDE` — Fulfilled for this step by the temporary Luna lock and eligibility exception in D-033. Retain failures honestly; repeat D-007 selection after Stage 3 data planning, with approval before changing the pinned profile.
+`🧑 HUMAN · DECIDE` — Fulfilled for this step by the temporary Luna lock and eligibility exception in D-033. Retain failures honestly; repeat D-007 selection at S4.2 after Stage 3 data planning, with approval before changing the pinned profile.
 `🧑 HUMAN · COURSE` — Check-in (Nov 4): record a 30 s–2 min video of `hypora run` and `make eval`; submit the one-page update and the repo link at the merge commit of this step.
 
-D-033 records the owner-approved temporary Luna lock and $8 aggregate cap; the structural leakage/group failures remain failures. Repeat D-007 model selection after Stage 3 data planning. Existing model/key approvals need no reconfirmation.
+D-033 records the owner-approved temporary Luna lock and $8 aggregate cap; the structural leakage/group failures remain failures. Repeat D-007 model selection at S4.2 after Stage 3 data planning. Existing model/key approvals need no reconfirmation.
 
 Build: run the dev set on agent + baseline with the **`eval` profile** (first recorded eval) and with the `dev` profile; commit both result sets. After pinning the eval model, also run the same S1.7 smoke tasks and snapshots on `eval` and add the matching evidence under `results/stage1/` (D-016). Generate `docs/notes/checkin-summary.md` (what works, what is next, two biggest risks, dev-case pointers, first dev-eval date) as material for the update.
 
@@ -441,341 +404,209 @@ Done when: both result sets are committed with summaries; the `eval` profile mod
 
 ---
 
-## Stage 3 — Parallel workstreams
+## Stage 3 — Deliver the A/B/C workflow
 
-**Goal:** build every subsystem against the frozen contracts. Streams are independent; each has its own branch prefix and can be assigned to a separate coding agent.
+**Goal:** one lead A, read-only researcher B, combined data/coding lead C. Only C requests
+workers. Spec §§5–9 and D-036 govern the product. Reuse the existing CLI, tools, harness,
+sandbox, storage and runner. Source changes do not automatically require paid runs.
 
-**Parallelism rules for Stage 3:**
-- Every step in Stage 3 carries `⇉ PARALLEL · S3`. Any two steps from **different streams** may run simultaneously, subject to the listed dependencies.
-- Steps **within** a stream are serial in the order given, unless marked otherwise.
-- Streams touch separate directories; shared files (`core/schemas/`, `mcp_server/tools/__init__.py`, `configs/flags.yaml`) are modified only through small, separate PRs that rebase cleanly. A schema change triggers stop-and-ask (§0.3).
-- Recommended pairings for two simultaneous agents: **(B, C)** → **(A, D)** → **(S3.E1, F)** → **(H, I)**. S3.C3 and S3.C5 need S3.E1, so they wait for it.
-- Steps marked `⏸ LATER` are not part of the core (D-028; "Later track" below). Stream E's first step stays in the core.
+### S3.1 — Minimal integrated loop and compatibility
+**PR:** `s3.1-agent-loop` · `→ SERIAL` · Depends on merged S2.6 · **Spec:** §§5–6
+`🔍 REVIEW FOCUS` — Role permissions, context isolation, legacy config migration.
+Build A intake/planning/review/reporting; B read-only research interface; C data/code interface;
+distinct versioned prompts and isolated sessions; a deterministic controller that validates and
+executes A's decisions. Wire the existing CLI through A → B → A → C → A using current tools
+and explicit unavailable-tool responses. A is the only user-facing decision owner. Retain the
+single-agent baseline, old records and configs through explicit mappings. Proposed role/tool/schema
+changes must be listed concretely and approved under trigger 1 before implementation. D-036 approves
+the architecture, not unspecified signature or enum changes.
+Done when: a scripted end-to-end test traces all three roles, A reviews C's output and continues
+or reports, B cannot execute/spawn, only C can request workers, and old single-agent runs still work.
+No claim that research searches externally until S3.2 is implemented. No worker pool required yet. Emit a structured plan before the first tool action after role start
+(model calls needed to draft that plan may precede it). Implement the planning=off comparison arm
+without removing safety enforcement. Existing call/event accounting remains intact.
 
-| Stream | Directory focus | Depends on (before first step) |
-|---|---|---|
-| A Data & Methodology | `profiling/`, `core/roles/data_*` | Stage 2 |
-| B Research + RAG | `research/`, `core/roles/research_*` | Stage 2 |
-| C Experiment loop | `core/roles/training_*`, `trial_*`, `optimization_*`, `reviewer.py`, `core/verification/` | Stage 2 |
-| D Safety | `core/policy/`, `mcp_server/auth`, `execution/sandbox/` | Stage 2 |
-| E Runtime: scheduler (durability is `⏸ LATER`) | `core/scheduler/`, `execution/worker/`, `storage/` | Stage 2 |
-| F Families (vision is `⏸ LATER`) | `families/timeseries/`, `families/experimental/` | Stage 2 |
-| G API + Frontend (`⏸ LATER`) | `api/`, `web/` | Stage 2 |
-| H Planning + recovery | `core/roles/` (plan logic), `core/controller/` (error handling) | Stage 2 |
-| I Observability | `core/observability/`, `scripts/trace_*` | Stage 2 |
+### S3.2 — Useful read-only research
+**PR:** `s3.2-research` · `⇉ PARALLEL · S3-core` · Depends on S3.1 · **Spec:** §§7.1, 13
+Build catalog search, exact-revision model cards, provenance/cache and one simple cited retrieval
+path over approved sources. B compares reuse/API/fine-tune/train options with uncertainty and resource
+constraints. Treat external text as untrusted. Configure existing credentials by name only; ask for
+setup only when the chosen source actually requires it. Keep the course-required retrieval comparison
+capability (TF-IDF, BM25, embedding and hybrid) in this step, but share corpus/index code and defer
+cross-encoder reranking, elaborate ingestion and extra retrieval experiments. No Research Lead/workers.
+Done when: recorded-response tests prove useful cited results, cache/provenance, external-error handling,
+and no execution/delegation permission. Build the ≥20 labeled retrieval questions alongside the feature,
+with verified answer passages. Use fixtures for routine iteration.
 
-### Stream A — Data & Methodology (spec §7.2)
+### S3.3 — C data methodology and bounded experiments
+**PR:** `s3.3-data-code` · `⇉ PARALLEL · S3-core` · Depends on S3.1 · **Spec:** §§7.2, 8
+Build diagnostic tools from existing profiling functions, C's evidence-backed data-rule proposals,
+and A's reconciliation of B findings with C's contract. Preserve source data and transformation
+provenance. Support group/time splits and leakage exclusions through the existing harness. Learned
+preprocessing stays within fit. C writes trial code directly for simple tasks, using templates and
+the fixed trial interface; measured results return through A. Include baseline plus a justified
+candidate within case limits. Retry bounded technical errors; methodology/scope changes return to A.
+Done when: deterministic integration tests on the existing leakage/group/time cases show correct
+contract choices and propagation to execution; A handles ambiguous targets and conflicting evidence.
+Use existing graders unchanged. Any actual rule or grading change still triggers approval.
 
-**S3.A1 — Diagnostics library and `run_diagnostic` tool** · PR `s3.a1-diagnostics` · `⇉ PARALLEL · S3`
-Build parameterized diagnostics returning summaries: single-feature predictive power with CV; group-overlap simulation (score inflation random vs. group split); timestamp monotonicity and lookahead detection; duplicate/near-duplicate rows; label consistency across duplicates; post-outcome heuristics (columns with timestamps later than the label time, if present). Expose as MCP tool `run_diagnostic(name, params)`.
-Done when: each diagnostic has tests on planted synthetic data; the tool returns typed summaries only.
+### S3.4 — C-only workers and dependency-aware scheduling
+**PR:** `s3.4-workers` · `→ SERIAL` · Depends on S3.2, S3.3 · **Spec:** §§6.4–6.8, 9
+Build C's bounded worker proposal, permission checks, isolated sessions/directories and aggregate
+budget reservations. Initial target ceiling is two active workers, confirmed with the owner before
+setting runtime configuration. C may work without workers. Neither A, B nor workers may create
+additional workers. A invokes the fixed main roles B/C. Reuse current job scheduling and resource
+pools; add only missing ready-task concurrency, cleanup and cancellation. Separate worker count from
+experiment-job concurrency. Default research-first; A can justify independent B/C overlap and must
+reconcile later data findings. No generic workflow engine or durable replay expansion.
+Done when: tests cover permission denial, no nested spawning, concurrent reservations, cancellation,
+worker failure returning to C, independent overlap and dependent work waiting. Security implementation
+requires the existing trigger-3 approval. Use scripted models rather than a paid worker-count sweep.
 
-**S3.A2 — Data & Methodology Lead and diagnostic workers** · PR `s3.a2-data-roles` · `⇉ PARALLEL · S3` · Depends on S3.A1
-`🔍 REVIEW FOCUS` — Prompts: role boundaries, output schema, and tool allowlist match spec §6.3.
-Build: Data Lead creates briefs (one per issue cluster from the profile), fans out diagnostic workers (parallel, read-only allowlist), merges findings into a `DataContract` with evidence references. Worker count from config.
-Done when: on each dev trap case, the produced DataContract excludes the leaky feature / sets the correct split strategy; findings and briefs appear in the event log.
+### S3.5 — Plan approval and result integrity
+**PR:** `s3.5-approval-review` · `→ SERIAL` · Depends on S3.4 · **Spec:** §§8.6, 10, 14
+Build artifact-bound plan/budget approval and A's evidence review. New permissions, dependencies,
+data transfers or expanded budgets require approval. Preserve per-task tool allowlists, scoped
+authenticated MCP sessions, actionable validation errors, export consent, injection defenses and
+a documented threat model with residual risks. Remote authenticated transport is required only if
+remote access is exposed; local authentication must still satisfy the selected F5 evidence. C and workers remain sandboxed. A cannot waive
+verification or suppress failed checks. Code populates all numerical report fields and mandatory
+limitations. Keep append-only records and existing accounting protections. No dedicated product
+reviewer/reporter agent. Repository PR review remains independent.
+Done when: deterministic end-to-end tests cover approve/reject/stale approval, scope changes,
+injection attempts, failed verification, honest reporting and safe stop. Review actual tool/sandbox
+changes under the existing security trigger, without removing mandatory affected tests.
 
-### Stream B — Research + RAG (spec §7.1, §13)
+## Stage 4 — Make the integrated product ready
 
-**S3.B1 — Hugging Face catalog adapter** · PR `s3.b1-hf-catalog` · `⇉ PARALLEL · S3`
-`🧑 HUMAN · SECRET` — Add `HF_TOKEN` (read-only) to `.env` and GitHub Actions secrets.
-Build `research/catalogs/huggingface.py`: model search by task/modality/library/license, exact revision metadata, model card fetch; responses cached with timestamps; MCP tools `search_model_catalog`, `get_model_evidence`. Model-card text marked as untrusted content in tool output.
-Done when: tools return structured results for image-classification and tabular queries; cache hits avoid network calls; tests use recorded responses.
+### S4.1 — Targeted end-to-end hardening
+**PR:** `s4.1-hardening` · `→ SERIAL` · Depends on S3.5 · **Spec:** §§5–10, 19
+Run existing dev cases with scripted models first. Diagnose failures by trace, fix the responsible
+behavior, and rerun the affected case plus a control when live evidence is needed and authorized.
+Confirm A handles advice-only, reuse, explicit training, research failure and data-driven replanning.
+Map tool errors into safe idempotent retry/backoff, replanning, clarification or stop, with
+structured plan/replan records. Implement causal malformed-data safe-stop evidence with positive
+and negative grader tests before claiming bad-data recovery. Add focused fault/security cases
+where needed; do not weaken graders to make the new graph pass.
+Done when: all roles are wired through the CLI, failures have actionable categories, and affected
+tests pass. No separate Stage 3 paid gate or duplicate two-profile full dev run.
 
-**S3.B2 — Ingestion, chunking, indexes** · PR `s3.b2-rag-index` · `⇉ PARALLEL · S3` · Depends on S3.B1
-Build: corpus builder (model cards + selected framework/methodology docs from an approved source list in `research/sources.yaml`) with license/provenance checks, dedupe, structure-aware chunking (by heading/section), metadata tags (source, version, date, task, framework, license); persisted TF-IDF, BM25, and embedding indexes (local sentence-embedding model, pinned) with metadata filtering.
-Done when: indexes build from the corpus snapshot, persist to disk, reload without rebuilding, and support metadata filters.
+### S4.2 — Recorded readiness and configuration lock
+**PR:** `s4.2-readiness` · `→ SERIAL` · Depends on S4.1 · **Spec:** §§17, 19.5
+`🧑 HUMAN · DECIDE` — Confirm worker limits, budget and model decision using the actual estimate.
+Revisit D-033's temporary model lock after data planning works. Reuse valid evidence and compare a
+new model only if needed to resolve a concrete eligibility/cost decision; pin before final evidence.
+Run the six-case dev set once on the selected eval profile for multi and single configurations.
+Reuse the fixed-baseline records only if code/data/contract/budget configuration is equivalent;
+otherwise rerun that cheap non-LLM arm. Record limitations, model/config hashes, cost and timing.
+Done when: actual results and per-case evidence are committed, regressions are explained, final
+limits/prompts/model are locked, and unsupported behaviors are explicitly scoped out. This is the
+sole new full development readiness run; dev remains available for targeted debugging.
 
-**S3.B3 — Hybrid retrieval and `retrieve_methodology`** · PR `s3.b3-retrieval` · `⇉ PARALLEL · S3` · Depends on S3.B2
-Build: query rewrite with task constraints, retrieval modes per `retrieval_mode` flag (`off`, `tfidf`, `bm25`, `embedding`, `hybrid` via reciprocal rank fusion, `hybrid_rerank` with a cross-encoder), passages returned with source URL/revision; MCP tool `retrieve_methodology`.
-Done when: each mode returns cited passages; latency per mode recorded in events.
+### S4.3 — Usable release and documentation
+**PR:** `s4.3-release` · `→ SERIAL` · Depends on S4.2
+Build one documented CLI path to run a task and one to evaluate it, fresh-clone setup verification,
+artifact export and architecture/status docs. Reuse compose services; no web/API build prerequisite.
+Done when: a fresh supported WSL/Linux setup can complete the documented task and inspect its
+report/trace. Reuse readiness results if behavior and inputs are unchanged.
 
-**S3.B4 — Research Lead and research workers** · PR `s3.b4-research-roles` · `⇉ PARALLEL · S3` · Depends on S3.B3
-`🔍 REVIEW FOCUS` — Prompts: role boundaries, output schema, and tool allowlist match spec §6.3.
-Build: Research Lead decomposes into briefs (one per candidate model or question), fans out read-only workers in parallel, merges into a `StrategyReport` comparing paths A–D with a tradeoff table, recommendation, proposed Phase B plan, confidence, citations. Emits `no_model_needed` with confidence when applicable.
-Done when: on a vision task description and a tabular task, the report cites retrieved passages and catalog records and proposes a plan consistent with the data profile.
+## Stage 5 — Required final evidence
 
-**S3.B5 — Retrieval evaluation set** · PR `s3.b5-rag-eval` · `⇉ PARALLEL · S3` · Depends on S3.B3
-`🔍 REVIEW FOCUS` — Verify each labeled source passage actually answers its question.
-Build: ≥ 20 questions with labeled correct passages (`evaluation/rag/`); script computing top-5 hit rate for TF-IDF, BM25, embedding, hybrid; answer-correctness comparison with vs. without retrieval wired into the runner.
-Done when: the script produces a comparison table with counts and latency/cost per mode.
-
-### Stream C — Experiment loop (spec §8)
-
-**S3.C1 — Training & Optimization Lead, ledger, adaptive breadth** · PR `s3.c1-training-lead` · `⇉ PARALLEL · S3`
-Build: experiment-ledger builder (compact per-trial table from DB); `estimate_experiment` tool (rows × features × model-family heuristics; measured timings feed back); Lead role that emits `TrialBatchProposal` with confidence, K justification, per-trial cost; **mandatory baseline** injection by the controller; `breadth_mode` flag (`adaptive` / `fixed_k`); budget rejection of over-cost batches. The Lead's allowlist contains no execution tools.
-Done when: given a contract, the Lead proposes batches that always include a baseline; over-budget proposals are rejected with a structured error.
-
-**S3.C2 — Trial workers** · PR `s3.c2-trial-workers` · `⇉ PARALLEL · S3` · Depends on S3.C1
-`🔍 REVIEW FOCUS` — Prompts: role boundaries, output schema, and tool allowlist match spec §6.3.
-Build: trial worker receives one `TrialBrief` + templates + contract excerpt; writes `trial.yaml`, `pipeline.py`, `requirements.lock` via `write_trial_files`; submits; reads status/logs; fixes errors within its tool-call budget; returns `TrialFinding`. Parallel execution of K workers. Optuna allowed inside `fit` for numeric tuning.
-Done when: on dev tabular cases, workers produce runnable trials; a deliberately broken template is repaired by the worker within budget.
-
-**S3.C3 — Successive halving** · PR `s3.c3-halving` · `⇉ PARALLEL · S3` · Depends on S3.C2, S3.E1
-Build: proposal fields for short-budget runs and promotion criteria; controller runs the short round in parallel, promotes top candidates, cancels the rest (recorded cancellation).
-Done when: a 3-candidate uncertain case runs short rounds, promotes 1, and the cancelled trials are marked with reasons.
-
-**S3.C4 — Verifier v2 and Reviewer** · PR `s3.c4-verify-review` · `⇉ PARALLEL · S3` · Depends on S3.C2
-`🔍 REVIEW FOCUS` — Prompts: role boundaries, output schema, and tool allowlist match spec §6.3.
-Build: all verifier checks from spec §8.6 (contract compliance, split respected, label-access guard, metric recomputation, learned-transform leakage check via static analysis + mount enforcement, resource limits); Reviewer role (read-only) producing `ReviewVerdict`; Reviewer cannot override failed deterministic checks.
-Done when: planted-violation trials (uses excluded feature, fits scaler on all data, misreports metric) are each rejected by the verifier with the correct reason.
-
-**S3.C5 — Optimization workers and pipelined optimization** · PR `s3.c5-optimization` · `⇉ PARALLEL · S3` · Depends on S3.C4, S3.E1
-Build: `profile_model` tool (latency with warm-up and documented protocol, throughput by batch size, memory, model size); optimization worker for tabular (thread settings, batch inference, redundant-transform removal, serialization size) and neural (compile, FP16/BF16, torchao quantization when F1 vision exists); optimization variants as separate trials; correctness tolerance + held-out quality delta verification; scheduler starts optimization for passing candidates while other trials continue.
-Done when: a passing tabular candidate is optimized while another trial trains; a variant violating the quality tolerance is rejected.
-
-### Stream D — Safety (spec §4.3, §10, §11, §14.3)
-
-**S3.D1 — Policy engine and tool tiers** · PR `s3.d1-policy` · `⇉ PARALLEL · S3`
-`🔍 REVIEW FOCUS` — Security-critical: every deny path has a test.
-Build `core/policy/`: tier registry for every tool; per-role allowlists (from spec §6.3); contract-scope checks (paths, features, families); budget checks; idempotency keys `{run_id}:{call_id}` enforced on reversible/destructive tools; every decision emitted as `policy_decision`. Each defense individually toggleable via `defenses.*` flags.
-Done when: tests cover allowed, denied-by-role, denied-by-scope, denied-by-budget, and duplicate-key cases.
-
-**S3.D2 — Approvals (propose → approve → commit)** · PR `s3.d2-approvals` · `⇉ PARALLEL · S3` · Depends on S3.D1
-Build: artifact hashing; `approval_requested` parks the run as `WAITING_APPROVAL` (no worker held); `hypora approve <run_id> <hash>` / API endpoint; execution verifies hash; modified artifact resets approval; `auto_within_contract` policy for eval runs.
-Done when: changing an approved plan forces re-approval; eval runs auto-approve only inside bounds and deny outside.
-
-**S3.D3 — Data firewall hardening, untrusted-content handling, MCP auth** · PR `s3.d3-firewall-auth` · `⇉ PARALLEL · S3` · Depends on S3.D1
-`🔍 REVIEW FOCUS` — Security-critical: every deny path has a test.
-Build: `share_samples` grant flow with bounded, redacted samples; untrusted-content wrapping for model cards, dataset text fields, and tool outputs (clearly delimited, instruction-stripping heuristics, flagged in context); Streamable HTTP transport with scoped, revocable bearer tokens; secrets redaction in all events and logs.
-Done when: raw-row exfiltration attempts via any tool fail; HTTP MCP rejects missing/invalid tokens; no secret appears in any event in tests.
-
-**S3.D4 — Attack suite and threat model** · PR `s3.d4-attacks` · `⇉ PARALLEL · S3` · Depends on S3.D2, S3.D3
-`🔍 REVIEW FOCUS` — Attack coverage (≥ 30, ≥ 10 indirect, every defense exercised) and threat-model completeness.
-Build: ≥ 30 attack cases (≥ 10 indirect injections via model cards, dataset text columns, and tool results; plus direct requests to exfiltrate, read secrets, enable network, install packages, exceed budget, write outside scope, and the **symlink escape through trial outputs**, D-012) as eval cases with programmatic success criteria; `docs/threat-model.md` (assets, attackers, vectors, defenses, residual risk).
-Done when: the suite runs under the runner with `defenses=all_on` and `defenses=all_off` configs.
-
-### Stream E — Runtime: scheduler and durability (spec §9, §15)
-
-**S3.E1 — DAG scheduler and resource pools** · PR `s3.e1-scheduler` · `⇉ PARALLEL · S3`
-Build `core/scheduler/`: task graph per run; ready-task execution with asyncio; pools (`cpu_slots`, `gpu_slots`, `memory_budget`, `llm_concurrency[provider]`); priorities from spec §9.2; cancellation of speculative tasks; `parallel_mode` flag.
-Done when: a synthetic DAG respects dependencies, pool limits, and priorities; `parallel_mode=off` serializes execution.
-
-**S3.E2 — Leases, retries, idempotent completion** · PR `s3.e2-leases` · `⏸ LATER` · Depends on S3.E1
-Build: heartbeat-driven lease extension; expiry requeue; bounded retries with backoff per error class (spec §15.5 table); idempotent `complete` (duplicate completions ignored); worker crash detection.
-Done when: killing a worker mid-job requeues it; duplicate completion messages produce one result.
-
-**S3.E3 — Checkpoints and replay** · PR `s3.e3-checkpoints` · `⏸ LATER` · Depends on S3.E2
-Build: `ctx.checkpoint(state)` / `ctx.resume()` API in the harness (weights, optimizer, epoch, RNG, sampler); atomic writes; resume-on-requeue; controller restart = full replay from event log (extend S0.3 reducer to all event types); `durable_mode` flag.
-Done when: a training job killed after epoch N resumes at epoch N+1; a controller killed mid-Phase-B resumes with identical state.
-
-**S3.E4 — Crash-injection harness** · PR `s3.e4-crash-cases` · `⏸ LATER` · Depends on S3.E3
-Build: ≥ 15 crash scenarios as eval cases (worker killed mid-training, controller killed mid-plan, duplicate submit, worker disconnect, kill during checkpoint write); metrics: completion rate, duplicate jobs, wasted compute seconds; runnable with `durable_mode=on/off`.
-Done when: the scenarios run under the runner in both modes and produce the three metrics.
-
-### Stream F — Families (spec §18)
-
-**S3.F1 — Vision backend** · PR `s3.f1-vision` · `⏸ LATER`
-`🔍 REVIEW FOCUS` — New sandbox image and the weight-download prep step: egress limited to approved hosts; trial containers still have no network.
-Build: image profiling (sizes, channels, corrupt files, class balance) and diagnostics (perceptual-hash near-duplicates, specimen/session grouping); `Dockerfile.vision` (PyTorch + torchvision CPU; GPU variant); approved-download prep step for pretrained weights with revision/hash recording; templates (frozen backbone + linear head, head-then-unfreeze fine-tune, from-scratch compact CNN); harness adapter (image loaders, train-only augmentation, safetensors serialization); vision metrics; ≥ 3 vision dev cases (one with specimen leakage).
-Done when: frozen-backbone template trains on a small public image dataset on CPU within the case budget; specimen-leakage case is detected by diagnostics.
-
-**S3.F2 — Time-series backend** · PR `s3.f2-timeseries` · `⇉ PARALLEL · S3`
-Build: profiling (frequency, gaps, entities, horizon feasibility); diagnostics (lookahead features, centered windows, future covariate misuse); walk-forward split in the harness; templates (seasonal-naive, exponential smoothing, lag-feature GBT, compact GRU); per-horizon metrics; ≥ 3 time-series dev cases (one with temporal leakage).
-The compact GRU needs PyTorch, which only the `⏸ LATER` vision image adds, so build it only once that image exists (D-028). A new sandbox package falls under trigger 3.
-Done when: templates run through the harness; the temporal-leakage case is caught.
-
-**S3.F3 — Experimental route** · PR `s3.f3-experimental` · `⇉ PARALLEL · S3` · Depends on S3.D2
-Build: routing to `experimental` for unsupported tasks; mandatory approval before execution; generic verification only; report labels output "experimental / unverified."
-Done when: an unsupported request is routed, gated, and labeled correctly.
-
-### Stream G — API and frontend (spec §21)
-
-**S3.G1 — HTTP API and event stream** · PR `s3.g1-api` · `⏸ LATER`
-Build: FastAPI endpoints from spec §21; SSE stream from the event log; dataset upload to local storage (Mode 1); OpenAPI spec exported to `docs/api/openapi.json` and frozen; a mock server generated from it for frontend development.
-Done when: API tests cover every endpoint; the SSE stream replays and tails events.
-
-**S3.G2 — App shell and run creation** · PR `s3.g2-web-shell` · `⏸ LATER` · Depends on S3.G1
-Build: React + TypeScript + Vite app; workspace home; new-objective page (chat + structured constraints + dataset drop-in + `share_samples` toggle off by default); typed API client generated from OpenAPI.
-Done when: a run can be created from the browser against the real API.
-
-**S3.G3 — Phase A view and approval screen** · PR `s3.g3-web-approval` · `⏸ LATER` · Depends on S3.G2
-Build: live research/diagnostic findings; approval screen showing strategy tradeoff table, recommendation, data contract, proposed trials with cost, budget; approve/modify/reject wired to the approval endpoint with hash.
-Done when: a run parked in `WAITING_APPROVAL` can be approved from the browser.
-
-**S3.G4 — Experiment dashboard and comparison** · PR `s3.g4-web-dashboard` · `⏸ LATER` · Depends on S3.G2
-Build: trial ledger, parallel job states, curves, resources, pause/cancel; comparison view vs. baseline with Pareto chart.
-Done when: a running Phase B updates live from SSE.
-
-**S3.G5 — Inspector and export** · PR `s3.g5-web-inspector` · `⏸ LATER` · Depends on S3.G2
-Build: trace viewer (filter by role/tool/type, durations, tokens, cost), trial code viewer, policy decisions and approvals; export page with manifest, artifacts, reproduction instructions.
-Done when: any event in a run can be found and inspected from the browser.
-
-### Stream H — Planning and error recovery (spec §8.7, §15.2; course F4)
-
-**S3.H1 — Plan before acting** · PR `s3.h1-planning` · `⇉ PARALLEL · S3`
-Build: every Lead (and the single agent) emits a `Plan` before its first tool call; plan stored as a `plan` event (D-003); `planning` flag (`on`/`off`) where `off` is the no-plan tool-calling baseline.
-Done when: with `planning=on`, the first event after role start is always a plan.
-
-**S3.H2 — Replanning and safe-retry backoff** · PR `s3.h2-replanning` · `⇉ PARALLEL · S3` · Depends on S3.H1
-Build: error taxonomy mapping (`ToolError` classes → retry/replan/ask); replanning step that revises the plan after a failed step with the failure as input; exponential backoff only for calls marked safe to repeat (idempotent).
-Done when: an injected OOM leads to a revised plan with a smaller configuration; non-idempotent calls are never auto-retried.
-
-**S3.H3 — Fault case set** · PR `s3.h3-fault-cases` · `⇉ PARALLEL · S3` · Depends on S3.H2
-Build: ≥ 15 distinct fault cases — 5 tool failures, 5 timeouts, 5 bad-data cases — as eval cases with fault injection hooks in the MCP server and worker; graded on recovery and task success. The bad-data cases also build the malformed-data fault grader moved here from S2.2 (D-032): they need evidence tying an outcome to the bad rows, since a malformed row usually loads fine and a job's `CONTRACT_DATA_ERROR` covers any harness exception.
-Done when: the cases run under the runner with `planning=on/off`, and malformed-data recovery and safe failure each have passing and failing grader tests.
-
-### Stream I — Observability (spec §16; course F7)
-
-**S3.I1 — Trace query and breakdowns** · PR `s3.i1-trace-tools` · `⇉ PARALLEL · S3`
-Build: `hypora trace` filters (role, tool, type, time range, slowest-N); `scripts/breakdown.py` producing cost and latency by step type and by wait type (model, tool, compute, rate-limit, approval) across a results directory.
-Done when: breakdowns run over Stage 2 results and match totals.
-
-**S3.I2 — MLflow integration** · PR `s3.i2-mlflow` · `⇉ PARALLEL · S3`
-Build: local-file MLflow logging of trial params, metrics, and artifacts keyed by `run_id`/`trial_id`.
-Done when: trials appear in the MLflow UI with matching IDs.
-
-### Stage 3 gate
-**S3.Z — Stage 3 gate** · PR `s3.z-gate` · `→ SERIAL` · Depends on all core Stage 3 steps
-Build: dev set (now including time-series cases) run on the `eval` profile via the components available; results committed; regression report.
-Done when: results committed; known gaps listed in `docs/notes/stage3-gaps.md`.
-
----
-
-## Stage 4 — Integration
-
-**Goal:** the full graph from spec §5.1 running under the scheduler, with every feature active and switchable.
-
-### S4.1 — Full run graph
-**PR:** `s4.1-full-graph` · `→ SERIAL` · **Spec:** §5, §6.2, §7.3
-Build: Intake role (clarifications, structured form merge); Route (code with LLM fallback); Phase A with Research and Data branches in parallel (`phase_a_mode`), advice-only skip, speculative cancel on confident `no_model_needed`; Join consistency check; plan + budget gate; contract creation; Phase B with C-stream components; Supervisor role and escalations (`DATA_PROBLEM`, `REUSE_WINS`, `CONSTRAINT_INFEASIBLE`, `REPEATED_FAILURE`); Phase B entry/skip rules from spec §5.3 (including user-requested training with reuse candidate as a trial); `agent_mode=single|multi` switch.
-Done when: every dev case completes in `multi` and `single` modes; an injected `DATA_PROBLEM` reopens the data branch; an advice-only request skips Phase B.
-
-### S4.2 — Prompt review and thresholds
-**PR:** `s4.2-prompts-thresholds` · `→ SERIAL` · Depends on S4.1
-`🧑 HUMAN · DECIDE` — Set Phase A early-exit confidence threshold, stop-condition limits, default budgets, and max worker counts.
-`🔍 REVIEW FOCUS` — Integrated prompts: role boundaries, output schemas, and allowlists consistent with spec §6.3.
-Build: all prompts collected in `core/roles/prompts/` with version headers; thresholds in config; `docs/notes/prompt-changelog.md`.
-Done when: values recorded in `docs/DECISIONS.md` and config.
-
-### S4.3 — End-to-end hardening
-**PR(s):** `s4.3-hardening-*` (one PR per fix, all under this step) · `→ SERIAL`
-Build: debug on `dev`, re-running the failing case and one control after each fix; fix failures; then run the dev set on `eval` (recorded); regression flags must be clean or explained.
-Done when: recorded `eval`-profile dev results committed; every remaining failure has a named category in `docs/notes/dev-failures.md`.
-
-### S4.4 — Packaging and docs
-**PR:** `s4.4-packaging` · `→ SERIAL` · Depends on S4.3 · **Spec:** §4.1, §20 (repository row)
-Build: full `docker-compose.yml` (controller, MCP server, worker, DB, plus web and API once built); README with setup, **one command to run the agent**, **one command to run the eval**, pinned dependencies; `docs/architecture.md` with the data/tool-flow diagram; gitleaks over full history clean.
-Done when: a fresh clone on Ghadi's machine runs `docker compose up`, completes a task with `hypora run` (in the browser too, if the web app has merged), and runs `make eval`.
-
----
-
-## Stage 5 — Evaluation and evidence
-
-**Goal:** frozen, recorded, per-case evidence for the core and every claimed feature, all on the `eval` profile.
+**Course boundary:** the documented ≥25 frozen test cases, repeat sample, statistical protocol and
+evidence for selected course features are retained. D-036 streamlines implementation and duplicate
+runs, not the instructor's requirements. Changes to claimed features need owner/instructor confirmation
+where required by D-028. Check the actual handout before making submission claims.
 
 ### S5.1 — Test set and freeze
-**PR:** `s5.1-test-set` · `→ SERIAL`
-`🔍 REVIEW FOCUS` — Test cases are distinct from dev cases, traps are real, grading rules match. After merging, the reviewing agent tags the merge commit `eval-freeze`.
-Build: ≥ 25 held-out test cases spanning tabular, time series, vision only if S3.F1 has merged (D-028), every trap type in spec §19.2 that those families can express except the Crashes row, which joins only if S3.E2–E4 have merged (D-028), reuse-suffices cases, and optimization cases; distinct from dev cases; `docs/eval-protocol.md` (case authorship, freeze commit, inspection policy, model IDs, temperatures, tool/data versions, retry policy).
-Done when: cases validate; tag created; protocol document complete.
+**PR:** `s5.1-test-set` · `→ SERIAL` · Depends on S4.3 · **Spec:** §19
+`🔍 REVIEW FOCUS` — Case validity and hidden data.
+Build ≥25 held-out cases distinct from dev, covering implemented and claimed behaviors: leakage,
+groups, temporal order, imbalance, research/reuse, bounded experiments and faults. Include a family
+only after its backend and verifier are implemented. Freeze code, cases, model/config and grading;
+record protocol and tag the reviewed merge `eval-freeze`. No test-set-driven tuning after freeze.
+Done when: cases validate, hidden data remains inaccessible, protocol is complete and tag exists.
 
-### S5.2 — Core evaluation run
+### S5.2 — Shared final run matrix
 **PR:** `s5.2-core-eval` · `→ SERIAL` · Depends on S5.1
-`🧑 HUMAN · DECIDE` — Confirm the estimated API spend before the run starts (stop-and-ask trigger 6).
-Build: primary runs (agent vs. fixed baseline) on all test cases; ≥ 5 representative cases × 3 runs per system (reported separately); results, statistics (Wilson, paired table, paired bootstrap), mean/p95 latency with method, cost per task (actual and list-price with price date) committed.
-Done when: `results/<freeze_sha>/core/` contains all per-case records and the summary.
+`🧑 HUMAN · DECIDE` — Approve the concrete aggregate API estimate before execution.
+Run multi A/B/C, single-agent and fixed baseline on the same frozen cases, information and limits.
+Collect ≥5 representative cases ×3 runs per system separately as required by the existing protocol.
+Record quality metrics, methodology checks, pass rate/intervals, paired comparisons, cost and latency.
+These records are the shared core and multi-agent comparison evidence; never rerun an identical arm
+merely to populate a different report. Do not relabel one comparison as evidence for unrelated claims.
+Done when: all records and summaries exist under the frozen evaluation identity, incomplete runs
+remain distinguished from graded failures, and no model-quality claim relies only on pass percentages.
 
-### S5.3 — Feature comparisons
-All sub-steps `⇉ PARALLEL · S5-features` (they share the frozen code and differ only by config). One PR each. Reuse S5.2's per-case records for any arm with the same config, not a re-run; spec §20 allows this, but one comparison can't be relabeled as two experiments.
+### S5.3 — Required selected-feature evidence
+**PR:** `s5.3-features` · `→ SERIAL` · Depends on S5.2 · **Spec:** §20
+All spec §20 acceptance criteria apply, including the detailed requirements omitted from this
+summary. Reuse frozen records wherever the actual configuration matches. Retain selected evidence:
+F3 multi-agent comparison, agent-failure test and three helped/hurt coordination cases; F4
+planning/recovery on 15 fault cases (five tool errors, five timeouts, five bad-data cases); F6 safety
+on ≥30 attacks including ≥10 indirect injections, with defense comparisons; F1 retrieval on ≥20 labeled questions and required retrieval
+modes; F5 MCP on ≥20 tasks with both model clients and tool-description revision comparison; F7 one
+trace-driven bottleneck fix with before/after evidence. Validate exact rubric requirements against
+the handout before running. F7's fix is a separate code PR; preserve the pre-fix freeze and identify
+the post-fix commit explicitly, then remeasure every affected arm on identical cases. Any tool or
+security change requires existing approvals. Independent configurations may run concurrently within
+the approved aggregate cap. Optional durability, breadth, parallelism and LLM-judge studies wait.
+Done when: every claimed rubric item has evidence paths and honest limitations; no optional study
+blocks delivery. This step may use separate coherent PRs for independently reviewed evidence batches.
 
-| Step | PR | Comparison | Human |
-|---|---|---|---|
-| **S5.3a** F3 multi-agent | `s5.3a-f3` | `agent_mode=multi` vs `single` on the full test set: correctness, cost, latency; agent-failure test | — |
-| **S5.3b** F4 planning | `s5.3b-f4` | 15 fault cases, `planning=on` vs `off`: recovery and task success; traces of recovered/unrecovered | — |
-| **S5.3c** F6 safety | `s5.3c-f6` | 30+ attacks: all defenses off vs on, then each defense off individually | — |
-| **S5.3d** F1 RAG | `s5.3d-f1` | Top-5 hit rate per retrieval mode on ≥ 20 questions; answer correctness with vs. without retrieval; cost/latency per setup | — |
-| **S5.3e** F10 durability `⏸ LATER` | `s5.3e-f10` | ≥ 15 crash scenarios, `durable_mode=on` vs `off`: completion rate, duplicate jobs, wasted compute | — |
-| **S5.3f** F5 MCP | `s5.3f-f5` | Tool-call success on ≥ 20 tasks with OpenAI and Gemini as clients; revise tool descriptions; re-measure before/after | `🔍 REVIEW FOCUS` revised descriptions |
-| **S5.3g** F7 observability | `s5.3g-f7` | Identify the top bottleneck from traces; implement the fix in a separate PR; before/after on the full test set including quality | `🧑 HUMAN · DECIDE` which bottleneck to fix |
-| **S5.3h** Adaptive breadth `⏸ LATER` | `s5.3h-breadth` | `breadth_mode=adaptive` vs `fixed_k`: trials run, compute seconds, final quality | — |
-| **S5.3i** Parallelism `⏸ LATER` | `s5.3i-parallel` | `parallel_mode=on` vs `off`: wall-clock latency at equal quality | — |
+### S5.4 — Consolidated analysis
+**PR:** `s5.4-analysis` · `→ SERIAL` · Depends on S5.3
+Build a single evidence index, consolidated tables, representative failures and cost/latency analysis.
+Reuse machine-generated records; no additional live runs solely for presentation.
+Done when: claims map to actual evidence and Ghadi has reviewed the proposed interpretation.
 
-Each sub-step: same cases on both configurations, Section 4.2 rules of the handout (primary run, repeat sample, Wilson and paired bootstrap for binary outcomes), per-case records committed under `results/<freeze_sha>/<feature>/`.
-Done when (each): records, summary table, and a short `analysis-inputs.md` listing representative cases are committed.
+## Stage 6 — Explain, demonstrate and submit
 
-### S5.4 — Statistics consolidation and failure analysis inputs
-**PR:** `s5.4-analysis` · `→ SERIAL` · Depends on S5.2 and the core S5.3 steps
-`🧑 HUMAN · DECIDE` — Name the failure categories and choose the representative cases (≤ 10) from the drafted candidates.
-Build: consolidated tables and figures (`docs/results/`); draft failure clustering with case links; cost/latency breakdown by step type; per-feature evidence index (rubric part → file path).
-Done when: every claimed feature's rubric parts map to committed evidence paths.
+### S6.1 — Write-up and demo materials
+**PR:** `s6.1-materials` · `→ SERIAL` · Depends on S5.4
+Prepare figures, a handout-aligned outline, limitations, three demo tasks, trace navigation and
+explain-it questions. Reuse existing evidence. Ghadi finalizes the write-up under course policy and
+rehearses explaining A/B/C, permissions, results and failures.
+Done when: all referenced artifacts exist and the demo is reproducible on the supported machine.
 
----
+### S6.2 — Submission package
+**PR:** `s6.2-submission` · `→ SERIAL` · Depends on S6.1
+Prepare the graded-commit archive, results, repository history, secret scan and submission checklist.
+Ghadi performs the actual course submission. Done when: package builds and required artifacts exist.
 
-## Stage 6 — Write-up, demo, submission
+## Later track
 
-### S6.1 — Write-up materials
-**PR:** `s6.1-writeup` · `⇉ PARALLEL · S6` · Depends on S5.4
-`🧑 HUMAN · COURSE` — Ghadi finalizes the write-up text and every claim in it, consistent with the course policy on AI assistance.
-Build: figures, tables, the data/tool-flow diagram, and an outline following the handout's required section order (task & success criterion; design; evaluation protocol & evidence; failure analysis, cost, latency; limitations & next steps) plus one section per feature with rubric parts and evidence paths; appendix with statistical tables.
-Done when: all figures/tables referenced by the outline exist in the repo.
+Additional families (vision/time series), new sandbox dependencies, hosted inference adapters,
+durable restart/replay, web/API, cross-encoder retrieval, adaptive-breadth/parallelism ablations and
+advanced LLM-judge evaluation are assigned separately after the core release. Existing tools and
+code for these areas remain usable, but incomplete features carry no support or rubric claim.
+Broad experimental tasks may be researched and scoped now; execution requires approved dependencies,
+the appropriate backend and explicit generic-verification limitations. Never claim scientific
+validation solely because arbitrary generated code ran successfully.
 
-### S6.2 — Demo preparation
-**PR:** `s6.2-demo` · `⇉ PARALLEL · S6` · Depends on S5.4
-`🧑 HUMAN · COURSE` — Rehearse the demo; answer the generated question bank without notes.
-Build: `docs/demo.md` (demo script, 3 ready tasks of varying difficulty, how to locate output and trace for any run, how to show a failure honestly); a question bank built from all PRs' "explain-it checks" plus questions on design, evaluation, and each feature.
-Done when: demo tasks run cleanly on Ghadi's machine from a fresh `docker compose up`.
+## Appendix A — Superseded roadmap identifiers
 
-### S6.3 — Submission package
-**PR:** `s6.3-submission` · `→ SERIAL` · Depends on S6.1, S6.2
-`🧑 HUMAN · COURSE` — Submit on Gradescope: repo link + graded commit, write-up PDF, source archive (including results and `git log --stat` export).
-Build: `scripts/package_submission.sh` (source archive of the graded commit with results; `git log --stat` export; full-history gitleaks scan report); final README check against the handout's "Before you submit" list.
-Done when: the archive builds, the secret scan is clean, and the checklist in `docs/submission-checklist.md` is complete.
+Completed S0–S2 IDs keep their historical meaning. D-036 replaces unimplemented future steps:
 
-### S6.4 — Optional: F9 advanced evaluation (only after S6.3 artifacts are ready)
-**PR:** `s6.4-f9` · `→ SERIAL`
-`🧑 HUMAN · SETUP` — Recruit a qualified grader outside the project; obtain consent; record their expertise.
-`🧑 HUMAN · DECIDE` — Confirm with the instructor whether agent + baseline answers on the test set may supply the 50 validation answers.
-Build: LLM judge for open-ended report quality with a written rubric and JSON decisions; calibration on dev answers; blinded grading packet for the human grader; agreement analysis; order and verbosity bias tests on ≥ 20 paired answers; one documented design decision changed by evaluation results.
-Done when: judge validation records committed under `results/<sha>/f9/`.
+| Former steps | Active home |
+|---|---|
+| S3.A1/A2, C1/C2, H | S3.3, then S3.4 for workers |
+| S3.B1–B5 | S3.2; advanced retrieval is Later |
+| S3.D steps | S3.5 and affected runtime safety checks |
+| S3.E1 | S3.4, reusing the existing scheduler |
+| S3.E2–E4, F, G | Later; no mandatory new family/frontend/durability prerequisite |
+| S3.I | Existing traces plus S5.3's measured bottleneck work |
+| S3.Z | Removed duplicate paid gate; S4.2 is the readiness evidence |
+| Former S4.1–S4.4 | New S3.1 integration and S4.1–S4.3 readiness/release |
+| S5.3a/b/c/d/f/g | One planned evidence matrix under S5.2/S5.3 |
+| S5.3e/h/i, S6.4 | Later optional comparisons |
+| Former S6.1–S6.3 | S6.1/S6.2 |
 
----
+Historical notes that mention former IDs describe the implementation at that time. This table maps
+them to current work; it does not assert that the old steps were implemented.
 
-## Later track (D-028)
+## Appendix B — Implementation parallelism
 
-These steps are not deleted. They start after the core is integrated (S4.3 merged), when Ghadi assigns them, in this order. Their step text above is unchanged.
-
-| Order | Work | Steps | Timing rule |
-|---|---|---|---|
-| 1 | Durable execution (F10) | S3.E2 → S3.E3 → S3.E4, then S5.3e | To claim F10, S3.E2–E4 must merge before S5.1's freeze, and S5.3e must run after S5.2 at the frozen commit, before S5.4. Otherwise it is post-submission work |
-| 2 | Vision | S3.F1 | Must merge before S5.1 for vision cases to join the test set; otherwise it can be shown only as unevaluated |
-| 3 | Web app | S3.G1 → S3.G2 → [S3.G3 ⇉ S3.G4 ⇉ S3.G5] | Any time; must not change agent behavior after the freeze |
-| 4 | Extra comparisons | S5.3h, S5.3i | After S5.2, at the frozen commit, if the budget allows (trigger 6) |
-
-Never let this track delay S5.1 or Stage 6. Until S3.E3 merges, `durable_mode` has no effect, and neither reports nor the write-up may claim durability.
-
----
-
-## Appendix A — Human intervention summary
-
-No step requires human approval to merge. Human involvement is limited to:
-
-| Step | Label | What |
-|---|---|---|
-| S0.1 | SETUP | Docker Desktop + WSL2, `uv`, Node; branch protection; AI review app |
-| S0.5 | SECRET | `GEMINI_API_KEY` (Hypora project; D-007) |
-| S2.0, S2.0b | Triggers 3 and 1 | Approve the cause and fix before changing sandbox code; approve any tool change |
-| S2.6 | SECRET · DECIDE · COURSE | `OPENAI_API_KEY` + funding + spend limit (and Gemini billing on the Hypora project if compared); pin `eval` model IDs; check-in submission |
-| S3.B1 | SECRET | `HF_TOKEN` |
-| S4.2 | DECIDE | Thresholds and limits |
-| S5.2 | DECIDE | API spend for the core run |
-| S5.3g | DECIDE | Bottleneck to fix |
-| Nov 13 | COURSE | Confirm the 40-point rule and any feature change (D-028) |
-| S5.4 | DECIDE | Failure categories and representative cases |
-| S6.1 | COURSE | Write-up text and claims |
-| S6.2 | COURSE | Demo rehearsal |
-| S6.3 | COURSE | Final submission |
-| S6.4 | SETUP · DECIDE | Grader; instructor confirmation (optional F9) |
-| Any step | — | Global stop-and-ask triggers (§0.3) |
-
-## Appendix B — Parallel groups summary
-
-| Group | Steps | Notes |
-|---|---|---|
-| `S0-core` | S0.3, S0.4, S0.5 | After S0.2 |
-| `S1-base` | S1.1, S1.2, S1.3 | S1.3's integration test waits for S1.2 |
-| `S2-prep` | S2.0, S2.0b | May also run alongside S2.1 |
-| `S2-eval` | S2.2, S2.3, S2.4 | After S2.1 |
-| `S3` | Core Stage 3 steps (not `⏸ LATER`) | Serial within a stream; parallel across streams; recommended pairings in Stage 3 rules |
-| `S5-features` | S5.3a, b, c, d, f, g (plus later S5.3e, h, i) | After S5.2; share the frozen code |
-| `S6` | S6.1, S6.2 | After S5.4 |
+After S3.1 merges, S3.2 and S3.3 may be implemented independently. Subsequent dependency-bearing
+steps wait for their prerequisites. Draft test cases and course materials while code reviews run.
+Product B/C overlap is A's runtime decision (§5.4 of the spec), distinct from repository coding-agent
+parallelism. The independent PR Reviewer and required CI remain the merge gate.

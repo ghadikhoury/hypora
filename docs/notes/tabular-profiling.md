@@ -36,7 +36,7 @@ calls or state transitions happen here: this is a pure library, called by later 
   The `leakage_screen_summary` report helper emits "leakage not screened" and the reason,
   including for older profiles without recorded scores. A completed screen with no candidates
   instead says "No leakage candidates flagged among N screened features"; it never claims
-  that leakage is absent. The future S1.5 Reporter must preserve this wording and coverage.
+  that leakage is absent. Reporting must preserve this wording and coverage, including Agent A in the target workflow.
 - Group keys: compare the probability that two distinct rows in the same group have the
   same target against the chance probability for two distinct rows drawn globally from
   rows with a nonmissing group key. Sum `count * (count - 1)` over groups/classes and divide

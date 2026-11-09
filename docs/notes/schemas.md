@@ -39,7 +39,7 @@ Every number in a report comes from platform-computed results (spec principle 3,
 
 **Choices worth knowing**
 
-- `ToolError` adds a required `error_class` to the §12 example (the spec lists the classes; S3.H2 maps
+- `ToolError` adds a required `error_class` to the §12 example (the spec lists the classes; S4.1 maps
   them to retry/replan/ask). Spec §12 updated.
 - Event `tool` fields are validated identifier strings, not `ToolName`: the log must be able to record
   an attempted call to a tool that does not exist.
@@ -53,9 +53,9 @@ Every number in a report comes from platform-computed results (spec principle 3,
 - `VerificationResult.passed` cannot be vacuous: it requires the five core checks
   (`CORE_VERIFICATION_CHECKS`) to be present and `passed`; only situational checks may be skipped.
 
-**Known follow-up for S3.H1.** Its Done-when says "the first event after role start is always a plan".
+**Planning-event follow-up for S3.1.** The former S3.1 requirement said "the first event after role start is always a plan".
 The plan is produced by a model call, and `model_call` is logged when that call returns, so the literal
-sequence is `role_started → model_call → plan`. S3.H1 should confirm the intended reading (the plan
+sequence is `role_started → model_call → plan`. S3.1 should preserve the intended reading (the plan
 precedes the role's first `tool_call`) before implementing.
 
 Regenerate `docs/schemas/` with `make schemas`; a test fails if it is stale.

@@ -67,7 +67,7 @@ SQL inserts, which cannot execute Pydantic validation inside SQLite.
 ordered sequence; `EventLog.replay(run_id)` only fetches events before invoking the fold. The
 `REDUCERS` table explicitly covers every approved event type. The minimal projection applies
 stage/status, job state, and approval observations; other event types advance the sequence without
-projecting their payload. S3.E3 extends the handlers/projection, rather than replacing the fold.
+projecting their payload. Later durable replay extends the handlers/projection, rather than replacing the fold.
 Replay rejects mixed runs, missing events, and out-of-order events. It does not perform side effects,
 authorize transitions, or update the database's run projection.
 
@@ -103,7 +103,7 @@ hidden temp file. Interruption after rename and before DB commit can leave a com
 Retrying the same ID/content verifies and registers that orphan. An ordinary source exception
 removes its temporary file. Directory listings are never the artifact catalog, and unrelated
 committed artifacts are unaffected by a killed writer. This step does not implement general orphan
-garbage collection or training checkpoint recovery (S3.E3).
+garbage collection or training checkpoint recovery (Later durability).
 
 ## Acceptance evidence
 

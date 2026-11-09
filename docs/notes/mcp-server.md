@@ -1,5 +1,9 @@
 # MCP server v1 (S1.4)
 
+> Implementation reference for the existing system. The target A/B/C ownership and permissions
+> are in spec §§5–9 (D-036); legacy roles/config names here are not the new runtime implementation.
+> Former roadmap IDs map through PLAN Appendix A.
+
 Spec: sections 4.3, 11, 12, 14.2, 15.1. Decisions: D-018 (this step), D-012 (no-follow file
 access), D-015 (real data). Packages: `hypora/mcp_server/` (server, tools, session, errors),
 `hypora/core/policy/` (allowlists, tiers, data firewall), `hypora/execution/protocol/experiments.py`
@@ -175,7 +179,7 @@ keys. Never blocked: the dataset's own profile (breast cancer, wine, iris), `des
 synthetic training-log lines. The stricter untrusted screen withheld 3.7% of those log lines on
 breast cancer (30 columns of 4-decimal values, the worst case seen) and 0% on wine and iris.
 
-**Residual risks (for S3.D3/S3.D4).** The detector recognizes *values*, so it cannot see: rows made
+**Residual risks (for S3.5 safety hardening).** The detector recognizes *values*, so it cannot see: rows made
 only of common values (a printed iris row: short, frequent numbers; a test pins this down);
 values that untrusted code transforms or encodes (scaled, base64, split one character per line);
 and rows the untrusted screen misses that are then spread one cell per line. Its strength is that
@@ -221,7 +225,7 @@ submit_experiment (control plane)              experiment worker (execution plan
   stage runs with the job's limits (default: the contract's; `submit_experiment` refuses limits
   above the contract), and `source` is the caller's already-verified dataset content.
 - v1 runs one job at a time per worker and only `fit`. Final freeze and test scoring stay with the
-  controller (S1.5); resumable checkpoints and backoff are S3.E.
+  controller (S1.5); bounded backoff already exists; resumable checkpoints are Later durability work.
 
 ## Testing with the MCP Inspector (`mcp dev`)
 

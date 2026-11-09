@@ -11,7 +11,7 @@ records, and the run folders. `hypora/core` does not import it.
 | `hypora status [RUN_ID] [--limit N]` | one run's status, spend, trials, jobs, final model, report; or the recent runs |
 | `hypora trace RUN_ID [-f key=value[,value]]... [--wide]` | the event log as a timeline |
 | `hypora cancel RUN_ID` | asks a running run to stop |
-| `hypora approve RUN_ID` | placeholder until the interactive plan gate (S3.D2) |
+| `hypora approve RUN_ID` | placeholder until the interactive plan gate (S3.5) |
 
 State: `runs/hypora.sqlite` and `runs/<run_id>/` in the checkout unless `--db` / `--runs-root`.
 
@@ -38,7 +38,7 @@ budget (configs/budgets.yaml); the rest stays configured. `--approve auto_within
 "interactive requested" note.
 
 Ctrl-C aborts the CLI: the run stops without its report and keeps its last status until durable
-recovery (S3.E3). `hypora cancel` from another terminal is the clean stop.
+recovery (Later durability). `hypora cancel` from another terminal is the clean stop.
 
 ## `trace`
 
@@ -61,7 +61,7 @@ terminal the detail is cut to the window width (`--wide` never cuts; piped outpu
 Rows are in sequence order with the timestamps as recorded. In the S1.5 live log, events appended
 by the MCP server process carry timestamps up to about 1.5 s earlier than controller events with
 lower sequence numbers; derived durations are clamped at zero. This predates S1.6 and is noted for
-the observability stream (S3.I).
+S5.3's trace-driven bottleneck work.
 
 ## `status`
 

@@ -13,8 +13,8 @@ Spec: §4.1 (deployment modes), §14.1, §14.3 (sandbox policy). Decision: D-020
 | API | placeholder container: `make up`, `GET http://127.0.0.1:8000/health` | - |
 | State | `runs/hypora.sqlite` + `runs/<run_id>/` on the host | same, bind-mounted into the containers |
 
-S4.4 completes the stack (web, real API, controller, MCP server). Until then the agent runs on the
-host, and the stack is the API placeholder plus the state volume, with the worker as an opt-in.
+S4.3 packages the supported CLI path. Web/API services are Later work. The current agent runs on the
+host; compose provides the API placeholder and state volume, with the worker as an opt-in.
 
 **The state volume is a bind mount of `runs/`, not a named volume.** The host CLI, the host worker,
 and the containers must share one SQLite file in WAL mode, whose shared-memory index requires one

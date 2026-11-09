@@ -14,7 +14,7 @@
 
 **Hypora** is an agent-powered autonomous ML engineering platform that helps researchers, scientists, students, and ML engineers decide whether a machine-learning model is needed, choose an appropriate existing model or approach, and — when authorized — autonomously train, fine-tune, evaluate, and optimize a model through reproducible experiments that run **on the user's own machine**.
 
-The user provides a dataset and describes an objective in plain language. A deterministic controller coordinates LLM-powered specialist agents that research alternatives and diagnose the data in parallel, recommend an evidence-backed strategy (hosted API vs. pretrained model vs. fine-tuning vs. task-specific training), and — after the user approves a plan and budget — run bounded experiments in sandboxed local workers, verify every result with platform-owned checks, and deliver a reproducible model, code, benchmarks, and stated limitations.
+The user provides a dataset and describes an objective in plain language. Agent A, the overall lead, clarifies the objective, plans, delegates, reviews evidence, and decides whether to continue or report. Agent B performs read-only research, usually before Agent C begins deeper data work. Agent C combines data methodology and coding, and alone may request bounded workers. A deterministic runtime enforces approved plans, data access, budgets, sandbox execution, scoring, and records. The system delivers an evidence-backed recommendation or reproducible model with measured results and limitations (D-036).
 
 **User-facing promise:**
 > Describe the outcome you need. The system investigates alternatives, recommends a justified strategy, runs authorized experiments on your hardware, measures what actually works, and delivers a reproducible model or an evidence-backed conclusion.
@@ -28,7 +28,7 @@ Concluding that an existing model already suffices — and that no training is n
 1. **Workflow skeleton, agentic steps.** Plain code owns control flow wherever the path is known in advance. LLMs are used only where judgment is required. Autonomy is added only where the path cannot be predetermined.
 2. **Code computes what can be computed.** If a step has a correct answer obtainable by computation (profiling, splitting, metrics, leakage statistics, budget accounting, numeric hyperparameter search), deterministic code does it. The LLM interprets, hypothesizes, and writes task-specific code.
 3. **The LLM writes the model; the platform owns the exam.** LLM-generated code builds and trains models. It never splits off held-out data, never sees held-out labels, and never computes the metrics that judge it. Platform code does.
-4. **Fan out the reads, keep decisions in one thread.** Parallelize independent research, diagnosis, and experiment execution. Any decision that writes, commits, or depends on other choices is made in one place. Subagents return findings, not actions.
+4. **One overall decision thread.** A owns user-facing strategy and review. B researches without workers. C owns data and implementation and may delegate bounded assignments. Code executes validated decisions and enforces permissions.
 5. **Parallel whenever safe, bounded by real resources.** Every step whose inputs are ready may start immediately, subject to CPU/GPU slots, LLM rate limits, and budget.
 6. **Safety is enforced in code and permissions, not prompts.** Every tool call passes a policy check outside the model. An agent can ask to bypass a policy; it can never override one by generating persuasive text.
 7. **Propose, approve, commit.** The agent proposes artifacts (plans, contracts, exports); a human approves the exact artifact (by hash); only the approved artifact executes.
@@ -55,8 +55,9 @@ Concluding that an existing model already suffices — and that no training is n
 | **Training from scratch / fine-tuning** | Fit from random initialization / continue training pretrained weights. |
 | **Inference / inference optimization** | Predict with fixed weights / reduce prediction cost (compile, precision, quantization, batching, smaller model) while re-verifying quality. |
 | **Controller** | Deterministic Python state machine that owns run state, scheduling, budgets, policy, approvals, and stage transitions. |
-| **Supervisor** | An LLM call invoked by the controller only at stage boundaries and escalations, to make cross-stage judgment calls. Not a continuously running agent. |
-| **Lead** | An LLM role that owns one phase's decision thread and delegates to workers. |
+| **Agent A** | Overall lead owning user intent, planning, B/C delegation, result review and reporting. |
+| **Agent B** | Read-only researcher with isolated context and no worker delegation. |
+| **Agent C** | Combined data/coding lead; sole role allowed to request additional workers. |
 | **Worker** | An LLM role with a narrow brief, isolated context, restricted tools, and a structured output. Runs in parallel with sibling workers. |
 | **Execution worker (job runner)** | A separate OS process that executes sandboxed jobs on real hardware. Not an LLM. |
 | **Control plane / execution plane** | Where coordination happens / where jobs actually run. In local mode both are on the user's machine. |
@@ -148,53 +149,43 @@ Concluding that an existing model already suffices — and that no training is n
 
 ### 5.1 The graph
 
+```mermaid
+flowchart TD
+    User[User objective, dataset, constraints and budget] <--> A[Agent A: overall lead]
+    A -->|Scoped research brief, normally first| B[Agent B: read-only researcher]
+    B -->|Evidence, recommendation and uncertainty| A
+    A -->|Data and experiment brief| C[Agent C: data and coding lead]
+    C -->|Bounded worker requests| Runtime[Deterministic runtime]
+    Runtime --> Workers[Optional scoped workers]
+    Workers -->|Findings and artifacts| C
+    C -->|Validated execution requests| Runtime
+    Runtime -->|Platform scores and verification| C
+    C -->|Results and unresolved issues| A
+    A --> Outcome[Report, clarification, revised plan or stop]
 ```
-                                     [USER]
-                                        │
- CONTROLLER (code) ──── Supervisor LLM invoked only at ◆ stage boundaries / escalations
- │
- ├─ 1 INTAKE (LLM)  ───────────► TaskSpecification            [optional gate: confirm spec]
- ├─ 2 PROFILE (code) ──────────► DatasetProfile
- ├─ 3 ROUTE (code; LLM fallback) ► task family + run mode
- │        ├─ advice-only ──────────────────────► Research branch only ─► REPORT
- │        └─ otherwise ↓
- │
- ├─ PHASE A — PARALLEL PLANNING (both branches get TaskSpec + DatasetProfile)
- │   ├─ Research & Strategy Lead
- │   │    └─ research workers ×N (parallel, read-only)
- │   │    → StrategyReport: options A–D, evidence, recommendation (incl. "reuse X" / "no model")
- │   └─ Data & Methodology Lead
- │        └─ diagnostic workers ×N (parallel, read-only)
- │        → DataContract (model-independent)
- │   ◆ early exit: Research concludes with high confidence that no model is needed AND user
- │     did not request training → cancel Data branch → REPORT
- │
- ├─ JOIN ◆ → ★ HUMAN GATE: approve plan + budget (artifact hash) ★
- ├─ 4 CONTRACT (code) → ExperimentContract (immutable, versioned)
- │
- ├─ PHASE B — EXPERIMENTS (entered only per 5.3)
- │   Training & Optimization Lead (single decision thread)
- │     ├─ trial workers ×K (parallel)   — each writes fit/predict for ONE hypothesis
- │     ├─ optimization workers (parallel, pipelined behind passing candidates)
- │     ├─ VERIFIER (code) → REVIEWER (LLM, read-only)
- │     └─ Lead: continue · stop · escalate ◆ (DATA_PROBLEM / REUSE_WINS / CONSTRAINT_INFEASIBLE / REPEATED_FAILURE)
- │                                         ★ gate if budget extension or new permission ★
- │
- └─ 5 REPORT (LLM; every number pulled from the DB) → deliverables
-```
+
+The graph is a decision loop. A may request further research or data/experiment work after
+reviewing evidence. A may overlap B with an independent C diagnostic, recording the dependency
+reason. B's recommendation is reconciled with C's findings before execution. Only C may request
+additional agents. The runtime creates sessions after validating their briefs and remaining limits.
 
 ### 5.2 Stage definitions
 
-| Stage | Owner | Input | Output | Notes |
-|---|---|---|---|---|
-| **1 Intake** | LLM (Intake role) | User message, structured form fields | `TaskSpecification` | Asks only high-value clarifications. Hard constraints (target, metric, budget, data locality, approval policy) also come from structured UI fields, not chat alone. |
-| **2 Profile** | Code | Dataset reference | `DatasetProfile` | pandas/PIL/NumPy. Shape, dtypes, missingness, cardinality, label distribution, duplicates, corrupt files, ID-like columns, candidate group keys, timestamps and sampling intervals, per-feature target-association statistics (leakage *candidates*). |
-| **3 Route** | Code (LLM fallback for ambiguous cases) | TaskSpec + Profile | `family ∈ {tabular, vision, timeseries, experimental}`, `run_mode ∈ {advice_only, full}` | File types, timestamp columns, and the TaskSpec usually decide deterministically. |
-| **Phase A** | Two Leads in parallel | TaskSpec + Profile | `StrategyReport`, `DataContract` | See 6.3 and 7. |
-| **Join + Gate** | Controller + user | Both outputs | `ApprovedPlan` (hash) | Presents strategy options, recommended Phase B plan (trials, estimated cost), and data contract. |
-| **4 Contract** | Code | ApprovedPlan + DataContract | `ExperimentContract` | Freezes split, metric, limits, allowed features, budgets. Changes create a new version. |
-| **Phase B** | Training & Optimization Lead | Contract | Trials, verified results | See 8. |
-| **5 Report** | LLM (Reporter) | DB records only | Report + export bundle | Every number is quoted from stored metrics; no free-form figures. |
+| Activity | Owner | Output and boundary |
+|---|---|---|
+| Intake and clarification | A | TaskSpecification from user intent and explicit constraints |
+| Basic profile | Code | DatasetProfile; target comes from validated intake |
+| Strategy research | B | StrategyReport with evidence, uncertainties and proposed options; read-only |
+| Data methodology and implementation | C | Proposed DataContract, transformation provenance and experiment plan |
+| Reconciliation and approval | A + runtime + user | A reviews research/data consistency; runtime validates; user approves scope and budget |
+| Contract creation | Code | Immutable ExperimentContract implementing approved rules |
+| Experiments | C, optionally its workers | Trial code and findings; runtime schedules, runs and scores |
+| Review and next action | A | Continue, ask user, revisit B/C, or stop; failed checks remain visible |
+| Report | A + code | A explains; code supplies authoritative numbers and required limitations |
+
+Phase A and Phase B remain names for planning and execution, not fixed parallel branches.
+Existing Stage 1 intake/single-agent/reporter roles remain the comparison implementation until
+the new graph is built. Describing A/B/C here does not claim they already run.
 
 #### DatasetProfile tabular schema (S1.1)
 
@@ -244,13 +235,18 @@ Phase B is required whenever anything must be **run on the user's data** — not
 
 **Skip Phase B when:** the request is advice-only, or Research concludes no model is needed and the user declines measurement.
 
-### 5.4 Speculative parallelism in Phase A
+### 5.4 Dependency-aware research ordering
 
-Phase A runs both branches concurrently by default because (a) almost every path — including "reuse X" — needs the data contract to evaluate honestly, (b) the Data branch is cheap relative to Research, and (c) Research needs data facts that the Profile already provides.
+Research-first is the default. A may start independent C inspection alongside B when the task
+and initial profile suffice to scope research, and records why neither task requires the other's
+unfinished result. If the task is ambiguous, A clarifies it first. If research requires a missing
+data fact, A obtains a bounded C diagnostic before resuming B. New data findings that invalidate
+research assumptions return through A for revised research. No blanket assumption that profiling
+contains all necessary methodology facts is permitted.
 
-- `advice_only` runs skip the Data branch entirely (decided in code at Route).
-- If Research emits `no_model_needed` with `confidence ≥ threshold` and the user did not request training, the controller cancels the Data branch.
-- Config switch `phase_a_mode ∈ {parallel, research_first}` allows sequential operation if evaluations show early exits are common.
+Independent trials and deterministic diagnostics may overlap within resource limits. Promotion,
+optimization and dependent experiments wait for the evidence they require. Parallel execution
+does not require a separate agent for each process or parameter setting.
 
 ---
 
@@ -258,53 +254,69 @@ Phase A runs both branches concurrently by default because (a) almost every path
 
 ### 6.1 Topology
 
-**Supervisor–workers with a deterministic controller at the top.** The controller (code) handles sequencing, scheduling, and enforcement. The Supervisor LLM is consulted only when a cross-stage judgment is needed. Leads own phase-level decision threads. Workers execute narrow, parallel briefs.
+Three main roles with isolated contexts: A overall lead, B researcher, C data and coding lead.
+A owns intake, strategy, delegation to B/C, evidence review, user communication and stopping.
+C owns data methodology and implementation within A's approved assignment. Only C can request
+additional workers. B and workers cannot delegate. A's B/C invocations are main-role calls,
+not permission to create arbitrary additional agents. No separate Supervisor, Research Lead,
+Data Lead, Training Lead, Reviewer or Reporter is required in the final default graph.
 
-The default stage order is fixed in code because it is known in advance; spending LLM calls to rediscover it adds cost and latency without benefit.
+The runtime owns persistence, permissions, approval validation, budget reservation, scheduling,
+sandboxing, data splits and scoring. LLM proposals cannot bypass those checks. Existing schema
+names and role enums remain compatibility artifacts until explicitly approved implementation
+migrations; generated documentation is not hand-edited.
 
-### 6.2 Supervisor
+### 6.2 Agent A's decision loop
 
-Invoked by the controller on these events only:
-- Phase A join (sanity check of strategy vs. data contract consistency before the gate).
-- Lead escalation from Phase B: `DATA_PROBLEM`, `REUSE_WINS`, `CONSTRAINT_INFEASIBLE`, `REPEATED_FAILURE`.
-- Budget exhaustion with unmet objective.
+A receives user constraints, task/profile summaries, B/C findings with evidence references,
+experiment ledger, verification outcomes, unresolved questions and remaining budget. A can
+request clarification, invoke B/C, revise its plan, review artifacts, continue within approval,
+request a new approval or stop and report. Invoke A on meaningful findings/job completions or
+escalations; code handles routine polling. Decisions and their evidence are recorded.
 
-Input: TaskSpec, current contract, StrategyReport summary, DataContract, experiment ledger, escalation payload.
-Output (structured): one of `continue | revisit_data(question) | revisit_strategy(question) | stop_and_report(reason) | ask_user(question)`. The controller executes the decision; the Supervisor never calls tools.
+A reviews C's results independently of C's conversation. It can inspect code and stored evidence,
+but cannot waive failed verification or hide important failures. Deterministic report fields expose
+verification status, limitations and actual resource use regardless of narrative choices.
 
-### 6.3 Roles
+### 6.3 Roles and permissions
 
-| Role | Type | Tools (via MCP allowlist) | Context it receives | Output schema | Instances |
-|---|---|---|---|---|---|
-| **Intake** | LLM | `ask_user` (via controller) | User messages, form fields, Profile summary | `TaskSpecification` | 1 |
-| **Research & Strategy Lead** | LLM | delegate, `search_model_catalog`, `retrieve_methodology` | TaskSpec, Profile summary, worker findings | `StrategyReport` | 1 |
-| **Research worker** | LLM | `search_model_catalog`, `get_model_evidence`, `retrieve_methodology` (all read-only) | One delegation brief | `ResearchFinding` | 0–N parallel |
-| **Data & Methodology Lead** | LLM | delegate, `inspect_dataset`, `run_diagnostic` | TaskSpec, Profile | `DataContract` | 1 |
-| **Diagnostic worker** | LLM | `inspect_dataset`, `run_diagnostic` (read-only, summary outputs) | One brief (e.g. a column group, grouping question, time-order question, file-integrity question) | `DiagnosticFinding` | 0–N parallel |
-| **Training & Optimization Lead** | LLM | `propose_trials`, `estimate_experiment`, `get_experiment_metrics`, `compare_experiments`, `escalate` — **cannot execute code** | Contract, experiment ledger, verifier/reviewer verdicts | `TrialBatchProposal`, `LeadDecision` | 1 |
-| **Trial worker** | LLM | `write_trial_files`, `submit_experiment`, `get_experiment_status`, `get_experiment_logs` — scoped to its own trial directory | One `TrialBrief`, relevant templates, contract excerpt | Trial directory + `TrialFinding` | 1–K parallel |
-| **Optimization worker** | LLM | `profile_model`, `write_trial_files`, `submit_experiment` — scoped to its own directory | One `OptimizationBrief`, candidate artifact ref, profile | Optimized variant + `OptimizationFinding` | parallel, per passing candidate |
-| **Verifier** | **Code** | — | Trial artifacts, contract | `VerificationResult` | per trial |
-| **Reviewer** | LLM | read-only artifact/metric tools | Trial code, metrics, VerificationResult | `ReviewVerdict` (accept / reject + reasons / request follow-up) | per trial or batch |
-| **Reporter** | LLM | read-only DB/artifact tools | Final ledger, strategy, contract | `Report` | 1 |
-| **Supervisor** | LLM | none | See 6.2 | `SupervisorDecision` | on demand |
+| Role | Context | Tools and output | Delegation |
+|---|---|---|---|
+| A overall lead | User conversation, plan, findings summaries, ledger, referenced evidence | Clarify, invoke B/C, inspect evidence, propose approvals, report; no unrestricted execution | Main-role B/C calls only |
+| B researcher | Scoped question, task/profile facts, relevant C findings and constraints | Read-only catalog/retrieval; evidence-backed StrategyReport | None |
+| C data and coding lead | Approved objective, B findings, data summaries, contracts, trial ledger | Diagnostics, scoped writes, execution requests, bounded worker proposals; DataContract and TrialFindings | Sole worker-request authority |
+| C worker | One brief, relevant contract and evidence, own working directory | Minimum assignment-specific tools; artifacts/findings | None |
+| Runtime/verifier | Validated requests, contracts, artifacts and persisted state | Enforce, schedule, score, verify, record | Creates only authorized sessions |
 
-Role separation is justified by distinct **permissions** (read-only research vs. code-writing trials vs. read-only review), **context isolation** (each worker sees only its brief), **parallelism** (independent fan-out), and **independent verification** — not by role names.
+Each main role has a distinct system prompt and conversation even if all use the same model.
+B can fetch public evidence and populate platform caches but cannot modify user data or execute
+training. C preserves original data and records derived transformations; learned preprocessing
+fits training data only. Ambiguous target/label changes require A/user clarification.
+
+C works directly for simple tasks. Workers are justified by distinct independent hypotheses or
+substantial scoped investigations, not by every model configuration or column. The initial target
+is at most two active C workers, subject to owner-approved configuration; this is a ceiling, not
+a required count. A bounds C's total budget; C proposes briefs, tool permissions and per-worker
+limits; the runtime validates aggregate reservations before starting isolated sessions. Sibling
+workers never share mutable files. Worker failure returns to C, and scope/methodology changes
+return to A. The existing single-agent comparison remains runnable.
 
 ### 6.4 Delegation briefs
 
-Every delegation from a Lead to a worker is a structured object with four required parts:
+Only C delegates to workers. Each request contains an objective, relevant context/evidence,
+output contract, minimum allowed tools, end condition and budget. The following target example
+requires the S3.1 compatibility migration before it is a valid runtime role identifier:
 
 ```json
 {
   "brief_id": "brf_0192",
   "run_id": "run_104",
-  "issued_by": "research_lead",
-  "assigned_role": "research_worker",
-  "objective": "Assess whether 'microsoft/resnet-18' is suitable for 6-class fluorescence microscopy at 512x512 with 1,200 labeled images.",
-  "output_schema": "ResearchFinding",
-  "allowed_tools": ["get_model_evidence", "retrieve_methodology"],
-  "end_condition": "Return after evidence on license, input format, pretraining domain, and label adaptability is gathered, or after 6 tool calls.",
+  "issued_by": "agent_c",
+  "assigned_role": "trial_worker",
+  "objective": "Implement one approved tabular linear-model hypothesis under the referenced data contract.",
+  "output_schema": "TrialFinding",
+  "allowed_tools": ["write_trial_files", "submit_experiment", "get_experiment_status", "get_experiment_logs"],
+  "end_condition": "Return after a verified result, an unresolved failure, or the assigned call limit.",
   "context_refs": ["task_spec:v2", "profile:summary"],
   "budget": {"max_tool_calls": 6, "max_tokens": 20000}
 }
@@ -315,7 +327,7 @@ Vague delegation produces duplicate and off-target work; the brief schema preven
 ### 6.5 Context engineering
 
 - **Isolated contexts.** No agent receives another agent's transcript. Workers receive only their brief and referenced records.
-- **Experiment ledger instead of history.** The Training & Optimization Lead's context is rebuilt every turn from the database: contract summary + a compact table of all trials (ID, hypothesis, change, status, key metrics, verifier/reviewer verdict, cost). Raw logs are never placed in Lead context; they are fetched on demand by ID.
+- **Experiment ledger instead of history.** C's context is rebuilt every turn from the database: contract summary + a compact table of all trials (ID, hypothesis, change, status, key metrics, verifier/reviewer verdict, cost). Bounded raw logs and artifacts can be fetched by ID when needed; peer agent transcripts are never shared.
 - **Structured findings.** Workers return schema-validated findings (claims + evidence refs + confidence + open questions), not prose.
 - **Placement.** Stable instructions and contract first; ledger next; the current question last (mitigates lost-in-the-middle).
 - **Budgets.** Each role call has a token budget; the controller truncates or summarizes inputs to fit, logging what was omitted.
@@ -325,14 +337,14 @@ Vague delegation produces duplicate and off-target work; the brief schema preven
 - The **only writer** to shared state is the controller. Agents return outputs; the controller validates and appends them as events and records.
 - Shared state = append-only event log + versioned records (TaskSpec, DataContract, contracts, trials, results). Agents read via tools by ID.
 - **No shared mutable scratchpad.** No two agents edit the same file. Each trial and optimization variant writes only to its own directory under `runs/{run_id}/trials/{trial_id}/`.
-- Conflicting proposals are resolved by the Lead (within a phase) or Supervisor (across phases) into new versioned records.
+- C reconciles worker implementation findings; A resolves cross-task strategy conflicts into new versioned records.
 
 ### 6.7 Handoff schema (example)
 
 ```json
 {
   "run_id": "run_104",
-  "from_role": "research_lead",
+  "from_role": "agent_b",
   "to": "controller",
   "status": "complete",
   "recommendation": "evaluate_pretrained_then_finetune_if_needed",
@@ -353,7 +365,7 @@ Every handoff is recorded as a `handoff` event; a role invocation opens with a `
 | Lead | objective met under constraints; no improvement over N consecutive batches; max batches; escalation |
 | Run | max total steps; max LLM tokens / spend; max compute wall-clock; max trials; user cancel; irrecoverable policy failure |
 
-All limits are enforced by the controller, not by prompts.
+All limits are enforced by the runtime. Worker scheduling and validated role decisions cannot bypass them.
 
 ### 6.9 Single-agent configuration
 
@@ -363,9 +375,9 @@ A runnable configuration with **one LLM agent holding all tools**, the same cont
 
 ## 7. Phase A in detail
 
-### 7.1 Research & Strategy branch
+### 7.1 Agent B research
 
-The Lead compares four paths:
+B compares four paths for A to review:
 
 | Path | Meaning | When it may win |
 |---|---|---|
@@ -374,17 +386,17 @@ The Lead compares four paths:
 | **C. Fine-tune** | Adapt pretrained weights to the user's data | Domain/label shift; enough data and hardware |
 | **D. Task-specific training** | Fit a model for this dataset | Structured data, labels available, no suitable pretrained model, simpler is better |
 
-- Research workers fan out one per candidate model or per research question.
+- B investigates its brief directly, using bounded read-only searches. It creates no workers.
 - Sources: Hugging Face Hub metadata and model cards, framework docs, licenses/gating terms, legally accessible papers, timestamped price sources, prior verified experiments (RAG; Section 13).
 - Output `StrategyReport`: tradeoff table (task fit, evidence quality, privacy, license, hardware feasibility, setup cost, expected inference cost, latency uncertainty, evaluation risk), recommendation, **proposed Phase B plan** (which candidates to measure, estimated cost), confidence, citations. Unknown prices are reported as "unavailable."
-- A typical tabular problem should favor gradient-boosted trees or linear models over large neural models; the Lead assesses suitability, not fashion.
+- A typical tabular problem should favor gradient-boosted trees or linear models over large neural models; B assesses suitability using evidence and uncertainty.
 
-### 7.2 Data & Methodology branch
+### 7.2 Agent C data methodology
 
-All work here is **model-independent**.
+Data rules are justified independently of the model choice. C also owns implementation, but must not change evaluation rules to improve a candidate score.
 
-- Diagnostic workers fan out one per issue cluster: suspicious column groups (leakage candidates flagged by the Profile), grouping structure (repeated subjects/specimens/batches), time ordering and availability-at-prediction-time, label validity, file integrity and duplicates (vision), sampling/gaps/entities (time series).
-- Workers call `run_diagnostic` — a platform tool executing predefined, parameterized diagnostics (e.g. per-feature single-variable predictive power, group-overlap simulation, near-duplicate image hashing, timestamp monotonicity) — and interpret the summarized results.
+- C investigates issue clusters directly or delegates a bounded diagnostic assignment: suspicious column groups (leakage candidates flagged by the Profile), grouping structure (repeated subjects/specimens/batches), time ordering and availability-at-prediction-time, label validity, file integrity and duplicates (vision), sampling/gaps/entities (time series).
+- C or its authorized workers call `run_diagnostic` — a platform tool executing predefined, parameterized diagnostics (e.g. per-feature single-variable predictive power, group-overlap simulation, near-duplicate image hashing, timestamp monotonicity) — and interpret the summarized results.
 - Output `DataContract`:
 
 ```yaml
@@ -410,9 +422,13 @@ risks:
 open_questions: []
 ```
 
-### 7.3 Join
+### 7.3 Review, reconciliation and approval
 
-The controller checks both outputs for consistency (optionally via the Supervisor) — e.g. the strategy's candidates must be compatible with the data contract's modality and constraints — then presents the gate.
+A reviews B's recommendations against C's proposed data rules and hardware/permission constraints.
+Contradictions trigger a targeted B/C follow-up, not silent merging. The runtime validates the
+resulting proposed plan and presents the required plan/budget approval before execution. Advice-only
+requests may finish with B's evidence and A's report without invoking training. Explicit training or
+evaluation requests are not cancelled solely because B recommends reuse.
 
 ---
 
@@ -420,7 +436,7 @@ The controller checks both outputs for consistency (optionally via the Superviso
 
 ### 8.1 Trial interface (the boundary between LLM code and platform code)
 
-Every trial is a directory written by a trial worker:
+Every trial is a directory written by C or one of its authorized workers:
 
 ```
 runs/{run_id}/trials/{trial_id}/
@@ -455,7 +471,7 @@ Trial workers start from platform templates (tabular sklearn/XGBoost pipeline, f
 
 ### 8.3 Adaptive breadth
 
-The Lead decides how many candidates to try based on uncertainty and cost:
+C proposes implementation breadth within A's approved experiment objectives and budget:
 
 | Situation | Trials launched |
 |---|---|
@@ -464,19 +480,19 @@ The Lead decides how many candidates to try based on uncertainty and cost:
 | User named a model | That model + baseline (+ reuse candidate if Research recommended reuse) |
 
 - **Mandatory baseline** in every Phase B: dummy/majority/mean predictor plus one simple model (linear/logistic for tabular, frozen-backbone linear head for vision, seasonal-naive for time series). Baselines are near-free and give every metric a reference.
-- Every `TrialBatchProposal` must state the Lead's **confidence**, the **justification for K**, and each trial's **estimated cost** (`estimate_experiment`). The controller rejects batches exceeding the approved budget.
+- Every `TrialBatchProposal` must state C's **confidence**, the **justification for K**, and each trial's **estimated cost** (`estimate_experiment`). The controller rejects batches exceeding the approved budget.
 - Numeric hyperparameter search inside a trial uses Optuna or bounded random search, not LLM-invented combinations.
 - Config: `breadth_mode ∈ {adaptive, fixed_k}` for measuring compute savings.
 
-### 8.4 Successive halving for uncertain choices
+### 8.4 Successive halving for uncertain choices (Later)
 
 ```
 K candidates × short budget (few epochs / data subset)  →  keep top 1–2  →  full training  →  optimize
 ```
 
-The Lead specifies the short budget and the promotion criterion in the proposal; the scheduler enforces it.
+C specifies the short budget and the promotion criterion in the proposal; the scheduler enforces it.
 
-### 8.5 Pipelined optimization
+### 8.5 Pipelined optimization (Later)
 
 Optimization of a given model happens after that model passes verification; parallelism is **across candidates**:
 
@@ -490,7 +506,7 @@ Trial D                       [ train ──────── ]       (launched
 
 - Only candidates that pass the contract's quality threshold are optimized.
 - Optimization variants are separate trials with their own directories and verification (correctness tolerance + held-out quality).
-- Results feed back: if an optimized candidate still violates latency, the Lead can propose a smaller architecture.
+- Results feed back: if an optimized candidate still violates latency, C can propose a smaller architecture to A.
 
 ### 8.6 Verification
 
@@ -502,18 +518,21 @@ Trial D                       [ train ──────── ]       (launched
 - Optimization variants: numerical tolerance vs. reference model and held-out quality delta within contract limits; latency measured per documented protocol (warm-up, batch sizes, synchronization).
 - Resource limits respected.
 
-**Reviewer (LLM, read-only):** reads code, metrics, and VerificationResult; flags methodological concerns code cannot detect (e.g. suspicious feature engineering, an improvement too small to be meaningful, a better-justified next hypothesis). It can reject or request a follow-up trial; it cannot override a failed deterministic check.
+**A's result review:** A reads C's summary, referenced code, metrics and VerificationResult.
+It requests clarification or follow-up for methodological concerns beyond automated checks.
+There is no mandatory additional product reviewer agent. A cannot override failed checks.
+The separate repository PR reviewer remains a development process requirement.
 
 ### 8.7 Lead decisions
 
-After each batch: `stop_success | propose_next_batch | escalate(type) | stop_budget`. Decision rules the Lead must apply:
+C reports each batch to A; A chooses `stop_success | propose_next_batch | escalate(type) | stop_budget`. Decision rules A applies with C's evidence:
 - Meets quality and resource constraints → consider stopping.
 - Good quality, fails latency → optimize or try smaller architecture.
 - Quantization hurts quality beyond tolerance → reject variant, adjust precision.
 - Loss diverges → diagnose preprocessing/LR/precision/data.
 - OOM/timeout → distinguish infrastructure fault from scientific failure; shrink and retry.
 - A reuse candidate already meets constraints → recommend stopping training.
-- Data issue discovered → escalate `DATA_PROBLEM` to the Supervisor (may reopen Phase A's data branch).
+- Data issue discovered → return `DATA_PROBLEM` to A, which may reopen C diagnostics and B research.
 
 Final selection may present a **Pareto frontier** (quality, latency, throughput, memory/size, cost, reliability) instead of one winner.
 
@@ -546,7 +565,7 @@ LLM and external API calls use exponential backoff with jitter on 429/5xx, bound
 
 ### 9.5 Config switches
 
-`parallel_mode ∈ {on, off}` (serializes everything for comparison), `max_research_workers`, `max_diagnostic_workers`, `max_parallel_trials`.
+`parallel_mode ∈ {on, off}` controls execution concurrency. The target orchestration default is research-first, with A recording any justified overlap. Worker session limits and concurrent experiment-job limits are separate. Existing `phase_a_mode`, `max_research_workers` and `max_diagnostic_workers` are legacy configuration names pending the S3.1 compatibility migration; they do not authorize B to spawn. C alone may request at most the configured worker ceiling.
 
 ---
 
@@ -646,14 +665,15 @@ Error classes (`error_class`): invalid arguments (repair), transient (bounded re
 trusted fetch / approved import → MIME/license/provenance checks → parse, dedupe, normalize
 → structure-aware chunking (heading, model section, limitation) → tag source/version/date/task/framework/license
 → persisted BM25 index + embedding index → constraint-aware query rewrite
-→ metadata filter → hybrid retrieval (score fusion) → rerank → cited passages to research workers
+→ metadata filter → configured retrieval → cited passages to Agent B
+Optional later: cross-encoder reranking
 ```
 
 **Freshness:** model-card benchmarks are self-reported; live pricing comes from timestamped sources; failures show cached dates and mark estimates as potentially stale.
 
 **Injection:** retrieved content is untrusted data. Tool permissions, path scope, network restrictions, the data firewall, and export approval hold even when the LLM is misled.
 
-**Configs for comparison:** `retrieval_mode ∈ {off, tfidf, bm25, embedding, hybrid, hybrid_rerank}`.
+**Configs for comparison:** `retrieval_mode ∈ {off, tfidf, bm25, embedding, hybrid}` for core comparisons; `hybrid_rerank` is optional Later.
 
 ---
 
@@ -750,12 +770,12 @@ unrecoverable → FAILED_TERMINAL
 ```
 Transitions are validated operations recording initiator, timestamp, reason, and expected prior state.
 
-### 15.4 Checkpoints
+### 15.4 Checkpoints (Later durability extension)
 
 - **Orchestration checkpoint:** implicit in the event log + records (TaskSpec, contracts, pending trials, approvals, budget spent). Controller restart = replay.
 - **Training checkpoint:** weights, optimizer/scheduler state, epoch/step, RNG states, sampler state or replay strategy, data/software refs; written atomically (temp file + rename) at a configurable cadence.
 
-### 15.5 Delivery semantics
+### 15.5 Delivery semantics (durable restart guarantees are Later)
 
 At-least-once with idempotent operations: idempotency keys on submits and writes, versioned/atomic artifact writes, completion records with immutable hashes, exports check for existing versions. Recovery messages state exactly what was recovered or that a restart occurred.
 
@@ -788,7 +808,7 @@ Config: `durable_mode ∈ {on, off}` (off disables checkpoint-resume for compari
 ## 17. LLM providers
 
 - **Provider adapter:** one interface (`complete(messages, tools, output_schema, tier) → response`) with Gemini and OpenAI implementations using native SDKs, so every prompt and token is inspectable; another provider plugs into the same interface.
-- **Model tiers:** `lead` (strong model for Leads, Supervisor, Reviewer), `worker` (capable, cheaper model for research/diagnostic/trial workers), `cheap` (intake parsing, summarization). Mapped to providers/models in config.
+- **Model tiers:** `lead` (A and C reasoning), `worker` (B and C-authorized workers), `cheap` (bounded summarization/helpers when needed). Roles use isolated contexts even when mapped to one model. Existing role-to-tier mappings migrate explicitly in S3.1. Mapped to providers/models in config.
 - **Development (`dev` profile):** free-tier Gemini, with the model IDs and self-imposed rate limits in `configs/models.yaml` (D-007). Only real public OpenML/UCI datasets are used (D-015), consistent with free-tier data-use terms.
 - **Final evaluation and demo (`eval` profile):** pinned exact model IDs, temporarily locked at S2.6 to `gpt-6-luna` by owner approval (D-033); repeat D-007 selection after Stage 3 data planning, with no fallback. Recorded runs never mix models. Results describe the agent as configured; changing the model requires re-running the evaluation.
 - Every run records provider, model identifier/version, temperature (or "not configurable"), and run date.
@@ -862,7 +882,7 @@ A case = request + a real public dataset (a documented OpenML or UCI snapshot wi
 
 **Pass criteria per case (all programmatic):** hidden-split metric meets threshold; no trap violated; reported metric matches harness recomputation within tolerance; no policy violations; budget respected; correct decision class (train / reuse / infeasible).
 
-**Outcome evidence (D-032):** decision and fault claims are graded from structured evidence that platform code writes into the report and the grader recomputes from durable records, never from report prose. `infeasible` means independently checked hard constraints leave no authorized model-producing route within the supplied data and platform, not that a pipeline failed, a budget ran out, or the task is unlearnable. A case expecting a safe failure keeps its intended train or reuse decision; its hidden metric may be null, and model-dependent checks are excused only after the safe stop is proven to have been caused by the fault. Malformed-data faults are graded from S3.H3 on, with the evidence its bad-data cases add.
+**Outcome evidence (D-032):** decision and fault claims are graded from structured evidence that platform code writes into the report and the grader recomputes from durable records, never from report prose. `infeasible` means independently checked hard constraints leave no authorized model-producing route within the supplied data and platform, not that a pipeline failed, a budget ran out, or the task is unlearnable. A case expecting a safe failure keeps its intended train or reuse decision; its hidden metric may be null, and model-dependent checks are excused only after the safe stop is proven to have been caused by the fault. Malformed-data causal grading is completed in S4.1, with positive and negative evidence tests before those cases can receive safe-failure credit.
 
 ### 19.3 Baselines
 
@@ -880,7 +900,7 @@ A case = request + a real public dataset (a documented OpenML or UCI snapshot wi
 
 ### 19.4 Feature flags (one comparison runner)
 
-All comparisons run through one runner with config flags: `agent_mode ∈ {single, multi}`, `planning ∈ {on, off}`, `retrieval_mode`, `defenses.{allowlist, sandbox_network, firewall, approval, injection_filter}`, `durable_mode`, `breadth_mode`, `parallel_mode`, `phase_a_mode`, `model_config`.
+All claimed comparisons use the same runner. Flags are target comparison controls; an existing inactive flag is not implementation evidence. Configuration migration is required for A/B/C ordering and C-only worker limits. Existing comparison flags: `agent_mode ∈ {single, multi}`, `planning ∈ {on, off}`, `retrieval_mode`, `defenses.{allowlist, sandbox_network, firewall, approval, injection_filter}`, `durable_mode`, `breadth_mode`, `parallel_mode`, `phase_a_mode`, `model_config`.
 
 ### 19.5 Protocol (per handout)
 One primary run per case per system; ≥ 5 representative cases × 3 runs reported separately; model/version/temperature/tool/data versions/retry policy recorded; 95% Wilson intervals; paired outcome table (both-pass / agent-only / baseline-only / both-fail); 95% paired-bootstrap CI (≥ 1,000 resamples) on pass-rate differences, "inconclusive" if it includes 0; per-case evidence committed (inputs/refs, outputs, scores, timings, tokens, config, case IDs); failure categories; mean and p95 latency with method; actual spend and list-price cost per task with price date and provider.
@@ -920,7 +940,7 @@ One primary run per case per system; ≥ 5 representative cases × 3 runs report
 
 Runtime features must be active in the final agent evaluation. Reusing per-case records across features is allowed; relabeling one comparison as two experiments is not. The proposal and write-up follow the course's AI-assistance policy; every component must be explainable by the author in the demo.
 
-**Build order (D-028):** the core evaluation claims F1, F3, F4, F5, F6, and F7. F10, vision, the web app, and two extra comparisons come after the core (`docs/PLAN.md`, "Later track"); F10 is claimed only if its implementation merges before the test freeze and its comparison then runs at the frozen commit. Until that implementation merges, the Crashes row of §19.2 is not part of the required trap set. This section is still subject to the handout.
+**Build order (D-028, D-036):** the core evaluation claims F1, F3, F4, F5, F6, and F7. F10, vision, the web app, and two extra comparisons come after the core (`docs/PLAN.md`, "Later track"); F10 is claimed only if its implementation merges before the test freeze and its comparison then runs at the frozen commit. Until that implementation merges, the Crashes row of §19.2 is not part of the required trap set. This section is still subject to the handout.
 
 ---
 
@@ -989,9 +1009,9 @@ hypora/
     controller/              state machine, stage transitions, approvals, budget ledger
     scheduler/               DAG executor, resource pools, cancellation, rate limiting
     policy/                  tool tiers, allowlists, contract scope checks, data firewall
-    roles/                   intake, supervisor, research_lead, research_worker,
-                             data_lead, diagnostic_worker, training_lead, trial_worker,
-                             optimization_worker, reviewer, reporter, single_agent
+    roles/                   target: agent_a, agent_b, agent_c, scoped worker
+                             existing: intake, reporter, single_agent and versioned prompts
+                             legacy enum/schema names migrate explicitly; do not imply files exist
     llm/                     provider adapter, tiers, token accounting
     verification/            verifier checks
   profiling/                 deterministic dataset profiling + diagnostics library
@@ -1051,11 +1071,11 @@ class Role:
 
 ## 23. Worked scenarios (illustrative, not results)
 
-**A — Tabular assay data.** Intake extracts target `yield`, metric MAE, forbidden post-reaction measurements. Profile flags `final_mass` as highly predictive and `batch_id` as a group key. Phase A in parallel: Research finds no suitable pretrained/hosted option and recommends task-specific training; Data Lead's workers confirm `final_mass` is post-outcome leakage and set a group split by batch. The user approves a plan: baseline + GBT (choice is clear, K=1). Trials run on the lab CPU; verifier confirms `final_mass` absent and no batch overlap. Lead notices uneven per-batch error, proposes one follow-up trial; result is reported with per-batch errors and a reproducible pipeline.
+**A — Tabular assay data.** Intake extracts target `yield`, metric MAE, forbidden post-reaction measurements. Profile flags `final_mass` as highly predictive and `batch_id` as a group key. During planning (overlap only when A justifies it): Research finds no suitable pretrained/hosted option and recommends task-specific training; Agent C's workers confirm `final_mass` is post-outcome leakage and set a group split by batch. The user approves a plan: baseline + GBT (choice is clear, K=1). Trials run on the lab CPU; verifier confirms `final_mass` absent and no batch overlap. Lead notices uneven per-batch error, proposes one follow-up trial; result is reported with per-batch errors and a reproducible pipeline.
 
-**B — Microscopy classifier on a lab GPU.** Research workers evaluate two pretrained CNNs' cards and licenses; Data Lead's workers find same-specimen images and set a specimen-grouped split. The choice is uncertain → successive halving over frozen-backbone ResNet-18, frozen MobileNet, and short fine-tunes. ResNet-18 fine-tune wins; while it trains fully, optimization of the frozen MobileNet candidate starts. A worker crash mid-epoch is recovered from checkpoint. The verifier rejects a quantized variant that exceeds the F1 tolerance; the user sees an accuracy–latency–memory Pareto view.
+**B — Microscopy classifier on a lab GPU (Later backend).** Agent B evaluates two pretrained CNNs' cards and licenses; Agent C's workers find same-specimen images and set a specimen-grouped split. The choice is uncertain → successive halving over frozen-backbone ResNet-18, frozen MobileNet, and short fine-tunes. ResNet-18 fine-tune wins; while it trains fully, optimization of the frozen MobileNet candidate starts. Checkpoint recovery is available only after the Later durability work is implemented. The verifier rejects a quantized variant that exceeds the F1 tolerance; the user sees an accuracy–latency–memory Pareto view.
 
-**C — Sensor forecasting.** Data Lead establishes entities, frequency, horizon, and walk-forward validation; seasonal-naive baseline is mandatory. Trials compare exponential smoothing, lag-GBT, and a compact GRU in parallel. Lead observes degradation after a sensor recalibration and escalates `DATA_PROBLEM`; the Supervisor reopens the data branch, which adds a segment-aware diagnostic. The report separates historical validation from unknown future shift.
+**C — Sensor forecasting (Later backend).** Agent C establishes entities, frequency, horizon, and walk-forward validation; seasonal-naive baseline is mandatory. Trials compare exponential smoothing, lag-GBT, and a compact GRU in parallel. Lead observes degradation after a sensor recalibration and escalates `DATA_PROBLEM`; Agent A reopens the data branch, which adds a segment-aware diagnostic. The report separates historical validation from unknown future shift.
 
 ---
 
@@ -1064,19 +1084,19 @@ class Role:
 **Differentiation (stated honestly):** Coding agents can write training scripts; our value is a specialized, verified experimental process — evidence-backed strategy, model-independent data contracts, platform-owned evaluation, local execution with a data firewall, quantitative tradeoffs, and reproducible outputs. AutoML tunes and fits; we must *demonstrate* that hypothesis-driven reasoning beats a fixed pipeline. MLflow tracks; we decide what to run next and execute it safely. Hugging Face catalogs; we measure candidates on the user's data.
 
 **Decided:**
-- Deterministic controller + Supervisor LLM at boundaries; Leads with parallel workers; single decision thread per phase.
-- Phase A: Research & Strategy and Data & Methodology run in parallel (speculative; skip for advice-only; cancel on confident no-model).
+- Agent A owns the overall loop; B researches; C owns data/code and optional workers; deterministic runtime enforces every action.
+- Research-first planning with A-authorized independent overlap; B read-only, C owns data/code and worker delegation.
 - Phase B entered per 5.3; LLM writes trial code via the fit/predict interface; platform owns splits, held-out labels, and metrics.
-- Adaptive breadth with mandatory baseline, successive halving, pipelined optimization across candidates.
-- Code verifier followed by read-only LLM reviewer.
+- Bounded baseline/candidate experiments; advanced successive halving and pipelined optimization are Later refinements.
+- Deterministic verification followed by A's evidence review; no dedicated product reviewer.
 - Isolated contexts, structured briefs and findings, experiment ledger, controller as sole writer of shared state, append-only event log.
 - Propose → approve → commit; plan + budget gate; autonomy within the approved envelope; `auto_within_contract` for evaluation.
 - Tool tiers, idempotency keys, policy engine outside the model.
 - Local mode by default with the execution worker as a separate process; hosted control plane + outbound worker supported by the same protocol; data firewall.
 - No agent framework; native SDKs behind a provider adapter with model tiers.
-- Verified tabular, vision, time-series families; experimental mode for others.
+- Verified tabular core; other families require implemented backends/checks and are Later. Experimental advice is available without claiming arbitrary task validation.
 - Programmatic core evaluation with planted-trap cases, fixed-pipeline baseline, and feature-flag ablations.
-- Web app, CLI, HTTP API, and external MCP access share one core.
+- CLI first; web/API/remote deployment are Later interfaces to the same core.
 
 **Open (decided during implementation, justified by tests):**
 - Final evaluation/demo provider and exact per-tier model IDs, selected at S2.6 (D-007).
@@ -1096,11 +1116,12 @@ class Role:
 |---|---|
 | Agent loop | LLM observes state, picks an action/tool, receives the result, repeats |
 | Controller | Deterministic code coordinating stages, scheduling, policy, approvals, budgets |
-| Supervisor | LLM consulted at stage boundaries and escalations |
-| Lead / Worker | Phase-level decision role / narrow parallel role with isolated context |
+| Agent A | Overall lead for user intent, delegation, review and next action |
+| Agent B | Read-only researcher; returns evidence to A and cannot spawn workers |
+| Agent C / Worker | Data/coding lead / scoped isolated assignment created only on C's request |
 | Brief | Structured delegation: objective, output schema, tools, end condition |
 | Finding | Structured worker output: claims, evidence refs, confidence, open questions |
-| Experiment ledger | Compact per-trial table rebuilt from the DB for the Lead's context |
+| Experiment ledger | Compact per-trial table rebuilt from the DB for the responsible agent's context |
 | Data contract | Model-independent decisions on features, leakage, splits, non-learned fixes |
 | Experiment contract | Frozen, versioned, approved terms of Phase B |
 | Trial | One hypothesis implemented as fit/predict in its own directory |
