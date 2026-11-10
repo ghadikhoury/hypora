@@ -563,6 +563,25 @@ class LLMAdapter:
                     retries += 1
                     continue
                 await self._emit(context, failure_payload(error), ledger)
+                if research_scope and (queries or _has_malformed_research(request.messages)):
+                    detail = (
+                        "[FILTERED]"
+                        if _has_malformed_research(request.messages)
+                        else str(redact(error.detail, queries))
+                    )
+                    safe_cause = ProviderError(
+                        error.kind,
+                        detail,
+                        status_code=error.status_code,
+                        retry_after_s=error.retry_after_s,
+                        usage=error.usage,
+                    )
+                    raise LLMCallError(
+                        f"{target.provider.value}/{target.model_id} failed after {retries} "
+                        f"retries: {safe_cause}",
+                        cause=safe_cause,
+                        retries=retries,
+                    ) from None
                 raise LLMCallError(
                     f"{target.provider.value}/{target.model_id} failed after {retries} "
                     f"retries: {error}",
@@ -572,7 +591,18 @@ class LLMAdapter:
 
         cost = price.cost_usd(result.usage)
         parsed, validation_error = _validate(output_schema, result)
-        if validation_error is not None and context.sensitive_output_filter is not None:
+        malformed_research = research_scope and (
+            _has_malformed_research(request.messages)
+            or any(
+                call.name == "retrieve_methodology"
+                and _unsafe_research_args(call.arguments, call.arguments_error)
+                for call in result.tool_calls
+            )
+        )
+        if validation_error is not None and (
+            context.sensitive_output_filter is not None or malformed_research
+        ):
+            # Unknown malformed input cannot be selectively scrubbed from error locations.
             validation_error = "[FILTERED]"
         elif validation_error is not None and context.actor_role in (
             ActorRole.AGENT_A,
