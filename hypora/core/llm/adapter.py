@@ -471,6 +471,13 @@ class LLMAdapter:
         parsed, validation_error = _validate(output_schema, result)
         if validation_error is not None and context.sensitive_output_filter is not None:
             validation_error = "[FILTERED]"
+        elif validation_error is not None and context.actor_role in (
+            ActorRole.AGENT_A,
+            ActorRole.AGENT_B,
+        ):
+            # Error locations may contain unexpected model-provided object keys.
+            # Scrub configured secrets before feedback reaches a retry or exception.
+            validation_error = self.redact_for_log(validation_error)
         final_id = event_id()
         message = Message(
             role=MessageRole.ASSISTANT,
