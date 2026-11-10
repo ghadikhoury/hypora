@@ -48,7 +48,7 @@ async def test_allowlist_off_preserves_ablation_even_with_empty_case_list(sessio
     )
     try:
         async with Client(HyporaMCPServer(session)) as client:
-            assert len((await client.list_tools()).tools) == 6
+            assert len((await client.list_tools()).tools) == 9
     finally:
         session.close()
 

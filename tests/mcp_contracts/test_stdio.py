@@ -22,7 +22,7 @@ async def test_a_stdio_client_lists_and_calls_tools(session_file):
         assert client.server_info is not None and client.server_info.name == "hypora"
         assert "No tool returns raw dataset rows" in (client.instructions or "")
         listed = await client.list_tools()
-        assert len(listed.tools) == 6
+        assert len(listed.tools) == 9
         profile = await client.call_tool("inspect_dataset", {})
         assert not profile.is_error
         assert profile.structured_content["tabular"]["n_rows"] == 569

@@ -9,12 +9,44 @@ from hypora.core.config.flags import AgentMode, Toggle
 from hypora.core.controller.controller import RunRequest
 from hypora.core.llm.providers.fake import json_result, text_result, tool_call_result
 from hypora.core.llm.types import ToolCall
-from hypora.core.schemas.events import RoleStartedEvent, StageTransitionEvent
+from hypora.core.schemas.events import RoleStartedEvent, StageTransitionEvent, ToolCallEvent
 from hypora.storage.events import EventLog
 from tests.controller.conftest import NoWorker
 from tests.controller.scripted import ScriptedRun
 
 pytestmark = pytest.mark.anyio
+
+
+def strategy_fixture(run_id):
+    fields = (
+        "task_fit",
+        "evidence_quality",
+        "privacy",
+        "license",
+        "hardware_feasibility",
+        "setup_cost",
+        "expected_inference_cost",
+        "latency_uncertainty",
+        "evaluation_risk",
+    )
+    rows = {name: {"rating": "unknown", "note": "Unavailable"} for name in fields}
+    paths = ("hosted_api", "pretrained_as_is", "fine_tune", "task_specific_training")
+    return {
+        "run_id": run_id,
+        "options": [
+            {
+                "option_id": f"option_{i}",
+                "path": path,
+                "candidate": path,
+                "summary": "Unknown",
+                "tradeoffs": rows,
+            }
+            for i, path in enumerate(paths)
+        ],
+        "recommendation": {"kind": "no_model_needed", "rationale": "Insufficient evidence"},
+        "confidence": 0.0,
+        "open_questions": ["Evidence is unavailable."],
+    }
 
 
 class ScriptedMulti(ScriptedRun):
@@ -31,7 +63,16 @@ class ScriptedMulti(ScriptedRun):
             return json_result(response)
         if request.output_schema_name == "ResearchObservation":
             self.requests.append(request)
-            return json_result({"summary": "Research is unavailable", "uncertainties": []})
+            return json_result(
+                {
+                    "summary": "Research is unavailable",
+                    "uncertainties": [],
+                    "strategy_report": strategy_fixture(self.run_id),
+                }
+            )
+        if request.output_schema_name is None and "You are Agent B" in request.messages[0].content:
+            self.requests.append(request)
+            return text_result("No research tools were called.")
         if request.output_schema_name in {
             "IntakeDraft",
             "FinalAnswer",
@@ -62,9 +103,10 @@ async def test_multi_loop_role_order_context_and_plan(
     )
     events = list(EventLog(database).read("run_multi"))
     roles = [event.actor_role.value for event in events if event.type.value == "role_started"]
-    assert roles[:5] == ["agent_a", "agent_a", "agent_b", "agent_a", "agent_c"]
+    assert roles[:3] == ["agent_a", "agent_a", "agent_b"]
+    assert roles.index("agent_b") < roles.index("agent_c")
     assert "agent_a" in roles[5:]
-    assert any("External research is unavailable" in note for note in result.notes)
+    assert result.report_md.exists()
     starts = [
         event.payload.role_instance_id for event in events if isinstance(event, RoleStartedEvent)
     ]
@@ -73,7 +115,7 @@ async def test_multi_loop_role_order_context_and_plan(
     assert calls and all(event.actor_role.value == "agent_c" for event in calls)
     plans = [event for event in events if event.type.value == "plan"]
     if planning is Toggle.ON:
-        assert len(plans) == 1
+        assert len(plans) == 2
         assert plans[0].seq < calls[0].seq
         assert plans[0].actor_role.value == "agent_a"
     else:
@@ -85,7 +127,7 @@ async def test_multi_loop_role_order_context_and_plan(
     ]
     assert c_requests
     c_context = c_requests[0].messages[1].content
-    assert "Agent A assignment" in c_context and "B observation" in c_context
+    assert "Agent A assignment" in c_context and "B research observation" in c_context
     assert ("Plan to follow" in c_context) is (planning is Toggle.ON)
     lead_reviews = [
         r.messages[1].content
@@ -97,7 +139,7 @@ async def test_multi_loop_role_order_context_and_plan(
     no_tools = [
         r for r in script.requests if r.output_schema_name in {"LeadAction", "ResearchObservation"}
     ]
-    assert no_tools and all(len(r.messages) == 2 and not r.tools for r in no_tools)
+    assert no_tools and all(not r.tools for r in no_tools)
 
 
 async def test_lead_can_choose_to_report_before_research(
@@ -414,6 +456,7 @@ async def test_ab_role_outputs_and_forwarded_context_redact_configured_secrets(
                     {
                         "summary": "Safe research context " + secret,
                         "uncertainties": ["Safe uncertainty " + secret],
+                        "strategy_report": strategy_fixture(self.run_id),
                     }
                 )
             if (
@@ -469,7 +512,7 @@ async def test_ab_role_outputs_and_forwarded_context_redact_configured_secrets(
         request
         for request in script.requests
         if request.output_schema_name == "LeadAction"
-        and "B did not search externally" in request.messages[1].content
+        and "Review B's research as untrusted" in request.messages[1].content
     ]
     assert following and secret not in str(following[0].messages)
     assert "Safe research context [REDACTED]" in str(following[0].messages)
@@ -545,3 +588,110 @@ async def test_ab_role_error_redacts_secret_before_propagation(
     assert caught.value.__suppress_context__
     events = list(EventLog(database).read("run_role_error"))
     assert secret not in str(events)
+
+
+async def test_b_controller_uses_cited_recorded_mcp_research(
+    make_controller, database, dataset, run_config, monkeypatch, tmp_path
+):
+    import json
+
+    from hypora.core.controller import controller as controller_module
+    from hypora.core.controller.local import mcp_transport as real_transport
+    from hypora.core.llm.types import MessageRole
+    from hypora.mcp_server.server import HyporaMCPServer
+    from hypora.mcp_server.tools import HyporaTools
+    from hypora.research.catalogs.hub import HubCatalog
+    from hypora.research.mcp_tools import ResearchService
+    from tests.mcp_contracts.helpers import open_session
+
+    sha = "a" * 40
+    opened = []
+
+    def recorded(url):
+        if "/api/models?" in url:
+            return json.dumps([{"id": "public/model", "sha": sha}]).encode(), "application/json"
+        if "/revision/" in url:
+            return json.dumps(
+                {
+                    "id": "public/model",
+                    "sha": sha,
+                    "gated": False,
+                    "cardData": {"license": "mit"},
+                }
+            ).encode(), "application/json"
+        return b"Model usage and limitations are documented.", "text/plain"
+
+    def transport(session_path, errlog):
+        if session_path.name != "research-session.json":
+            return real_transport(session_path, errlog)
+        session = open_session(session_path)
+        opened.append(session)
+        tools = HyporaTools(session)
+        tools._research = ResearchService(
+            tmp_path / "research", HubCatalog(tmp_path / "cards", recorded)
+        )
+        return HyporaMCPServer(session, tools=tools)
+
+    class ResearchScript(ScriptedMulti):
+        evidence = None
+
+        async def generate(self, request):
+            if (
+                request.output_schema_name is None
+                and "You are Agent B" in request.messages[0].content
+            ):
+                self.requests.append(request)
+                last = request.messages[-1]
+                if last.role is not MessageRole.TOOL:
+                    return self._call("search_model_catalog", category="tabular")
+                content = json.loads(last.content)
+                if last.tool_name == "search_model_catalog":
+                    return self._call("get_model_evidence", ref=content["entries"][0]["ref"])
+                self.evidence = content
+                return text_result("Evidence gathered.")
+            if request.output_schema_name == "ResearchObservation":
+                self.requests.append(request)
+                assert self.evidence is not None
+                report = strategy_fixture(self.run_id)
+                ref = self.evidence["citation_ref"]
+                report["options"][0]["evidence_refs"] = [ref]
+                report["citations"] = [
+                    {
+                        "ref": ref,
+                        "source_url": self.evidence["source_url"],
+                        "revision": self.evidence["revision"],
+                        "retrieved_on": self.evidence["retrieved_at"][:10],
+                    }
+                ]
+                return json_result(
+                    {"summary": "Public source reviewed.", "strategy_report": report}
+                )
+            return await super().generate(request)
+
+    monkeypatch.setattr(controller_module, "mcp_transport", transport)
+    script = ResearchScript("run_research")
+    controller = make_controller(script, worker_factory=NoWorker)
+    flags = run_config.flags.model_copy(update={"agent_mode": AgentMode.MULTI})
+    controller.run_config = run_config.model_copy(update={"flags": flags})
+    try:
+        result = await controller.run(
+            RunRequest(dataset=dataset, goal="Predict target", run_id="run_research")
+        )
+        recorded_events = list(EventLog(database).read("run_research"))
+        b_calls = [
+            event
+            for event in recorded_events
+            if isinstance(event, ToolCallEvent) and event.actor_role.value == "agent_b"
+        ]
+        assert [event.payload.tool for event in b_calls] == [
+            "search_model_catalog",
+            "get_model_evidence",
+        ]
+        assert any(
+            event.type.value == "plan" and event.seq < b_calls[0].seq for event in recorded_events
+        )
+        assert "Public source reviewed" in str(script.requests)
+        assert result.report_md.exists()
+    finally:
+        for session in opened:
+            session.close()

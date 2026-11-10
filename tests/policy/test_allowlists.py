@@ -13,8 +13,17 @@ S1_4_TOOLS = {
 }
 
 
-def test_single_agent_gets_exactly_the_s1_4_tools():
-    assert allowed_tools(ActorRole.SINGLE_AGENT) == S1_4_TOOLS
+RESEARCH_TOOLS = {
+    ToolName.SEARCH_MODEL_CATALOG,
+    ToolName.GET_MODEL_EVIDENCE,
+    ToolName.RETRIEVE_METHODOLOGY,
+}
+
+
+def test_single_agent_gets_research_and_existing_tools():
+    assert allowed_tools(ActorRole.SINGLE_AGENT) == S1_4_TOOLS | RESEARCH_TOOLS
+    assert allowed_tools(ActorRole.AGENT_B) == RESEARCH_TOOLS
+    assert allowed_tools(ActorRole.AGENT_C) == S1_4_TOOLS
 
 
 def test_roles_without_an_allowlist_get_nothing():

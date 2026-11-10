@@ -77,6 +77,7 @@ def write_session(
         datasets={DATASET_ID: str(dataset.resolve())},
         experiment_dataset=DATASET_ID,
         permitted_tools=permitted_tools,
+        retrieval_mode=flags.retrieval_mode,
         defenses=DefenseSwitches(
             allowlist=flags.defenses.allowlist, firewall=flags.defenses.firewall
         ),

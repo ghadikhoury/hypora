@@ -18,16 +18,22 @@ TOOLS = {
 }
 
 
+RESEARCH_TOOLS = {"search_model_catalog", "get_model_evidence", "retrieve_methodology"}
+
+
 @pytest.mark.parametrize("role", [ActorRole.AGENT_A, ActorRole.AGENT_B])
 @pytest.mark.parametrize("allowlist", [True, False])
-async def test_a_and_b_cannot_call_tools_even_during_ablation(session_file, role, allowlist):
+async def test_a_and_b_cannot_call_execution_tools_even_during_ablation(
+    session_file, role, allowlist
+):
     session = open_session(
         session_file, role=role, defenses={"allowlist": allowlist, "firewall": True}
     )
     try:
         async with Client(HyporaMCPServer(session)) as client:
-            assert not (await client.list_tools()).tools
-            for name in TOOLS | {"unknown_tool", "request_worker"}:
+            expected = RESEARCH_TOOLS if role is ActorRole.AGENT_B else set()
+            assert {tool.name for tool in (await client.list_tools()).tools} == expected
+            for name in TOOLS | {"unknown_tool", "request_worker", "spawn_worker"}:
                 error, result = await call(client, name)
                 assert error and result["code"] == "TOOL_NOT_ALLOWED"
     finally:
@@ -44,6 +50,9 @@ async def test_c_is_confined_to_six_tools_and_cannot_spawn(session_file, allowli
     try:
         async with Client(HyporaMCPServer(session)) as client:
             assert {tool.name for tool in (await client.list_tools()).tools} == TOOLS
+            for name in RESEARCH_TOOLS:
+                error, result = await call(client, name)
+                assert error and result["code"] == "TOOL_NOT_ALLOWED"
             error, result = await call(client, "unapproved_tool")
             assert error and result["code"] == "TOOL_NOT_ALLOWED"
             for name in ("request_worker", "spawn_worker"):

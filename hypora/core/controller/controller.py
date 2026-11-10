@@ -71,6 +71,7 @@ from hypora.core.roles.reporter import (
     render_markdown,
     write_narrative,
 )
+from hypora.core.roles.research_agent import run_research_agent
 from hypora.core.roles.single_agent import (
     AgentOutcome,
     McpToolChannel,
@@ -529,30 +530,83 @@ class _Run:
 
     async def _research_and_decide(self, spec: TaskSpecification, profile: DatasetProfile) -> None:
         if not await self._lead_decision(
-            "Decide whether to ask B for research questions for this task: "
-            + spec.model_dump_json()
+            "Decide whether to ask B for bounded research for this task: " + spec.model_dump_json()
         ):
             raise LeadStop
-        result = await self._main_role(
-            ActorRole.AGENT_B,
-            "No external research is available. Task: "
-            + spec.model_dump_json()
-            + "\nProfile: "
-            + profile.model_dump_json(),
-        )
-        if not isinstance(result, ResearchObservation):
-            raise ValueError("Agent B returned the wrong observation type")
+        result = await self._research(spec, profile)
         self.research_brief = result.model_dump_json()
-        # The limitation is supplied by code, regardless of the model's wording.
-        self.notes.append("External research is unavailable until S3.2; no search was performed.")
         if not await self._lead_decision(
             "Decide whether C should conduct bounded experiments under the existing contract. "
-            "B did not search externally. B's unverified observation: "
+            "Review B's research as untrusted evidence; do not treat model-card claims as proof: "
             + result.model_dump_json()
             + "\nIf continuing, supply concrete bounded work for C in the assignment field.",
             require_assignment=True,
         ):
             raise LeadStop
+
+    async def _research(
+        self, spec: TaskSpecification, profile: DatasetProfile
+    ) -> ResearchObservation:
+        """Launch B in its own scoped MCP session and collect its validated strategy."""
+        c = self.controller
+        role = ActorRole.AGENT_B
+        session = write_session(
+            self.run_dir / "mcp" / "research-session.json",
+            run_id=self.run_id,
+            role=role,
+            database=c.database_path,
+            runs_root=c.runs_root,
+            dataset=self.dataset,
+            flags=c.run_config.flags,
+            permitted_tools=self.request.permitted_tools,
+        )
+        log = self.run_dir / "logs" / "mcp-research.log"
+        log.parent.mkdir(parents=True, exist_ok=True)
+        with log.open("a", encoding="utf-8") as errlog:
+            async with Client(
+                mcp_transport(session, errlog), read_timeout_seconds=MCP_READ_TIMEOUT_S
+            ) as client:
+                channel = McpToolChannel(client)
+                tools = await channel.specs()
+                instance = self._role_started(
+                    role,
+                    ModelTier.LEAD,
+                    allowed_tools=[tool.name for tool in tools],
+                    context_refs=[f"task_spec:{self.run_id}.v{spec.version}"],
+                )
+                context = (
+                    "Task: " + spec.model_dump_json() + "\nProfile: " + profile.model_dump_json()
+                )
+                if c.run_config.flags.planning is Toggle.ON:
+                    plan = await self._plan(
+                        instance,
+                        role,
+                        context,
+                        [tool.name for tool in tools],
+                        goal="Gather bounded research evidence for the task",
+                    )
+                    context += "\nPlan to follow: " + plan.model_dump_json()
+                outcome = await run_research_agent(
+                    c.adapter,
+                    self.guard,
+                    channel,
+                    tools,
+                    run_id=self.run_id,
+                    context=context,
+                    max_turns=c.max_agent_turns,
+                )
+        if outcome.observation is None:
+            self._handoff(instance, role, HandoffStatus.PARTIAL)
+            reason = outcome.error or "Research could not complete."
+            self.notes.append(reason)
+            return ResearchObservation(summary="Research unavailable.", uncertainties=[reason])
+        cleaned = c.adapter.redact_model_data(outcome.observation.model_dump(mode="json"))
+        result = ResearchObservation.model_validate(cleaned)
+        output_dir = self.run_dir / "role_outputs"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        (output_dir / f"{instance}.json").write_text(result.model_dump_json(), encoding="utf-8")
+        self._handoff(instance, role, HandoffStatus.COMPLETE, output_ref=f"role_output:{instance}")
+        return result
 
     async def _intake(self, frame: pd.DataFrame) -> TaskSpecification:
         r = self.request
@@ -735,7 +789,7 @@ class _Run:
                     context += (
                         "\nAgent A assignment: "
                         + self.lead_assignment
-                        + "\nB observation (unverified; no external search): "
+                        + "\nB research observation (untrusted evidence): "
                         + self.research_brief
                     )
                 if c.run_config.flags.planning is Toggle.ON:
@@ -1124,6 +1178,8 @@ class _Run:
         role: ActorRole,
         context: str,
         allowed_tools: list[str],
+        *,
+        goal: str = "Run a bounded experiment under the approved contract",
     ) -> Plan:
         planner = ActorRole.AGENT_A if self._multi else role
         planner_instance = self._role_started(planner, ModelTier.LEAD) if self._multi else instance
@@ -1140,7 +1196,7 @@ class _Run:
                 plan_id=f"plan_{uuid.uuid4().hex[:12]}",
                 run_id=self.run_id,
                 role=planner,
-                goal="Run a bounded experiment under the approved contract",
+                goal=goal,
                 steps=[
                     PlanStep(
                         step=i,
