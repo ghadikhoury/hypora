@@ -1,6 +1,7 @@
 """Recorded research responses, privacy boundaries, source provenance, and role permissions."""
 
 import json
+from pathlib import Path
 
 import pytest
 from mcp import Client
@@ -46,7 +47,7 @@ async def test_recorded_research_only_fetches_public_fixed_inputs(session_file, 
             assert result["license"] == "mit" and not result["stale"]
             error, result = await call(client, "retrieve_methodology", {"topic": "limitations"})
             assert not error and result["passages"]
-            assert all(p["revision"] == sha for p in result["passages"])
+            assert any(p["revision"] == sha for p in result["passages"])
             error, result = await call(client, "get_model_evidence", {"ref": "catalog_" + "b" * 24})
             assert error and result["code"] == "UNKNOWN_CATALOG_REFERENCE"
             error, result = await call(
@@ -116,5 +117,73 @@ async def test_deferred_reranking_returns_actionable_error(session_file):
             error, result = await call(client, "retrieve_methodology", {"topic": "usage"})
             assert error and result["code"] == "RETRIEVAL_MODE_UNAVAILABLE"
             assert result["suggested_recovery"]
+    finally:
+        session.close()
+
+
+@pytest.mark.parametrize("mode", ["tfidf", "bm25", "embedding", "hybrid"])
+async def test_twenty_labeled_questions_use_actual_local_tool(session_file, tmp_path, mode):
+    from hypora.core.config.flags import RetrievalMode
+
+    session = open_session(session_file, role=ActorRole.AGENT_B, retrieval_mode=RetrievalMode(mode))
+    tools = HyporaTools(session)
+
+    def no_network(_url):
+        raise AssertionError("Local retrieval must not perform a network request")
+
+    tools._research = ResearchService(tmp_path, HubCatalog(tmp_path / "cache", no_network))
+    path = Path(__file__).parents[1] / "fixtures" / "retrieval" / "questions.json"
+    questions = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        for row in questions:
+            result = tools.retrieve_methodology(query=row["question"])
+            assert any(
+                passage.source_url == row["passage"]["source_url"]
+                and passage.revision == row["passage"]["revision"]
+                for passage in result.passages
+            ), row["question_id"]
+    finally:
+        session.close()
+
+
+async def test_local_query_not_sent_or_logged_by_mcp(session_file, tmp_path):
+    session = open_session(session_file, role=ActorRole.AGENT_B)
+    tools = HyporaTools(session)
+
+    def no_network(_url):
+        raise AssertionError("Local retrieval must not perform a network request")
+
+    tools._research = ResearchService(tmp_path, HubCatalog(tmp_path / "cache", no_network))
+    private = 'private query "dataset-837"'
+    try:
+        async with Client(HyporaMCPServer(session, tools=tools)) as client:
+            error, result = await call(client, "retrieve_methodology", {"query": private})
+            assert not error
+            assert private not in str(result)
+            assert private not in str(events(session))
+    finally:
+        session.close()
+
+
+async def test_retrieval_error_does_not_log_private_query(
+    session_file, tmp_path, caplog, monkeypatch
+):
+    session = open_session(session_file, role=ActorRole.AGENT_B)
+    tools = HyporaTools(session)
+    service = ResearchService(tmp_path)
+    private = "private error query 8675309"
+
+    def fail(query, mode):
+        raise RuntimeError("backend failure " + query)
+
+    monkeypatch.setattr(service, "retrieve", fail)
+    tools._research = service
+    try:
+        async with Client(HyporaMCPServer(session, tools=tools)) as client:
+            error, result = await call(client, "retrieve_methodology", {"query": private})
+            assert error and result["code"] == "RETRIEVAL_FAILED"
+            assert private not in str(result)
+            assert private not in str(events(session))
+            assert private not in caplog.text
     finally:
         session.close()

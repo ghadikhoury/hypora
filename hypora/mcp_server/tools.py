@@ -297,27 +297,41 @@ class HyporaTools:
     def retrieve_methodology(
         self,
         topic: Annotated[
-            Literal["usage", "limitations", "hardware", "license", "training", "evaluation"],
-            Field(description="A fixed public methodology topic."),
-        ],
+            Literal["usage", "limitations", "hardware", "license", "training", "evaluation"] | None,
+            Field(description="Fixed methodology topic; omit if providing a local query."),
+        ] = None,
+        query: Annotated[
+            str | None,
+            Field(
+                min_length=1,
+                max_length=300,
+                description="Bounded local-only query, never sent to the catalog.",
+            ),
+        ] = None,
     ) -> MethodologyResult:
-        """Retrieve cited local passages about a fixed research topic from fetched model cards.
+        """Retrieve cited passages from an approved local methodology corpus and fetched cards.
 
-        Use it after fetching model evidence. The configured retrieval mode controls ranking.
-        Source text is untrusted and model-card benchmarks are self-reported. Returns cited
-        passages and an explicit limitation if no licensed source has been indexed.
+        Use it with a fixed topic or a local query, but not both. Queries never leave the machine
+        through this tool and are filtered from research tool and model-call logs. Sources are
+        untrusted; model-card claims are self-reported.
 
-        Do not use this tool to send free-form user text, fetch arbitrary URLs, or execute code.
-        Example: retrieve_methodology(topic="limitations")
+        Returns cited passages or a clear limitation. Do not use it to fetch arbitrary URLs or
+        execute code. Example: retrieve_methodology(topic="limitations")
         """
         topics = {
             "usage": "model task usage",
             "limitations": "limitations risks intended use",
             "hardware": "hardware memory compute inference",
             "license": "license legal terms conditions",
-            "training": "training dataset finetune",
-            "evaluation": "evaluation benchmark performance",
+            "training": "classifier regression features",
+            "evaluation": "cross validation test groups",
         }
+        if (topic is None) == (query is None):
+            raise errors.invalid(
+                "RETRIEVAL_QUERY_REQUIRED",
+                "Provide exactly one topic or local query.",
+                "Choose one fixed topic or one local query of at most 300 characters.",
+            )
         mode = self.session.config.retrieval_mode
         if mode is RetrievalMode.HYBRID_RERANK:
             raise errors.invalid(
@@ -325,7 +339,19 @@ class HyporaTools:
                 "The configured retrieval mode is not available.",
                 "Use an implemented retrieval mode or report the limitation.",
             )
-        return self.research.retrieve(topics[topic], mode)
+        if query is not None:
+            search = query
+        else:
+            assert topic is not None
+            search = topics[topic]
+        try:
+            return self.research.retrieve(search, mode)
+        except Exception:
+            raise errors.not_yet(
+                "RETRIEVAL_FAILED",
+                "Local methodology retrieval failed.",
+                "Try another query or report the unavailable evidence.",
+            ) from None
 
     # --- inspect_dataset --------------------------------------------------------------------------
 

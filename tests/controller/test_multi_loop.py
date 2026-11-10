@@ -9,7 +9,12 @@ from hypora.core.config.flags import AgentMode, Toggle
 from hypora.core.controller.controller import RunRequest
 from hypora.core.llm.providers.fake import json_result, text_result, tool_call_result
 from hypora.core.llm.types import ToolCall
-from hypora.core.schemas.events import RoleStartedEvent, StageTransitionEvent, ToolCallEvent
+from hypora.core.schemas.events import (
+    HandoffEvent,
+    RoleStartedEvent,
+    StageTransitionEvent,
+    ToolCallEvent,
+)
 from hypora.storage.events import EventLog
 from tests.controller.conftest import NoWorker
 from tests.controller.scripted import ScriptedRun
@@ -49,10 +54,27 @@ def strategy_fixture(run_id):
     }
 
 
+def cited_strategy_fixture(run_id, evidence):
+    report = strategy_fixture(run_id)
+    ref = evidence["ref"]
+    for option in report["options"]:
+        option["evidence_refs"] = [ref]
+    report["citations"] = [
+        {
+            "ref": ref,
+            "source_url": evidence["source_url"],
+            "revision": evidence["revision"],
+            "retrieved_on": evidence["retrieved_on"][:10],
+        }
+    ]
+    return report
+
+
 class ScriptedMulti(ScriptedRun):
     """Use only real structured responses and one actual read-only MCP call."""
 
     assignment = "Inspect approved data and run a bounded baseline"
+    evidence: dict[str, object]
 
     async def generate(self, request):
         if request.output_schema_name == "LeadAction":
@@ -65,14 +87,23 @@ class ScriptedMulti(ScriptedRun):
             self.requests.append(request)
             return json_result(
                 {
-                    "summary": "Research is unavailable",
+                    "summary": "Research source reviewed",
                     "uncertainties": [],
-                    "strategy_report": strategy_fixture(self.run_id),
+                    "strategy_report": cited_strategy_fixture(self.run_id, self.evidence),
                 }
             )
         if request.output_schema_name is None and "You are Agent B" in request.messages[0].content:
+            import json
+
+            from hypora.core.llm.types import MessageRole
+
             self.requests.append(request)
-            return text_result("No research tools were called.")
+            last = request.messages[-1]
+            if last.role is not MessageRole.TOOL:
+                return self._call("retrieve_methodology", topic="evaluation")
+            content = json.loads(last.content)
+            self.evidence = content["passages"][0]
+            return text_result("Research source reviewed.")
         if request.output_schema_name in {
             "IntakeDraft",
             "FinalAnswer",
@@ -112,7 +143,10 @@ async def test_multi_loop_role_order_context_and_plan(
     ]
     assert len(starts) == len(set(starts))
     calls = [event for event in events if event.type.value == "tool_call"]
-    assert calls and all(event.actor_role.value == "agent_c" for event in calls)
+    assert calls
+    assert any(event.actor_role.value == "agent_b" for event in calls)
+    assert any(event.actor_role.value == "agent_c" for event in calls)
+    assert all(event.actor_role.value in {"agent_b", "agent_c"} for event in calls)
     plans = [event for event in events if event.type.value == "plan"]
     if planning is Toggle.ON:
         assert len(plans) == 2
@@ -456,7 +490,7 @@ async def test_ab_role_outputs_and_forwarded_context_redact_configured_secrets(
                     {
                         "summary": "Safe research context " + secret,
                         "uncertainties": ["Safe uncertainty " + secret],
-                        "strategy_report": strategy_fixture(self.run_id),
+                        "strategy_report": cited_strategy_fixture(self.run_id, self.evidence),
                     }
                 )
             if (
@@ -633,7 +667,7 @@ async def test_b_controller_uses_cited_recorded_mcp_research(
         return HyporaMCPServer(session, tools=tools)
 
     class ResearchScript(ScriptedMulti):
-        evidence = None
+        evidence: dict[str, object]
 
         async def generate(self, request):
             if (
@@ -654,13 +688,16 @@ async def test_b_controller_uses_cited_recorded_mcp_research(
                 assert self.evidence is not None
                 report = strategy_fixture(self.run_id)
                 ref = self.evidence["citation_ref"]
-                report["options"][0]["evidence_refs"] = [ref]
+                retrieved_at = self.evidence["retrieved_at"]
+                assert isinstance(retrieved_at, str)
+                for option in report["options"]:
+                    option["evidence_refs"] = [ref]
                 report["citations"] = [
                     {
                         "ref": ref,
                         "source_url": self.evidence["source_url"],
                         "revision": self.evidence["revision"],
-                        "retrieved_on": self.evidence["retrieved_at"][:10],
+                        "retrieved_on": retrieved_at[:10],
                     }
                 ]
                 return json_result(
@@ -695,3 +732,51 @@ async def test_b_controller_uses_cited_recorded_mcp_research(
     finally:
         for session in opened:
             session.close()
+
+
+async def test_uncited_research_falls_back_without_forwarding_claim(
+    make_controller, database, dataset, run_config
+):
+    class UnsupportedResearch(ScriptedMulti):
+        async def generate(self, request):
+            if (
+                request.output_schema_name is None
+                and "You are Agent B" in request.messages[0].content
+            ):
+                self.requests.append(request)
+                return text_result("No evidence obtained.")
+            if request.output_schema_name == "ResearchObservation":
+                self.requests.append(request)
+                report = strategy_fixture(self.run_id)
+                report["options"][0]["tradeoffs"]["privacy"] = {
+                    "rating": "good",
+                    "note": "Provider guarantees complete privacy",
+                }
+                return json_result(
+                    {"summary": "Provider guarantees complete privacy", "strategy_report": report}
+                )
+            return await super().generate(request)
+
+    script = UnsupportedResearch("run_uncited")
+    controller = make_controller(script, worker_factory=NoWorker)
+    flags = run_config.flags.model_copy(update={"agent_mode": AgentMode.MULTI})
+    controller.run_config = run_config.model_copy(update={"flags": flags})
+    result = await controller.run(
+        RunRequest(dataset=dataset, goal="Predict target", run_id="run_uncited")
+    )
+    records = list(EventLog(database).read("run_uncited"))
+    handoffs = [
+        event
+        for event in records
+        if isinstance(event, HandoffEvent) and event.actor_role.value == "agent_b"
+    ]
+    assert len(handoffs) == 1 and handoffs[0].payload.handoff.status.value == "partial"
+    following = [
+        request
+        for request in script.requests
+        if request.output_schema_name == "LeadAction"
+        and "Review B's research" in request.messages[1].content
+    ]
+    assert following and "Provider guarantees complete privacy" not in str(following[0].messages)
+    assert "Research unavailable" in str(following[0].messages)
+    assert result.report_md.exists()

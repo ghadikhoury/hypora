@@ -14,7 +14,7 @@ from hypora.core.roles.multi import ResearchObservation
 from hypora.core.roles.prompt_loader import load_prompt
 from hypora.core.roles.single_agent import ToolChannel, _argument_error, _call_watching_limits
 from hypora.core.schemas import ActorRole, ModelTier
-from hypora.core.schemas.strategy import StrategyPath
+from hypora.core.schemas.strategy import Assessment, PriceEstimate, PriceStatus, StrategyPath
 
 
 @dataclass(frozen=True)
@@ -52,6 +52,8 @@ def _validate_observation(
     report = result.strategy_report
     if report is None or report.run_id != run_id:
         raise ValueError("research requires a strategy report for this run")
+    if not report.citations:
+        raise ValueError("research has no source-backed evidence")
     if {option.path for option in report.options} != set(StrategyPath):
         raise ValueError("research must compare each of the four strategy paths")
     declared: set[str] = set()
@@ -64,6 +66,8 @@ def _validate_observation(
         declared.add(citation.ref)
     used = {ref for option in report.options for ref in option.evidence_refs}
     for option in report.options:
+        if not option.evidence_refs:
+            raise ValueError("strategy option summary lacks source evidence")
         row = option.tradeoffs
         if row.price is not None and row.price.source_ref is not None:
             used.add(row.price.source_ref)
@@ -78,9 +82,60 @@ def _validate_observation(
             "latency_uncertainty",
             "evaluation_risk",
         ):
-            used.update(getattr(row, field).evidence_refs)
+            cell = getattr(row, field)
+            if cell.rating is not Assessment.UNKNOWN and not cell.evidence_refs:
+                raise ValueError("substantive tradeoff claim lacks source evidence")
+            used.update(cell.evidence_refs)
     if not used.issubset(declared):
         raise ValueError("strategy contains unresolved evidence references")
+
+
+def _mark_unverified(result: ResearchObservation) -> ResearchObservation:
+    """Label model interpretations and never present unsupported provider prices as facts."""
+    result = result.model_copy(deep=True)
+    result.summary = ("[Unverified research interpretation] " + result.summary)[:2000]
+    result.uncertainties = ["[Unverified] " + item for item in result.uncertainties]
+    report = result.strategy_report
+    assert report is not None
+    report.recommendation = report.recommendation.model_copy(
+        update={"rationale": "[Unverified recommendation] " + report.recommendation.rationale}
+    )
+    for option in report.options:
+        option.summary = "[Unverified interpretation] " + option.summary
+        row = option.tradeoffs
+        # Public model cards are not verified price sources.
+        if row.price is not None:
+            row.price = PriceEstimate(status=PriceStatus.UNAVAILABLE)
+        for field in (
+            "task_fit",
+            "evidence_quality",
+            "privacy",
+            "license",
+            "hardware_feasibility",
+            "setup_cost",
+            "expected_inference_cost",
+            "latency_uncertainty",
+            "evaluation_risk",
+        ):
+            cell = getattr(row, field)
+            if cell.rating is Assessment.UNKNOWN:
+                cell.note = "Unknown; not established by verified evidence."
+            else:
+                cell.note = "[Unverified interpretation] " + cell.note
+    if report.proposed_phase_b_plan is not None:
+        plan = report.proposed_phase_b_plan
+        report.proposed_phase_b_plan = plan.model_copy(
+            update={
+                "notes": "[Unverified model estimate] " + plan.notes,
+                "measurements": tuple(
+                    measurement.model_copy(
+                        update={"rationale": "[Unverified proposal] " + measurement.rationale}
+                    )
+                    for measurement in plan.measurements
+                ),
+            }
+        )
+    return result
 
 
 async def run_research_agent(
@@ -150,7 +205,7 @@ async def run_research_agent(
         if response.tool_calls or not isinstance(result, ResearchObservation):
             raise ValueError("invalid final research response")
         _validate_observation(result, run_id, references)
-        return ResearchOutcome(result)
+        return ResearchOutcome(_mark_unverified(result))
     except RunLimitReached as exc:
         return ResearchOutcome(None, f"Research stopped at a run limit: {exc}")
     except LLMError as exc:

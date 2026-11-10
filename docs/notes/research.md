@@ -13,6 +13,8 @@ unavailable prices and hardware requirements remain unknown. Local retrieval onl
 with a recognized open license and explicit ungated state. Unknown or gated records may be shown
 with their limitations but are not added to the retrieval index.
 
+The local methodology corpus also contains source-verified, licensed scikit-learn passages. A query of at most 300 characters runs locally against that corpus and fetched cards. The tool sends no query to research sources and filters it from research events and stored model-call artifacts. The authorized LLM provider can see the query as part of the existing model conversation, including tool-call replay.
+
 The shared retrieval corpus splits cards at Markdown headings and caps sections. It stores
 provenance with each passage and persists the lexical and dense index as JSON, never pickle.
 Modes are off, TF-IDF, BM25, locally trained latent semantic analysis (TF-IDF plus truncated SVD),
@@ -28,4 +30,4 @@ full comparison and error analysis belong to the planned evaluation step.
 
 This design limits external egress but does not make untrusted text truthful. The model may still
 misinterpret a source or accept an instruction in it; B cannot execute or delegate, and platform
-code validates citation identity against tool results before accepting a strategy report.
+code validates citation identity against tool results, rejects uncited substantive tradeoffs and option summaries, labels model interpretations and recommendations unverified, and reports model-card prices as unavailable.

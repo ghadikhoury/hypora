@@ -152,7 +152,8 @@ def test_strategy_references_must_be_from_the_actual_tool_results():
     from tests.controller.test_multi_loop import strategy_fixture
 
     strategy = strategy_fixture("run_1")
-    strategy["options"][0]["evidence_refs"] = ["catalog:catalog_123"]
+    for option in strategy["options"]:
+        option["evidence_refs"] = ["catalog:catalog_123"]
     strategy["citations"] = [
         {
             "ref": "catalog:catalog_123",
@@ -252,4 +253,78 @@ def test_retrieved_passages_preserve_stale_source_status(tmp_path):
     result = service.retrieve("limitations", RetrievalMode.BM25)
     assert result.passages and result.passages[0].stale is True
     loaded = RetrievalIndex.load(tmp_path / "methodology-index.json")
-    assert loaded.passages[0].stale is True
+    assert any(p.title == "public/model" and p.stale for p in loaded.passages)
+
+
+@pytest.mark.parametrize("rating", ["good", "poor"])
+def test_uncited_factual_tradeoff_is_rejected(rating):
+    from hypora.core.roles.multi import ResearchObservation
+    from hypora.core.roles.research_agent import _validate_observation
+    from tests.controller.test_multi_loop import strategy_fixture
+
+    report = strategy_fixture("run_1")
+    ref = "catalog:catalog_123"
+    for option in report["options"]:
+        option["evidence_refs"] = [ref]
+    report["citations"] = [
+        {
+            "ref": ref,
+            "source_url": "https://example.org/model",
+            "revision": "abc",
+            "retrieved_on": "2026-11-10",
+        }
+    ]
+    report["options"][0]["tradeoffs"]["privacy"] = {
+        "rating": rating,
+        "note": "Provider guarantees complete privacy",
+        "evidence_refs": [],
+    }
+    observation = ResearchObservation.model_validate(
+        {"summary": "Compare.", "strategy_report": report}
+    )
+    references = {ref: ("https://example.org/model", "abc", "2026-11-10")}
+    with pytest.raises(ValueError, match="tradeoff claim"):
+        _validate_observation(observation, "run_1", references)
+
+
+def test_uncited_recommendation_is_rejected_and_cited_interpretations_marked_unverified():
+    from hypora.core.roles.multi import ResearchObservation
+    from hypora.core.roles.research_agent import _mark_unverified, _validate_observation
+    from tests.controller.test_multi_loop import strategy_fixture
+
+    report = strategy_fixture("run_1")
+    report["recommendation"]["rationale"] = "Provider guarantees complete privacy"
+    observation = ResearchObservation.model_validate(
+        {"summary": "Use provider.", "strategy_report": report}
+    )
+    with pytest.raises(ValueError, match="no source-backed"):
+        _validate_observation(observation, "run_1", {})
+
+    ref = "catalog:catalog_123"
+    for option in report["options"]:
+        option["evidence_refs"] = [ref]
+    report["citations"] = [
+        {"ref": ref, "source_url": "https://example.org/model", "revision": "abc"}
+    ]
+    report["options"][0]["tradeoffs"]["privacy"]["note"] = "Privacy is guaranteed"
+    report["options"][0]["tradeoffs"]["price"] = {
+        "status": "available",
+        "amount_usd": 0.01,
+        "unit": "call",
+        "source_ref": ref,
+        "retrieved_on": "2026-11-10",
+    }
+    observation = ResearchObservation.model_validate(
+        {"summary": "Use provider.", "strategy_report": report}
+    )
+    _validate_observation(
+        observation, "run_1", {ref: ("https://example.org/model", "abc", "2026-11-10")}
+    )
+    marked = _mark_unverified(observation)
+    assert marked.summary.startswith("[Unverified")
+    assert marked.strategy_report is not None
+    assert marked.strategy_report.recommendation.rationale.startswith("[Unverified")
+    assert marked.strategy_report.options[0].tradeoffs.privacy.note.startswith("Unknown")
+    price = marked.strategy_report.options[0].tradeoffs.price
+    assert price is not None
+    assert price.status.value == "unavailable" and price.amount_usd is None

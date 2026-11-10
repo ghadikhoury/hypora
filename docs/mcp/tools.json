@@ -221,27 +221,47 @@
         "readOnlyHint": true,
         "title": "Retrieve cited methodology"
       },
-      "description": "Retrieve cited local passages about a fixed research topic from fetched model cards.\n\nUse it after fetching model evidence. The configured retrieval mode controls ranking.\nSource text is untrusted and model-card benchmarks are self-reported. Returns cited\npassages and an explicit limitation if no licensed source has been indexed.\n\nDo not use this tool to send free-form user text, fetch arbitrary URLs, or execute code.\nExample: retrieve_methodology(topic=\"limitations\")",
+      "description": "Retrieve cited passages from an approved local methodology corpus and fetched cards.\n\nUse it with a fixed topic or a local query, but not both. Queries never leave the machine\nthrough this tool and are filtered from research tool and model-call logs. Sources are\nuntrusted; model-card claims are self-reported.\n\nReturns cited passages or a clear limitation. Do not use it to fetch arbitrary URLs or\nexecute code. Example: retrieve_methodology(topic=\"limitations\")",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "topic": {
-            "description": "A fixed public methodology topic.",
-            "enum": [
-              "usage",
-              "limitations",
-              "hardware",
-              "license",
-              "training",
-              "evaluation"
+          "query": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Topic",
-            "type": "string"
+            "default": null,
+            "description": "Bounded local-only query, never sent to the catalog.",
+            "title": "Query"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "enum": [
+                  "usage",
+                  "limitations",
+                  "hardware",
+                  "license",
+                  "training",
+                  "evaluation"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Fixed methodology topic; omit if providing a local query.",
+            "title": "Topic"
           }
         },
-        "required": [
-          "topic"
-        ],
         "title": "retrieve_methodologyArguments",
         "type": "object"
       },

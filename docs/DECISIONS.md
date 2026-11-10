@@ -940,7 +940,10 @@ No recorded result, grader, sandbox policy, tool contract or course minimum is c
   allowlist ablations. The existing single-agent comparison receives the same three read-only
   research tools under the same restrictions, preserving the spec ?6.9 baseline.
 - External requests use fixed public categories and approved sources; do not send user goals,
-  private details, dataset fields, or free-form search strings. Model evidence uses only opaque
+  private details, dataset fields, or free-form search strings to research sources. Bounded
+  methodology queries run locally and are filtered from events and stored model artifacts;
+  the already-authorized model provider may receive them in normal tool-call replay.
+  Model evidence uses only opaque
   references returned by the current session and exact revisions. Source content is untrusted.
 - Retain the existing events, run limits, policy checks and data firewall; cover permissions,
   provenance, external failures, injection boundaries and no-private-data egress with tests.

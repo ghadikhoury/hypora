@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from dataclasses import asdict
 from pathlib import Path
@@ -131,7 +132,9 @@ class ResearchService:
         """Retrieve locally from exact-revision cards already fetched in this session."""
         if mode is RetrievalMode.OFF:
             return MethodologyResult(mode=mode.value, note="Retrieval is disabled.")
-        passages: list[Passage] = []
+        corpus_path = Path(__file__).parent / "data" / "methodology.json"
+        corpus = json.loads(corpus_path.read_text(encoding="utf-8"))
+        passages: list[Passage] = [Passage(**entry) for entry in corpus]
         for record in self._records.values():
             # Only use source text with an identified license. Unknown is not permission.
             if record.license.casefold() not in _INDEX_LICENSES or record.gated != "false":
@@ -160,6 +163,8 @@ class ResearchService:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
             self._index.save(self.cache_dir / "methodology-index.json")
         hits = self._index.search(query, mode, limit=5)
+        if not hits:
+            return MethodologyResult(mode=mode.value, note="No matching cited passages found.")
         return MethodologyResult(
             mode=mode.value,
             passages=[

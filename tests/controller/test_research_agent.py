@@ -43,7 +43,8 @@ class Adapter:
         if "output_schema" in kwargs:
             strategy = strategy_fixture("run_test")
             ref = "catalog:catalog_123"
-            strategy["options"][0]["evidence_refs"] = [ref]
+            for option in strategy["options"]:
+                option["evidence_refs"] = [ref]
             strategy["citations"] = [
                 {
                     "ref": ref,
