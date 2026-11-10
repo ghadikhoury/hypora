@@ -10,6 +10,7 @@ case. The production launcher is the controller (S1.5), which uses the same sess
 """
 
 import argparse
+import hashlib
 import shutil
 from datetime import UTC, datetime
 from pathlib import Path
@@ -26,6 +27,8 @@ from hypora.core.schemas import (
     ApprovalRecord,
     ExperimentContract,
 )
+from hypora.execution.harness.partition import create_partition_lock
+from hypora.execution.harness.runner import load_tabular
 from hypora.mcp_server.session import DefenseSwitches, SessionConfig
 from hypora.storage.database import Database
 from hypora.storage.migrate import migrate
@@ -93,8 +96,16 @@ def create_dev_workspace(root: Path = DEV_ROOT, *, force: bool = False) -> Path:
         migrate(database)
         create_run(database, RUN_ID, "ws_mcp_dev")
         plan_hash = canonical_hash({"dev_plan": RUN_ID, "dataset": dataset.name})
-        save_experiment_contract(
-            database, dev_contract(RUN_ID, [c for c in frame.columns if c != "target"], plan_hash)
+        contract = dev_contract(RUN_ID, [c for c in frame.columns if c != "target"], plan_hash)
+        save_experiment_contract(database, contract)
+        source = dataset.read_bytes()
+        lock_path = root / "runs" / RUN_ID / "partition-lock.json"
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        create_partition_lock(
+            load_tabular(dataset, source=source),
+            contract,
+            hashlib.sha256(source).hexdigest(),
+            lock_path,
         )
         save_approval(
             database,

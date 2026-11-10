@@ -359,7 +359,7 @@
         "readOnlyHint": true,
         "title": "Profile a dataset"
       },
-      "description": "Summarize an authorized tabular dataset without revealing any of its rows.\n\nUse it first, to learn the dataset's shape before designing a trial: column types,\nmissing values, value ranges, the target's class balance, ID-like columns, candidate\ngroup keys (repeated subjects or batches), timestamps, and leakage candidates (single\ncolumns that predict the target suspiciously well; a signal to review, not proof).\n\nDo not use it to look at rows, samples, or individual values: no tool returns them (the\ndata firewall). Categorical columns list at most their five most frequent labels.\n\nReturns a DatasetProfile. `tabular.leakage_screen_skipped_reason`, when set, means\nleakage was not screened; an empty `leakage_candidates` list then proves nothing.\nProfiles are cached: repeating the same call is cheap.\n\nExample: inspect_dataset(dataset_id=\"ds_main\")",
+      "description": "Profile this run's dataset without returning rows.\n\nBefore a contract is locked, returns metadata with the target column omitted. After\nlocking, target-aware statistics use only the verified diagnostic-only partition, which\nis excluded from validation and test. An explicit target must match the contract.\n\nUse it to inspect structure and target-aware associations.\nDo not use it as proof of leakage or to extract rows.\nReturns a profile with the source fingerprint, scoped to the partition when supervised.\nNo tool returns raw rows. Example: inspect_dataset(dataset_id=\"ds_main\")",
       "inputSchema": {
         "$defs": {
           "TaskType": {
@@ -391,7 +391,7 @@
               }
             ],
             "default": null,
-            "description": "An authorized dataset ID, e.g. 'ds_main'. Omit for the dataset the run's experiment contract governs.",
+            "description": "The run's experiment dataset ID; omit to use it.",
             "title": "Dataset Id"
           },
           "target": {
@@ -404,7 +404,7 @@
               }
             ],
             "default": null,
-            "description": "Column to treat as the label for target-aware statistics. Omit to use the contract's target (or, before a contract exists, no target).",
+            "description": "The locked experiment target; use with task_type.",
             "title": "Target"
           },
           "task_type": {
@@ -417,7 +417,7 @@
               }
             ],
             "default": null,
-            "description": "Required with `target`: binary/multiclass classification or regression."
+            "description": "The locked task type; use with target."
           }
         },
         "title": "inspect_datasetArguments",
@@ -1331,6 +1331,286 @@
       },
       "tier": "read",
       "title": "Profile a dataset"
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Run a data diagnostic"
+      },
+      "description": "Run a predefined aggregate-only diagnostic on the authorized dataset.\n\nUse it for group_overlap or timestamp_order target-free structural investigation.\nFeature predictiveness requires the exact locked target/task and uses only the verified\ndiagnostic partition; its score is a signal for investigation, not proof of leakage.\nDo not use it to extract data or infer a validation/test score.\nReturns bounded aggregates and an ID identifying the data and operation; no raw rows,\ngroup values or timestamps are returned.\n\nExample: run_diagnostic(diagnostic=\"group_overlap\", column=\"patient_id\")",
+      "inputSchema": {
+        "$defs": {
+          "TaskType": {
+            "description": "Prediction task (spec §18 scopes).",
+            "enum": [
+              "binary_classification",
+              "multiclass_classification",
+              "multilabel_classification",
+              "regression",
+              "forecasting",
+              "window_classification"
+            ],
+            "title": "TaskType",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "column": {
+            "description": "Feature column.",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Column",
+            "type": "string"
+          },
+          "dataset_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The run's experiment dataset; omit to use it.",
+            "title": "Dataset Id"
+          },
+          "diagnostic": {
+            "description": "The diagnostic to run.",
+            "enum": [
+              "feature_predictiveness",
+              "group_overlap",
+              "timestamp_order"
+            ],
+            "title": "Diagnostic",
+            "type": "string"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Required only for feature_predictiveness.",
+            "title": "Target"
+          },
+          "task_type": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TaskType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Required only for feature_predictiveness."
+          }
+        },
+        "required": [
+          "diagnostic",
+          "column"
+        ],
+        "title": "run_diagnosticArguments",
+        "type": "object"
+      },
+      "name": "run_diagnostic",
+      "outputSchema": {
+        "additionalProperties": false,
+        "description": "Bounded aggregate diagnostic with provenance and no individual values.",
+        "properties": {
+          "adjacent_decreases": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Adjacent Decreases"
+          },
+          "column": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Column",
+            "type": "string"
+          },
+          "dataset_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Dataset Sha256",
+            "type": "string"
+          },
+          "diagnostic": {
+            "enum": [
+              "feature_predictiveness",
+              "group_overlap",
+              "timestamp_order"
+            ],
+            "title": "Diagnostic",
+            "type": "string"
+          },
+          "diagnostic_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "title": "Diagnostic Id",
+            "type": "string"
+          },
+          "groups": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Groups"
+          },
+          "invalid": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Invalid"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Method"
+          },
+          "metric": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Metric"
+          },
+          "missing_rows": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Missing Rows"
+          },
+          "overlapping_groups": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Overlapping Groups"
+          },
+          "partition_sha256": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Partition Sha256"
+          },
+          "rows": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Rows"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Score"
+          },
+          "unavailable": {
+            "anyOf": [
+              {
+                "maxLength": 400,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Unavailable"
+          }
+        },
+        "required": [
+          "diagnostic_id",
+          "diagnostic",
+          "dataset_sha256",
+          "column"
+        ],
+        "title": "DiagnosticSummary",
+        "type": "object"
+      },
+      "tier": "read",
+      "title": "Run a data diagnostic"
     },
     {
       "annotations": {

@@ -46,7 +46,12 @@ async def test_the_draft_fills_what_the_form_leaves_open(frame: pd.DataFrame) ->
     spec, provider, guard = await intake(
         frame,
         IntakeForm(goal="Will the patient have the outcome?"),
-        {"objective": "Predict the outcome", "target": "outcome", "primary_metric": "accuracy"},
+        {
+            "objective": "Predict the outcome",
+            "target": "outcome",
+            "task_type": "binary_classification",
+            "primary_metric": "accuracy",
+        },
     )
     assert (spec.target, spec.task_type, spec.primary_metric) == (
         "outcome",
@@ -68,6 +73,7 @@ async def test_form_fields_override_the_draft_and_code_corrects_the_rest(
         IntakeForm(
             goal="Predict the price",
             target="price",
+            task_type=TaskType.REGRESSION,
             primary_metric=MetricName.MAE,  # the explicit metric wins over the draft
             forbidden_columns=("note", "price", "ghost"),
         ),
@@ -78,21 +84,21 @@ async def test_form_fields_override_the_draft_and_code_corrects_the_rest(
             "primary_metric": "roc_auc",
         },
     )
-    assert spec.target == "price" and spec.task_type is TaskType.REGRESSION  # 60 distinct values
+    assert spec.target == "price" and spec.task_type is TaskType.REGRESSION
     assert spec.primary_metric is MetricName.MAE
     assert spec.forbidden_columns == ["note"]  # the target and unknown columns are dropped
     assert spec.open_questions == ["ignored unknown forbidden columns: ['ghost']"]
-    assert spec.from_form == ["target", "primary_metric", "forbidden_columns"]
+    assert spec.from_form == ["target", "task_type", "primary_metric", "forbidden_columns"]
 
 
-async def test_a_numeric_target_with_few_values_is_classification(frame: pd.DataFrame) -> None:
+async def test_task_type_remains_provisional_before_partition_lock(frame: pd.DataFrame) -> None:
     spec, _, _ = await intake(
         frame,
         IntakeForm(goal="x"),
         {"objective": "x", "target": "age", "task_type": "binary_classification"},
     )
-    assert spec.task_type is TaskType.MULTICLASS_CLASSIFICATION
-    assert spec.primary_metric is MetricName.F1_MACRO
+    assert spec.task_type is TaskType.BINARY_CLASSIFICATION
+    assert spec.primary_metric is MetricName.ROC_AUC
 
 
 async def test_no_usable_target_is_an_intake_error(frame: pd.DataFrame) -> None:
@@ -139,15 +145,11 @@ async def test_incompatible_explicit_metric_is_not_silently_replaced(frame: pd.D
         )
 
 
-@pytest.mark.parametrize("task", [TaskType.BINARY_CLASSIFICATION, TaskType.FORECASTING])
-async def test_incompatible_explicit_task_is_not_silently_replaced(
-    frame: pd.DataFrame,
-    task: TaskType,
-) -> None:
-    with pytest.raises(IntakeError, match="requested task type"):
+async def test_unsupported_task_type_is_rejected_before_lock(frame: pd.DataFrame) -> None:
+    with pytest.raises(IntakeError, match="unsupported"):
         await intake(
             frame,
-            IntakeForm(goal="Predict price", target="price", task_type=task),
+            IntakeForm(goal="Predict price", target="price", task_type=TaskType.FORECASTING),
             {"objective": "Predict price", "target": "price", "task_type": "regression"},
         )
 
@@ -164,8 +166,26 @@ async def test_explicit_secondary_metric_and_quality_target_survive_intake(
             secondary_metrics=(MetricName.ROC_AUC,),
             quality_target=0.8,
         ),
-        {"objective": "Predict outcome", "target": "outcome", "primary_metric": "f1_macro"},
+        {
+            "objective": "Predict outcome",
+            "target": "outcome",
+            "task_type": "binary_classification",
+            "primary_metric": "f1_macro",
+        },
     )
     assert result.primary_metric is MetricName.ACCURACY
     assert result.secondary_metrics == [MetricName.ROC_AUC] and result.quality_target == 0.8
     assert "secondary_metrics" in result.from_form and "quality_target" in result.from_form
+
+
+async def test_intake_never_derives_task_type_from_target_before_lock(frame, monkeypatch):
+    def refuse_target_access(*args, **kwargs):
+        raise AssertionError("target-derived inference ran before partition lock")
+
+    monkeypatch.setattr("hypora.core.roles.intake._task_type", refuse_target_access)
+    result, _, _ = await intake(
+        frame,
+        IntakeForm(goal="Predict outcome", target="outcome"),
+        {"objective": "Predict outcome", "target": "outcome", "task_type": "binary_classification"},
+    )
+    assert result.task_type is TaskType.BINARY_CLASSIFICATION

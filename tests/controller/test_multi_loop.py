@@ -78,6 +78,8 @@ class ScriptedMulti(ScriptedRun):
     evidence: dict[str, object]
 
     async def generate(self, request):
+        if "You are Hypora's data and implementation specialist" in request.messages[0].content:
+            return await super().generate(request)
         if request.output_schema_name == "LeadAction":
             self.requests.append(request)
             response: dict[str, object] = {"action": "continue", "reason": "Proceed within scope"}
@@ -150,7 +152,7 @@ async def test_multi_loop_role_order_context_and_plan(
     assert all(event.actor_role.value in {"agent_b", "agent_c"} for event in calls)
     plans = [event for event in events if event.type.value == "plan"]
     if planning is Toggle.ON:
-        assert len(plans) == 2
+        assert len(plans) == 4
         assert plans[0].seq < calls[0].seq
         assert plans[0].actor_role.value == "agent_a"
     else:

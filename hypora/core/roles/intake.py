@@ -175,7 +175,18 @@ async def run_intake(
     hint = form.task_type or (TaskType(draft.task_type) if draft.task_type else None)
     if form.task_type:
         from_form.append("task_type")
-    task_type = _task_type(frame[target], hint, explicit=form.task_type is not None)
+    # No target-derived information may be sent to a model before data partitions are locked.
+    # Intake chooses only a provisional type from an explicit field or the goal-derived draft;
+    # the controller must validate it against diagnostic training rows after locking the split.
+    if hint is None:
+        raise IntakeError("the task type is ambiguous; provide it explicitly")
+    if hint not in {
+        TaskType.REGRESSION,
+        TaskType.BINARY_CLASSIFICATION,
+        TaskType.MULTICLASS_CLASSIFICATION,
+    }:
+        raise IntakeError("the requested task type is unsupported")
+    task_type = hint
     metric = _metric(
         task_type,
         form.primary_metric or draft.primary_metric,

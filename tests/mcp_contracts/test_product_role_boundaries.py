@@ -10,6 +10,7 @@ from tests.mcp_contracts.helpers import call, events, open_session
 pytestmark = pytest.mark.anyio
 TOOLS = {
     "inspect_dataset",
+    "run_diagnostic",
     "write_trial_files",
     "submit_experiment",
     "get_experiment_status",
@@ -41,7 +42,7 @@ async def test_a_and_b_cannot_call_execution_tools_even_during_ablation(
 
 
 @pytest.mark.parametrize("allowlist", [True, False])
-async def test_c_is_confined_to_six_tools_and_cannot_spawn(session_file, allowlist):
+async def test_c_is_confined_to_approved_tools_and_cannot_spawn(session_file, allowlist):
     session = open_session(
         session_file,
         role=ActorRole.AGENT_C,

@@ -411,8 +411,21 @@ class _BaselineRun(_Run):
             self.notes.append(f"Not applied by the fixed pipeline: {', '.join(ignored)}.")
         return spec
 
-    def _contract(self, spec: TaskSpecification, columns: list[str]) -> ExperimentContract:
-        data = fixed_data_contract(spec, columns)
+    async def _prepare_data_contract(
+        self, spec: TaskSpecification, frame: pd.DataFrame, profile: DatasetProfile
+    ) -> ExperimentContract:
+        # The fixed-pipeline comparator stays model-free, but uses the same protected
+        # diagnostic partition and locked execution path as the agent.
+        from hypora.execution.harness.partition import create_partition_lock
+
+        data = fixed_data_contract(spec, [str(column) for column in frame.columns])
+        contract = self._contract(spec, data)
+        create_partition_lock(
+            frame, contract, self.dataset_fingerprint, self.run_dir / "partition-lock.json"
+        )
+        return contract
+
+    def _contract(self, spec: TaskSpecification, data: DataContract) -> ExperimentContract:
         save_data_contract(self.database, self.run_id, data)
         plan = fixed_plan(spec, data, self.budget)
         (self.run_dir / "approved_plan.json").write_text(

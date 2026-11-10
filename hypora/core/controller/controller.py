@@ -39,10 +39,8 @@ from pydantic import BaseModel, TypeAdapter
 from hypora.core.config.flags import AgentMode, FeatureFlags, Toggle
 from hypora.core.config.run_config import RunConfig
 from hypora.core.controller.contract import (
-    STAGE1_NOTE,
     ContractError,
     approve_by_policy,
-    build_data_contract,
     build_experiment_contract,
     build_plan,
 )
@@ -54,11 +52,13 @@ from hypora.core.controller.local import (
     mcp_transport,
     write_session,
 )
+from hypora.core.controller.methodology import validate_data_proposal
 from hypora.core.controller.states import START, RunEvent, RunState, next_state
 from hypora.core.llm.adapter import LLMAdapter
 from hypora.core.policy.firewall import DataFirewall
 from hypora.core.roles.base import USER_CANCEL, RunLimitReached
-from hypora.core.roles.intake import IntakeError, IntakeForm, run_intake
+from hypora.core.roles.intake import IntakeError, IntakeForm, _task_type, run_intake
+from hypora.core.roles.methodology import propose_data_contract
 from hypora.core.roles.multi import LeadAction, ResearchObservation, draft_plan, main_role_call
 from hypora.core.roles.outcome_evidence import derive_outcome_evidence, has_authorized_model_route
 from hypora.core.roles.prompt_loader import load_prompt
@@ -87,6 +87,7 @@ from hypora.core.schemas import (
     ApprovedPlan,
     Budget,
     CheckStatus,
+    DataContract,
     DatasetProfile,
     ErrorClass,
     EventType,
@@ -380,7 +381,7 @@ class _Run:
             self._advance(RunEvent.PROFILED, f"profile {profile.fingerprint[:12]}")
             if self._multi:
                 await self._research_and_decide(spec, profile)
-            contract = self._contract(spec, [str(c) for c in frame.columns])
+            contract = await self._prepare_data_contract(spec, frame, profile)
             approval_reason = f"plan approved by policy ({AUTO_APPROVER})"
             if self._multi:
                 approval_reason += "; A authorized C assignment: " + json.dumps(
@@ -645,25 +646,32 @@ class _Run:
         return spec
 
     def _profile(self, frame: pd.DataFrame, spec: TaskSpecification) -> DatasetProfile:
+        if spec.target is None or spec.target not in frame:
+            raise ContractError("target required before profiling")
+        # The pre-lock profile contains no target values or target-derived statistics.
         profile = profile_tabular(
-            frame,
+            frame.drop(columns=[spec.target]),
             run_id=self.run_id,
             dataset_ref=f"dataset:{DATASET_ID}",
-            target=spec.target,
-            task_type=spec.task_type,
         )
         profile.fingerprint = self.dataset_fingerprint
         save_dataset_profile(self.database, profile)
         return profile
 
-    def _contract(self, spec: TaskSpecification, columns: list[str]) -> ExperimentContract:
-        data = build_data_contract(spec, columns)
+    def _contract(self, spec: TaskSpecification, data: DataContract) -> ExperimentContract:
         save_data_contract(self.database, self.run_id, data)
-        plan = build_plan(spec, data, self.budget)
+        plan = build_plan(
+            spec,
+            data,
+            self.budget,
+            note="Evidence-backed methodology; split locked before experiments.",
+        )
         (self.run_dir / "approved_plan.json").write_text(
             plan.model_dump_json(indent=2), encoding="utf-8"
         )
-        approval = self._approve(plan, STAGE1_NOTE)
+        approval = self._approve(
+            plan, "Data methodology approved; diagnostic partition to be locked."
+        )
         contract = build_experiment_contract(
             spec,
             data,
@@ -672,8 +680,190 @@ class _Run:
             job_limits=self.controller.run_config.budgets.job_limits,
         )
         save_experiment_contract(self.database, contract)
-        self.notes.append(STAGE1_NOTE)
+        self.notes.append(
+            "A reviewed C's data methodology; platform locks diagnostic rows."
+            if self._multi
+            else "Single-agent data methodology selected; platform locks diagnostic rows."
+        )
         self.notes += stage1_flag_notes(self.controller.run_config.flags)
+        return contract
+
+    async def _propose_methodology(
+        self,
+        spec: TaskSpecification,
+        profile: DatasetProfile,
+        *,
+        previous: DataContract | None = None,
+    ) -> tuple[DataContract, dict[str, tuple[str, str]]]:
+        """Collect a bounded C proposal using only case-permitted diagnostics."""
+        c = self.controller
+        role = ActorRole.AGENT_C if self._multi else ActorRole.SINGLE_AGENT
+        permitted = self.request.permitted_tools
+        tools = (
+            (ToolName.RUN_DIAGNOSTIC,)
+            if permitted is None or ToolName.RUN_DIAGNOSTIC in permitted
+            else ()
+        )
+        session = write_session(
+            self.run_dir / "mcp" / "methodology-session.json",
+            run_id=self.run_id,
+            role=role,
+            database=c.database_path,
+            runs_root=c.runs_root,
+            dataset=self.dataset,
+            flags=c.run_config.flags,
+            permitted_tools=tools,
+        )
+        log = self.run_dir / "logs" / "methodology-mcp.log"
+        log.parent.mkdir(parents=True, exist_ok=True)
+        context = (
+            "Task specification: "
+            + spec.model_dump_json()
+            + "\nTarget-free dataset metadata: "
+            + profile.model_dump_json()
+        )
+        if previous is not None:
+            context += (
+                "\nThe split is now locked. You may run feature_predictiveness only on the "
+                "platform's diagnostic-only partition. You may propose feature exclusions with "
+                "diagnostic evidence; preserve target, task, split and non-learned fixes exactly."
+                "\nCurrent contract: " + previous.model_dump_json()
+            )
+        else:
+            context += "\nNo target-aware diagnostic is available before the split is locked."
+        failure: Exception | None = None
+        with log.open("a", encoding="utf-8") as errlog:
+            transport = mcp_transport(session, errlog)
+            async with Client(transport, read_timeout_seconds=MCP_READ_TIMEOUT_S) as client:
+                channel: ToolChannel = McpToolChannel(client)
+                tool_specs = await McpToolChannel(client).specs()
+                if c.tool_channel_wrapper is not None:
+                    channel = c.tool_channel_wrapper(channel)
+                instance = self._role_started(
+                    role, ModelTier.LEAD, allowed_tools=[tool.name for tool in tool_specs]
+                )
+                try:
+                    if c.run_config.flags.planning is Toggle.ON:
+                        plan = await self._plan(
+                            instance, role, context, [tool.name for tool in tool_specs]
+                        )
+                        context += "\nPlan to follow: " + plan.model_dump_json()
+                    proposal, evidence = await propose_data_contract(
+                        c.adapter,
+                        self.guard,
+                        channel,
+                        tool_specs,
+                        run_id=self.run_id,
+                        role=role,
+                        context=context,
+                        max_turns=c.max_agent_turns,
+                    )
+                except Exception as exc:
+                    self._handoff(
+                        instance,
+                        role,
+                        HandoffStatus.PARTIAL
+                        if isinstance(exc, RunLimitReached)
+                        else HandoffStatus.FAILED,
+                    )
+                    failure = exc
+                else:
+                    self._handoff(instance, role, HandoffStatus.COMPLETE)
+        if failure is not None:
+            raise failure
+        # Model-generated strings must pass both existing secret and dataset-value boundaries
+        # before forwarding to A or persisting any proposed methodology.
+        payload = proposal.model_dump(mode="json")
+        if c.adapter.redact_model_data(payload) != payload:
+            raise ContractError("data proposal failed sensitive-content validation")
+        frame = load_tabular(self.dataset)
+        if DataFirewall([frame]).check_payload(payload).blocked:
+            raise ContractError("data proposal failed data-boundary validation")
+        return proposal, evidence
+
+    async def _prepare_data_contract(
+        self, spec: TaskSpecification, frame: pd.DataFrame, profile: DatasetProfile
+    ) -> ExperimentContract:
+        """Choose, freeze, diagnose and reconcile one evidence-backed data methodology."""
+        from hypora.execution.harness.partition import (
+            create_partition_lock,
+            load_verified_partition,
+        )
+
+        columns = [str(column) for column in frame.columns]
+        draft, evidence = await self._propose_methodology(spec, profile)
+        validate_data_proposal(draft, spec, columns, evidence)
+        if self._multi and not await self._lead_decision(
+            "Review C's proposed data methodology alongside B's evidence. Report on conflict or "
+            "ambiguity; otherwise continue. C proposal: "
+            + draft.model_dump_json()
+            + "\nB evidence: "
+            + self.research_brief
+        ):
+            raise LeadStop
+        provisional = self._contract(spec, draft)
+        lock_path = self.run_dir / "partition-lock.json"
+        create_partition_lock(frame, provisional, self.dataset_fingerprint, lock_path)
+        locked = load_verified_partition(frame, provisional, self.dataset_fingerprint, lock_path)
+        # Infer or validate task type from D only; never relay values or a parser error.
+        try:
+            inferred = _task_type(
+                locked.prepared.target.iloc[locked.diagnostic], spec.task_type, explicit=True
+            )
+        except (ValueError, TypeError) as exc:
+            raise ContractError(
+                "diagnostic partition cannot validate the proposed task type"
+            ) from exc
+        if inferred is not spec.task_type:
+            raise ContractError("diagnostic partition conflicts with the proposed task type")
+        revised, more_evidence = await self._propose_methodology(spec, profile, previous=draft)
+        evidence.update(more_evidence)
+        validate_data_proposal(revised, spec, columns, evidence)
+        if (
+            revised.target != draft.target
+            or revised.task_type != draft.task_type
+            or revised.split != draft.split
+            or revised.non_learned_fixes != draft.non_learned_fixes
+        ):
+            raise ContractError(
+                "split-affecting methodology changes after diagnostics are forbidden"
+            )
+        if self._multi and not await self._lead_decision(
+            "Reconcile B's evidence and C's locked-split diagnostics. Report on conflict or "
+            "ambiguity; otherwise continue. C proposal: "
+            + revised.model_dump_json()
+            + "\nB evidence: "
+            + self.research_brief
+        ):
+            raise LeadStop
+        if revised == draft:
+            return provisional
+        # Only feature changes are allowed, so the locked rows remain valid. Approve a new
+        # immutable plan and contract rather than mutating the original record.
+        data = DataContract.model_validate(
+            {**revised.model_dump(mode="json"), "data_contract_version": 2}
+        )
+        load_verified_partition(frame, provisional, self.dataset_fingerprint, lock_path)
+        save_data_contract(self.database, self.run_id, data)
+        plan = build_plan(
+            spec,
+            data,
+            self.budget,
+            note="Evidence-backed methodology; split locked before experiments.",
+        ).model_copy(update={"version": 2})
+        (self.run_dir / "approved_plan_v2.json").write_text(
+            plan.model_dump_json(indent=2), encoding="utf-8"
+        )
+        approval = self._approve(plan, "C's evidence-backed feature revision; split locked")
+        contract = build_experiment_contract(
+            spec,
+            data,
+            approval,
+            budget=self.budget,
+            job_limits=self.controller.run_config.budgets.job_limits,
+        ).model_copy(update={"version": 2})
+        load_verified_partition(frame, contract, self.dataset_fingerprint, lock_path)
+        save_experiment_contract(self.database, contract)
         return contract
 
     def _approve(self, plan: ApprovedPlan, note: str) -> ApprovalRecord:
@@ -734,6 +924,21 @@ class _Run:
             f"C output: {outcome.final.model_dump_json() if outcome.final else 'unavailable'}. "
             f"Platform evidence: {self._trial_evidence()}. Run notes: {self.notes}"
         ):
+            return
+        completed = {
+            job.trial_id
+            for job in run_jobs(self.database, self.run_id)
+            if job.status is JobState.COMPLETED
+        }
+        kinds = {
+            trial.kind
+            for trial in list_trials(self.database, self.run_id)
+            if trial.trial_id in completed
+        }
+        if self._multi and not {"baseline", "candidate"} <= kinds:
+            self.notes.append(
+                "No final model: a completed baseline and candidate are required for comparison."
+            )
             return
         selection = select_final(self.database, self.run_id, contract.primary_metric, nominated)
         if selection.trial_id is None or selection.source_job_id is None:

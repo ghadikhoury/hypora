@@ -32,6 +32,7 @@ def test_the_contract_lists_approved_tools_in_order():
         "get_model_evidence",
         "retrieve_methodology",
         "inspect_dataset",
+        "run_diagnostic",
         "write_trial_files",
         "submit_experiment",
         "get_experiment_status",

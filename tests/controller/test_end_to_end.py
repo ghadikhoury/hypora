@@ -136,4 +136,5 @@ async def test_a_run_ends_with_a_verified_model_and_a_report(
         "single_agent_final@v1",
         "reporter@v1",
         "role_plan@v1",
+        "agent_c_methodology@v1",
     }

@@ -65,6 +65,30 @@ class ScriptedRun:
     async def generate(self, request: ProviderRequest) -> ProviderResult:
         self.requests.append(request)
         schema = request.output_schema_name
+        if "You are Hypora's data and implementation specialist" in request.messages[0].content:
+            if schema == "PlanDraft":
+                return json_result(
+                    {
+                        "steps": [
+                            {"tool": None, "purpose": "Review metadata", "success_check": "Done"}
+                        ]
+                    }
+                )
+            if schema == "DataContract":
+                from hypora.core.controller.contract import build_data_contract
+                from hypora.core.schemas import TaskSpecification
+
+                context = request.messages[1].content
+                decoder = json.JSONDecoder()
+                task = decoder.raw_decode(context.split("Task specification: ", 1)[1])[0]
+                profile = decoder.raw_decode(context.split("Target-free dataset metadata: ", 1)[1])[
+                    0
+                ]
+                spec = TaskSpecification.model_validate(task)
+                columns = [item["name"] for item in profile["tabular"]["columns"]]
+                columns.append(spec.target)
+                return json_result(build_data_contract(spec, columns).model_dump(mode="json"))
+            return text_result("Metadata reviewed.")
         if schema == "PlanDraft":
             return json_result(
                 {

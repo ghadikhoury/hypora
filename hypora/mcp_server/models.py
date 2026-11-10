@@ -188,3 +188,23 @@ class ExperimentLogs(StrictModel):
         description="Lines on this page withheld because they showed dataset values."
     )
     next_page: PositiveInt | None = None
+
+
+class DiagnosticSummary(StrictModel):
+    """Bounded aggregate diagnostic with provenance and no individual values."""
+
+    diagnostic_id: Identifier
+    diagnostic: Literal["feature_predictiveness", "group_overlap", "timestamp_order"]
+    dataset_sha256: Sha256Hex
+    column: Annotated[str, StringConstraints(min_length=1, max_length=200)]
+    partition_sha256: Sha256Hex | None = None
+    score: float | None = Field(None, allow_inf_nan=False)
+    metric: Annotated[str, StringConstraints(max_length=40)] | None = None
+    method: Annotated[str, StringConstraints(max_length=120)] | None = None
+    unavailable: Note | None = None
+    rows: NonNegativeInt | None = None
+    missing_rows: NonNegativeInt | None = None
+    groups: NonNegativeInt | None = None
+    overlapping_groups: NonNegativeInt | None = None
+    invalid: NonNegativeInt | None = None
+    adjacent_decreases: NonNegativeInt | None = None

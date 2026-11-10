@@ -1020,3 +1020,20 @@ No recorded result, grader, sandbox policy, tool contract or course minimum is c
     cancelled or missing job.
   - No test, required check, review rule, secret scan, schema, tool, event, case or grading rule
     is removed or changed. Triggers 1–9 are unchanged; trigger 10 is added.
+## D-040 ? S3.3 diagnostic data isolation and case permissions
+
+- Ghadi approved S3.3's bounded `run_diagnostic` MCP tool for feature predictiveness,
+  group overlap and timestamp order. Only C and the legacy single agent may call it, with
+  authorized-dataset checks and aggregate-only output; A, B and workers are denied.
+- Before a split is locked, intake and agent profiles expose no target-derived data. Existing
+  target-aware `inspect_dataset` and the supervised diagnostic require a locked partition,
+  the matching target and task, and the authorized experiment dataset.
+- A reserved diagnostic-only partition D is disjoint from test and every validation fold,
+  included only in permitted training folds, and respects group/time boundaries. Trusted
+  stratification may use labels internally. Exact partition identities are persisted and
+  verified, with dataset and split provenance, and scope changes fail closed. The product
+  verifier checks these guarantees; errors must not reveal held-out labels.
+- Add `run_diagnostic` to the permitted tools of the existing target-leakage, grouped-rows
+  and temporal-order development cases only. Their data, hidden splits, traps and grading
+  thresholds remain unchanged. The case fingerprints change; historical records retain their
+  original identity and are not relabeled or overwritten.

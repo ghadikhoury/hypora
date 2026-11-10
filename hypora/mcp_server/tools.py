@@ -57,6 +57,7 @@ from hypora.mcp_server import errors
 from hypora.mcp_server.models import (
     ArtifactRef,
     ClassScore,
+    DiagnosticSummary,
     ExperimentError,
     ExperimentLogs,
     ExperimentMetrics,
@@ -72,6 +73,7 @@ from hypora.mcp_server.models import (
 )
 from hypora.mcp_server.session import Session
 from hypora.mcp_server.trialfs import existing_files, write_file
+from hypora.profiling.diagnostics import feature_predictiveness, group_overlap, timestamp_order
 from hypora.profiling.tabular import profile_tabular
 from hypora.research.catalogs.hub import CatalogError
 from hypora.research.mcp_tools import (
@@ -89,6 +91,7 @@ from hypora.storage.records import (
     StoredTrial,
     load_approval,
     load_experiment_contract,
+    load_task_spec,
     load_trial,
     set_trial_status,
     upsert_trial,
@@ -145,7 +148,7 @@ class HyporaTools:
     def __init__(self, session: Session | None) -> None:
         self._session = session
         self._lock = threading.Lock()
-        self._profiles: dict[tuple[str, str | None, str | None], DatasetProfile] = {}
+        self._profiles: dict[tuple[str, str, str], DatasetProfile] = {}
         self._packages = _sandbox_packages()
         self._research: ResearchService | None = None
 
@@ -354,105 +357,325 @@ class HyporaTools:
             ) from None
 
     # --- inspect_dataset --------------------------------------------------------------------------
+    # --- data diagnostics and inspection ---------------------------------------------------------
+
+    def _diagnostic_dataset(self, dataset_id: str | None) -> str:
+        session = self.session
+        chosen = dataset_id or session.config.experiment_dataset
+        if session.dataset_path(chosen) is None:
+            raise errors.missing(
+                "DATASET_NOT_FOUND",
+                "The dataset is not authorized for this session.",
+                "Use the experiment dataset.",
+            )
+        if chosen != session.config.experiment_dataset:
+            raise errors.policy(
+                "DATASET_NOT_AUTHORIZED",
+                "Diagnostics are available only for this run's experiment dataset.",
+                "Use the experiment dataset.",
+                decided_by=PolicyRule.CONTRACT_SCOPE,
+            )
+        return chosen
+
+    def _diagnostic_target(self) -> str:
+        try:
+            spec = load_task_spec(self.session.database, self.session.run_id)
+        except RecordNotFound:
+            contract = self._contract()
+            if contract is not None:
+                return contract.target
+            raise errors.not_yet(
+                "TARGET_NOT_READY",
+                "The task target is not available.",
+                "Complete task intake before diagnosing data.",
+            ) from None
+        if spec.target is None:
+            raise errors.not_yet(
+                "TARGET_NOT_READY",
+                "The task target is not available.",
+                "Complete task intake before diagnosing data.",
+            )
+        contract = self._contract()
+        if contract is not None and contract.target != spec.target:
+            raise errors.policy(
+                "TARGET_NOT_AUTHORIZED",
+                "Task and contract targets do not match.",
+                "Resolve the target before diagnosing data.",
+                decided_by=PolicyRule.CONTRACT_SCOPE,
+            )
+        return spec.target
+
+    def _diagnostic_frame(self, dataset_id: str):
+        try:
+            return self.session.frame(dataset_id)
+        except Exception:
+            raise errors.missing(
+                "DATASET_UNAVAILABLE",
+                "The authorized dataset could not be read.",
+                "Check the dataset source and restart the session.",
+            ) from None
+
+    def _diagnostic_partition(self, dataset_id: str, target: str, task_type: TaskType):
+        """Return verified prepared data and lock identity, never a fallback to all rows."""
+        contract = self._contract()
+        if contract is None or contract.target != target or contract.task_type != task_type:
+            raise errors.policy(
+                "PARTITION_NOT_READY",
+                "The requested target and task do not match a locked experiment contract.",
+                "Use the contract's target and task after the diagnostic partition is locked.",
+                decided_by=PolicyRule.CONTRACT_SCOPE,
+            )
+        try:
+            # Imported here so a missing implementation also fails closed.
+            from hypora.execution.harness.partition import load_verified_partition
+
+            session = self.session
+            dataset_hash = session.dataset_sha256(dataset_id)
+            path = session.runs_root / session.run_id / "partition-lock.json"
+            locked = load_verified_partition(
+                session.frame(dataset_id), contract, dataset_hash, path
+            )
+            ids = [int(item) for item in locked.diagnostic]
+            if not ids:
+                raise ValueError("empty diagnostic partition")
+            identity = canonical_hash(
+                {
+                    "dataset": dataset_hash,
+                    "split": contract.data_contract.split.model_dump(mode="json"),
+                    "seed": contract.seed,
+                    "target": contract.target,
+                    "task_type": contract.task_type.value,
+                    "fixes": [
+                        fix.model_dump(mode="json", by_alias=True)
+                        for fix in contract.data_contract.non_learned_fixes
+                    ],
+                    "development": locked.prepared.development.tolist(),
+                    "test": locked.prepared.test.tolist(),
+                    "folds": [
+                        {"train": fold.train.tolist(), "validation": fold.validation.tolist()}
+                        for fold in locked.prepared.folds
+                    ],
+                    "diagnostic_ids": ids,
+                }
+            )
+            return locked.prepared.frame.iloc[ids], identity
+        except Exception:
+            raise errors.policy(
+                "PARTITION_NOT_READY",
+                "The diagnostic partition is absent or could not be verified.",
+                "Lock the diagnostic partition before requesting target-aware statistics.",
+                decided_by=PolicyRule.CONTRACT_SCOPE,
+            ) from None
 
     def inspect_dataset(
         self,
         dataset_id: Annotated[
             Identifier | None,
-            Field(
-                description="An authorized dataset ID, e.g. 'ds_main'. Omit for the dataset "
-                "the run's experiment contract governs."
-            ),
+            Field(description="The run's experiment dataset ID; omit to use it."),
         ] = None,
         target: Annotated[
-            str | None,
-            Field(
-                description="Column to treat as the label for target-aware statistics. Omit to "
-                "use the contract's target (or, before a contract exists, no target)."
-            ),
+            str | None, Field(description="The locked experiment target; use with task_type.")
         ] = None,
         task_type: Annotated[
-            TaskType | None,
-            Field(
-                description="Required with `target`: binary/multiclass classification or "
-                "regression."
-            ),
+            TaskType | None, Field(description="The locked task type; use with target.")
         ] = None,
     ) -> DatasetProfile:
-        """Summarize an authorized tabular dataset without revealing any of its rows.
+        """Profile this run's dataset without returning rows.
 
-        Use it first, to learn the dataset's shape before designing a trial: column types,
-        missing values, value ranges, the target's class balance, ID-like columns, candidate
-        group keys (repeated subjects or batches), timestamps, and leakage candidates (single
-        columns that predict the target suspiciously well; a signal to review, not proof).
+        Before a contract is locked, returns metadata with the target column omitted. After
+        locking, target-aware statistics use only the verified diagnostic-only partition, which
+        is excluded from validation and test. An explicit target must match the contract.
 
-        Do not use it to look at rows, samples, or individual values: no tool returns them (the
-        data firewall). Categorical columns list at most their five most frequent labels.
-
-        Returns a DatasetProfile. `tabular.leakage_screen_skipped_reason`, when set, means
-        leakage was not screened; an empty `leakage_candidates` list then proves nothing.
-        Profiles are cached: repeating the same call is cheap.
-
-        Example: inspect_dataset(dataset_id="ds_main")
+        Use it to inspect structure and target-aware associations.
+        Do not use it as proof of leakage or to extract rows.
+        Returns a profile with the source fingerprint, scoped to the partition when supervised.
+        No tool returns raw rows. Example: inspect_dataset(dataset_id="ds_main")
         """
         session = self.session
-        dataset_id = dataset_id or session.config.experiment_dataset
-        path = session.dataset_path(dataset_id)
-        if path is None:
-            raise errors.missing(
-                "DATASET_NOT_FOUND",
-                f"{dataset_id!r} is not an authorized dataset of this session.",
-                "Omit dataset_id to inspect the run's dataset, or use an ID you were given.",
-                authorized=", ".join(sorted(session.config.datasets)),
-            )
+        chosen = self._diagnostic_dataset(dataset_id)
         if (target is None) != (task_type is None):
-            if target is None:
-                raise errors.invalid(
-                    "TARGET_REQUIRED",
-                    "task_type was given without target.",
-                    "Pass both target and task_type, or neither.",
-                )
             raise errors.invalid(
-                "TASK_TYPE_REQUIRED",
-                "target was given without task_type.",
-                "Pass both target and task_type, or neither.",
+                "TARGET_REQUIRED" if target is None else "TASK_TYPE_REQUIRED",
+                "Target and task type must be supplied together.",
+                "Supply both or omit both.",
             )
-        contract = self._contract()
-        if (
-            target is None
-            and contract is not None
-            and dataset_id == session.config.experiment_dataset
-        ):
-            target, task_type = contract.target, contract.task_type
         if task_type is not None and task_type not in _PROFILED_TASKS:
             raise errors.invalid(
                 "TASK_TYPE_UNSUPPORTED",
-                f"Profiling supports {sorted(t.value for t in _PROFILED_TASKS)}.",
-                "Choose one of the supported task types.",
+                "This task type is not supported.",
+                "Use the task type from the experiment contract.",
             )
-        frame = session.frame(dataset_id)
-        if target is not None and target not in frame.columns:
-            raise errors.invalid(
-                "UNKNOWN_COLUMN",
-                f"The dataset has no column {target!r}.",
-                "Call inspect_dataset without a target to list the columns.",
-            )
-        key = (dataset_id, target, task_type.value if task_type else None)
+        task_target = self._diagnostic_target()
+        contract = self._contract()
+        if target is None and contract is not None:
+            target, task_type = contract.target, contract.task_type
+        if target is not None:
+            if target != task_target or task_type not in _PROFILED_TASKS:
+                raise errors.policy(
+                    "TARGET_NOT_AUTHORIZED",
+                    "Target or task does not match this run.",
+                    "Use the locked experiment target and task.",
+                    decided_by=PolicyRule.CONTRACT_SCOPE,
+                )
+            assert task_type is not None
+            frame, partition = self._diagnostic_partition(chosen, target, task_type)
+        else:
+            source = self._diagnostic_frame(chosen)
+            if task_target not in source.columns:
+                raise errors.policy(
+                    "TARGET_NOT_AUTHORIZED",
+                    "The task target is unavailable.",
+                    "Complete task intake on the experiment dataset.",
+                    decided_by=PolicyRule.CONTRACT_SCOPE,
+                )
+            frame = source.drop(columns=[task_target])
+            partition = "metadata-only"
+        dataset_hash = session.dataset_sha256(chosen)
+        key = (dataset_hash, partition, target or "")
         with self._lock:
             cached = self._profiles.get(key)
         if cached is not None:
             return cached
-        profile = profile_tabular(
-            frame,
-            run_id=session.run_id,
-            dataset_ref=f"dataset:{dataset_id}",
-            target=target,
-            task_type=task_type,
-        )
-        profile.fingerprint = session.dataset_sha256(dataset_id)  # the bytes profiled
+        try:
+            profile = profile_tabular(
+                frame,
+                run_id=session.run_id,
+                dataset_ref=f"dataset:{chosen}",
+                target=target,
+                task_type=task_type,
+            )
+        except Exception:
+            raise errors.invalid(
+                "PROFILE_UNAVAILABLE",
+                "The dataset profile could not be computed.",
+                "Check the dataset and task definition.",
+            ) from None
+        profile.fingerprint = dataset_hash
         with self._lock:
             self._profiles[key] = profile
         return profile
+
+    def run_diagnostic(
+        self,
+        diagnostic: Annotated[
+            Literal["feature_predictiveness", "group_overlap", "timestamp_order"],
+            Field(description="The diagnostic to run."),
+        ],
+        column: Annotated[str, Field(min_length=1, max_length=200, description="Feature column.")],
+        dataset_id: Annotated[
+            Identifier | None, Field(description="The run's experiment dataset; omit to use it.")
+        ] = None,
+        target: Annotated[
+            str | None, Field(description="Required only for feature_predictiveness.")
+        ] = None,
+        task_type: Annotated[
+            TaskType | None, Field(description="Required only for feature_predictiveness.")
+        ] = None,
+    ) -> DiagnosticSummary:
+        """Run a predefined aggregate-only diagnostic on the authorized dataset.
+
+        Use it for group_overlap or timestamp_order target-free structural investigation.
+        Feature predictiveness requires the exact locked target/task and uses only the verified
+        diagnostic partition; its score is a signal for investigation, not proof of leakage.
+        Do not use it to extract data or infer a validation/test score.
+        Returns bounded aggregates and an ID identifying the data and operation; no raw rows,
+        group values or timestamps are returned.
+
+        Example: run_diagnostic(diagnostic="group_overlap", column="patient_id")
+        """
+        session = self.session
+        chosen = self._diagnostic_dataset(dataset_id)
+        task_target = self._diagnostic_target()
+        if column == task_target:
+            raise errors.policy(
+                "TARGET_NOT_AUTHORIZED",
+                "The target is not a diagnostic feature.",
+                "Choose a non-target feature column.",
+                decided_by=PolicyRule.CONTRACT_SCOPE,
+            )
+        source = self._diagnostic_frame(chosen)
+        if column not in source.columns:
+            raise errors.invalid(
+                "UNKNOWN_COLUMN", "The feature column is unavailable.", "Choose an existing column."
+            )
+        dataset_hash = session.dataset_sha256(chosen)
+        partition = None
+        values: dict[str, Any]
+        if diagnostic == "feature_predictiveness":
+            if target != task_target or task_type not in _PROFILED_TASKS:
+                raise errors.policy(
+                    "TARGET_NOT_AUTHORIZED",
+                    "The requested target or task is not permitted.",
+                    "Use the locked experiment target and task.",
+                    decided_by=PolicyRule.CONTRACT_SCOPE,
+                )
+            assert task_type is not None
+            frame, partition = self._diagnostic_partition(chosen, target, task_type)
+            try:
+                answer = feature_predictiveness(frame, column, target, task_type)
+            except Exception:
+                raise errors.invalid(
+                    "DIAGNOSTIC_UNAVAILABLE",
+                    "The diagnostic could not be computed.",
+                    "Check the requested feature and task.",
+                ) from None
+            values = {
+                "score": answer.score,
+                "metric": answer.metric,
+                "method": answer.method,
+                "unavailable": answer.unavailable,
+            }
+        else:
+            if target is not None or task_type is not None:
+                raise errors.invalid(
+                    "UNEXPECTED_TARGET",
+                    "This diagnostic is target-free.",
+                    "Omit target and task_type.",
+                )
+            try:
+                if diagnostic == "group_overlap":
+                    answer_group = group_overlap(source, column)
+                    values = {
+                        "rows": answer_group.rows,
+                        "missing_rows": answer_group.missing_rows,
+                        "groups": answer_group.groups,
+                        "overlapping_groups": answer_group.overlapping_groups,
+                    }
+                else:
+                    answer_time = timestamp_order(source, column)
+                    values = {
+                        "rows": answer_time.rows,
+                        "missing_rows": answer_time.missing,
+                        "invalid": answer_time.invalid,
+                        "adjacent_decreases": answer_time.adjacent_decreases,
+                    }
+            except Exception:
+                raise errors.invalid(
+                    "DIAGNOSTIC_UNAVAILABLE",
+                    "The diagnostic could not be computed.",
+                    "Check the requested feature and diagnostic.",
+                ) from None
+        diagnostic_id = (
+            "diag_"
+            + canonical_hash(
+                {
+                    "dataset": dataset_hash,
+                    "diagnostic": diagnostic,
+                    "column": column,
+                    "target": target,
+                    "task_type": task_type.value if task_type else None,
+                    "partition": partition,
+                }
+            )[:24]
+        )
+        return DiagnosticSummary(
+            diagnostic_id=diagnostic_id,
+            diagnostic=diagnostic,
+            dataset_sha256=dataset_hash,
+            column=column,
+            partition_sha256=partition,
+            **values,
+        )
 
     # --- write_trial_files ------------------------------------------------------------------------
 

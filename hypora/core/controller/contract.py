@@ -100,7 +100,9 @@ def build_data_contract(spec: TaskSpecification, columns: list[str]) -> DataCont
     )
 
 
-def build_plan(spec: TaskSpecification, data: DataContract, budget: Budget) -> ApprovedPlan:
+def build_plan(
+    spec: TaskSpecification, data: DataContract, budget: Budget, *, note: str = STAGE1_NOTE
+) -> ApprovedPlan:
     """The plan the policy approves: measure a baseline, then candidates, within `budget`."""
     per_trial = CostEstimate(compute_seconds=60.0, assumptions=("Stage-1 flat estimate",))
     return ApprovedPlan(
@@ -108,7 +110,7 @@ def build_plan(spec: TaskSpecification, data: DataContract, budget: Budget) -> A
         version=1,
         recommendation=Recommendation(
             kind=RecommendationKind.TRAIN_TASK_SPECIFIC,
-            rationale="Tabular task with labels: train task-specific models (Stage-1 default).",
+            rationale="Tabular task with labels: compare a baseline and a task-specific candidate.",
         ),
         phase_b_plan=ProposedPhaseBPlan(
             measurements=(
@@ -125,7 +127,7 @@ def build_plan(spec: TaskSpecification, data: DataContract, budget: Budget) -> A
                     estimated_cost=per_trial,
                 ),
             ),
-            notes=STAGE1_NOTE,
+            notes=note,
         ),
         data_contract_version=data.data_contract_version,
         data_contract_hash=data.content_hash(),
