@@ -22,6 +22,7 @@ import contextlib
 import hashlib
 import json
 import re
+import unicodedata
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -488,12 +489,14 @@ class _Run:
             frame = load_tabular(self.dataset)
             # Reject even common text cells, which the row-oriented firewall intentionally
             # treats as low-risk in ordinary summaries. Do not expose the matched value.
-            folded = assignment.casefold()
+            folded = " ".join(unicodedata.normalize("NFKC", assignment).casefold().split())
             for column in frame.select_dtypes(
                 include=["object", "string", "category", "bool"]
             ).columns:
                 for value in frame[column].dropna().astype(str).unique():
-                    candidate = str(value).strip().casefold()
+                    candidate = " ".join(
+                        unicodedata.normalize("NFKC", str(value)).casefold().split()
+                    )
                     if (
                         candidate
                         and candidate in folded

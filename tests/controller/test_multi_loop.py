@@ -231,14 +231,33 @@ def test_assignment_rejects_common_and_distinct_dataset_values(
 
     dataset = tmp_path / "data.csv"
     pd.DataFrame(
-        {"category": ["violet"] * 9 + ["azure"], "flag": [True] * 10, "target": range(10)}
+        {
+            "category": ["violet"] * 9 + ["azure"],
+            "multi": ["red blue"] * 10,
+            "unicode": [
+                "".join(
+                    chr(0xFF00 + ord(c) - 0x20) if c != " " else chr(0x3000) for c in "safe name"
+                )
+            ]
+            * 10,
+            "flag": [True] * 10,
+            "target": range(10),
+        }
     ).to_csv(dataset, index=False)
     controller = make_controller(ScriptedMulti("run_boundary"), worker_factory=NoWorker)
     run = _Run(controller, RunRequest(dataset=dataset, goal="x", run_id="run_boundary"))
-    for text in ("Consider violet records", "Consider azure records", "Inspect True records"):
+    for text in (
+        "Consider violet records",
+        "Consider azure records",
+        "Inspect True records",
+        "Inspect red  blue records",
+        "Inspect red\tblue records",
+        "Inspect safe name records",
+    ):
         with pytest.raises(ValueError):
             run._validate_assignment(text)
     run._validate_assignment("Inspect approved data and run a baseline")
+    run._validate_assignment("Inspect red blueberry records")
 
 
 @pytest.mark.parametrize(

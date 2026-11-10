@@ -5,7 +5,7 @@ from mcp import Client
 
 from hypora.core.schemas import ActorRole
 from hypora.mcp_server.server import HyporaMCPServer
-from tests.mcp_contracts.helpers import call, open_session
+from tests.mcp_contracts.helpers import call, events, open_session
 
 pytestmark = pytest.mark.anyio
 TOOLS = {
@@ -46,8 +46,19 @@ async def test_c_is_confined_to_six_tools_and_cannot_spawn(session_file, allowli
             assert {tool.name for tool in (await client.list_tools()).tools} == TOOLS
             error, result = await call(client, "unapproved_tool")
             assert error and result["code"] == "TOOL_NOT_ALLOWED"
-            error, result = await call(client, "request_worker")
-            assert error and result["code"] == "WORKERS_UNAVAILABLE"
-            assert "unavailable until S3.4" in result["message"]
+            for name in ("request_worker", "spawn_worker"):
+                error, result = await call(client, name)
+                assert error and result["code"] == "WORKERS_UNAVAILABLE"
+                assert "unavailable until S3.4" in result["message"]
+                recorded = events(session, "tool_result")[-1].payload
+                assert recorded.status.value == "denied"
+                assert recorded.error.code == "WORKERS_UNAVAILABLE"
+                decisions = [
+                    event.payload
+                    for event in events(session, "policy_decision")
+                    if event.payload.call_id == recorded.call_id
+                    and event.payload.decided_by.value == "role_allowlist"
+                ]
+                assert len(decisions) == 1 and decisions[0].decision.value == "deny"
     finally:
         session.close()

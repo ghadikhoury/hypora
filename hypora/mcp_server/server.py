@@ -182,6 +182,14 @@ class HyporaMCPServer(MCPServer):
                 "request_worker",
                 "spawn_worker",
             }:
+                await self._policy(
+                    call_id,
+                    tool,
+                    tier,
+                    PolicyOutcome.DENY,
+                    PolicyRule.ROLE_ALLOWLIST,
+                    ["Worker requests are unavailable until S3.4"],
+                )
                 refusal = errors.policy(
                     "WORKERS_UNAVAILABLE",
                     "Worker requests are unavailable until S3.4.",
