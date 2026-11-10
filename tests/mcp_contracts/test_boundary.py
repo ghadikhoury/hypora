@@ -34,6 +34,9 @@ DF_HEAD = str(CANCER.head()).splitlines()
 async def test_the_session_lists_only_its_roles_tools(client):
     listed = await client.list_tools()
     assert {tool.name for tool in listed.tools} == {
+        "search_model_catalog",
+        "get_model_evidence",
+        "retrieve_methodology",
         "inspect_dataset",
         "write_trial_files",
         "submit_experiment",
@@ -81,7 +84,7 @@ async def test_allowlist_off_is_an_explicit_logged_ablation(session_file):
         session_file, role=ActorRole.REPORTER, defenses={"allowlist": False, "firewall": True}
     )
     async with Client(HyporaMCPServer(session)) as client:
-        assert len((await client.list_tools()).tools) == 6
+        assert len((await client.list_tools()).tools) == 9
         error, content = await call(client, "no_such_tool")
         assert error and content["code"] == "UNKNOWN_TOOL"
     reasons = [e.payload.reasons for e in events(session, "policy_decision")]

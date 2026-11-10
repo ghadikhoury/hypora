@@ -71,6 +71,9 @@ INSTRUCTIONS: Final = (
 )
 
 TOOL_ORDER: Final = (
+    ToolName.SEARCH_MODEL_CATALOG,
+    ToolName.GET_MODEL_EVIDENCE,
+    ToolName.RETRIEVE_METHODOLOGY,
     ToolName.INSPECT_DATASET,
     ToolName.WRITE_TRIAL_FILES,
     ToolName.SUBMIT_EXPERIMENT,
@@ -79,6 +82,9 @@ TOOL_ORDER: Final = (
     ToolName.GET_EXPERIMENT_LOGS,
 )
 TITLES: Final = {
+    ToolName.SEARCH_MODEL_CATALOG: "Search a public model catalog",
+    ToolName.GET_MODEL_EVIDENCE: "Read exact-revision model evidence",
+    ToolName.RETRIEVE_METHODOLOGY: "Retrieve cited methodology",
     ToolName.INSPECT_DATASET: "Profile a dataset",
     ToolName.WRITE_TRIAL_FILES: "Write a trial's files",
     ToolName.SUBMIT_EXPERIMENT: "Queue a trial for validation",
@@ -97,7 +103,7 @@ def _annotations(name: ToolName) -> ToolAnnotations:
         read_only_hint=tier is ToolTier.READ,
         destructive_hint=tier is ToolTier.DESTRUCTIVE_EGRESS,
         idempotent_hint=True,  # reads by nature; the two writes by their idempotency keys
-        open_world_hint=False,
+        open_world_hint=name in {ToolName.SEARCH_MODEL_CATALOG, ToolName.GET_MODEL_EVIDENCE},
     )
 
 
@@ -173,7 +179,7 @@ class HyporaMCPServer(MCPServer):
                 ToolCallPayload(
                     call_id=call_id,
                     tool=tool,
-                    arguments=_redact(arguments),
+                    arguments=_research_event_args(name, arguments),
                     idempotency_key=_idempotency_key(arguments),
                     session_id=self.session.config.session_id,
                 ),
@@ -207,7 +213,11 @@ class HyporaMCPServer(MCPServer):
             if unknown:  # the SDK would silently drop them; a typo or a smuggled field is an error
                 refusal = errors.invalid(
                     "UNKNOWN_ARGUMENTS",
-                    f"{tool} has no argument(s) {[key[:40] for key in unknown[:5]]}.",
+                    (
+                        f"{tool} received unsupported argument names."
+                        if name in _RESEARCH_TOOLS
+                        else f"{tool} has no argument(s) {[key[:40] for key in unknown[:5]]}."
+                    ),
                     "Use only the arguments in the tool's input schema.",
                 ).error
                 return await self._respond(call_id, tool, tier, started, error=refusal)
@@ -459,6 +469,41 @@ def _idempotency_key(arguments: dict[str, Any]) -> str | None:
         return _KEY_ADAPTER.validate_python(arguments.get("idempotency_key"))
     except ValidationError:
         return None
+
+
+_RESEARCH_TOOLS: Final = frozenset(
+    {"search_model_catalog", "get_model_evidence", "retrieve_methodology"}
+)
+
+
+def _research_event_args(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    """Log only fixed public research arguments, never arbitrary invalid or hidden inputs."""
+    if name not in _RESEARCH_TOOLS:
+        return _redact(arguments)
+    permitted = {
+        "search_model_catalog": (
+            "category",
+            {"tabular", "tabular_regression", "vision", "time_series"},
+        ),
+        "retrieve_methodology": (
+            "topic",
+            {"usage", "limitations", "hardware", "license", "training", "evaluation"},
+        ),
+    }
+    if name == "get_model_evidence":
+        ref = arguments.get("ref")
+        valid = (
+            isinstance(ref, str)
+            and len(ref) == 32
+            and ref.startswith("catalog_")
+            and all(char in "0123456789abcdef" for char in ref[8:])
+        )
+        return {"ref": ref} if valid and set(arguments) == {"ref"} else {"filtered": True}
+    field, allowed = permitted[name]
+    value = arguments.get(field)
+    if isinstance(value, str) and value in allowed and set(arguments) == {field}:
+        return {field: value}
+    return {"filtered": True}
 
 
 def _redact(value: Any, depth: int = 0) -> Any:

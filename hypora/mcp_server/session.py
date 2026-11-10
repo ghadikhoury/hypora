@@ -15,6 +15,7 @@ from typing import Final
 import pandas as pd  # type: ignore[import-untyped]
 from pydantic import Field, model_validator
 
+from hypora.core.config.flags import RetrievalMode
 from hypora.core.policy.firewall import DataFirewall
 from hypora.core.schemas import (
     ActorRole,
@@ -63,6 +64,7 @@ class SessionConfig(Record):
         le=MAX_STATUS_WAIT_SECONDS,
         description="How long one get_experiment_status call may wait for its job to change.",
     )
+    retrieval_mode: RetrievalMode = RetrievalMode.HYBRID
     permitted_tools: tuple[ToolName, ...] | None = Field(
         None, description="Optional trusted per-case restriction; can only narrow role permissions."
     )

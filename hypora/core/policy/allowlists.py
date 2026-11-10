@@ -15,6 +15,9 @@ T = ToolName
 
 TOOL_TIERS: Mapping[ToolName, ToolTier] = MappingProxyType(
     {
+        T.SEARCH_MODEL_CATALOG: ToolTier.READ,
+        T.GET_MODEL_EVIDENCE: ToolTier.READ,
+        T.RETRIEVE_METHODOLOGY: ToolTier.READ,
         T.INSPECT_DATASET: ToolTier.READ,
         T.WRITE_TRIAL_FILES: ToolTier.REVERSIBLE,
         T.SUBMIT_EXPERIMENT: ToolTier.REVERSIBLE,
@@ -27,6 +30,9 @@ TOOL_TIERS: Mapping[ToolName, ToolTier] = MappingProxyType(
 
 ROLE_ALLOWLISTS: Mapping[ActorRole, frozenset[ToolName]] = MappingProxyType(
     {
+        ActorRole.AGENT_B: frozenset(
+            {T.SEARCH_MODEL_CATALOG, T.GET_MODEL_EVIDENCE, T.RETRIEVE_METHODOLOGY}
+        ),
         ActorRole.AGENT_C: frozenset(
             {
                 T.INSPECT_DATASET,
@@ -39,6 +45,9 @@ ROLE_ALLOWLISTS: Mapping[ActorRole, frozenset[ToolName]] = MappingProxyType(
         ),
         ActorRole.SINGLE_AGENT: frozenset(
             {
+                T.SEARCH_MODEL_CATALOG,
+                T.GET_MODEL_EVIDENCE,
+                T.RETRIEVE_METHODOLOGY,
                 T.INSPECT_DATASET,
                 T.WRITE_TRIAL_FILES,
                 T.SUBMIT_EXPERIMENT,

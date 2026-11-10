@@ -12,6 +12,7 @@ from hypora.core.llm.types import CallContext, Message
 from hypora.core.roles.base import CallGuard
 from hypora.core.roles.prompt_loader import load_prompt
 from hypora.core.schemas import ActorRole, ModelTier, StrictModel
+from hypora.core.schemas.strategy import StrategyReport
 
 
 class LeadAction(StrictModel):
@@ -23,10 +24,11 @@ class LeadAction(StrictModel):
 
 
 class ResearchObservation(StrictModel):
-    """An explicitly unverified observation; external research is not yet available."""
+    """A research observation and its optional structured, cited strategy report."""
 
     summary: str = Field(min_length=1, max_length=2000)
     uncertainties: list[str] = Field(default_factory=list, max_length=10)
+    strategy_report: StrategyReport | None = None
 
 
 async def main_role_call(

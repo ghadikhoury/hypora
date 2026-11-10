@@ -26,8 +26,11 @@ def test_exported_tool_list_matches_the_committed_contract():
     )
 
 
-def test_the_contract_lists_the_s1_4_tools_in_order():
+def test_the_contract_lists_approved_tools_in_order():
     assert list(TOOLS) == [
+        "search_model_catalog",
+        "get_model_evidence",
+        "retrieve_methodology",
         "inspect_dataset",
         "write_trial_files",
         "submit_experiment",

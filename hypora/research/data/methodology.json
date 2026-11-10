@@ -1,0 +1,162 @@
+[
+  {
+    "text": "Univariate imputer for completing missing values with simple strategies.",
+    "title": "SimpleImputer",
+    "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.impute.SimpleImputer.html",
+    "revision": "scikit-learn-1.9.1",
+    "retrieved_on": "2026-11-10",
+    "license": "BSD-3-Clause"
+  },
+  {
+    "text": "Imputation for completing missing values using k-Nearest Neighbors.",
+    "title": "KNNImputer",
+    "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.impute.KNNImputer.html",
+    "revision": "scikit-learn-1.9.1",
+    "retrieved_on": "2026-11-10",
+    "license": "BSD-3-Clause"
+  },
+  {
+    "text": "Standardize features by removing the mean and scaling to unit variance.",
+    "title": "StandardScaler",
+    "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.preprocessing.StandardScaler.html",
+    "revision": "scikit-learn-1.9.1",
+    "retrieved_on": "2026-11-10",
+    "license": "BSD-3-Clause"
+  },
+  {
+    "text": "Encode categorical features as a one-hot numeric array.",
+    "title": "OneHotEncoder",
+    "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.preprocessing.OneHotEncoder.html",
+    "revision": "scikit-learn-1.9.1",
+    "retrieved_on": "2026-11-10",
+    "license": "BSD-3-Clause"
+  },
+  {
+    "text": "Transform features by scaling each feature to a given range.",
+    "title": "MinMaxScaler",
+    "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.preprocessing.MinMaxScaler.html",
+    "revision": "scikit-learn-1.9.1",
+    "retrieved_on": "2026-11-10",
+    "license": "BSD-3-Clause"
+  },
+  {
+    "text": "Scale features using statistics that are robust to outliers.",
+    "title": "RobustScaler",
+    "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.preprocessing.RobustScaler.html",
+    "revision": "scikit-learn-1.9.1",
+    "retrieved_on": "2026-11-10",
+    "license": "BSD-3-Clause"
+  },
+  {
+    "text": "Encode categorical features as an integer array.",
+    "title": "OrdinalEncoder",
+    "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.preprocessing.OrdinalEncoder.html",
+    "revision": "scikit-learn-1.9.1",
+    "retrieved_on": "2026-11-10",
+    "license": "BSD-3-Clause"
+  },
+  {
+    "text": "K-fold iterator variant with non-overlapping groups.",
+    "title": "GroupKFold",
+    "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.model_selection.GroupKFold.html",
+    "revision": "scikit-learn-1.9.1",
+    "retrieved_on": "2026-11-10",
+    "license": "BSD-3-Clause"
+  },
+  {
+    "text": "Time Series cross-validator.",
+    "title": "TimeSeriesSplit",
+    "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.model_selection.TimeSeriesSplit.html",
+    "revision": "scikit-learn-1.9.1",
+    "retrieved_on": "2026-11-10",
+    "license": "BSD-3-Clause"
+  },
+  {
+    "text": "Class-wise stratified K-Fold cross-validator.",
+    "title": "StratifiedKFold",
+    "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.model_selection.StratifiedKFold.html",
+    "revision": "scikit-learn-1.9.1",
+    "retrieved_on": "2026-11-10",
+    "license": "BSD-3-Clause"
+  },
+  {
+    "text": "K-Fold cross-validator.",
+    "title": "KFold",
+    "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.model_selection.KFold.html",
+    "revision": "scikit-learn-1.9.1",
+    "retrieved_on": "2026-11-10",
+    "license": "BSD-3-Clause"
+  },
+  {
+    "text": "Shuffle-Group(s)-Out cross-validation iterator.",
+    "title": "GroupShuffleSplit",
+    "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.model_selection.GroupShuffleSplit.html",
+    "revision": "scikit-learn-1.9.1",
+    "retrieved_on": "2026-11-10",
+    "license": "BSD-3-Clause"
+  },
+  {
+    "text": "Logistic Regression (aka logit, MaxEnt) classifier.",
+    "title": "LogisticRegression",
+    "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.linear_model.LogisticRegression.html",
+    "revision": "scikit-learn-1.9.1",
+    "retrieved_on": "2026-11-10",
+    "license": "BSD-3-Clause"
+  },
+  {
+    "text": "Linear least squares with l2 regularization.",
+    "title": "Ridge",
+    "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.linear_model.Ridge.html",
+    "revision": "scikit-learn-1.9.1",
+    "retrieved_on": "2026-11-10",
+    "license": "BSD-3-Clause"
+  },
+  {
+    "text": "A random forest classifier.",
+    "title": "RandomForestClassifier",
+    "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.ensemble.RandomForestClassifier.html",
+    "revision": "scikit-learn-1.9.1",
+    "retrieved_on": "2026-11-10",
+    "license": "BSD-3-Clause"
+  },
+  {
+    "text": "Histogram-based Gradient Boosting Classification Tree.",
+    "title": "HistGradientBoostingClassifier",
+    "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.ensemble.HistGradientBoostingClassifier.html",
+    "revision": "scikit-learn-1.9.1",
+    "retrieved_on": "2026-11-10",
+    "license": "BSD-3-Clause"
+  },
+  {
+    "text": "A random forest regressor.",
+    "title": "RandomForestRegressor",
+    "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.ensemble.RandomForestRegressor.html",
+    "revision": "scikit-learn-1.9.1",
+    "retrieved_on": "2026-11-10",
+    "license": "BSD-3-Clause"
+  },
+  {
+    "text": "DummyClassifier makes predictions that ignore the input features.",
+    "title": "DummyClassifier",
+    "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.dummy.DummyClassifier.html",
+    "revision": "scikit-learn-1.9.1",
+    "retrieved_on": "2026-11-10",
+    "license": "BSD-3-Clause"
+  },
+  {
+    "text": "Regressor that makes predictions using simple rules.",
+    "title": "DummyRegressor",
+    "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.dummy.DummyRegressor.html",
+    "revision": "scikit-learn-1.9.1",
+    "retrieved_on": "2026-11-10",
+    "license": "BSD-3-Clause"
+  },
+  {
+    "text": "A sequence of data transformers with an optional final predictor.",
+    "title": "Pipeline",
+    "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.pipeline.Pipeline.html",
+    "revision": "scikit-learn-1.9.1",
+    "retrieved_on": "2026-11-10",
+    "license": "BSD-3-Clause"
+  }
+]

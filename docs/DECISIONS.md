@@ -930,3 +930,21 @@ No recorded result, grader, sandbox policy, tool contract or course minimum is c
 - Ghadi approved extending that existing redactor to recognize JSON-escaped forms of configured
   secret values, including Unicode-escaped representations. No new credential-detection patterns
   are added; nonsecret text is preserved.
+
+
+## D-039 ? B's bounded read-only research tools
+
+- Date: 2026-11-10. Ghadi approved the concrete S3.2 MCP contract and security changes.
+- Expose search_model_catalog, get_model_evidence, and retrieve_methodology to Agent B.
+  Preserve C's existing six tools and deny B execution and worker delegation, including in
+  allowlist ablations. The existing single-agent comparison receives the same three read-only
+  research tools under the same restrictions, preserving the spec ?6.9 baseline.
+- External requests use fixed public categories and approved sources; do not send user goals,
+  private details, dataset fields, or free-form search strings to research sources. Bounded
+  methodology queries run locally and are filtered from events and stored model artifacts;
+  the already-authorized model provider may receive them in normal tool-call replay.
+  Model evidence uses only opaque
+  references returned by the current session and exact revisions. Source content is untrusted.
+- Retain the existing events, run limits, policy checks and data firewall; cover permissions,
+  provenance, external failures, injection boundaries and no-private-data egress with tests.
+  This approves no new execution/delegation tool, event type, trial interface, or eval-profile change.

@@ -59,7 +59,7 @@ from hypora.core.llm.rate_limit import (
 )
 from hypora.core.llm.retry import Backoff
 from hypora.core.llm.sinks import EventSink, IOKind, ModelIOStore, redact
-from hypora.core.llm.types import CallContext, LLMResponse, Message, MessageRole, ToolSpec
+from hypora.core.llm.types import CallContext, LLMResponse, Message, MessageRole, ToolCall, ToolSpec
 from hypora.core.schemas.common import ActorRole
 from hypora.core.schemas.events import (
     CallStatus,
@@ -78,6 +78,105 @@ SCHEMA_RETRY_PROMPT = (
     "Validation errors:\n{errors}\n"
     "Reply again with only a JSON value that matches the schema exactly."
 )
+
+
+def _research_query_values(
+    messages: Sequence[Message], calls: Sequence[ToolCall] = ()
+) -> tuple[str, ...]:
+    """Find private local-query strings in this role's current conversation."""
+    all_calls = [call for message in messages for call in message.tool_calls]
+    all_calls.extend(calls)
+    return tuple(
+        value
+        for call in all_calls
+        if call.name == "retrieve_methodology"
+        if isinstance(value := call.arguments.get("query"), str) and value
+    )
+
+
+def _unsafe_research_args(arguments: JsonValue, error: JsonValue) -> bool:
+    """Unexpected arguments cannot be safely interpreted or selectively redacted."""
+    if error is not None or not isinstance(arguments, dict):
+        return True
+    if not set(arguments).issubset({"query", "topic"}):
+        return True
+    query, topic = arguments.get("query"), arguments.get("topic")
+    if isinstance(query, str) and topic is None:
+        return False
+    return not (
+        query is None
+        and isinstance(topic, str)
+        and topic in {"usage", "limitations", "hardware", "license", "training", "evaluation"}
+    )
+
+
+def _has_malformed_research(messages: Sequence[Message]) -> bool:
+    return any(
+        call.name == "retrieve_methodology"
+        and _unsafe_research_args(call.arguments, call.arguments_error)
+        for message in messages
+        for call in message.tool_calls
+    )
+
+
+def _filter_research_calls(calls: list[JsonValue], queries: tuple[str, ...]) -> list[JsonValue]:
+    """Remove local research tool inputs while preserving other calls in the stored transcript."""
+    cleaned: list[JsonValue] = []
+    for item in calls:
+        if isinstance(item, dict) and item.get("name") == "retrieve_methodology":
+            entry = dict(item)
+            arguments = entry.get("arguments")
+            malformed = entry.get("arguments_error") is not None
+            fixed_topic = (
+                isinstance(arguments, dict)
+                and set(arguments) == {"topic"}
+                and isinstance(arguments["topic"], str)
+                and arguments["topic"]
+                in {"usage", "limitations", "hardware", "license", "training", "evaluation"}
+            )
+            if malformed or not fixed_topic:
+                entry["arguments"] = {"filtered": True}
+            if malformed:
+                entry["arguments_error"] = "[FILTERED]"
+            cleaned.append(entry)
+        else:
+            cleaned.append(redact(item, queries))
+    return cleaned
+
+
+def _filter_research_messages(payload: dict[str, JsonValue], queries: tuple[str, ...]) -> None:
+    """Filter research query inputs from the storage copy, never the provider request."""
+    messages = payload.get("messages")
+    if not isinstance(messages, list):
+        return
+    malformed_seen = False
+    for message in messages:
+        if not isinstance(message, dict):
+            continue
+        if malformed_seen:
+            message["content"] = "[FILTERED]"
+            if isinstance(message.get("tool_calls"), list):
+                message["tool_calls"] = []
+            continue
+        if message.get("tool_name") == "retrieve_methodology":
+            message["content"] = "[FILTERED]"
+            continue
+        calls = message.get("tool_calls")
+        if isinstance(calls, list):
+            malformed = any(
+                isinstance(call, dict)
+                and call.get("name") == "retrieve_methodology"
+                and _unsafe_research_args(call.get("arguments"), call.get("arguments_error"))
+                for call in calls
+            )
+            message["tool_calls"] = _filter_research_calls(calls, queries)
+            if malformed:
+                malformed_seen = True
+                message["content"] = "[FILTERED]"
+            elif "content" in message:
+                message["content"] = redact(message["content"], queries)
+        elif "content" in message:
+            message["content"] = redact(message["content"], queries)
 
 
 @dataclass(frozen=True)
@@ -386,6 +485,10 @@ class LLMAdapter:
                 else {"role": m.role.value, "content": "[FILTERED]"}
                 for index, m in enumerate(request.messages)
             ]
+        research_scope = context.actor_role in (ActorRole.AGENT_B, ActorRole.SINGLE_AGENT)
+        queries = _research_query_values(request.messages) if research_scope else ()
+        if research_scope:
+            _filter_research_messages(request_json, queries)
         input_ref = self._store(context.run_id, call_id, "input", request_json)
         retries, waited_s, latency_s, events_emitted = 0, 0.0, 0.0, 0
 
@@ -460,6 +563,25 @@ class LLMAdapter:
                     retries += 1
                     continue
                 await self._emit(context, failure_payload(error), ledger)
+                if research_scope and (queries or _has_malformed_research(request.messages)):
+                    detail = (
+                        "[FILTERED]"
+                        if _has_malformed_research(request.messages)
+                        else str(redact(error.detail, queries))
+                    )
+                    safe_cause = ProviderError(
+                        error.kind,
+                        detail,
+                        status_code=error.status_code,
+                        retry_after_s=error.retry_after_s,
+                        usage=error.usage,
+                    )
+                    raise LLMCallError(
+                        f"{target.provider.value}/{target.model_id} failed after {retries} "
+                        f"retries: {safe_cause}",
+                        cause=safe_cause,
+                        retries=retries,
+                    ) from None
                 raise LLMCallError(
                     f"{target.provider.value}/{target.model_id} failed after {retries} "
                     f"retries: {error}",
@@ -469,7 +591,18 @@ class LLMAdapter:
 
         cost = price.cost_usd(result.usage)
         parsed, validation_error = _validate(output_schema, result)
-        if validation_error is not None and context.sensitive_output_filter is not None:
+        malformed_research = research_scope and (
+            _has_malformed_research(request.messages)
+            or any(
+                call.name == "retrieve_methodology"
+                and _unsafe_research_args(call.arguments, call.arguments_error)
+                for call in result.tool_calls
+            )
+        )
+        if validation_error is not None and (
+            context.sensitive_output_filter is not None or malformed_research
+        ):
+            # Unknown malformed input cannot be selectively scrubbed from error locations.
             validation_error = "[FILTERED]"
         elif validation_error is not None and context.actor_role in (
             ActorRole.AGENT_A,
@@ -494,6 +627,22 @@ class LLMAdapter:
                 safe_text = "[FILTERED]"
             # A has no tools; unexpected tool-call arguments are untrusted.
             safe_tool_calls = []
+        if research_scope:
+            queries = _research_query_values(request.messages, result.tool_calls)
+            malformed = any(
+                call.name == "retrieve_methodology"
+                and _unsafe_research_args(call.arguments, call.arguments_error)
+                for call in result.tool_calls
+            )
+            prior_malformed = _has_malformed_research(request.messages)
+            safe_text = (
+                "[FILTERED]" if malformed or prior_malformed else str(redact(safe_text, queries))
+            )
+            safe_tool_calls = (
+                [] if prior_malformed else _filter_research_calls(safe_tool_calls, queries)
+            )
+            if validation_error is not None:
+                validation_error = str(redact(validation_error, queries))
         output_ref = self._store(
             context.run_id,
             final_id,

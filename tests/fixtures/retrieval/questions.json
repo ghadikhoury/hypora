@@ -1,0 +1,322 @@
+[
+  {
+    "question_id": "q01",
+    "question": "What kind of approach fills missing entries using simple per-column rules?",
+    "expected_refs": [
+      "passage:1"
+    ],
+    "passage": {
+      "ref": "passage:1",
+      "text": "Univariate imputer for completing missing values with simple strategies.",
+      "title": "SimpleImputer",
+      "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.impute.SimpleImputer.html",
+      "revision": "scikit-learn-1.9.1",
+      "retrieved_on": "2026-11-10",
+      "license": "BSD-3-Clause"
+    }
+  },
+  {
+    "question_id": "q02",
+    "question": "How can missing values be completed using neighboring observations?",
+    "expected_refs": [
+      "passage:2"
+    ],
+    "passage": {
+      "ref": "passage:2",
+      "text": "Imputation for completing missing values using k-Nearest Neighbors.",
+      "title": "KNNImputer",
+      "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.impute.KNNImputer.html",
+      "revision": "scikit-learn-1.9.1",
+      "retrieved_on": "2026-11-10",
+      "license": "BSD-3-Clause"
+    }
+  },
+  {
+    "question_id": "q03",
+    "question": "Which transformation centers a feature and gives it unit variance?",
+    "expected_refs": [
+      "passage:3"
+    ],
+    "passage": {
+      "ref": "passage:3",
+      "text": "Standardize features by removing the mean and scaling to unit variance.",
+      "title": "StandardScaler",
+      "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.preprocessing.StandardScaler.html",
+      "revision": "scikit-learn-1.9.1",
+      "retrieved_on": "2026-11-10",
+      "license": "BSD-3-Clause"
+    }
+  },
+  {
+    "question_id": "q04",
+    "question": "How can categorical variables be represented as a one-hot numeric array?",
+    "expected_refs": [
+      "passage:4"
+    ],
+    "passage": {
+      "ref": "passage:4",
+      "text": "Encode categorical features as a one-hot numeric array.",
+      "title": "OneHotEncoder",
+      "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.preprocessing.OneHotEncoder.html",
+      "revision": "scikit-learn-1.9.1",
+      "retrieved_on": "2026-11-10",
+      "license": "BSD-3-Clause"
+    }
+  },
+  {
+    "question_id": "q05",
+    "question": "Which transformation maps features to a specified numeric range?",
+    "expected_refs": [
+      "passage:5"
+    ],
+    "passage": {
+      "ref": "passage:5",
+      "text": "Transform features by scaling each feature to a given range.",
+      "title": "MinMaxScaler",
+      "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.preprocessing.MinMaxScaler.html",
+      "revision": "scikit-learn-1.9.1",
+      "retrieved_on": "2026-11-10",
+      "license": "BSD-3-Clause"
+    }
+  },
+  {
+    "question_id": "q06",
+    "question": "Which scaling approach uses statistics robust to outliers?",
+    "expected_refs": [
+      "passage:6"
+    ],
+    "passage": {
+      "ref": "passage:6",
+      "text": "Scale features using statistics that are robust to outliers.",
+      "title": "RobustScaler",
+      "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.preprocessing.RobustScaler.html",
+      "revision": "scikit-learn-1.9.1",
+      "retrieved_on": "2026-11-10",
+      "license": "BSD-3-Clause"
+    }
+  },
+  {
+    "question_id": "q07",
+    "question": "How are categorical features converted into integer codes?",
+    "expected_refs": [
+      "passage:7"
+    ],
+    "passage": {
+      "ref": "passage:7",
+      "text": "Encode categorical features as an integer array.",
+      "title": "OrdinalEncoder",
+      "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.preprocessing.OrdinalEncoder.html",
+      "revision": "scikit-learn-1.9.1",
+      "retrieved_on": "2026-11-10",
+      "license": "BSD-3-Clause"
+    }
+  },
+  {
+    "question_id": "q08",
+    "question": "Which cross-validation procedure keeps groups from overlapping across folds?",
+    "expected_refs": [
+      "passage:8"
+    ],
+    "passage": {
+      "ref": "passage:8",
+      "text": "K-fold iterator variant with non-overlapping groups.",
+      "title": "GroupKFold",
+      "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.model_selection.GroupKFold.html",
+      "revision": "scikit-learn-1.9.1",
+      "retrieved_on": "2026-11-10",
+      "license": "BSD-3-Clause"
+    }
+  },
+  {
+    "question_id": "q09",
+    "question": "Which cross-validator is designed for time series?",
+    "expected_refs": [
+      "passage:9"
+    ],
+    "passage": {
+      "ref": "passage:9",
+      "text": "Time Series cross-validator.",
+      "title": "TimeSeriesSplit",
+      "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.model_selection.TimeSeriesSplit.html",
+      "revision": "scikit-learn-1.9.1",
+      "retrieved_on": "2026-11-10",
+      "license": "BSD-3-Clause"
+    }
+  },
+  {
+    "question_id": "q10",
+    "question": "Which cross-validation method stratifies splits by class?",
+    "expected_refs": [
+      "passage:10"
+    ],
+    "passage": {
+      "ref": "passage:10",
+      "text": "Class-wise stratified K-Fold cross-validator.",
+      "title": "StratifiedKFold",
+      "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.model_selection.StratifiedKFold.html",
+      "revision": "scikit-learn-1.9.1",
+      "retrieved_on": "2026-11-10",
+      "license": "BSD-3-Clause"
+    }
+  },
+  {
+    "question_id": "q11",
+    "question": "What is the general k-fold cross-validation splitter?",
+    "expected_refs": [
+      "passage:11"
+    ],
+    "passage": {
+      "ref": "passage:11",
+      "text": "K-Fold cross-validator.",
+      "title": "KFold",
+      "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.model_selection.KFold.html",
+      "revision": "scikit-learn-1.9.1",
+      "retrieved_on": "2026-11-10",
+      "license": "BSD-3-Clause"
+    }
+  },
+  {
+    "question_id": "q12",
+    "question": "Which group-based cross-validation iterator randomizes splits?",
+    "expected_refs": [
+      "passage:12"
+    ],
+    "passage": {
+      "ref": "passage:12",
+      "text": "Shuffle-Group(s)-Out cross-validation iterator.",
+      "title": "GroupShuffleSplit",
+      "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.model_selection.GroupShuffleSplit.html",
+      "revision": "scikit-learn-1.9.1",
+      "retrieved_on": "2026-11-10",
+      "license": "BSD-3-Clause"
+    }
+  },
+  {
+    "question_id": "q13",
+    "question": "Which linear classifier implements logistic regression?",
+    "expected_refs": [
+      "passage:13"
+    ],
+    "passage": {
+      "ref": "passage:13",
+      "text": "Logistic Regression (aka logit, MaxEnt) classifier.",
+      "title": "LogisticRegression",
+      "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.linear_model.LogisticRegression.html",
+      "revision": "scikit-learn-1.9.1",
+      "retrieved_on": "2026-11-10",
+      "license": "BSD-3-Clause"
+    }
+  },
+  {
+    "question_id": "q14",
+    "question": "Which linear least-squares estimator applies L2 regularization?",
+    "expected_refs": [
+      "passage:14"
+    ],
+    "passage": {
+      "ref": "passage:14",
+      "text": "Linear least squares with l2 regularization.",
+      "title": "Ridge",
+      "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.linear_model.Ridge.html",
+      "revision": "scikit-learn-1.9.1",
+      "retrieved_on": "2026-11-10",
+      "license": "BSD-3-Clause"
+    }
+  },
+  {
+    "question_id": "q15",
+    "question": "Which classifier uses a random forest?",
+    "expected_refs": [
+      "passage:15"
+    ],
+    "passage": {
+      "ref": "passage:15",
+      "text": "A random forest classifier.",
+      "title": "RandomForestClassifier",
+      "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.ensemble.RandomForestClassifier.html",
+      "revision": "scikit-learn-1.9.1",
+      "retrieved_on": "2026-11-10",
+      "license": "BSD-3-Clause"
+    }
+  },
+  {
+    "question_id": "q16",
+    "question": "Which classification tree method uses histogram-based gradient boosting?",
+    "expected_refs": [
+      "passage:16"
+    ],
+    "passage": {
+      "ref": "passage:16",
+      "text": "Histogram-based Gradient Boosting Classification Tree.",
+      "title": "HistGradientBoostingClassifier",
+      "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.ensemble.HistGradientBoostingClassifier.html",
+      "revision": "scikit-learn-1.9.1",
+      "retrieved_on": "2026-11-10",
+      "license": "BSD-3-Clause"
+    }
+  },
+  {
+    "question_id": "q17",
+    "question": "Which regression estimator uses a random forest?",
+    "expected_refs": [
+      "passage:17"
+    ],
+    "passage": {
+      "ref": "passage:17",
+      "text": "A random forest regressor.",
+      "title": "RandomForestRegressor",
+      "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.ensemble.RandomForestRegressor.html",
+      "revision": "scikit-learn-1.9.1",
+      "retrieved_on": "2026-11-10",
+      "license": "BSD-3-Clause"
+    }
+  },
+  {
+    "question_id": "q18",
+    "question": "Which baseline classifier ignores input features in its predictions?",
+    "expected_refs": [
+      "passage:18"
+    ],
+    "passage": {
+      "ref": "passage:18",
+      "text": "DummyClassifier makes predictions that ignore the input features.",
+      "title": "DummyClassifier",
+      "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.dummy.DummyClassifier.html",
+      "revision": "scikit-learn-1.9.1",
+      "retrieved_on": "2026-11-10",
+      "license": "BSD-3-Clause"
+    }
+  },
+  {
+    "question_id": "q19",
+    "question": "Which simple regressor provides a rule-based baseline?",
+    "expected_refs": [
+      "passage:19"
+    ],
+    "passage": {
+      "ref": "passage:19",
+      "text": "Regressor that makes predictions using simple rules.",
+      "title": "DummyRegressor",
+      "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.dummy.DummyRegressor.html",
+      "revision": "scikit-learn-1.9.1",
+      "retrieved_on": "2026-11-10",
+      "license": "BSD-3-Clause"
+    }
+  },
+  {
+    "question_id": "q20",
+    "question": "What composes transformations with an optional final predictor?",
+    "expected_refs": [
+      "passage:20"
+    ],
+    "passage": {
+      "ref": "passage:20",
+      "text": "A sequence of data transformers with an optional final predictor.",
+      "title": "Pipeline",
+      "source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.pipeline.Pipeline.html",
+      "revision": "scikit-learn-1.9.1",
+      "retrieved_on": "2026-11-10",
+      "license": "BSD-3-Clause"
+    }
+  }
+]
