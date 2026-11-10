@@ -321,3 +321,15 @@ async def test_a_platform_failure_returns_a_run_instead_of_raising(prepared: Pre
 
     _no_model(run)
     assert any("could not run" in note for note in run.notes)
+
+
+async def test_fixed_baseline_stays_model_free_when_agent_mode_is_multi(prepared: Prepared) -> None:
+    """The agent-mode comparison flag must not turn the fixed baseline into an agent."""
+    from hypora.core.config.flags import AgentMode
+
+    assert prepared.context.run_config.flags.agent_mode is AgentMode.MULTI
+    run = await _run(prepared, permitted_tools=())
+    assert any("case does not permit" in note for note in run.notes)
+    assert not any("CONTRACT stage failed" in note for note in run.notes)
+    assert "PHASE_B" in _statuses(prepared)
+    assert not _events(prepared, "model_call")

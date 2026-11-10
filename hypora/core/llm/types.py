@@ -14,7 +14,7 @@ OpenAI encrypted reasoning items) travels in `Message.replay` and is only replay
 that produced it; to any other provider the normalized fields are re-encoded instead.
 """
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Literal, Self
@@ -181,6 +181,7 @@ class CallContext:
     trace_id: str | None = None
     span_id: str | None = None
     parent_span_id: str | None = None
+    sensitive_output_filter: Callable[[str], str] | None = None
 
 
 @dataclass(frozen=True)

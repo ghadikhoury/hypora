@@ -888,3 +888,45 @@ Restore the accidentally removed Live runs subsection in AGENTS.md. Scripted mod
 live calls only resolve a specified unmet evidence need. Reuse valid results, debug affected cases,
 and collect full readiness/final evidence only at planned gates. No unnecessary agent/model sweeps.
 No recorded result, grader, sandbox policy, tool contract or course minimum is changed here.
+
+## D-038 ? S3.1 role identities and bounded tool permissions
+
+- Date: 2026-11-09. Decided by Ghadi for S3.1 after review of the concrete migration.
+- Add actor identifiers `agent_a`, `agent_b`, and `agent_c` while retaining legacy
+  identifiers and event records. Extend the existing database actor constraint with an
+  append-only-preserving migration. No event type, MCP tool signature, or trial interface changes.
+- A and B have no MCP tool access, including when allowlist ablation is enabled. C may use only
+  the six existing dataset/experiment tools: `inspect_dataset`, `write_trial_files`,
+  `submit_experiment`, `get_experiment_status`, `get_experiment_metrics`, and
+  `get_experiment_logs`, subject to existing sessions, budgets, sandbox, firewall, and contract.
+  C worker requests return unavailable until S3.4. Single-agent behavior and old records remain.
+- Require tests of A/B confinement under ablation, C's six-tool ceiling, old-record and
+  single-agent compatibility, and the worker-unavailable result.
+
+### D-038 addendum ? bounded lead assignment
+
+- Ghadi approved one optional plain-text `LeadAction.assignment` field. It is required only
+  when A directs C to continue; older records without the field remain readable.
+- Before persistence or handoff, enforce the length and plain-text boundary, reject dataset values,
+  tool identifiers and file/code content, and apply the existing data firewall. A rejected assignment
+  does not reach C or enter an event. The approved CONTRACT-to-PHASE_B transition reason records the
+  accepted assignment using the existing short-text/hash redaction. No MCP signature, event type,
+  trial interface or other frozen schema changes are authorized by this addendum.
+
+### D-038 addendum ? filter sensitive decision artifacts before storage
+
+- Ghadi explicitly approved a narrow filter for A's decision to assign C, including retry inputs
+  and failures. Existing model-call events, usage, costs, model/config metadata and safe decision
+  evidence remain. Other call types keep their existing IO logging behavior.
+- Decision-to-C free-text reasoning is omitted from stored output because it is untrusted and can
+  contain a dataset value, credential or file content. Invalid/unsafe responses use a fixed marker;
+  safe assignments pass the independent controller boundary before the event and C handoff.
+
+### D-038 addendum ? redaction of new role outputs and escaped configured secrets
+
+- Ghadi approved applying the existing configured-secret redactor to new A/B role-output
+  artifacts and role-to-role forwarding, including retry messages and error text. Existing
+  model-call IO logging continues.
+- Ghadi approved extending that existing redactor to recognize JSON-escaped forms of configured
+  secret values, including Unicode-escaped representations. No new credential-detection patterns
+  are added; nonsecret text is preserved.

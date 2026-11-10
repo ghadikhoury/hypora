@@ -30,6 +30,7 @@ from hypora.cli.run import (
 )
 from hypora.cli.workers import WorkerMode
 from hypora.core.config import load_settings
+from hypora.core.config.flags import AgentMode
 from hypora.core.config.run_config import RunConfig
 from hypora.core.controller.controller import RunResult
 from hypora.core.controller.states import DONE, FAILED
@@ -296,7 +297,11 @@ def test_a_cli_run_on_a_snapshot_ends_verified_and_is_inspectable(
             opts,
             out=printed.append,
             adapter_factory=scripted(run_id),
-            run_config=run_config,
+            run_config=run_config.model_copy(
+                update={
+                    "flags": run_config.flags.model_copy(update={"agent_mode": AgentMode.SINGLE})
+                }
+            ),
             poll_seconds=0.2,
         )
     )

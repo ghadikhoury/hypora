@@ -12,8 +12,14 @@ ROLES_DIR = PROMPTS_DIR.parent
 def test_every_prompt_file_has_a_header_naming_it() -> None:
     names = sorted(path.stem for path in PROMPTS_DIR.glob("*.md"))
     assert names == [
+        "agent_a_decide",
+        "agent_a_intake",
+        "agent_a_report",
+        "agent_b",
+        "agent_c",
         "intake",
         "reporter",
+        "role_plan",
         "single_agent",
         "single_agent_context",
         "single_agent_final",

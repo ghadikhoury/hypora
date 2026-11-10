@@ -21,6 +21,8 @@ ends with a report that says what happened.
 import contextlib
 import hashlib
 import json
+import re
+import unicodedata
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -34,7 +36,7 @@ import pandas as pd  # type: ignore[import-untyped]
 from mcp import Client
 from pydantic import BaseModel, TypeAdapter
 
-from hypora.core.config.flags import AgentMode, FeatureFlags
+from hypora.core.config.flags import AgentMode, FeatureFlags, Toggle
 from hypora.core.config.run_config import RunConfig
 from hypora.core.controller.contract import (
     STAGE1_NOTE,
@@ -54,8 +56,10 @@ from hypora.core.controller.local import (
 )
 from hypora.core.controller.states import START, RunEvent, RunState, next_state
 from hypora.core.llm.adapter import LLMAdapter
+from hypora.core.policy.firewall import DataFirewall
 from hypora.core.roles.base import USER_CANCEL, RunLimitReached
 from hypora.core.roles.intake import IntakeError, IntakeForm, run_intake
+from hypora.core.roles.multi import LeadAction, ResearchObservation, draft_plan, main_role_call
 from hypora.core.roles.outcome_evidence import derive_outcome_evidence, has_authorized_model_route
 from hypora.core.roles.prompt_loader import load_prompt
 from hypora.core.roles.reporter import (
@@ -95,6 +99,8 @@ from hypora.core.schemas import (
     MetricName,
     ModelTier,
     Operation,
+    Plan,
+    PlanStep,
     SubmitExperimentRequest,
     TaskSpecification,
     TaskType,
@@ -105,11 +111,13 @@ from hypora.core.schemas.events import (
     ApprovalRequestedPayload,
     ErrorPayload,
     HandoffPayload,
+    PlanPayload,
     RoleStartedPayload,
     StageTransitionPayload,
 )
 from hypora.execution.harness.runner import load_tabular
 from hypora.execution.protocol import experiments as protocol
+from hypora.mcp_server.server import _redact
 from hypora.profiling.tabular import leakage_screen_summary, profile_tabular
 from hypora.storage.database import Database
 from hypora.storage.events import EventLog
@@ -123,6 +131,7 @@ from hypora.storage.jobs import (
 from hypora.storage.records import (
     RecordNotFound,
     create_run,
+    list_trials,
     load_result,
     run_jobs,
     save_approval,
@@ -197,15 +206,10 @@ def stage1_flag_notes(flags: FeatureFlags) -> list[str]:
     """Say so when the run's flags ask for what Stage 1 does not have yet, instead of letting a
     run look like it used them (D-019)."""
     notes = []
-    if flags.agent_mode is not AgentMode.SINGLE:
-        notes.append(
-            f"flags.agent_mode is {flags.agent_mode.value!r}, but Stage 1 has only the single "
-            "agent (spec §6.9), which this run used; the multi-agent roles arrive in S4.1."
-        )
     if flags.approval_policy is not ApprovalPolicy.AUTO_WITHIN_CONTRACT:
         notes.append(
             f"flags.approval_policy is {flags.approval_policy.value!r}, but the interactive plan "
-            "gate arrives in S3.D2; this run's plan was approved by policy (D-019)."
+            "gate arrives in S3.5; this run's plan was approved by policy (D-019)."
         )
     return notes
 
@@ -278,6 +282,10 @@ def queue_final_job(
     )
 
 
+class LeadStop(Exception):
+    """A decided to stop rather than authorize the next phase."""
+
+
 class RunController:
     """Runs one request at a time against a state database and a runs/ directory."""
 
@@ -347,6 +355,9 @@ class _Run:
         )
         self.final_trial_id: str | None = None
         self.final_job_completed = False
+        self.role_invocations = 0
+        self.lead_assignment = ""
+        self.research_brief = ""
 
     # --- the run ----------------------------------------------------------------------------------
 
@@ -366,10 +377,19 @@ class _Run:
             self._advance(RunEvent.INTAKE_DONE, f"task spec v{spec.version}: {spec.task_type}")
             profile = self._profile(frame, spec)
             self._advance(RunEvent.PROFILED, f"profile {profile.fingerprint[:12]}")
+            if self._multi:
+                await self._research_and_decide(spec, profile)
             contract = self._contract(spec, [str(c) for c in frame.columns])
-            self._advance(RunEvent.APPROVED, f"plan approved by policy ({AUTO_APPROVER})")
+            approval_reason = f"plan approved by policy ({AUTO_APPROVER})"
+            if self._multi:
+                approval_reason += "; A authorized C assignment: " + json.dumps(
+                    _redact(self.lead_assignment), ensure_ascii=True, sort_keys=True
+                )
+            self._advance(RunEvent.APPROVED, approval_reason)
             await self._phase_b(spec, contract, profile)
             self._advance(RunEvent.PHASE_B_DONE, self.notes[-1] if self.notes else "phase B done")
+        except LeadStop:
+            self._advance(RunEvent.FAIL, "Agent A chose to report")
         except Exception as exc:  # recorded, then the run still reports
             self._failed(exc)
             self._advance(RunEvent.FAIL, f"{self.state.stage} failed: {type(exc).__name__}")
@@ -419,9 +439,125 @@ class _Run:
             StageTransitionPayload(stage=START.stage, status=START.status, reason="run created"),
         )
 
+    @property
+    def _multi(self) -> bool:
+        return self.controller.run_config.flags.agent_mode is AgentMode.MULTI
+
+    async def _main_role(
+        self, role: ActorRole, context: str, *, require_assignment: bool = False
+    ) -> LeadAction | ResearchObservation:
+        instance = self._role_started(role, ModelTier.LEAD)
+        try:
+            result = await main_role_call(
+                self.controller.adapter,
+                self.guard,
+                run_id=self.run_id,
+                role=role,
+                context=context,
+                assignment_validator=self._validate_assignment if require_assignment else None,
+            )
+            if isinstance(result, LeadAction):
+                if result.action == "continue" and require_assignment and result.assignment is None:
+                    raise ValueError("Agent A must assign concrete work to C")
+                if result.assignment is not None:
+                    self._validate_assignment(result.assignment)
+        except Exception as exc:
+            self._handoff(instance, role, HandoffStatus.FAILED)
+            safe_message = self.controller.adapter.redact_for_log(str(exc))
+            if safe_message != str(exc):
+                # The original error must not be exposed as an exception chain.
+                raise RuntimeError(safe_message) from None
+            raise
+        cleaned = self.controller.adapter.redact_model_data(result.model_dump(mode="json"))
+        result = type(result).model_validate(cleaned)
+        output_dir = self.run_dir / "role_outputs"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        persisted = result
+        if require_assignment and isinstance(result, LeadAction):
+            persisted = result.model_copy(update={"reason": "[FILTERED]"})
+        (output_dir / f"{instance}.json").write_text(persisted.model_dump_json(), encoding="utf-8")
+        self._handoff(instance, role, HandoffStatus.COMPLETE, output_ref=f"role_output:{instance}")
+        return result
+
+    def _validate_assignment(self, assignment: str) -> None:
+        """Fail closed before recording or forwarding proposed assignment text."""
+        if self.controller.adapter.redact_for_log(assignment) != assignment:
+            raise ValueError("C assignment contains credential-shaped content")
+        # Plain prose only: no numbers, identifiers, code punctuation or multiline content.
+        if not re.fullmatch(r"[^\W\d_]+(?:[ \t'?.,!?-]+[^\W\d_]+)*[.!?]?", assignment):
+            raise ValueError("C assignment must be plain prose without identifiers or data")
+        if any(
+            word in {"import", "def", "class", "lambda", "return"}
+            for word in re.findall(r"[^\W\d_]+", assignment.casefold())
+        ):
+            raise ValueError("C assignment cannot contain code")
+        try:
+            frame = load_tabular(self.dataset)
+            # Reject even common text cells, which the row-oriented firewall intentionally
+            # treats as low-risk in ordinary summaries. Do not expose the matched value.
+            folded = " ".join(unicodedata.normalize("NFKC", assignment).casefold().split())
+            for column in frame.select_dtypes(
+                include=["object", "string", "category", "bool"]
+            ).columns:
+                for value in frame[column].dropna().astype(str).unique():
+                    candidate = " ".join(
+                        unicodedata.normalize("NFKC", str(value)).casefold().split()
+                    )
+                    if (
+                        candidate
+                        and candidate in folded
+                        and re.search(r"(?<!\w)" + re.escape(candidate) + r"(?!\w)", folded)
+                    ):
+                        raise ValueError("C assignment contains a dataset value")
+            firewall = DataFirewall([frame])
+            screened, _ = firewall.screen_untrusted([assignment])
+        except Exception as exc:
+            raise ValueError("C assignment data-boundary validation unavailable") from exc
+        if screened[0] is None:
+            raise ValueError("C assignment failed data-boundary validation")
+
+    async def _lead_decision(self, context: str, *, require_assignment: bool = False) -> bool:
+        result = await self._main_role(
+            ActorRole.AGENT_A, context, require_assignment=require_assignment
+        )
+        if not isinstance(result, LeadAction):
+            raise ValueError("Agent A returned the wrong decision type")
+        if result.assignment is not None:
+            self.lead_assignment = result.assignment
+        self.notes.append(f"Agent A decision: {result.action}.")
+        return result.action == "continue"
+
+    async def _research_and_decide(self, spec: TaskSpecification, profile: DatasetProfile) -> None:
+        if not await self._lead_decision(
+            "Decide whether to ask B for research questions for this task: "
+            + spec.model_dump_json()
+        ):
+            raise LeadStop
+        result = await self._main_role(
+            ActorRole.AGENT_B,
+            "No external research is available. Task: "
+            + spec.model_dump_json()
+            + "\nProfile: "
+            + profile.model_dump_json(),
+        )
+        if not isinstance(result, ResearchObservation):
+            raise ValueError("Agent B returned the wrong observation type")
+        self.research_brief = result.model_dump_json()
+        # The limitation is supplied by code, regardless of the model's wording.
+        self.notes.append("External research is unavailable until S3.2; no search was performed.")
+        if not await self._lead_decision(
+            "Decide whether C should conduct bounded experiments under the existing contract. "
+            "B did not search externally. B's unverified observation: "
+            + result.model_dump_json()
+            + "\nIf continuing, supply concrete bounded work for C in the assignment field.",
+            require_assignment=True,
+        ):
+            raise LeadStop
+
     async def _intake(self, frame: pd.DataFrame) -> TaskSpecification:
         r = self.request
-        instance = self._role_started(ActorRole.INTAKE, ModelTier.CHEAP)
+        role = ActorRole.AGENT_A if self._multi else ActorRole.INTAKE
+        instance = self._role_started(role, ModelTier.CHEAP)
         try:
             spec = await run_intake(
                 self.controller.adapter,
@@ -439,14 +575,15 @@ class _Run:
                 ),
                 frame=frame,
                 dataset_ref=f"dataset:{DATASET_ID}",
+                role=role,
             )
         except Exception:
-            self._handoff(instance, ActorRole.INTAKE, HandoffStatus.FAILED)
+            self._handoff(instance, role, HandoffStatus.FAILED)
             raise
         save_task_spec(self.database, spec)
         self._handoff(
             instance,
-            ActorRole.INTAKE,
+            role,
             HandoffStatus.COMPLETE,
             output_ref=f"task_spec:{self.run_id}.v{spec.version}",
             open_questions=list(spec.open_questions),
@@ -537,6 +674,13 @@ class _Run:
         self.notes.append(_describe(outcome))
         self.notes += await self._drain(cancel=outcome.stop is not None)
         nominated = outcome.final.final_trial_id if outcome.final else None
+        if self._multi and not await self._lead_decision(
+            "Review C's completed work and decide whether to continue to independent final "
+            "verification, or report. The platform remains responsible for verification. "
+            f"C output: {outcome.final.model_dump_json() if outcome.final else 'unavailable'}. "
+            f"Platform evidence: {self._trial_evidence()}. Run notes: {self.notes}"
+        ):
+            return
         selection = select_final(self.database, self.run_id, contract.primary_metric, nominated)
         if selection.trial_id is None or selection.source_job_id is None:
             self.notes.append(f"No final model: {selection.reason}.")
@@ -549,10 +693,11 @@ class _Run:
     ) -> AgentOutcome | None:
         """Run the agent, or return None when its enforced tools leave no route to a model."""
         c = self.controller
+        role = ActorRole.AGENT_C if self._multi else ActorRole.SINGLE_AGENT
         session = write_session(
             self.run_dir / "mcp" / "session.json",
             run_id=self.run_id,
-            role=ActorRole.SINGLE_AGENT,
+            role=role,
             database=c.database_path,
             runs_root=c.runs_root,
             dataset=self.dataset,
@@ -570,7 +715,7 @@ class _Run:
                 if c.tool_channel_wrapper is not None:
                     channel = c.tool_channel_wrapper(channel)
                 instance = self._role_started(
-                    ActorRole.SINGLE_AGENT,
+                    role,
                     ModelTier.LEAD,
                     allowed_tools=[tool.name for tool in tools],
                     context_refs=[
@@ -579,20 +724,32 @@ class _Run:
                     ],
                 )
                 if not has_authorized_model_route([tool.name for tool in tools], contract):
-                    self._handoff(instance, ActorRole.SINGLE_AGENT, HandoffStatus.PARTIAL)
+                    self._handoff(instance, role, HandoffStatus.PARTIAL)
                     self.notes.append(
                         "No authorized route to a model: this run's enforced tools and contract "
                         "permit no job and no approved model, so no experiment was attempted."
                     )
                     return None
+                context = self._context(spec, contract, profile)
+                if self._multi:
+                    context += (
+                        "\nAgent A assignment: "
+                        + self.lead_assignment
+                        + "\nB observation (unverified; no external search): "
+                        + self.research_brief
+                    )
+                if c.run_config.flags.planning is Toggle.ON:
+                    plan = await self._plan(instance, role, context, [tool.name for tool in tools])
+                    context += "\nPlan to follow: " + plan.model_dump_json()
                 outcome = await run_single_agent(
                     c.adapter,
                     self.guard,
                     channel,
                     tools,
                     run_id=self.run_id,
-                    context=self._context(spec, contract, profile),
+                    context=context,
                     max_turns=c.max_agent_turns,
+                    role=role,
                 )
         final = outcome.final.final_trial_id if outcome.final else None
         status = (
@@ -604,7 +761,7 @@ class _Run:
         )
         self._handoff(
             instance,
-            ActorRole.SINGLE_AGENT,
+            role,
             status,
             candidates=[f"trial:{final}"] if final else [],
             confidence=outcome.final.confidence if outcome.final else None,
@@ -830,8 +987,9 @@ class _Run:
         report = self._write_facts()
         if report is None:
             return False
-        instance = self._role_started(ActorRole.REPORTER, ModelTier.CHEAP)
-        report = await write_narrative(self.controller.adapter, self.guard, report)
+        role = ActorRole.AGENT_A if self._multi else ActorRole.REPORTER
+        instance = self._role_started(role, ModelTier.CHEAP)
+        report = await write_narrative(self.controller.adapter, self.guard, report, role=role)
         self._notice_cancel()
         if USER_CANCEL in self.guard.fired:
             report = report.model_copy(
@@ -847,7 +1005,7 @@ class _Run:
         md_path.write_text(render_markdown(report), encoding="utf-8")
         self._handoff(
             instance,
-            ActorRole.REPORTER,
+            role,
             HandoffStatus.COMPLETE if report.narrative else HandoffStatus.PARTIAL,
             output_ref=f"report:{self.run_id}",
         )
@@ -927,7 +1085,8 @@ class _Run:
         allowed_tools: list[str] | None = None,
         context_refs: list[str] | None = None,
     ) -> str:
-        instance = f"ri_{self.run_id}_{role.value}"
+        self.role_invocations += 1
+        instance = f"ri_{self.run_id}_{role.value}_{self.role_invocations}"
         self.events.append(
             self.run_id,
             EventType.ROLE_STARTED,
@@ -940,6 +1099,68 @@ class _Run:
             ).model_dump(mode="json"),
         )
         return instance
+
+    def _trial_evidence(self) -> str:
+        """Return bounded stored validation facts, not another role's conversation."""
+        trials = list_trials(self.database, self.run_id)
+        facts = []
+        for trial in trials[:20]:
+            result = load_result(self.database, trial.trial_id, "validation")
+            facts.append(
+                {
+                    "trial_id": trial.trial_id,
+                    "kind": trial.kind,
+                    "status": trial.status,
+                    "hypothesis": trial.hypothesis[:500],
+                    "validation": result.metrics if result else None,
+                    "verification": result.verification if result else None,
+                }
+            )
+        return json.dumps({"trials": facts, "omitted": max(0, len(trials) - 20)})[:20000]
+
+    async def _plan(
+        self,
+        instance: str,
+        role: ActorRole,
+        context: str,
+        allowed_tools: list[str],
+    ) -> Plan:
+        planner = ActorRole.AGENT_A if self._multi else role
+        planner_instance = self._role_started(planner, ModelTier.LEAD) if self._multi else instance
+        try:
+            draft = await draft_plan(
+                self.controller.adapter,
+                self.guard,
+                run_id=self.run_id,
+                role=planner,
+                context=context,
+                allowed_tools=allowed_tools,
+            )
+            plan = Plan(
+                plan_id=f"plan_{uuid.uuid4().hex[:12]}",
+                run_id=self.run_id,
+                role=planner,
+                goal="Run a bounded experiment under the approved contract",
+                steps=[
+                    PlanStep(
+                        step=i,
+                        tool=step.tool,
+                        purpose=step.purpose,
+                        success_check=step.success_check,
+                    )
+                    for i, step in enumerate(draft.steps, 1)
+                ],
+            )
+            self._event(
+                EventType.PLAN, PlanPayload(role_instance_id=planner_instance, plan=plan), planner
+            )
+        except Exception:
+            if self._multi:
+                self._handoff(planner_instance, planner, HandoffStatus.FAILED)
+            raise
+        if self._multi:
+            self._handoff(planner_instance, planner, HandoffStatus.COMPLETE)
+        return plan
 
     def _handoff(
         self,

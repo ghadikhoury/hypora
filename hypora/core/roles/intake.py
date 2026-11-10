@@ -138,9 +138,10 @@ async def run_intake(
     form: IntakeForm,
     frame: pd.DataFrame,
     dataset_ref: str,
+    role: ActorRole = ActorRole.INTAKE,
 ) -> TaskSpecification:
     """Draft the task with one model call, then settle every checkable field in code."""
-    prompt = load_prompt("intake")
+    prompt = load_prompt("agent_a_intake" if role is ActorRole.AGENT_A else "intake")
     guard.before_model_call()
     try:
         response = await adapter.complete(
@@ -149,7 +150,7 @@ async def run_intake(
                 Message.user(f"Goal:\n{form.goal}\n\nColumns:\n{_columns(frame)}"),
             ],
             tier=ModelTier.CHEAP,
-            context=CallContext(run_id=run_id, actor_role=ActorRole.INTAKE, prompt_ref=prompt.ref),
+            context=CallContext(run_id=run_id, actor_role=role, prompt_ref=prompt.ref),
             output_schema=IntakeDraft,
         )
     except LLMError as exc:

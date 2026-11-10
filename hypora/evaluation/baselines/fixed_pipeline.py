@@ -369,6 +369,11 @@ class _BaselineRun(_Run):
         self.fault_hits, fault_notes = _sort_faults(faults)
         self.notes += fault_notes
 
+    @property
+    def _multi(self) -> bool:
+        """The fixed pipeline is always model-free, regardless of agent comparison flags."""
+        return False
+
     async def execute(self) -> RunResult:
         """The controller's run; a refused case still leaves a run, its events, and a report, so
         the graders find evidence of the refusal rather than an empty log."""

@@ -14,6 +14,7 @@ import pytest
 from sklearn.datasets import load_breast_cancer  # type: ignore[import-untyped]
 
 from hypora.core.config import ModelsConfig, load_settings
+from hypora.core.config.flags import AgentMode
 from hypora.core.config.resources import DetectedResources, GpuDetection
 from hypora.core.config.run_config import RunConfig
 from hypora.core.controller.controller import RunController
@@ -91,7 +92,11 @@ def make_controller(
             database=database,
             runs_root=runs_root,
             adapter=adapter,
-            run_config=run_config,
+            run_config=run_config.model_copy(
+                update={
+                    "flags": run_config.flags.model_copy(update={"agent_mode": AgentMode.SINGLE})
+                }
+            ),
             poll_seconds=0.5,
             **options,
         )

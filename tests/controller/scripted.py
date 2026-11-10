@@ -65,6 +65,18 @@ class ScriptedRun:
     async def generate(self, request: ProviderRequest) -> ProviderResult:
         self.requests.append(request)
         schema = request.output_schema_name
+        if schema == "PlanDraft":
+            return json_result(
+                {
+                    "steps": [
+                        {
+                            "tool": None,
+                            "purpose": "Inspect permitted evidence",
+                            "success_check": "Reviewed",
+                        }
+                    ]
+                }
+            )
         if schema == "IntakeDraft":
             if self.on_intake is not None:
                 self.on_intake()

@@ -33,13 +33,46 @@ _CREDENTIAL_PATTERNS = (
 )
 
 
+def _json_secret_pattern(secret: str) -> re.Pattern[str]:
+    """Match a configured value with any mixture of literal and JSON-escaped characters."""
+    fragments = []
+    for char in secret:
+        options = {re.escape(char), re.escape(json.dumps(char, ensure_ascii=False)[1:-1])}
+        if char == "/":
+            options.add(r"\\/")
+        # JSON represents non-BMP characters as a pair of UTF-16 surrogate escapes.
+        units = char.encode("utf-16-be", errors="surrogatepass")
+        unicode_escape = "".join(
+            r"\\u(?i:" + units[index : index + 2].hex() + ")" for index in range(0, len(units), 2)
+        )
+        options.add(unicode_escape)
+        # Escaped forms precede the literal form; atomic groups avoid ambiguous backtracking.
+        fragments.append("(?>" + "|".join(sorted(options, key=len, reverse=True)) + ")")
+    return re.compile("".join(fragments))
+
+
 def redact(value: JsonValue, secrets: Iterable[str] = ()) -> JsonValue:
     """Copy of `value` with every secret (exact match) and credential-shaped string replaced."""
-    exact = sorted({s for s in secrets if s}, key=len, reverse=True)
+    # A provider's text can itself be serialized JSON inside the stored transcript.
+    # Scrub both literal configured secrets and their JSON string representations.
+    configured = {secret for secret in secrets if secret}
+    variants = {
+        variant
+        for secret in configured
+        for variant in (
+            secret,
+            json.dumps(secret, ensure_ascii=False)[1:-1],
+            json.dumps(secret, ensure_ascii=True)[1:-1],
+        )
+    }
+    exact = sorted(variants, key=len, reverse=True)
+    encoded_patterns = [_json_secret_pattern(secret) for secret in configured]
 
     def scrub(text: str) -> str:
         for secret in exact:
             text = text.replace(secret, REDACTED)
+        for pattern in encoded_patterns:
+            text = pattern.sub(REDACTED, text)
         for pattern in _CREDENTIAL_PATTERNS:
             text = pattern.sub(REDACTED, text)
         return text

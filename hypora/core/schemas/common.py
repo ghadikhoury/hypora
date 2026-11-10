@@ -181,6 +181,10 @@ _MINIMIZED_METRICS = frozenset(
 class ActorRole(StrEnum):
     """Who acted: an LLM role (spec §6.3, §22.1 `roles/`) or a platform component."""
 
+    # Main product roles (S3.1); historical identities remain valid.
+    AGENT_A = "agent_a"
+    AGENT_B = "agent_b"
+    AGENT_C = "agent_c"
     # LLM roles
     INTAKE = "intake"
     SUPERVISOR = "supervisor"
