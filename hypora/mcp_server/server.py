@@ -130,7 +130,13 @@ class HyporaMCPServer(MCPServer):
     def __init__(self, session: Session, *, tools: HyporaTools | None = None) -> None:
         self.session = session
         self.tools = tools or HyporaTools(session)
-        if session.config.defenses.allowlist:
+        # Product role boundaries remain mandatory even in defense ablations.
+        self.product_role = session.role in {
+            ActorRole.AGENT_A,
+            ActorRole.AGENT_B,
+            ActorRole.AGENT_C,
+        }
+        if session.config.defenses.allowlist or self.product_role:
             self.allowed = allowed_tools(session.role)
             if session.config.permitted_tools is not None:
                 self.allowed &= frozenset(session.config.permitted_tools)
@@ -172,6 +178,16 @@ class HyporaMCPServer(MCPServer):
                     session_id=self.session.config.session_id,
                 ),
             )
+            if self.session.role is ActorRole.AGENT_C and name in {
+                "request_worker",
+                "spawn_worker",
+            }:
+                refusal = errors.policy(
+                    "WORKERS_UNAVAILABLE",
+                    "Worker requests are unavailable until S3.4.",
+                    "Continue without workers.",
+                ).error
+                return await self._respond(call_id, tool, tier, started, error=refusal)
             if not await self._allowlist(call_id, tool, tier, name):
                 refusal = errors.policy(
                     "TOOL_NOT_ALLOWED",
@@ -258,7 +274,7 @@ class HyporaMCPServer(MCPServer):
 
     async def _allowlist(self, call_id: str, tool: str, tier: ToolTier | None, name: str) -> bool:
         """The server-side role allowlist; True lets the call proceed."""
-        if not self.session.config.defenses.allowlist:
+        if not self.session.config.defenses.allowlist and not self.product_role:
             await self._policy(
                 call_id, tool, tier, PolicyOutcome.ALLOW, None, ["defenses.allowlist is off"]
             )

@@ -230,7 +230,23 @@ class LLMAdapter:
             )
         except LLMError as error:
             error.total_cost_usd, error.call_ids = ledger.total_cost_usd, tuple(ledger.call_ids)
+            if context.sensitive_output_filter is not None:
+                safe_error = LLMError("Sensitive decision model call failed")
+                safe_error.total_cost_usd, safe_error.call_ids = (
+                    ledger.total_cost_usd,
+                    tuple(ledger.call_ids),
+                )
+                raise safe_error from None
             raise
+        except Exception:
+            if context.sensitive_output_filter is None:
+                raise
+            safe_error = LLMError("Sensitive decision model call failed")
+            safe_error.total_cost_usd, safe_error.call_ids = (
+                ledger.total_cost_usd,
+                tuple(ledger.call_ids),
+            )
+            raise safe_error from None
         return replace(
             response, total_cost_usd=ledger.total_cost_usd, call_ids=tuple(ledger.call_ids)
         )
@@ -249,9 +265,12 @@ class LLMAdapter:
         outcome = await self._call_with_fallback(conversation, *args)
         if outcome.validation_error is None or output_schema is None:
             return outcome.response
+        retry_response = outcome.response.message
+        if context.sensitive_output_filter is not None:
+            retry_response = Message(role=MessageRole.ASSISTANT, content="[FILTERED]")
         retry_conversation = (
             *conversation,
-            outcome.response.message,
+            retry_response,
             Message.user(
                 SCHEMA_RETRY_PROMPT.format(
                     schema=output_schema.__name__, errors=outcome.validation_error
@@ -350,8 +369,18 @@ class LLMAdapter:
             max_output_tokens=max_output_tokens,
         )
         request_json = _request_payload(request)
-        input_ref = self._store(context.run_id, call_id, "input", request_json)
+        # Admission must use the provider's actual request, not the filtered storage copy.
         estimated = estimate_tokens(len(json.dumps(request_json)))
+        if context.sensitive_output_filter is not None:
+            # Retry input contains the untrusted first response and validation feedback.
+            # Preserve initial request and model/config metadata, never the retry text.
+            request_json["messages"] = [
+                m.model_dump(mode="json", exclude={"replay"})
+                if index < 2
+                else {"role": m.role.value, "content": "[FILTERED]"}
+                for index, m in enumerate(request.messages)
+            ]
+        input_ref = self._store(context.run_id, call_id, "input", request_json)
         retries, waited_s, latency_s, events_emitted = 0, 0.0, 0.0, 0
 
         def event_id() -> str:
@@ -434,6 +463,8 @@ class LLMAdapter:
 
         cost = price.cost_usd(result.usage)
         parsed, validation_error = _validate(output_schema, result)
+        if validation_error is not None and context.sensitive_output_filter is not None:
+            validation_error = "[FILTERED]"
         final_id = event_id()
         message = Message(
             role=MessageRole.ASSISTANT,
@@ -441,13 +472,22 @@ class LLMAdapter:
             tool_calls=list(result.tool_calls),
             replay=result.replay,
         )
+        safe_text = result.text
+        safe_tool_calls: list[JsonValue] = [c.model_dump(mode="json") for c in result.tool_calls]
+        if context.sensitive_output_filter is not None:
+            try:
+                safe_text = context.sensitive_output_filter(result.text)
+            except Exception:
+                safe_text = "[FILTERED]"
+            # A has no tools; unexpected tool-call arguments are untrusted.
+            safe_tool_calls = []
         output_ref = self._store(
             context.run_id,
             final_id,
             "output",
             {
-                "text": result.text,
-                "tool_calls": [c.model_dump(mode="json") for c in result.tool_calls],
+                "text": safe_text,
+                "tool_calls": safe_tool_calls,
                 "finish_reason": result.finish_reason.value,
                 "usage": result.usage.model_dump(mode="json"),
                 "served_model_id": result.served_model_id,
@@ -490,6 +530,12 @@ class LLMAdapter:
             served_model_id=result.served_model_id,
         )
         return _Outcome(response, validation_error)
+
+    def redact_for_log(self, text: str) -> str:
+        """Apply the same credential redaction used for persisted model IO."""
+        cleaned = redact(text, self._secrets)
+        assert isinstance(cleaned, str)
+        return cleaned
 
     def _store(self, run_id: str, call_id: str, kind: IOKind, payload: JsonValue) -> str | None:
         if self._io_store is None:

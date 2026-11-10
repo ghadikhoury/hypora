@@ -110,3 +110,45 @@ def test_orm_session_is_really_transactional(database: Database) -> None:
         session.rollback()
     with Session(database.engine) as session:
         assert session.get(Run, "orm_rollback") is None
+
+
+def test_product_roles_upgrade_preserves_events_and_append_only(tmp_path: Path) -> None:
+    """Existing events survive the enum change and all three SQL guards still work."""
+    from hypora.core.schemas import ActorRole, EventType
+    from hypora.storage.events import EventLog
+
+    database = Database(tmp_path / "legacy.sqlite")
+    try:
+        with database.write() as connection:
+            config = migration_config()
+            config.attributes["connection"] = connection
+            command.upgrade(config, "0003")
+        with database.write() as connection:
+            connection.execute(insert(Run).values(id="legacy", workspace_id="ws_1"))
+        events = EventLog(database)
+        events.append(
+            "legacy",
+            EventType.ROLE_STARTED,
+            ActorRole.INTAKE,
+            {"role_instance_id": "old", "allowed_tools": [], "context_refs": []},
+        )
+        before = list(events.read("legacy"))
+        migrate(database)
+        assert list(events.read("legacy")) == before
+        events.append(
+            "legacy",
+            EventType.ROLE_STARTED,
+            ActorRole.AGENT_A,
+            {"role_instance_id": "new", "allowed_tools": [], "context_refs": []},
+        )
+        for statement in (
+            "UPDATE events SET seq = 99 WHERE run_id = 'legacy'",
+            "DELETE FROM events WHERE run_id = 'legacy'",
+            "INSERT OR REPLACE INTO events SELECT * FROM events "
+            "WHERE run_id = 'legacy' AND seq = 1",
+        ):
+            with pytest.raises(IntegrityError), database.write() as connection:
+                connection.exec_driver_sql(statement)
+        assert len(list(events.read("legacy"))) == 2
+    finally:
+        database.close()

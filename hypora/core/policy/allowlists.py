@@ -27,6 +27,16 @@ TOOL_TIERS: Mapping[ToolName, ToolTier] = MappingProxyType(
 
 ROLE_ALLOWLISTS: Mapping[ActorRole, frozenset[ToolName]] = MappingProxyType(
     {
+        ActorRole.AGENT_C: frozenset(
+            {
+                T.INSPECT_DATASET,
+                T.WRITE_TRIAL_FILES,
+                T.SUBMIT_EXPERIMENT,
+                T.GET_EXPERIMENT_STATUS,
+                T.GET_EXPERIMENT_METRICS,
+                T.GET_EXPERIMENT_LOGS,
+            }
+        ),
         ActorRole.SINGLE_AGENT: frozenset(
             {
                 T.INSPECT_DATASET,

@@ -236,9 +236,15 @@ def build_report(
     )
 
 
-async def write_narrative(adapter: LLMAdapter, guard: CallGuard, report: Report) -> Report:
+async def write_narrative(
+    adapter: LLMAdapter,
+    guard: CallGuard,
+    report: Report,
+    *,
+    role: ActorRole = ActorRole.REPORTER,
+) -> Report:
     """Add the Reporter LLM's narrative; on any failure the report keeps no narrative."""
-    prompt = load_prompt("reporter")
+    prompt = load_prompt("agent_a_report" if role is ActorRole.AGENT_A else "reporter")
     facts = report.model_dump(
         mode="json", exclude={"narrative", "narrative_note", "sources", "evidence"}
     )
@@ -247,9 +253,7 @@ async def write_narrative(adapter: LLMAdapter, guard: CallGuard, report: Report)
         response = await adapter.complete(
             [Message.system(prompt.text), Message.user(json.dumps(facts, indent=1))],
             tier=ModelTier.CHEAP,
-            context=CallContext(
-                run_id=report.run_id, actor_role=ActorRole.REPORTER, prompt_ref=prompt.ref
-            ),
+            context=CallContext(run_id=report.run_id, actor_role=role, prompt_ref=prompt.ref),
             output_schema=ReportNarrative,
         )
         guard.after_model_call(response)
@@ -307,7 +311,7 @@ def render_markdown(report: Report) -> str:
             ]
             lines.append("")
         lines += [
-            "_Written by the Reporter; every number above is filled in from stored metrics._",
+            "_Written by the agent; every number above is filled in from stored metrics._",
             "",
         ]
     elif report.narrative_note:

@@ -34,7 +34,7 @@ async def test_a_step_limit_stops_the_agent_and_says_which_limit_fired(
         RunRequest(
             dataset=dataset,
             goal="Predict malignant tumours",
-            budget=Budget(max_steps=3),  # intake call, one agent turn, one tool call
+            budget=Budget(max_steps=3),  # intake, plan, and one agent turn
             run_id="run_steps",
         )
     )
@@ -45,11 +45,9 @@ async def test_a_step_limit_stops_the_agent_and_says_which_limit_fired(
     assert stop.payload.code == "RUN_LIMIT_REACHED"
     assert stop.payload.details["limit"] == "max_steps"
     assert stop.payload.details["used"] == 3 and stop.payload.details["maximum"] == 3
-    # The limit was checked before the next call: two model calls and one tool call ran.
-    assert len(_events(database, "run_steps", "model_call")) == 2 == len(script.requests)
-    assert [e.payload.tool for e in _events(database, "run_steps", "tool_call")] == [
-        "inspect_dataset"
-    ]
+    # Planning also consumes a model call; the guard blocks the first tool call.
+    assert len(_events(database, "run_steps", "model_call")) == 3 == len(script.requests)
+    assert not _events(database, "run_steps", "tool_call")
     markdown = result.report_md.read_text()
     assert "max_steps reached (3 of 3)" in markdown and "no verified model" in markdown
     [agent] = [

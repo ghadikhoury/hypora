@@ -147,12 +147,11 @@ async def run_single_agent(
     run_id: str,
     context: str,
     max_turns: int,
+    role: ActorRole = ActorRole.SINGLE_AGENT,
 ) -> AgentOutcome:
     """Run the tool loop until the model stops calling tools, a limit fires, or a call fails."""
-    system = load_prompt("single_agent")
-    call_context = CallContext(
-        run_id=run_id, actor_role=ActorRole.SINGLE_AGENT, prompt_ref=system.ref
-    )
+    system = load_prompt("agent_c" if role is ActorRole.AGENT_C else "single_agent")
+    call_context = CallContext(run_id=run_id, actor_role=role, prompt_ref=system.ref)
     messages: list[Message] = [Message.system(system.text), Message.user(context)]
     turns = tool_calls = 0
     try:
@@ -200,9 +199,7 @@ async def run_single_agent(
         answer = await adapter.complete(
             [*messages, Message.user(final_prompt.text)],
             tier=ModelTier.LEAD,
-            context=CallContext(
-                run_id=run_id, actor_role=ActorRole.SINGLE_AGENT, prompt_ref=final_prompt.ref
-            ),
+            context=CallContext(run_id=run_id, actor_role=role, prompt_ref=final_prompt.ref),
             output_schema=FinalAnswer,
         )
         guard.after_model_call(answer)

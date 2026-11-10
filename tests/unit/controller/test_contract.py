@@ -82,8 +82,8 @@ def test_the_policy_approves_the_exact_plan_hash() -> None:
 
 def test_flags_that_stage_1_cannot_honour_are_called_out() -> None:
     defaults = stage1_flag_notes(FeatureFlags())  # agent_mode multi, approval interactive
-    assert len(defaults) == 2
-    assert "only the single agent" in defaults[0] and "S3.D2" in defaults[1]
+    assert len(defaults) == 1
+    assert "S3.5" in defaults[0]
     stage1 = FeatureFlags.model_validate(
         {"agent_mode": "single", "approval_policy": "auto_within_contract"}
     )

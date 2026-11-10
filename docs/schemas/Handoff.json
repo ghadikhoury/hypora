@@ -3,6 +3,9 @@
     "ActorRole": {
       "description": "Who acted: an LLM role (spec §6.3, §22.1 `roles/`) or a platform component.",
       "enum": [
+        "agent_a",
+        "agent_b",
+        "agent_c",
         "intake",
         "supervisor",
         "research_lead",
