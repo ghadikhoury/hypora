@@ -1,5 +1,6 @@
 """API keys never leak: not in reprs, errors, transcripts, or events. Uses fake keys only."""
 
+import json
 from pathlib import Path
 
 import pytest
@@ -92,3 +93,50 @@ def test_file_transcripts_are_owner_only_and_atomic(tmp_path: Path) -> None:
     assert ref == "model_io:run_1/mc_1.input" and path.read_text(encoding="utf-8")
     assert oct(path.stat().st_mode & 0o777) == "0o600"
     assert [p.name for p in path.parent.iterdir()] == ["mc_1.input.json"]  # no temp files left
+
+
+@pytest.mark.parametrize(
+    "secret",
+    [
+        'example "quoted" phrase',
+        "example" + chr(92) + "backslash",
+        "example " + chr(0x00E9) + " " + chr(0x2603),
+    ],
+)
+def test_configured_secret_literal_and_json_escaped_forms_are_removed(secret: str) -> None:
+    forms = {
+        secret,
+        json.dumps(secret, ensure_ascii=False)[1:-1],
+        json.dumps(secret, ensure_ascii=True)[1:-1],
+    }
+    for form in forms:
+        # Intentionally malformed surrounding JSON still receives the same string scrub.
+        payload: JsonValue = {"text": "safe-prefix malformed " + form + " safe-suffix", form: "key"}
+        cleaned = redact(payload, secrets=[secret])
+        assert cleaned == {
+            "text": "safe-prefix malformed [REDACTED] safe-suffix",
+            "[REDACTED]": "key",
+        }
+
+
+@pytest.mark.asyncio
+async def test_json_escaped_secret_is_absent_from_file_backed_input_and_output(
+    make_adapter: AdapterFactory, tmp_path: Path
+) -> None:
+    secret = 'synthetic "quoted" ' + chr(92) + chr(0x2603)
+    encoded = json.dumps(secret, ensure_ascii=True)[1:-1]
+    provider = FakeProvider([text_result("safe output " + encoded)])
+    adapter, events, _ = make_adapter(provider, secrets=(secret,))
+    adapter._io_store = FileModelIOStore(tmp_path)
+    await adapter.complete(
+        [Message.user("safe input malformed " + encoded)],
+        tier=ModelTier.LEAD,
+        context=CONTEXT,
+    )
+    files = list((tmp_path / "run_1" / "model_calls").glob("*.json"))
+    assert len(files) == 2
+    decoded = [json.loads(path.read_text(encoding="utf-8")) for path in files]
+    assert secret not in str(decoded) and encoded not in str(decoded)
+    assert "safe input malformed [REDACTED]" in str(decoded)
+    assert "safe output [REDACTED]" in str(decoded)
+    assert secret not in str(events.events) and encoded not in str(events.events)

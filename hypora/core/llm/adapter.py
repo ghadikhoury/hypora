@@ -60,6 +60,7 @@ from hypora.core.llm.rate_limit import (
 from hypora.core.llm.retry import Backoff
 from hypora.core.llm.sinks import EventSink, IOKind, ModelIOStore, redact
 from hypora.core.llm.types import CallContext, LLMResponse, Message, MessageRole, ToolSpec
+from hypora.core.schemas.common import ActorRole
 from hypora.core.schemas.events import (
     CallStatus,
     EventType,
@@ -268,6 +269,11 @@ class LLMAdapter:
         retry_response = outcome.response.message
         if context.sensitive_output_filter is not None:
             retry_response = Message(role=MessageRole.ASSISTANT, content="[FILTERED]")
+        elif context.actor_role in (ActorRole.AGENT_A, ActorRole.AGENT_B):
+            # A/B role output can contain a configured secret. Do not forward it even
+            # when the provider must repair malformed structured output.
+            cleaned = redact(retry_response.model_dump(mode="json"), self._secrets)
+            retry_response = Message.model_validate(cleaned)
         retry_conversation = (
             *conversation,
             retry_response,
@@ -530,6 +536,10 @@ class LLMAdapter:
             served_model_id=result.served_model_id,
         )
         return _Outcome(response, validation_error)
+
+    def redact_model_data(self, payload: JsonValue) -> JsonValue:
+        """Use the existing configured-secret redactor on structured role output."""
+        return redact(payload, self._secrets)
 
     def redact_for_log(self, text: str) -> str:
         """Apply the same credential redaction used for persisted model IO."""

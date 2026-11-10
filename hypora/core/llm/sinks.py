@@ -35,7 +35,19 @@ _CREDENTIAL_PATTERNS = (
 
 def redact(value: JsonValue, secrets: Iterable[str] = ()) -> JsonValue:
     """Copy of `value` with every secret (exact match) and credential-shaped string replaced."""
-    exact = sorted({s for s in secrets if s}, key=len, reverse=True)
+    # A provider's text can itself be serialized JSON inside the stored transcript.
+    # Scrub both literal configured secrets and their JSON string representations.
+    variants = {
+        variant
+        for secret in secrets
+        if secret
+        for variant in (
+            secret,
+            json.dumps(secret, ensure_ascii=False)[1:-1],
+            json.dumps(secret, ensure_ascii=True)[1:-1],
+        )
+    }
+    exact = sorted(variants, key=len, reverse=True)
 
     def scrub(text: str) -> str:
         for secret in exact:

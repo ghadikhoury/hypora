@@ -921,3 +921,12 @@ No recorded result, grader, sandbox policy, tool contract or course minimum is c
 - Decision-to-C free-text reasoning is omitted from stored output because it is untrusted and can
   contain a dataset value, credential or file content. Invalid/unsafe responses use a fixed marker;
   safe assignments pass the independent controller boundary before the event and C handoff.
+
+### D-038 addendum ? redaction of new role outputs and escaped configured secrets
+
+- Ghadi approved applying the existing configured-secret redactor to new A/B role-output
+  artifacts and role-to-role forwarding, including retry messages and error text. Existing
+  model-call IO logging continues.
+- Ghadi approved extending that existing redactor to recognize JSON-escaped forms of configured
+  secret values, including Unicode-escaped representations. No new credential-detection patterns
+  are added; nonsecret text is preserved.

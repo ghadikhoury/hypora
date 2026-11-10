@@ -461,9 +461,15 @@ class _Run:
                     raise ValueError("Agent A must assign concrete work to C")
                 if result.assignment is not None:
                     self._validate_assignment(result.assignment)
-        except Exception:
+        except Exception as exc:
             self._handoff(instance, role, HandoffStatus.FAILED)
+            safe_message = self.controller.adapter.redact_for_log(str(exc))
+            if safe_message != str(exc):
+                # The original error must not be exposed as an exception chain.
+                raise RuntimeError(safe_message) from None
             raise
+        cleaned = self.controller.adapter.redact_model_data(result.model_dump(mode="json"))
+        result = type(result).model_validate(cleaned)
         output_dir = self.run_dir / "role_outputs"
         output_dir.mkdir(parents=True, exist_ok=True)
         persisted = result

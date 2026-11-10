@@ -397,3 +397,151 @@ async def test_sensitive_retry_token_estimate_uses_actual_provider_request(
     ]
     assert captured == actual
     assert sum(request.output_schema_name == "LeadAction" for request in script.requests) >= 3
+
+
+async def test_ab_role_outputs_and_forwarded_context_redact_configured_secrets(
+    make_controller, database, dataset, run_config, runs_root
+):
+    from hypora.core.llm.sinks import FileModelIOStore
+
+    secret = 'test confidential "quoted" token'
+
+    class SecretRoles(ScriptedMulti):
+        async def generate(self, request):
+            if request.output_schema_name == "ResearchObservation":
+                self.requests.append(request)
+                return json_result(
+                    {
+                        "summary": "Safe research context " + secret,
+                        "uncertainties": ["Safe uncertainty " + secret],
+                    }
+                )
+            if (
+                request.output_schema_name == "LeadAction"
+                and "assignment field" not in request.messages[1].content
+            ):
+                self.requests.append(request)
+                return json_result({"action": "continue", "reason": "Safe decision " + secret})
+            return await super().generate(request)
+
+    script = SecretRoles("run_role_secrets")
+    controller = make_controller(script, worker_factory=NoWorker)
+    controller.adapter._secrets = (secret,)
+    controller.adapter._io_store = FileModelIOStore(runs_root)
+    flags = run_config.flags.model_copy(update={"agent_mode": AgentMode.MULTI})
+    controller.run_config = run_config.model_copy(update={"flags": flags})
+    await controller.run(
+        RunRequest(dataset=dataset, goal="Predict target", run_id="run_role_secrets")
+    )
+
+    import json
+
+    role_files = list((runs_root / "run_role_secrets" / "role_outputs").glob("*.json"))
+    assert role_files
+    decoded = [json.loads(path.read_text(encoding="utf-8")) for path in role_files]
+    assert all(secret not in str(content) for content in decoded)
+    assert any("Safe research context [REDACTED]" in str(content) for content in decoded)
+    assert any("Safe decision [REDACTED]" in str(content) for content in decoded)
+
+    # Inspect actual parsed file-backed IO artifacts, including nested JSON response strings.
+    escaped = {
+        secret,
+        json.dumps(secret, ensure_ascii=False)[1:-1],
+        json.dumps(secret, ensure_ascii=True)[1:-1],
+    }
+
+    def strings(value):
+        if isinstance(value, str):
+            yield value
+        elif isinstance(value, dict):
+            for key, item in value.items():
+                yield key
+                yield from strings(item)
+        elif isinstance(value, list):
+            for item in value:
+                yield from strings(item)
+
+    for path in (runs_root / "run_role_secrets" / "model_calls").glob("*.json"):
+        contents = json.loads(path.read_text(encoding="utf-8"))
+        assert all(form not in text for text in strings(contents) for form in escaped)
+
+    following = [
+        request
+        for request in script.requests
+        if request.output_schema_name == "LeadAction"
+        and "B did not search externally" in request.messages[1].content
+    ]
+    assert following and secret not in str(following[0].messages)
+    assert "Safe research context [REDACTED]" in str(following[0].messages)
+    c_calls = [
+        request
+        for request in script.requests
+        if request.output_schema_name is None and "You are Agent C" in request.messages[0].content
+    ]
+    assert c_calls and secret not in str(c_calls[0].messages)
+    assert "Safe research context [REDACTED]" in str(c_calls[0].messages)
+
+
+async def test_ab_structured_retry_redacts_secret_before_forwarding(
+    make_controller, database, dataset, run_config, runs_root
+):
+    from hypora.core.llm.sinks import FileModelIOStore
+
+    secret = 'test confidential "quoted" token ' + chr(92) + chr(0x2603)
+
+    class RetryResearch(ScriptedMulti):
+        attempted = False
+
+        async def generate(self, request):
+            if request.output_schema_name == "ResearchObservation" and not self.attempted:
+                self.attempted = True
+                self.requests.append(request)
+                # A malformed JSON response carries the JSON-escaped configured secret.
+                import json
+
+                return text_result("malformed safe " + json.dumps(secret, ensure_ascii=True)[1:-1])
+            return await super().generate(request)
+
+    script = RetryResearch("run_role_retry")
+    controller = make_controller(script, worker_factory=NoWorker)
+    controller.adapter._secrets = (secret,)
+    controller.adapter._io_store = FileModelIOStore(runs_root)
+    flags = run_config.flags.model_copy(update={"agent_mode": AgentMode.MULTI})
+    controller.run_config = run_config.model_copy(update={"flags": flags})
+    await controller.run(
+        RunRequest(dataset=dataset, goal="Predict target", run_id="run_role_retry")
+    )
+    retries = [r for r in script.requests if r.output_schema_name == "ResearchObservation"]
+    assert len(retries) == 2
+    assert secret not in str(retries[1].messages)
+    assert "[REDACTED]" in str(retries[1].messages)
+    io_files = (runs_root / "run_role_retry" / "model_calls").glob("*.json")
+    assert all(secret not in path.read_text(encoding="utf-8") for path in io_files)
+
+
+async def test_ab_role_error_redacts_secret_before_propagation(
+    make_controller, database, dataset, runs_root, monkeypatch
+):
+    from hypora.core.controller import controller as module
+    from hypora.core.controller.controller import _Run
+    from hypora.core.schemas import ActorRole
+
+    secret = 'test confidential "error" token ' + chr(92) + chr(0x00E9)
+    controller = make_controller(ScriptedMulti("run_role_error"), worker_factory=NoWorker)
+    controller.adapter._secrets = (secret,)
+    run = _Run(controller, RunRequest(dataset=dataset, goal="x", run_id="run_role_error"))
+    run._create()
+
+    async def fail(*args, **kwargs):
+        import json
+
+        raise RuntimeError("Safe failure " + json.dumps(secret, ensure_ascii=True)[1:-1])
+
+    monkeypatch.setattr(module, "main_role_call", fail)
+    with pytest.raises(RuntimeError) as caught:
+        await run._main_role(ActorRole.AGENT_B, "safe context")
+    assert secret not in str(caught.value)
+    assert str(caught.value) == "Safe failure [REDACTED]"
+    assert caught.value.__suppress_context__
+    events = list(EventLog(database).read("run_role_error"))
+    assert secret not in str(events)
