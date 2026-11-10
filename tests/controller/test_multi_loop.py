@@ -11,6 +11,7 @@ from hypora.core.llm.providers.fake import json_result, text_result, tool_call_r
 from hypora.core.llm.types import ToolCall
 from hypora.core.schemas.events import (
     HandoffEvent,
+    ModelCallEvent,
     RoleStartedEvent,
     StageTransitionEvent,
     ToolCallEvent,
@@ -373,16 +374,31 @@ async def test_unsafe_decision_never_reaches_file_io_events_or_retries(
     assert artifacts
     assert all(bad not in path.read_text(encoding="utf-8") for path in artifacts)
     # Model IO for ordinary calls remains available.
-    non_sensitive = [
+    import json
+
+    b_events = [
         event
         for event in events
-        if event.type.value == "model_call" and event.actor_role.value == "agent_b"
+        if isinstance(event, ModelCallEvent)
+        and event.actor_role.value == "agent_b"
+        and event.payload.output_ref is not None
+        and event.payload.output_schema == "ResearchObservation"
     ]
-    assert non_sensitive
+    assert b_events
+    b_outputs = [
+        json.loads(
+            (
+                runs_root
+                / "run_sensitive"
+                / "model_calls"
+                / (event.payload.output_ref.rsplit("/", 1)[-1] + ".json")
+            ).read_text(encoding="utf-8")
+        )
+        for event in b_events
+        if event.payload.output_ref is not None
+    ]
     assert any(
-        '"Research is unavailable"' in path.read_text(encoding="utf-8").replace("\\", "")
-        or "Research is unavailable" in path.read_text(encoding="utf-8")
-        for path in artifacts
+        json.loads(output["text"])["summary"] == "Research source reviewed" for output in b_outputs
     )
     # Even the actual retry provider messages never contain rejected output.
     for request in script.requests:
