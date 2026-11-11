@@ -22,7 +22,7 @@ from hypora.core.controller.contract import build_data_contract
 from hypora.core.controller.controller import RunRequest
 from hypora.core.llm.providers.fake import json_result
 from hypora.core.roles.single_agent import ToolChannel
-from hypora.core.schemas import ActorRole, DataContract, RequestedAction
+from hypora.core.schemas import ActorRole, DataContract, MetricName, RequestedAction, TaskType
 from hypora.core.schemas.events import (
     ErrorEvent,
     EscalationEvent,
@@ -33,12 +33,16 @@ from hypora.core.schemas.events import (
     RoleStartedEvent,
     ToolResultEvent,
 )
-from hypora.evaluation.case import InjectedFault
+from hypora.evaluation.case import DecisionClass, InjectedFault
+from hypora.evaluation.graders import ProgrammaticGrader
 from hypora.evaluation.runner.agent import FaultInjectingChannel, FaultLedger
+from hypora.evaluation.system import CheckStatus, SystemRun
 from hypora.storage.events import EventLog
 from hypora.storage.records import run_jobs
 from tests.controller.conftest import NoWorker
 from tests.controller.test_multi_loop import ScriptedMulti, cited_strategy_fixture
+from tests.unit.evaluation.grader_helpers import check_of, failures
+from tests.unit.evaluation.test_grader_malformed import MALFORMED, world_on
 
 pytestmark = pytest.mark.anyio
 
@@ -393,3 +397,52 @@ async def test_a_malformed_target_stops_safely_before_any_target_aware_step(
     assert report["evidence"]["decision"]["intended"] == "train"
     assert [f["outcome"] for f in report["evidence"]["faults"]] == ["stopped_safely"]
     assert any("must clarify" in note for note in result.notes)
+
+
+async def test_the_real_integrity_stop_on_a_case_earns_malformed_data_credit(
+    tmp_path, make_controller, run_config, dataset
+):
+    # End to end: the controller runs on the exact visible rows of a malformed-data case (a
+    # regression target with text tokens, the defect a case can carry), and the grader grades
+    # what the controller really wrote. Real UCI rows; the clean rows' stop earns nothing.
+    clean_rows = pd.read_csv(dataset).drop(columns=["target"])
+    clean_rows["label"] = clean_rows.pop("mean area")
+    malformed_rows = clean_rows.copy()
+    labels = malformed_rows["label"].map(lambda value: f"{value:.4f}").astype(object)
+    labels[::10] = "#VALUE!"
+    malformed_rows["label"] = labels
+    world = world_on(tmp_path / "case", malformed_rows)
+    visible = tmp_path / "visible.parquet"
+    visible.write_bytes(world.split.visible_bytes())
+    controller = _multi(make_controller, run_config, ScriptedMulti("run_case_malformed"))
+    result = await controller.run(
+        RunRequest(
+            dataset=visible,
+            goal="Predict label",
+            target="label",
+            task_type=TaskType.REGRESSION,
+            primary_metric=MetricName.MAE,
+            run_id="run_case_malformed",
+            permitted_tools=world.case.permitted_tools,  # as the eval runner passes them
+        )
+    )
+    assert result.state.status.value == "FAILED" and not result.verified
+    run = SystemRun(
+        case_id=world.case.id,
+        system="agent",
+        run_id=result.run_id,
+        runs_root=controller.runs_root,
+        database=controller.database_path,
+        completed=False,
+        wall_clock_seconds=1.0,
+        decision_class=DecisionClass.TRAIN,
+    )
+    grade = await ProgrammaticGrader(world.predictor).grade(world.case, world.split, run)
+    assert grade.passed, failures(grade)
+    assert "stopped safely (controller_error)" in check_of(grade, MALFORMED).detail
+
+    # The same stop, graded against a case whose visible rows are clean, is not causal.
+    clean = world_on(tmp_path / "clean", clean_rows)
+    regraded = await ProgrammaticGrader(clean.predictor).grade(clean.case, clean.split, run)
+    assert not regraded.passed
+    assert check_of(regraded, MALFORMED).status is CheckStatus.FAILED

@@ -6,10 +6,10 @@ Dropping, imputing, or coercing those labels is a label change, which needs the 
 so the run stops safely before any role sees target-derived data and the report asks for it.
 
 This module is deterministic platform code over the exact rows the run received. The controller
-runs it once after profiling; the grader runs the same function on the same rows to prove that
-a malformed-data stop was caused by a defect really present in them (D-032; spec §19.2). A
-finding names a code, the column, a row count, and the SHA-256 of the affected row positions:
-never a value, so it is safe in events and reports.
+runs it once the plan is approved, before the partition lock; the grader runs the same function
+on the same rows to prove that a malformed-data stop was caused by a defect really present in
+them (D-032; spec §19.2). A finding names a code, the column, a row count, and the SHA-256 of the
+affected row positions: never a value, so it is safe in events and reports.
 
 An evaluation case can only carry the text defects: the hidden split refuses missing and
 non-finite labels outright (`hypora/evaluation/hidden_split.py`). The other checks protect
