@@ -16,6 +16,7 @@ import anyio
 import docker
 from docker.errors import DockerException, ImageNotFound
 
+from hypora.cli.approve import Ask, InlineApprover, is_terminal, terminal_ask
 from hypora.cli.trace import describe, format_offset
 from hypora.cli.workers import WorkerMode, compose_worker_problem, worker_factory
 from hypora.core.config import ConfigError, load_settings
@@ -45,7 +46,9 @@ PROGRESS_TYPES: Final = frozenset(
         EventType.HANDOFF,
         EventType.TOOL_CALL,
         EventType.JOB_TRANSITION,
+        EventType.APPROVAL_REQUESTED,
         EventType.APPROVAL_GRANTED,
+        EventType.APPROVAL_DENIED,
         EventType.ESCALATION,
         EventType.ERROR,
     }
@@ -97,12 +100,10 @@ def provider_adapter(run_config: RunConfig, database: Database, runs_root: Path)
 
 
 def run_config_for(options: RunOptions) -> RunConfig:
-    """The validated configuration, with `--approve` applied; raises PreflightError."""
-    if options.approve is ApprovalPolicy.INTERACTIVE:
-        raise PreflightError(
-            "--approve interactive: the interactive plan gate arrives in S3.D2. Stage 1 runs "
-            "approve their plan by policy (D-019); use --approve auto_within_contract or omit it."
-        )
+    """The validated configuration, with `--approve` applied; raises PreflightError.
+
+    Without `--approve` the configured `flags.approval_policy` applies (`interactive` by default:
+    the run waits for the user's decision on its plan; S3.5)."""
     overrides = (
         {"flags": {"approval_policy": options.approve.value}} if options.approve is not None else {}
     )
@@ -200,13 +201,15 @@ async def run_with_progress(
     printer: ProgressPrinter | None,
     *,
     poll_seconds: float = 1.0,
+    approver: InlineApprover | None = None,
 ) -> RunResult:
-    """Run the request; meanwhile print new notable events every `poll_seconds`."""
-    if printer is None:
+    """Run the request; meanwhile print new notable events every `poll_seconds`, and, with an
+    `approver`, offer each pending interactive plan approval to the person."""
+    if printer is None and approver is None:
         return await controller.run(request)
     done = anyio.Event()
 
-    async def follow() -> None:
+    async def follow(printer: ProgressPrinter) -> None:
         while not done.is_set():
             printer.flush()
             with anyio.move_on_after(poll_seconds):
@@ -214,7 +217,10 @@ async def run_with_progress(
         printer.flush()
 
     async with anyio.create_task_group() as group:
-        group.start_soon(follow)
+        if printer is not None:
+            group.start_soon(follow, printer)
+        if approver is not None:
+            group.start_soon(approver.watch, done, poll_seconds)
         try:
             result = await controller.run(request)
         finally:
@@ -230,8 +236,14 @@ async def execute(
     docker_client: Callable[[], Any] = docker.from_env,
     run_config: RunConfig | None = None,
     poll_seconds: float = 1.0,
+    ask: Ask = terminal_ask,
+    terminal: bool | None = None,
 ) -> RunResult:
-    """Preflight, then run the request to a terminal state; raises PreflightError."""
+    """Preflight, then run the request to a terminal state; raises PreflightError.
+
+    Under the `interactive` approval policy the plan is offered to the person as soon as the run
+    asks for it: inline with `ask` when `terminal` (default: stdin and stdout are a terminal),
+    otherwise as the `hypora approve` command to run from another terminal."""
     dataset = check_dataset(options.data)
     config = run_config or run_config_for(options)
     budget = budget_for(options, config)
@@ -274,7 +286,19 @@ async def execute(
             f"{options.worker.value} worker, dataset {dataset.name}"
         )
         printer = None if options.quiet else ProgressPrinter(EventLog(database), run_id, out)
-        return await run_with_progress(controller, request, printer, poll_seconds=poll_seconds)
+        approver = None
+        if config.flags.approval_policy is ApprovalPolicy.INTERACTIVE:
+            approver = InlineApprover(
+                database,
+                runs_root,
+                run_id,
+                out,
+                ask=ask,
+                terminal=is_terminal() if terminal is None else terminal,
+            )
+        return await run_with_progress(
+            controller, request, printer, poll_seconds=poll_seconds, approver=approver
+        )
     finally:
         database.close()
 

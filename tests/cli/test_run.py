@@ -122,11 +122,14 @@ def test_the_dataset_must_be_a_csv_or_parquet_file(tmp_path: Path) -> None:
         check_dataset(other)
 
 
-def test_interactive_approval_is_refused_until_the_plan_gate(tmp_path: Path, dataset: Path) -> None:
-    with pytest.raises(PreflightError, match=r"S3.D2"):
-        run_config_for(options(tmp_path, dataset, approve=ApprovalPolicy.INTERACTIVE))
+def test_the_approve_option_sets_the_approval_policy(tmp_path: Path, dataset: Path) -> None:
+    interactive = run_config_for(options(tmp_path, dataset, approve=ApprovalPolicy.INTERACTIVE))
+    assert interactive.flags.approval_policy is ApprovalPolicy.INTERACTIVE
     config = run_config_for(options(tmp_path, dataset, approve=ApprovalPolicy.AUTO_WITHIN_CONTRACT))
     assert config.flags.approval_policy is ApprovalPolicy.AUTO_WITHIN_CONTRACT
+    assert run_config_for(options(tmp_path, dataset)).flags.approval_policy is (
+        ApprovalPolicy.INTERACTIVE  # the configured default (spec §10.1: always required)
+    )
 
 
 def test_budget_overrides_apply_over_the_configured_budget(

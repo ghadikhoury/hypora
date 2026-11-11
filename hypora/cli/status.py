@@ -12,8 +12,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Final
 
+from hypora.core.controller.approval_gate import pending_approval
 from hypora.core.controller.limits import CANCEL_FILE
-from hypora.core.schemas import EventType, RunStatus
+from hypora.core.schemas import ApprovalPolicy, EventType, RunStatus
 from hypora.core.schemas.events import ModelCallPayload, StageTransitionPayload
 from hypora.storage.database import Database
 from hypora.storage.events import EventFilters, EventLog
@@ -133,6 +134,17 @@ def run_status_lines(
     lines.append(
         f"Jobs      {len(jobs)}" + (f": {_counts([j.status.value for j in jobs])}" if jobs else "")
     )
+    pending = None if run.status in TERMINAL else pending_approval(database, run_id)
+    if pending is not None:
+        how = (
+            f"decide with `hypora approve {run_id}`"
+            if pending.policy is ApprovalPolicy.INTERACTIVE
+            else f"decided by the {pending.policy.value} policy"
+        )
+        lines.append(
+            f"Approval  pending {pending.approval_id} (plan hash {pending.artifact_hash[:12]}); "
+            + how
+        )
     final = final_model(database, run_id, metric)
     if final is not None:
         score = f" | test {final.metric} {final.value:.4f}" if final.value is not None else ""
