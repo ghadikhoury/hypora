@@ -434,6 +434,14 @@ async def test_a_change_before_the_final_job_queues_no_final_job(
         protocol.read_request(protocol.job_dir(runs_root, run_id, job.job_id)).phase for job in jobs
     ]
     assert protocol.ExperimentPhase.FINAL not in phases
+    # The changed artifact invalidates approval at submit, before a candidate can compute.
+    assert len(jobs) == 1
+    denied = [
+        e.payload
+        for e in _events(database, run_id, "tool_result")
+        if e.payload.tool == "submit_experiment"
+    ]
+    assert any("APPROVAL_INVALID" in str(payload) for payload in denied)
     assert all(
         job.status in (JobState.COMPLETED, JobState.CANCELLED, JobState.FAILED) for job in jobs
     )

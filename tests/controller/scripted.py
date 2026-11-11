@@ -48,10 +48,10 @@ class ScriptedRun:
         job_limits: dict[str, Any] | None = None,
         on_intake: Callable[[], None] | None = None,
         on_tool_result: Callable[[str, dict[str, Any]], None] | None = None,
-        pipeline_py: str = LINEAR,
+        pipeline_py: str | None = None,
     ) -> None:
         self.run_id = run_id
-        self.pipeline_py = pipeline_py
+        self.pipeline_py = LINEAR if pipeline_py is None else pipeline_py
         self.compare = compare
         self.compared = False
         self.poll_seconds = poll_seconds

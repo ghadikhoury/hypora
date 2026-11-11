@@ -114,7 +114,7 @@ def test_a_passed_verification_reports_a_verified_model_with_its_limitations(
     assert NOT_RUN_LIMITATION not in report.limitations
     markdown = render_markdown(report)
     assert "**Verification:** passed" in markdown
-    assert VERDICT_LINE not in markdown
+    assert VERDICT_LINE in markdown
 
 
 def test_a_failed_check_cannot_be_upgraded_by_the_agent(tmp_path: Path) -> None:
@@ -304,6 +304,7 @@ def test_without_runs_root_there_is_no_resource_record(tmp_path: Path) -> None:
 # --- old reports and early stops -----------------------------------------------------------------
 
 NEW_FIELDS = (
+    "completed_verification",
     "verification_status",
     "failed_checks",
     "skipped_checks",

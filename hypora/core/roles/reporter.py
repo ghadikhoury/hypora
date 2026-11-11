@@ -233,6 +233,8 @@ class Report(StrictModel):
     narrative_note: str | None = None
     sources: list[str] = Field(default_factory=list)
     evidence: OutcomeEvidence | None = None
+    completed_verification: FinalModel | None = None
+    """Completed final-job evidence even when cancellation withdraws the selected final model."""
     verification_status: VerificationStatus = "not_run"
     failed_checks: list[CheckLine] = Field(default_factory=list)
     skipped_checks: list[CheckLine] = Field(default_factory=list)
@@ -247,6 +249,7 @@ class Report(StrictModel):
         if not isinstance(data, dict) or "verification_status" in data:
             return data
         raw = data.get("final")
+        raw = raw or data.get("completed_verification")
         final = None if raw is None else FinalModel.model_validate(raw)
         failed, skipped = _split_checks(final.checks if final else [])
         return {
@@ -258,11 +261,12 @@ class Report(StrictModel):
 
     @model_validator(mode="after")
     def _verdict_follows_the_stored_verification(self) -> "Report":
-        if self.verification_status != _verification_status(self.final):
+        observed = self.final or self.completed_verification
+        if self.verification_status != _verification_status(observed):
             raise ValueError("verification_status must follow the final model's stored verdict")
-        if (self.outcome == "verified_model") != (self.verification_status == "passed"):
+        if (self.outcome == "verified_model") != (self.final is not None and self.final.verified):
             raise ValueError("only a passed verification yields a verified model")
-        failed, skipped = _split_checks(self.final.checks if self.final else [])
+        failed, skipped = _split_checks(observed.checks if observed else [])
         if self.failed_checks != failed or self.skipped_checks != skipped:
             raise ValueError("failed_checks and skipped_checks must list the stored checks")
         return self
@@ -488,6 +492,21 @@ def build_report(
             )
         )
     final = None
+    selected_trial_id = final_trial_id
+    # A cancellation withdraws selection, not the fact that verification already ran. Discover
+    # completed final evidence from platform-owned jobs so recomputing with no selected final
+    # preserves the verdict and every failed/skipped check without changing grading rules.
+    if final_trial_id is None and runs_root is not None:
+        for job in reversed(run_jobs(database, run_id)):
+            if job.status is not JobState.COMPLETED:
+                continue
+            try:
+                request = protocol.read_request(protocol.job_dir(runs_root, run_id, job.job_id))
+            except (OSError, ValueError):
+                continue
+            if request.phase is protocol.ExperimentPhase.FINAL:
+                final_trial_id = job.trial_id
+                break
     sources = [f"task_spec:{run_id}.v{spec.version}", f"profile:{profile_id}"]
     sources.append(f"experiment_contract:{run_id}.v{contract.version}")
     if final_trial_id is not None:
@@ -521,14 +540,18 @@ def build_report(
     split = data.split
     tabular = profile.tabular
     timeline = _Timeline.read(database, run_id)
-    status = _verification_status(final)
-    failed, skipped = _split_checks(final.checks if final else [])
+    completed_verification = final
+    if selected_trial_id is None:
+        final = None
+    status = _verification_status(completed_verification)
+    failed, skipped = _split_checks(completed_verification.checks if completed_verification else [])
     approval = _approval(timeline, contract.approval_id)
     if approval is not None:
         approval = approval.model_copy(update={"contract_version": contract.version})
     return Report(
         run_id=run_id,
-        outcome="verified_model" if status == "passed" else "no_verified_model",
+        outcome="verified_model" if final is not None and final.verified else "no_verified_model",
+        completed_verification=completed_verification,
         verification_status=status,
         failed_checks=failed,
         skipped_checks=skipped,
@@ -720,8 +743,7 @@ def _render_verification(
 ) -> list[str]:
     """The platform's verdict, failed and skipped checks, and mandatory limitations."""
     lines = ["## Verification and limitations", f"**Verification:** {_STATUS_TEXT[status]}."]
-    if status != "passed":
-        lines.append(VERDICT_LINE)
+    lines.append(VERDICT_LINE)
     lines.append("")
     if failed:
         lines += ["**Failed checks**", "| Check | Status | Detail |", "|---|---|---|"]

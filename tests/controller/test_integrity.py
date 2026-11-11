@@ -132,14 +132,26 @@ async def test_a_failed_check_is_the_verdict_whatever_the_narrative_says(
     _assert_recomputable(database, runs_root, report)
 
 
+@pytest.mark.parametrize("passed", [True, False])
 async def test_a_cancel_during_the_narrative_withdraws_the_model_honestly(
     make_controller: ControllerFactory,
     database: Database,
     dataset: Path,
     runs_root: Path,
     monkeypatch: pytest.MonkeyPatch,
+    passed: bool,
 ) -> None:
     scripted_sandbox.install(monkeypatch)
+    real_verify = worker_module.verify_final
+    if not passed:
+
+        def failed_verification(evidence: Any) -> VerificationResult:
+            document = real_verify(evidence).model_dump(mode="json")
+            document["checks"][0]["status"] = CheckStatus.FAILED.value
+            document["passed"] = False
+            return VerificationResult.model_validate(document)
+
+        monkeypatch.setattr(worker_module, "verify_final", failed_verification)
     run_id = "run_integrity_cancel"
 
     class CancelWhileNarrating(ScriptedRun):
@@ -155,12 +167,15 @@ async def test_a_cancel_during_the_narrative_withdraws_the_model_honestly(
 
     assert result.state == CANCELLED and not result.verified
     assert protocol.ExperimentPhase.FINAL in _phases(runs_root, database, run_id)
-    # The stored report loads, and says what a recomputation says: no final model.
+    # Cancellation withdraws the final model, but cannot erase completed verification facts.
     report = Report.model_validate_json(result.report_json.read_text())
     assert report.final is None and report.outcome == "no_verified_model"
-    assert report.verification_status == "not_run" and report.failed_checks == []
-    assert report.narrative is None and NOT_RUN_LIMITATION in report.limitations
-    assert not any(source.endswith("/test") for source in report.sources)
+    assert report.verification_status == ("passed" if passed else "failed")
+    assert len(report.failed_checks) == (0 if passed else 1)
+    assert report.completed_verification is not None
+    assert report.completed_verification.verified == passed
+    assert report.narrative is None and NOT_RUN_LIMITATION not in report.limitations
+    assert any(source.endswith("/test") for source in report.sources)
     _assert_recomputable(database, runs_root, report)
 
 
@@ -268,6 +283,27 @@ async def test_a_reviews_the_screened_candidate_code_and_can_only_stop(
         assert evidence["lines_withheld_by_injection_filter"] == 1
     else:
         assert evidence["excerpt"].startswith(INJECTED_COMMENT)
+    decisions = [
+        e.payload
+        for e in _events(database, run_id, "policy_decision")
+        if e.payload.tool == "candidate_code_review"
+    ]
+    firewall = [
+        d for d in decisions if d.decided_by is not None and d.decided_by.value == "data_firewall"
+    ]
+    assert firewall and firewall[-1].decision.value == "allow"
+    assert "withheld_lines=0" in firewall[-1].reasons
+    if injection_filter:
+        screened = [
+            d
+            for d in decisions
+            if d.decided_by is not None and d.decided_by.value == "injection_filter"
+        ]
+        assert screened and screened[-1].decision.value == "deny"
+        assert any("category=" in reason for reason in screened[-1].reasons)
+    else:
+        assert any("defenses.injection_filter is off" in d.reasons for d in decisions)
+    assert all(INJECTED_COMMENT not in str(d) for d in decisions)
     # A chose report: no final job, so nothing is verified, and the report says so.
     assert protocol.ExperimentPhase.FINAL not in _phases(runs_root, database, run_id)
     assert result.state == FAILED and not result.verified

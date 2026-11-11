@@ -32,6 +32,7 @@ import pandas as pd  # type: ignore[import-untyped]
 import pytest
 
 from hypora.execution.harness import runtime
+from hypora.execution.sandbox.image import tabular_image_tag
 from hypora.execution.sandbox.launcher import (
     AbortCheck,
     SandboxLauncher,
@@ -43,7 +44,7 @@ from hypora.execution.worker.experiments import ExperimentWorker
 from hypora.storage.database import Database
 from hypora.storage.jobs import WorkerCapacity
 
-IMAGE = "scripted-sandbox:test"
+IMAGE = tabular_image_tag()  # Exercise the same approved image identity as real execution.
 IMAGE_ID = "sha256:" + "0" * 64
 PIPELINE_MODULE = "trial_pipeline"  # the name entrypoint.py imports pipeline.py under
 PACKAGES = ("numpy", "pandas", "scikit-learn", "joblib", "pyarrow")

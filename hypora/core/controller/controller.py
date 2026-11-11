@@ -75,7 +75,7 @@ from hypora.core.policy.approvals import (
     write_scope,
 )
 from hypora.core.policy.firewall import DataFirewall
-from hypora.core.policy.injection import screen_text
+from hypora.core.policy.injection import ScreenResult, injection_policy_decision, screen_text
 from hypora.core.roles.base import USER_CANCEL, RunLimitReached
 from hypora.core.roles.intake import IntakeError, IntakeForm, _task_type, run_intake
 from hypora.core.roles.methodology import propose_data_contract
@@ -133,6 +133,9 @@ from hypora.core.schemas.events import (
     ErrorPayload,
     HandoffPayload,
     PlanPayload,
+    PolicyDecisionPayload,
+    PolicyOutcome,
+    PolicyRule,
     RoleStartedPayload,
     StageTransitionPayload,
 )
@@ -1991,15 +1994,52 @@ class _Run:
         lines = source.decode("utf-8", errors="replace").splitlines()
         shown = [line[:MAX_CODE_LINE_CHARS] for line in lines[:MAX_CODE_LINES]]
         try:
-            screened, _ = DataFirewall([load_tabular(self.dataset)]).screen_untrusted(shown)
+            screened, firewall_counts = DataFirewall([load_tabular(self.dataset)]).screen_untrusted(
+                shown
+            )
         except Exception:
+            self._event(
+                EventType.POLICY_DECISION,
+                PolicyDecisionPayload(
+                    tool="candidate_code_review",
+                    decision=PolicyOutcome.DENY,
+                    decided_by=PolicyRule.DATA_FIREWALL,
+                    reasons=["screen unavailable"],
+                ),
+                actor=ActorRole.POLICY_ENGINE,
+            )
             return unavailable("the data firewall could not screen the code")
         withheld = sum(line is None for line in screened)
+        self._event(
+            EventType.POLICY_DECISION,
+            PolicyDecisionPayload(
+                tool="candidate_code_review",
+                decision=PolicyOutcome.DENY if withheld else PolicyOutcome.ALLOW,
+                decided_by=PolicyRule.DATA_FIREWALL,
+                reasons=[f"withheld_lines={withheld}"]
+                + [f"rule={rule} count={count}" for rule, count in sorted(firewall_counts.items())],
+            ),
+            actor=ActorRole.POLICY_ENGINE,
+        )
         text = "\n".join(CODE_LINE_WITHHELD if line is None else line for line in screened)
         injected = 0
-        if self.controller.run_config.flags.defenses.injection_filter:
+        enabled = self.controller.run_config.flags.defenses.injection_filter
+        injection_result = None
+        if enabled:
             text, hits = screen_text(text)
             injected = sum(hits.values())
+            injection_result = ScreenResult(text, hits)
+        self._event(
+            EventType.POLICY_DECISION,
+            injection_policy_decision(
+                "candidate_code_review",
+                call_id=None,
+                tier=None,
+                enabled=enabled,
+                result=injection_result,
+            ),
+            actor=ActorRole.POLICY_ENGINE,
+        )
         excerpt = self.controller.adapter.redact_for_log(text)[:MAX_CODE_EXCERPT_CHARS]
         return json.dumps(
             {

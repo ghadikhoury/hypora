@@ -311,3 +311,28 @@ Completed S0–S2 IDs keep their historical meaning. D-036 replaces unimplemente
 
 Historical notes that mention former IDs describe the implementation at that time. This table maps
 them to current work; it does not assert that the old steps were implemented.
+
+### S3.3 — C data methodology and bounded experiments
+**PR:** `s3.3-data-code` · `⇉ PARALLEL · S3-core` · Depends on S3.1 · **Spec:** §§7.2, 8
+Build diagnostic tools from existing profiling functions, C's evidence-backed data-rule proposals,
+and A's reconciliation of B findings with C's contract. Preserve source data and transformation
+provenance. Support group/time splits and leakage exclusions through the existing harness. Learned
+preprocessing stays within fit. C writes trial code directly for simple tasks, using templates and
+the fixed trial interface; measured results return through A. Include baseline plus a justified
+candidate within case limits. Retry bounded technical errors; methodology/scope changes return to A.
+Done when: deterministic integration tests on the existing leakage/group/time cases show correct
+contract choices and propagation to execution; A handles ambiguous targets and conflicting evidence.
+Use existing graders unchanged. Any actual rule or grading change still triggers approval.
+
+### S3.4 — C-only workers and dependency-aware scheduling
+**PR:** `s3.4-workers` · `→ SERIAL` · Depends on S3.2, S3.3 · **Spec:** §§6.4–6.8, 9
+Build C's bounded worker proposal, permission checks, isolated sessions/directories and aggregate
+budget reservations. Initial target ceiling is two active workers, confirmed with the owner before
+setting runtime configuration. C may work without workers. Neither A, B nor workers may create
+additional workers. A invokes the fixed main roles B/C. Reuse current job scheduling and resource
+pools; add only missing ready-task concurrency, cleanup and cancellation. Separate worker count from
+experiment-job concurrency. Default research-first; A can justify independent B/C overlap and must
+reconcile later data findings. No generic workflow engine or durable replay expansion.
+Done when: tests cover permission denial, no nested spawning, concurrent reservations, cancellation,
+worker failure returning to C, independent overlap and dependent work waiting. Security implementation
+requires the existing trigger-3 approval. Use scripted models rather than a paid worker-count sweep.

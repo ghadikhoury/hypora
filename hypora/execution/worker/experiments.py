@@ -387,7 +387,15 @@ class ExperimentWorker:
         submitted = request.request
         if submitted.run_id != job.run_id or submitted.trial_id != job.trial_id:
             return "the job's request names another run or trial"
-        problem = approval_problem(self.database, job.run_id, contract, submitted.approval_ref)
+        problem = approval_problem(
+            self.database,
+            job.run_id,
+            contract,
+            submitted.approval_ref,
+            runs_root=self.runs_root,
+            dataset_path=Path(request.dataset_path),
+            sandbox_image=self.image,
+        )
         if problem is not None:
             return problem
         over = limits_problems(job.limits, contract.default_job_limits)

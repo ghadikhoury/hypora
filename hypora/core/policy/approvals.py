@@ -19,6 +19,7 @@ change (D-044, design item 1.2).
   the run would actually use), so a plan or scope edited after approval is caught.
 """
 
+import hashlib
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Final
@@ -32,12 +33,15 @@ from hypora.core.schemas import (
     ApprovalDecision,
     ApprovedPlan,
     Budget,
+    EventType,
     ExperimentContract,
     JobLimits,
     ToolName,
 )
 from hypora.core.schemas.common import FrozenModel, Identifier, NonEmptyStr, Sha256Hex
+from hypora.core.schemas.events import ApprovalRequestedEvent
 from hypora.storage.database import Database
+from hypora.storage.events import EventFilters, EventLog
 from hypora.storage.records import RecordNotFound, load_approval, load_experiment_contract
 
 SCOPE_NOTE_PREFIX: Final = "scope_sha256="
@@ -227,7 +231,14 @@ def within_bounds(scope: ApprovalScope, plan: ApprovedPlan, bounds: ApprovalBoun
 
 
 def approval_problem(
-    database: Database, run_id: str, contract: ExperimentContract, approval_ref: str
+    database: Database,
+    run_id: str,
+    contract: ExperimentContract,
+    approval_ref: str,
+    *,
+    runs_root: Path | None = None,
+    dataset_path: Path | None = None,
+    sandbox_image: str | None = None,
 ) -> str | None:
     """Why `approval_ref` does not authorize work under `contract` on `run_id`; None when it does.
 
@@ -255,7 +266,56 @@ def approval_problem(
         return "the run's latest contract cannot be loaded"
     if latest.version != contract.version or latest.hash != contract.hash:
         return f"contract v{contract.version} is not the run's latest (v{latest.version})"
+    if runs_root is not None:
+        return execution_binding_problem(
+            database, runs_root, contract, dataset_path=dataset_path, sandbox_image=sandbox_image
+        )
     return None
+
+
+def execution_binding_problem(
+    database: Database,
+    runs_root: Path,
+    contract: ExperimentContract,
+    *,
+    dataset_path: Path | None,
+    sandbox_image: str | None,
+) -> str | None:
+    """Recheck gate-created plan artifacts at submit and lease; legacy fixture records without
+    an artifact-backed approval request retain their original approval-record check."""
+    requests = EventLog(database).read(
+        contract.run_id, EventFilters(types=(EventType.APPROVAL_REQUESTED,))
+    )
+    bound = any(
+        isinstance(event, ApprovalRequestedEvent)
+        and event.payload.approval_id == contract.approval_id
+        and event.payload.artifact_ref == f"approved_plan:{contract.run_id}.v{contract.version}"
+        for event in requests
+    )
+    if not bound:
+        return None
+    folder = runs_root / contract.run_id
+    name = (
+        "approved_plan.json" if contract.version == 1 else f"approved_plan_v{contract.version}.json"
+    )
+    try:
+        scope = ApprovalScope.model_validate_json(
+            (folder / f"approval_scope_v{contract.version}.json").read_bytes()
+        )
+        live = scope.model_dump(mode="json")
+        live["data_contract_hash"] = contract.data_contract.content_hash()
+        live["budget"] = contract.budget.model_dump(mode="json")
+        live["job_limits"] = contract.default_job_limits.model_dump(mode="json")
+        if dataset_path is not None:
+            live["dataset_sha256"] = hashlib.sha256(dataset_path.read_bytes()).hexdigest()
+        if sandbox_image is not None:
+            live["sandbox_image"] = sandbox_image
+        current = ApprovalScope.model_validate(live)
+    except (OSError, ValidationError, ValueError):
+        return "the approved scope or execution dataset is missing or invalid"
+    if current.run_id != contract.run_id:
+        return "the approved scope belongs to another run"
+    return plan_file_problem(folder / name, contract, current)
 
 
 def bound_plan_problem(

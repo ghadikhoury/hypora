@@ -1,6 +1,7 @@
 """Experiment worker refusals that happen before any sandbox starts (D-018). No Docker needed:
 the launcher is never reached, so it gets a client that would fail if it were."""
 
+import hashlib
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -8,14 +9,19 @@ from types import SimpleNamespace
 import anyio
 import pytest
 
+from hypora.core.controller.contract import approve_by_policy, build_plan
+from hypora.core.policy.approvals import ApprovalScope, effective_tools, write_scope
 from hypora.core.schemas import (
+    ActorRole,
     ApprovalArtifactType,
     ApprovalDecision,
     ApprovalPolicy,
     ApprovalRecord,
+    EventType,
     JobLimits,
     Operation,
 )
+from hypora.core.schemas.events import ApprovalRequestedPayload
 from hypora.core.schemas.trials import TrialDesign
 from hypora.execution.harness.partition import LOCK_FILE, create_partition_lock
 from hypora.execution.harness.runner import HarnessFailure, TabularHarness
@@ -26,9 +32,11 @@ from hypora.mcp_server.dev import create_dev_workspace
 from hypora.mcp_server.errors import ToolFailure
 from hypora.mcp_server.session import Session, SessionConfig
 from hypora.mcp_server.tools import HyporaTools
+from hypora.storage.events import EventLog
 from hypora.storage.jobs import WorkerCapacity
 from hypora.storage.records import save_approval, save_experiment_contract
 from tests.mcp_contracts.helpers import DESIGN, LINEAR, RUN_ID, fresh_key
+from tests.unit.controller.helpers import spec
 
 
 class _NoDocker:
@@ -309,3 +317,73 @@ def test_limits_above_the_contract_are_refused_at_lease(setup):
     job_id = submitted(tools)
     rewrite_request(session, job_id, limits=JobLimits(max_wall_seconds=9999, max_memory_gb=64))
     refused_at_lease(worker, tools, job_id, "limits exceed the contract")
+
+
+@pytest.mark.parametrize("change", ["plan", "scope", "dataset", "image", "missing_plan"])
+def test_artifact_changed_after_submit_is_refused_at_lease(setup, change):
+    """A queued job cannot outlive the exact plan/scope its user approved."""
+    session, tools, worker = setup
+    original = session.contract()
+    assert original is not None
+    scope = ApprovalScope(
+        run_id=session.run_id,
+        dataset_sha256=hashlib.sha256(
+            Path(session.config.datasets["ds_main"]).read_bytes()
+        ).hexdigest(),
+        data_contract_hash=original.data_contract.content_hash(),
+        budget=original.budget,
+        job_limits=original.default_job_limits,
+        tools=effective_tools((session.role,), session.config.permitted_tools),
+        max_c_workers=0,
+        parallel_mode="off",
+        sandbox_image="unused-image",
+    )
+    plan = build_plan(
+        spec().model_copy(update={"run_id": session.run_id}),
+        original.data_contract,
+        original.budget,
+        version=2,
+        scope=scope,
+    )
+    record = approve_by_policy(plan)
+    save_approval(session.database, record)
+    contract = original.model_copy(
+        update={
+            "version": 2,
+            "approval_id": record.approval_id,
+            "approved_plan_hash": plan.content_hash(),
+        }
+    )
+    save_experiment_contract(session.database, contract)
+    folder = session.runs_root / session.run_id
+    plan_path = folder / "approved_plan_v2.json"
+    plan_path.write_text(plan.model_dump_json())
+    scope_path = write_scope(folder, 2, scope)
+    # Queue under the legacy session first, then bind the production gate record. At lease the
+    # request and approval are unchanged and only an approved artifact has become stale.
+    job_id = submitted(tools)
+    EventLog(session.database).append(
+        session.run_id,
+        EventType.APPROVAL_REQUESTED,
+        ActorRole.CONTROLLER,
+        ApprovalRequestedPayload(
+            approval_id=record.approval_id,
+            artifact_type=ApprovalArtifactType.PLAN,
+            artifact_hash=plan.content_hash(),
+            artifact_ref=f"approved_plan:{session.run_id}.v2",
+            policy=ApprovalPolicy.AUTO_WITHIN_CONTRACT,
+            summary="Bound plan",
+        ).model_dump(mode="json"),
+    )
+    if change == "plan":
+        plan_path.write_text(plan.model_copy(update={"version": 3}).model_dump_json())
+    elif change == "scope":
+        scope_path.write_text(scope.model_copy(update={"exports": True}).model_dump_json())
+    elif change == "dataset":
+        path = Path(session.config.datasets["ds_main"])
+        path.write_bytes(path.read_bytes() + b"\n")
+    elif change == "image":
+        worker.image = "changed-image"
+    else:
+        plan_path.unlink()
+    refused_at_lease(worker, tools, job_id, "approved")

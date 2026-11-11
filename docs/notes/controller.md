@@ -164,8 +164,10 @@ Since S3.5 the verdict (`verification_status`, failed and skipped checks), the m
 limitations, resource use and the approval are written by code from stored records, and rendered
 above the narrative (`docs/notes/threat-model.md`, row 7). A run that stopped before its contract
 gets `build_early_stop_report`. A user cancel during the narrative after a passed final job
-rebuilds the facts with `final_trial_id=None` (never patching `outcome`), so the stored report
-loads and equals the grader's recomputation. In multi-agent runs A writes the narrative; its
+withdraws the selected final model while retaining `completed_verification` from the completed
+final job: the run ends cancelled, but the passed or failed checks remain visible. Recomputing
+with `final_trial_id=None` discovers the same completed job, so the stored report loads and
+equals the grader's recomputation. In multi-agent runs A writes the narrative; its
 `limitations` (its own methodological concerns) are also recorded as `open_questions` on its
 handoff.
 

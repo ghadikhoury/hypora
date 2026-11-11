@@ -52,6 +52,7 @@ from hypora.core.schemas import (
 from hypora.core.schemas.events import PolicyRule
 from hypora.core.schemas.trials import TrialDesign
 from hypora.execution.protocol import experiments as protocol
+from hypora.execution.sandbox.image import tabular_image_tag
 from hypora.execution.sandbox.outputs import read_output_bytes
 from hypora.mcp_server import errors
 from hypora.mcp_server.models import (
@@ -1183,7 +1184,15 @@ class HyporaTools:
         reference that is not the contract's own approval is APPROVAL_MISMATCH; any other problem
         (missing, denied, another run or plan hash, a superseded contract) is APPROVAL_INVALID."""
         session = self.session
-        problem = approval_problem(session.database, session.run_id, contract, approval_ref)
+        problem = approval_problem(
+            session.database,
+            session.run_id,
+            contract,
+            approval_ref,
+            runs_root=session.runs_root,
+            dataset_path=session.dataset_path(session.config.experiment_dataset),
+            sandbox_image=tabular_image_tag(),
+        )
         if problem is None:
             return
         if approval_ref != contract.approval_id:
