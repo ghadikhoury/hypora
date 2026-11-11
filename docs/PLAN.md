@@ -80,7 +80,7 @@ Completed and merged (each step's full text is in `docs/archive/PLAN-completed-s
 | 0 — Foundations | S0.1 (#1), S0.2 (#2), S0.3 (#4), S0.4 (#3), S0.5 (#6) |
 | 1 — Walking skeleton | S1.1 (#7), S1.2 (#8), S1.3 (#14), S1.4 (#15), S1.5 (#16), S1.6 (#17), S1.7 (#21) |
 | 2 — Evaluation harness | S2.0 (#24), S2.0b (#25), S2.1 (#23), S2.2 (#26), S2.3 (#27), S2.4 (#28), S2.5 (#29), S2.6 (#32) |
-| 3 — A/B/C workflow | S3.1 (#35), S3.2 (#36), S3.3 (#37), S3.4 (#40) |
+| 3 — A/B/C workflow | S3.1 (#35), S3.2 (#36), S3.3 (#37), S3.4 (#40), S3.5 (#41) |
 
 The S2.6 recorded development results are agent 3/6 versus fixed baseline 2/6 on each profile,
 inconclusive. The leakage, group and time-order failures are inputs to Stage 3, not reasons to
@@ -89,7 +89,6 @@ rebuild the evaluation framework.
 Remaining, in order (`gh pr list` shows what is in review):
 
 ```text
-Stage 3: S3.5 approvals
 Stage 4: targeted hardening → one recorded readiness run → packaging
 Stage 5: freeze → required final comparisons → consolidated evidence
 Stage 6: write-up materials, demo and submission
@@ -97,30 +96,10 @@ Later: additional families, elaborate retrieval, durability, web UI and optional
 ```
 
 - Each step is one coherent PR, including its own prompts, helpers and wiring.
-- S3.5 follows merged S3.4. Every later step waits for the steps it lists under "Depends on".
+- Every step waits for the steps it lists under "Depends on".
   Draft test cases and course materials while code reviews run.
 - Agent A/B/C below always mean product roles (spec §§5–9). Product B/C overlap is A's runtime
   decision (spec §5.4); it says nothing about how many coding agents work on this repository.
-
-## Stage 3 — Deliver the A/B/C workflow
-
-**Goal:** one lead A, read-only researcher B, combined data/coding lead C. Only C requests
-workers. Spec §§5–9 and D-036 govern the product. Reuse the existing CLI, tools, harness,
-sandbox, storage and runner. Source changes do not automatically require paid runs.
-
-### S3.5 — Plan approval and result integrity
-**PR:** `s3.5-approval-review` · `→ SERIAL` · Depends on S3.4 · **Spec:** §§8.6, 10, 14
-Build artifact-bound plan/budget approval and A's evidence review. New permissions, dependencies,
-data transfers or expanded budgets require approval. Preserve per-task tool allowlists, scoped
-authenticated MCP sessions, actionable validation errors, export consent, injection defenses and
-a documented threat model with residual risks. Remote authenticated transport is required only if
-remote access is exposed; local authentication must still satisfy the selected F5 evidence. C and workers remain sandboxed. A cannot waive
-verification or suppress failed checks. Code populates all numerical report fields and mandatory
-limitations. Keep append-only records and existing accounting protections. No dedicated product
-reviewer/reporter agent. Repository PR review remains independent.
-Done when: deterministic end-to-end tests cover approve/reject/stale approval, scope changes,
-injection attempts, failed verification, honest reporting and safe stop. Review actual tool/sandbox
-changes under the existing security trigger, without removing mandatory affected tests.
 
 ## Stage 4 — Make the integrated product ready
 

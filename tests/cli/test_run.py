@@ -241,6 +241,70 @@ def test_run_command_wiring_and_exit_codes(
     assert unverified.exit_code == 1 and "no verified model" in unverified.output
 
 
+def test_advice_only_reaches_the_request_as_an_action_without_phase_b(
+    monkeypatch: pytest.MonkeyPatch, dataset: Path
+) -> None:
+    from hypora.cli.run import ADVICE_ACTIONS
+    from hypora.core.controller.controller import PHASE_B_ACTIONS
+
+    seen: list[RunOptions] = []
+
+    async def fake_execute(opts: RunOptions, *, out: Any) -> RunResult:
+        seen.append(opts)
+        return fake_result(verified=False)
+
+    monkeypatch.setattr(cli, "execute", fake_execute)
+    runner.invoke(app, ["run", "--data", str(dataset), "--goal", "g", "--advice-only"])
+    runner.invoke(app, ["run", "--data", str(dataset), "--goal", "g"])
+    assert [opts.advice_only for opts in seen] == [True, False]
+    assert ADVICE_ACTIONS and not set(ADVICE_ACTIONS) & PHASE_B_ACTIONS
+
+
+def test_the_cli_path_runs_every_main_role(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, dataset: Path, run_config: RunConfig
+) -> None:
+    """`hypora run` drives the A/B/C graph: A decides, B researches, C works (S4.1)."""
+    import hypora.cli.run as run_module
+    from tests.controller.conftest import NoWorker
+    from tests.controller.test_multi_loop import ScriptedMulti
+
+    def adapter(run_config: RunConfig, database: Database, runs_root: Path) -> LLMAdapter:
+        models = unthrottled(run_config.models)
+        return LLMAdapter(
+            models=models,
+            profile=run_config.model_profile,
+            prices=load_price_table(),
+            clients={Provider.GEMINI: ScriptedMulti("run_cli_roles")},
+            events=EventLog(database),
+            admission=ProviderAdmission(models.rate_limits),
+        )
+
+    monkeypatch.setattr(run_module, "prepare_sandbox_image", lambda client, out: "image")
+    monkeypatch.setattr(run_module, "worker_factory", lambda mode: NoWorker)
+    flags = run_config.flags.model_copy(
+        update={
+            "agent_mode": AgentMode.MULTI,
+            "approval_policy": ApprovalPolicy.AUTO_WITHIN_CONTRACT,
+        }
+    )
+    result = anyio.run(
+        lambda: execute(
+            options(tmp_path, dataset, run_id="run_cli_roles", quiet=True),
+            out=lambda line: None,
+            adapter_factory=adapter,
+            docker_client=FakeDocker,
+            run_config=run_config.model_copy(update={"flags": flags}),
+        )
+    )
+    database = Database(tmp_path / "state" / "hypora.sqlite")
+    try:
+        roles = {event.actor_role.value for event in EventLog(database).read("run_cli_roles")}
+    finally:
+        database.close()
+    assert {"agent_a", "agent_b", "agent_c"} <= roles
+    assert result.report_md.exists()
+
+
 def test_run_command_reports_preflight_errors_with_exit_code_2(
     monkeypatch: pytest.MonkeyPatch, dataset: Path
 ) -> None:

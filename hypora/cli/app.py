@@ -106,6 +106,13 @@ def run(
     db: DbOption = DEFAULT_DB,
     runs_root: RunsRootOption = DEFAULT_RUNS_ROOT,
     quiet: Annotated[bool, typer.Option("--quiet", help="Do not print progress.")] = False,
+    advice_only: Annotated[
+        bool,
+        typer.Option(
+            "--advice-only",
+            help="Ask for research and advice only: nothing is trained or run on the data.",
+        ),
+    ] = False,
 ) -> None:
     """Run the agent on a dataset and a goal, end to end, and print where the report is."""
     options = RunOptions(
@@ -124,6 +131,7 @@ def run(
         run_id=run_id,
         worker=worker,
         quiet=quiet,
+        advice_only=advice_only,
     )
     try:
         result = anyio.run(_execute, options)

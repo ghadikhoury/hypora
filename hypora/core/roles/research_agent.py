@@ -12,7 +12,13 @@ from hypora.core.llm.types import CallContext, Message, ToolSpec
 from hypora.core.roles.base import CallGuard, RunLimitReached
 from hypora.core.roles.multi import ResearchObservation
 from hypora.core.roles.prompt_loader import load_prompt
-from hypora.core.roles.single_agent import ToolChannel, _argument_error, _call_watching_limits
+from hypora.core.roles.recovery import RecoverySession
+from hypora.core.roles.single_agent import (
+    ToolChannel,
+    _argument_error,
+    call_tool,
+    revised_plan_message,
+)
 from hypora.core.schemas import ActorRole, ModelTier
 from hypora.core.schemas.strategy import Assessment, PriceEstimate, PriceStatus, StrategyPath
 
@@ -147,8 +153,10 @@ async def run_research_agent(
     run_id: str,
     context: str,
     max_turns: int,
+    recovery: RecoverySession | None = None,
 ) -> ResearchOutcome:
-    """Use session tools, report unavailable evidence and validate citations."""
+    """Use session tools, report unavailable evidence and validate citations. With `recovery`,
+    tool failures are retried, replanned, clarified or stopped (`hypora.core.roles.recovery`)."""
     prompt = load_prompt("agent_b")
     call_context = CallContext(run_id=run_id, actor_role=ActorRole.AGENT_B, prompt_ref=prompt.ref)
     messages = [Message.system(prompt.text), Message.user(context)]
@@ -175,16 +183,17 @@ async def run_research_agent(
                         )
                     )
                     continue
-                guard.before_tool_call(call.name, call.arguments)
-                try:
-                    is_error, content = await _call_watching_limits(
-                        channel, guard, call.name, call.arguments
-                    )
-                finally:
-                    guard.after_tool_call(call.name)
+                is_error, content = await call_tool(
+                    channel, guard, call.name, call.arguments, recovery, watch=True
+                )
                 if not is_error:
                     _record_sources(content, references)
                 messages.append(Message.tool_result(call, content, is_error=is_error))
+            revised = revised_plan_message(recovery)
+            if revised is not None:
+                messages.append(revised)
+            if recovery is not None and recovery.stopped:
+                break
         guard.before_model_call()
         response = await adapter.complete(
             [

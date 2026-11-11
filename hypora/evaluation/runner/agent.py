@@ -157,13 +157,26 @@ def uncarried_constraints(constraints: CaseConstraints) -> list[str]:
     return [f"Constraint {name} requires a later implementation." for name in unset]
 
 
+class FaultLedger:
+    """One run's tool-call counts and fired faults, shared by every role session's channel.
+
+    A case's `occurrence` counts the run's calls of the tool, whichever role makes them (the
+    grader counts the run's `tool_result` events the same way), so a fault fires once per run,
+    not once per session.
+    """
+
+    def __init__(self) -> None:
+        self.calls: Counter[str] = Counter()
+        self.fired: list[Fault] = []
+
+
 class FaultInjectingChannel:
-    """The agent's tool channel with the case's `tool_error` faults applied (spec §19.2).
+    """A role session's tool channel with the case's `tool_error` faults applied (spec §19.2).
 
     The chosen call never reaches the MCP server, so it has no effect. Its events are written here,
-    as the server writes them: the log shows what really happened, and the call's permission is
-    checked against the same allowlist. A call the allowlist doesn't cover passes through, so the
-    server refuses it as usual.
+    as the server writes them, under the session's role: the log shows what really happened, and
+    the call's permission is checked against that role's allowlist. A call the allowlist doesn't
+    cover passes through, so the server refuses it as usual.
     """
 
     def __init__(
@@ -175,21 +188,33 @@ class FaultInjectingChannel:
         faults: tuple[Fault, ...],
         permitted_tools: frozenset[str] | None = None,
         allowlist_enabled: bool = True,
+        role: ActorRole = AGENT_ROLE,
+        ledger: FaultLedger | None = None,
     ) -> None:
         self.inner = inner
         self.permitted_tools = permitted_tools
         self.allowlist_enabled = allowlist_enabled
         self.run_id = run_id
         self.events = events
+        self.role = role
         self.faults = tuple(fault for fault in faults if fault.kind is FaultKind.TOOL_ERROR)
-        self.calls: Counter[str] = Counter()
-        self.fired: list[Fault] = []
+        self.ledger = ledger or FaultLedger()
+
+    @property
+    def calls(self) -> Counter[str]:
+        """The run's calls per tool so far (shared across sessions)."""
+        return self.ledger.calls
+
+    @property
+    def fired(self) -> list[Fault]:
+        """The faults that have fired in this run (shared across sessions)."""
+        return self.ledger.fired
 
     async def call(self, name: str, arguments: Mapping[str, JsonValue]) -> tuple[bool, str]:
         """Run one tool call, or fail it if a fault is set for this call of this tool."""
         self.calls[name] += 1
         allowed = (
-            {tool.value for tool in allowed_tools(AGENT_ROLE)}
+            {tool.value for tool in allowed_tools(self.role)}
             if self.allowlist_enabled
             else {tool.value for tool in TOOL_TIERS}
         )
@@ -220,7 +245,7 @@ class FaultInjectingChannel:
         )
         self._append(
             EventType.TOOL_CALL,
-            AGENT_ROLE,
+            self.role,
             ToolCallPayload(call_id=call_id, tool=name, session_id=f"sess_{self.run_id}_harness"),
         )
         self._append(
@@ -232,7 +257,7 @@ class FaultInjectingChannel:
                 decision=PolicyOutcome.ALLOW,
                 decided_by=PolicyRule.ROLE_ALLOWLIST if self.allowlist_enabled else None,
                 reasons=[
-                    f"role={AGENT_ROLE.value} and case allow {name}"
+                    f"role={self.role.value} and case allow {name}"
                     if self.allowlist_enabled
                     else "defenses.allowlist is off"
                 ],
@@ -240,7 +265,7 @@ class FaultInjectingChannel:
         )
         self._append(
             EventType.TOOL_RESULT,
-            AGENT_ROLE,
+            self.role,
             ToolResultPayload(
                 call_id=call_id,
                 tool=name,
@@ -403,8 +428,9 @@ class AgentSystem:
         )
         database = Database(context.database)
         channels: list[FaultInjectingChannel] = []
+        ledger = FaultLedger()
 
-        def wrap(inner: ToolChannel) -> ToolChannel:
+        def wrap(inner: ToolChannel, role: ActorRole) -> ToolChannel:
             channel = FaultInjectingChannel(
                 inner,
                 run_id=context.run_id,
@@ -412,6 +438,8 @@ class AgentSystem:
                 faults=context.injected_faults,
                 permitted_tools=frozenset(tool.value for tool in system_input.permitted_tools),
                 allowlist_enabled=run_config.flags.defenses.allowlist,
+                role=role,
+                ledger=ledger,
             )
             channels.append(channel)
             return channel
@@ -484,6 +512,7 @@ __all__ = [
     "AgentRunEvidenceError",
     "AgentSystem",
     "FaultInjectingChannel",
+    "FaultLedger",
     "UnsupportedCase",
     "bounded_run_config",
     "check_supported",

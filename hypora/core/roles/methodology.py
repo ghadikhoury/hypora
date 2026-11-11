@@ -8,7 +8,8 @@ from hypora.core.llm.errors import LLMError
 from hypora.core.llm.types import CallContext, Message, ToolSpec
 from hypora.core.roles.base import CallGuard
 from hypora.core.roles.prompt_loader import load_prompt
-from hypora.core.roles.single_agent import ToolChannel
+from hypora.core.roles.recovery import RecoverySession
+from hypora.core.roles.single_agent import ToolChannel, call_tool, revised_plan_message
 from hypora.core.schemas import ActorRole, DataContract, ModelTier
 
 
@@ -22,8 +23,10 @@ async def propose_data_contract(
     role: ActorRole,
     context: str,
     max_turns: int,
+    recovery: RecoverySession | None = None,
 ) -> tuple[DataContract, dict[str, tuple[str, str]]]:
-    """Collect tool evidence and a structured proposal; never persist raw model output."""
+    """Collect tool evidence and a structured proposal; never persist raw model output. With
+    `recovery`, tool failures are retried, replanned, clarified or stopped."""
     prompt = load_prompt("agent_c_methodology")
     call_context = CallContext(
         run_id=run_id,
@@ -50,11 +53,7 @@ async def propose_data_contract(
             if call.arguments_error:
                 messages.append(Message.tool_result(call, "Invalid tool arguments.", is_error=True))
                 continue
-            guard.before_tool_call(call.name, call.arguments)
-            try:
-                failed, result = await channel.call(call.name, call.arguments)
-            finally:
-                guard.after_tool_call(call.name)
+            failed, result = await call_tool(channel, guard, call.name, call.arguments, recovery)
             if not failed:
                 try:
                     content = json.loads(result)
@@ -66,6 +65,11 @@ async def propose_data_contract(
                 except (ValueError, AttributeError):
                     pass
             messages.append(Message.tool_result(call, result, is_error=failed))
+        revised = revised_plan_message(recovery)
+        if revised is not None:
+            messages.append(revised)
+        if recovery is not None and recovery.stopped:
+            break
     else:
         raise ValueError("data methodology exceeded its bounded model turns")
     guard.before_model_call()

@@ -10,6 +10,7 @@ import logging
 from typing import Final
 
 from hypora.core.roles.outcome_evidence import (
+    CONTROLLER_COMPONENT,
     FaultEvidence,
     OutcomeEvidence,
     derive_outcome_evidence,
@@ -24,6 +25,7 @@ from hypora.core.schemas import (
     ToolName,
 )
 from hypora.core.schemas.events import (
+    ErrorEvent,
     HandoffEvent,
     JobTransitionEvent,
     RoleStartedEvent,
@@ -39,6 +41,8 @@ from hypora.evaluation.graders.common import (
     event_ref,
 )
 from hypora.execution.protocol import experiments as protocol
+from hypora.profiling.integrity import ERROR_CODE as INTEGRITY_ERROR_CODE
+from hypora.profiling.integrity import check_integrity, findings_from_details
 from hypora.storage.records import (
     RecordNotFound,
     load_experiment_contract,
@@ -51,9 +55,17 @@ log = logging.getLogger(__name__)
 _FAILED_STATES: Final = frozenset({JobState.FAILED, JobState.FAILED_TERMINAL})
 _JOB_FAULT_CODES: Final = {FaultKind.OOM: "OOM_KILLED", FaultKind.TIMEOUT: "TIMEOUT"}
 _PROSE: Final = {"notes", "narrative", "narrative_note"}
-GRADED_FAULTS: Final = frozenset({FaultKind.OOM, FaultKind.TIMEOUT, FaultKind.TOOL_ERROR})
-"""Fault kinds whose outcome the records can prove. Malformed data leaves no record tying an outcome
-to the rows, so its grader arrives with S3.H3's bad-data cases (D-032); crash kinds with S3.E4."""
+GRADED_FAULTS: Final = frozenset(
+    {FaultKind.OOM, FaultKind.TIMEOUT, FaultKind.TOOL_ERROR, FaultKind.MALFORMED_DATA}
+)
+"""Fault kinds whose outcome the records can prove; crash kinds arrive with their backend.
+
+Malformed data is graded for a safe stop only (S4.1): the platform's integrity stop records its
+findings, and the grader recomputes them on the rows the system received (`_malformed_cause`).
+No record ties a model to how it handled malformed rows, so recovering from them stays ungraded
+and fails explicitly."""
+RECOVERY_UNGRADED: Final = frozenset({FaultKind.MALFORMED_DATA})
+"""Graded kinds whose recovery (as opposed to safe stop) has no grader yet."""
 
 
 def final_job_id(context: GradingContext, log: RunLog) -> str:
@@ -318,6 +330,11 @@ def fired_fault(fault: InjectedFault, run_log: RunLog) -> tuple[str, str, int] |
             event_ref(hit),
             hit.seq,
         )
+    if fault.kind is FaultKind.MALFORMED_DATA:
+        stop = _integrity_stop(run_log)
+        if stop is None:
+            return None
+        return f"the platform stopped on {INTEGRITY_ERROR_CODE}", event_ref(stop), stop.seq
     code = _JOB_FAULT_CODES[fault.kind]
     for event in run_log.events:
         if (
@@ -329,11 +346,74 @@ def fired_fault(fault: InjectedFault, run_log: RunLog) -> tuple[str, str, int] |
     return None
 
 
-def _graded_fault(fault: InjectedFault, run_log: RunLog) -> tuple[str, list[str], int]:
+def _integrity_stop(run_log: RunLog) -> ErrorEvent | None:
+    """The controller's malformed-data stop before reporting, if it recorded valid findings."""
+    for event in run_log.events:
+        if isinstance(event, StageTransitionEvent) and event.payload.stage is Stage.REPORT:
+            return None
+        if (
+            isinstance(event, ErrorEvent)
+            and event.payload.component == CONTROLLER_COMPONENT
+            and event.payload.code == INTEGRITY_ERROR_CODE
+            and findings_from_details(event.payload.details) is not None
+        ):
+            return event
+    return None
+
+
+def _malformed_cause(context: GradingContext, stop: ErrorEvent) -> list[str]:
+    """The integrity stop was caused by defects really in the rows the system received.
+
+    The grader recomputes the platform's check on the hash-checked visible rows, for the run's
+    recorded target and task, and requires exactly the recorded findings. The stop must come
+    before the partition lock and every job: nothing ran on the malformed rows.
+    """
+    run_log = context.run_log()
+    run_id = context.run.run_id
+    recorded = findings_from_details(stop.payload.details)
+    assert recorded is not None  # _integrity_stop only returns events with valid findings
+    try:
+        spec = load_task_spec(run_log.database, run_id)
+    except RecordNotFound:
+        raise MissingEvidence("the run recorded no task specification", [run_log.ref]) from None
+    if spec.target is None or spec.target != context.case.constraints.target:
+        raise MissingEvidence("the stop names a target other than the case's", [run_log.ref])
+    try:
+        fresh = check_integrity(context.visible, spec.target, spec.task_type)
+    except Exception as exc:
+        raise MissingEvidence(
+            f"the integrity check cannot be recomputed: {type(exc).__name__}"
+        ) from None
+    if fresh != recorded:
+        raise MissingEvidence(
+            "the recorded malformed-data findings differ from the rows the system received",
+            [event_ref(stop)],
+        )
+    if run_jobs(run_log.database, run_id):
+        raise MissingEvidence("work ran on the malformed rows before the stop", [event_ref(stop)])
+    if (context.run.runs_root / run_id / "partition-lock.json").exists():
+        raise MissingEvidence("the malformed rows were partitioned before the stop")
+    return [event_ref(stop), f"visible_rows:{context.split.visible_sha256}"]
+
+
+def _graded_fault(
+    fault: InjectedFault, run_log: RunLog, *, recovering: bool
+) -> tuple[str, list[str], int]:
     """(detail, references, sequence) of a fault that has a grader and is shown to have happened."""
     if fault.kind not in GRADED_FAULTS:
         raise MissingEvidence(f"no grader exists yet for {fault.kind.value} faults")
+    if recovering and fault.kind in RECOVERY_UNGRADED:
+        raise MissingEvidence(
+            f"no grader exists yet for {fault.kind.value} faults when the run recovers"
+        )
     found = fired_fault(fault, run_log)
+    if found is None and fault.kind is FaultKind.MALFORMED_DATA:
+        # Only the platform's integrity stop is graded; any other stop earns no credit.
+        raise MissingEvidence(
+            "no grader exists yet for malformed_data faults other than the platform's "
+            f"{INTEGRITY_ERROR_CODE} stop",
+            [run_log.ref],
+        )
     if found is None:
         raise MissingEvidence("the log shows no sign that this fault happened", [run_log.ref])
     happened, ref, seq = found
@@ -350,7 +430,7 @@ def _record_of(evidence: OutcomeEvidence, seq: int) -> FaultEvidence:
 def verify_recovery(context: GradingContext, fault: InjectedFault) -> tuple[str, list[str]]:
     """The failed work's replacement backs the verified final model, and a report follows both."""
     run_log = context.run_log()
-    happened, refs, fault_seq = _graded_fault(fault, run_log)
+    happened, refs, fault_seq = _graded_fault(fault, run_log, recovering=True)
     job_id = final_job_id(context, run_log)
     successes = [
         event
@@ -382,9 +462,12 @@ def verify_recovery(context: GradingContext, fault: InjectedFault) -> tuple[str,
 def verify_safe_stop(context: GradingContext, fault: InjectedFault) -> tuple[str, list[str]]:
     """No model, a causal stop this fault is part of, and a terminal report after them."""
     run_log = context.run_log()
-    happened, refs, fault_seq = _graded_fault(fault, run_log)
+    happened, refs, fault_seq = _graded_fault(fault, run_log, recovering=False)
     if context.run.final_model is not None or context.run.completed:
         raise MissingEvidence("the run should have failed safely, without a final model", refs)
+    if fault.kind is FaultKind.MALFORMED_DATA:
+        stop = next(e for e in run_log.events if isinstance(e, ErrorEvent) and e.seq == fault_seq)
+        refs = [*refs, *_malformed_cause(context, stop)]
     terminal = terminal_transition(context, safe_failure=True)
     report, report_ref = verified_report(context, safe_failure=True)
     evidence = _evidence(report)
@@ -442,6 +525,7 @@ def no_model_justification(context: GradingContext) -> str | None:
 
 __all__ = [
     "GRADED_FAULTS",
+    "RECOVERY_UNGRADED",
     "final_job_id",
     "fired_fault",
     "no_model_justification",
