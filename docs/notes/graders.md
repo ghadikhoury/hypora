@@ -95,15 +95,16 @@ final model, and the terminal state (`graders/outcomes.py`). Notes and narrative
   failed attempt of a job that later completed, can't be named as the reason the run stopped. A limit
   or cancel event, a non-`complete` agent handoff, a cancelled job, or a trial written but never tried
   leaves the cause unresolved.
-- **Malformed data** has no grader yet (D-032). A malformed row usually loads fine, so no record ties a
-  run's outcome to it, and a job's `CONTRACT_DATA_ERROR` can't: the worker assigns it to any `ValueError`,
-  `KeyError`, or `TypeError` in the harness. These cases fail explicitly until S4.1 implements its bad-data
-  cases with the evidence they need.
+- **Malformed data** (S4.1): a job's `CONTRACT_DATA_ERROR` still proves nothing (the worker assigns
+  it to any `ValueError`, `KeyError`, or `TypeError` in the harness). Only the platform's
+  `DATA_MALFORMED` integrity stop earns safe-stop credit, after the grader recomputes its findings
+  on the visible rows (`docs/notes/hardening.md`). Every other stop, and any recovery, still fails
+  with "no grader exists yet for malformed_data faults".
 - **Expected safe failure** keeps the plan's TRAIN or REUSE. `hidden_metric` may be null in such a case
   (`Case` validates this). Model-dependent checks become not applicable only after the proof holds;
   without the proof they fail. A runtime failure is never relabeled INFEASIBLE.
 
-Attack, fine-tuning, optimization, malformed-data, and crash fault graders are not implemented in this step:
+Attack, fine-tuning, optimization, and crash fault graders, and recovery from malformed data, are not implemented:
 cases requiring them fail explicitly instead of receiving unearned credit.
 
 ## Validation

@@ -336,3 +336,17 @@ reconcile later data findings. No generic workflow engine or durable replay expa
 Done when: tests cover permission denial, no nested spawning, concurrent reservations, cancellation,
 worker failure returning to C, independent overlap and dependent work waiting. Security implementation
 requires the existing trigger-3 approval. Use scripted models rather than a paid worker-count sweep.
+
+### S3.5 — Plan approval and result integrity
+**PR:** `s3.5-approval-review` · `→ SERIAL` · Depends on S3.4 · **Spec:** §§8.6, 10, 14
+Build artifact-bound plan/budget approval and A's evidence review. New permissions, dependencies,
+data transfers or expanded budgets require approval. Preserve per-task tool allowlists, scoped
+authenticated MCP sessions, actionable validation errors, export consent, injection defenses and
+a documented threat model with residual risks. Remote authenticated transport is required only if
+remote access is exposed; local authentication must still satisfy the selected F5 evidence. C and workers remain sandboxed. A cannot waive
+verification or suppress failed checks. Code populates all numerical report fields and mandatory
+limitations. Keep append-only records and existing accounting protections. No dedicated product
+reviewer/reporter agent. Repository PR review remains independent.
+Done when: deterministic end-to-end tests cover approve/reject/stale approval, scope changes,
+injection attempts, failed verification, honest reporting and safe stop. Review actual tool/sandbox
+changes under the existing security trigger, without removing mandatory affected tests.
