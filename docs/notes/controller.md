@@ -81,7 +81,11 @@ scope recomputed from live values, plus `approval_problem`) at the start of Phas
 worker session, and before the final job is queued. A failed re-check is an `error` event
 `APPROVAL_STALE` and a `fail` into `REPORT` with no further job queued; the Phase B cleanup
 cancels unfinished jobs and stops the worker. The MCP server (`submit_experiment`) and the
-experiment worker at lease run the same `approval_problem` check.
+experiment worker at lease run the same `approval_problem` check. For an artifact-backed gate
+request they re-read the bound plan and scope, and check the actual dataset, image and execution
+limits before accepting work. A lower execution budget or job limit remains within the approved
+ceiling; an expansion is refused. Legacy/dev records without an artifact-backed gate request
+retain their existing approval-record validation.
 
 ## Limits (spec §6.8)
 

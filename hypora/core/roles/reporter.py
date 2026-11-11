@@ -210,8 +210,9 @@ def _verification_status(final: "FinalModel | None") -> VerificationStatus:
 class Report(StrictModel):
     """The run report's facts. Numbers only from stored records; text from the controller.
 
-    `outcome`, `verification_status`, `failed_checks` and `skipped_checks` follow the stored
-    verification of the final job and nothing else; the validator rejects any other combination.
+    `outcome` follows the selected final model. `verification_status`, `failed_checks` and
+    `skipped_checks` retain stored completed verification even when cancellation withdraws that
+    selection; the validator rejects any contradictory combination.
     """
 
     run_id: str

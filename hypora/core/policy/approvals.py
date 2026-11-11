@@ -244,7 +244,10 @@ def approval_problem(
 
     It requires: the approval record exists, belongs to the same run, is `approved`, names the
     contract's plan hash, is the contract's own approval, and the contract is the run's latest
-    version (an approval of plan v1 never authorizes work after a v2 contract exists).
+    version (an approval of plan v1 never authorizes work after a v2 contract exists). With
+    execution context it also re-reads the gate-created plan and scope artifacts and checks the
+    actual dataset, image and execution ceilings. Legacy/dev fixtures without an artifact-backed
+    gate request retain their approval-record check.
     """
     if contract.run_id != run_id:
         return f"contract v{contract.version} belongs to another run"
