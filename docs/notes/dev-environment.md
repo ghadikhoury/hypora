@@ -48,3 +48,4 @@ make check-fast     # lint, types, and the in-process tests (about 7 min on WSL)
   `--repo ghadikhoury/hypora`, or from WSL after installing `gh` there and running `gh auth login`.
 - **Windows editors** can open the WSL copy at `\\wsl.localhost\Ubuntu-24.04\home\ghadi\hypora`, or
   through VS Code's WSL extension (`code ~/hypora` inside WSL).
+Temporary line to exercise the docs-only CI route. Not for merge.
