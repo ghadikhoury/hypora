@@ -535,9 +535,8 @@ class LLMAdapter:
             if context.admit_token_attempt is not None:
                 # Text-only workers use a conservative byte envelope, not the admission
                 # heuristic. Include full schemas/tool framing and provider wrapper reserve.
-                wire = json.dumps(_request_payload(request), ensure_ascii=True).encode("utf-8")
                 ceiling = context.admit_token_attempt(
-                    len(wire) + 4096, request.max_output_tokens or 2048
+                    _worker_input_bound(request), request.max_output_tokens or 2048
                 )
                 request = replace(request, max_output_tokens=ceiling)
             try:
@@ -784,6 +783,19 @@ def _validate(
     except ValidationError as exc:
         errors = exc.errors(include_url=False, include_input=False, include_context=False)
         return None, json.dumps(errors, default=str)[:_MAX_VALIDATION_FEEDBACK]
+
+
+def _worker_input_bound(request: ProviderRequest) -> int:
+    """Bound private text request size including opaque provider-native replay.
+
+    This is deliberately separate from the storage payload, which omits replay. JSON's
+    ASCII representation covers unicode/escaping. Reserve extra framing for the supported
+    text-only SDK encoders; unsupported non-JSON native inputs fail before dispatch.
+    """
+    private = _request_payload(request)
+    private["messages"] = [message.model_dump(mode="json") for message in request.messages]
+    wire = json.dumps(private, ensure_ascii=True).encode("utf-8")
+    return 4 * len(wire) + 4096
 
 
 def _request_payload(request: ProviderRequest) -> dict[str, JsonValue]:

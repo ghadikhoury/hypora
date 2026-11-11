@@ -51,7 +51,14 @@ class ScriptedWorkers(ScriptedMulti):
             )
         if request.output_schema_name == "WorkerReport":
             self.requests.append(request)
-            return json_result({"summary": "No experiment was needed", "confidence": 0.0})
+            return json_result(
+                {
+                    "summary": "Candidate fails on unseen groups",
+                    "confidence": 0.7,
+                    "claims": [{"statement": "Further feature analysis is needed"}],
+                    "open_questions": ["Need revised features"],
+                }
+            )
         if "You are a bounded trial worker" in request.messages[0].content:
             self.requests.append(request)
             brief = json.JSONDecoder().raw_decode(request.messages[1].content[7:])[0]
@@ -117,6 +124,9 @@ async def test_two_isolated_workers_cannot_spawn_and_return_before_c(
     assert all(e.payload.handoff.to.value == "agent_c" for e in handoffs)
     assert all(e.payload.handoff.status.value == "complete" for e in handoffs)
     assert "Worker findings (platform facts)" in script.c_context
+    assert "Candidate fails on unseen groups" in script.c_context
+    assert "Need revised features" in script.c_context
+    assert "Further feature analysis is needed" in script.c_context
     folder = result.report_json.parent / "workers"
     sessions = [json.loads(path.read_text()) for path in folder.glob("*/session.json")]
     assert len({item["session_id"] for item in sessions}) == 2

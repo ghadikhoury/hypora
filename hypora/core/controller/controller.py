@@ -85,7 +85,7 @@ from hypora.core.roles.single_agent import (
     ToolChannel,
     run_single_agent,
 )
-from hypora.core.roles.worker import WorkerProposal
+from hypora.core.roles.worker import WorkerProposal, WorkerReport
 from hypora.core.scheduler.ready import ReadyTask, run_ready
 from hypora.core.schemas import (
     AUTO_APPROVER,
@@ -1216,6 +1216,7 @@ class _Run:
         status = HandoffStatus.FAILED
         code = "WORKER_FAILED"
         outcome: AgentOutcome | None = None
+        report: WorkerReport | None = None
         try:
             session = write_session(
                 folder / "session.json",
@@ -1318,9 +1319,22 @@ class _Run:
             if any(t.trial_id == j.trial_id for t in own)
         ]
         completed = [j for j in jobs if j.status is JobState.COMPLETED]
-        failed = [j for j in jobs if j.status in (JobState.FAILED, JobState.CANCELLED)]
+        failed = [
+            j
+            for j in jobs
+            if j.status in (JobState.FAILED, JobState.FAILED_TERMINAL, JobState.CANCELLED)
+        ]
         if failed and status is not HandoffStatus.CANCELLED:
             status, code = HandoffStatus.FAILED, "WORKER_FAILED"
+        if report is not None:
+            allowed_refs = set(brief.context_refs)
+            allowed_refs.update(f"trial:{trial.trial_id}" for trial in own)
+            allowed_refs.update(f"job:{job.job_id}" for job in jobs)
+            allowed_refs.update(f"result:{job.trial_id}/validation" for job in completed)
+            if any(not set(claim.evidence_refs) <= allowed_refs for claim in report.claims):
+                report = None
+                if status is not HandoffStatus.CANCELLED:
+                    status, code = HandoffStatus.FAILED, "WORKER_FAILED"
         finding = TrialFinding(
             brief_id=brief.brief_id,
             run_id=self.run_id,
@@ -1341,10 +1355,16 @@ class _Run:
             error_codes=[code] if code else [],
             result_refs=[f"result:{j.trial_id}/validation" for j in completed],
             evidence_refs=[f"job:{j.job_id}" for j in jobs],
-            confidence=0.0,
-            summary="Worker completed bounded work."
-            if not code
-            else "Worker returned an unresolved failure.",
+            confidence=report.confidence if report is not None else 0.0,
+            claims=report.claims if report is not None else [],
+            open_questions=report.open_questions if report is not None else [],
+            summary=report.summary
+            if report is not None
+            else (
+                "Worker completed bounded work."
+                if not code
+                else "Worker returned an unresolved failure."
+            ),
         )
         (folder / "finding.json").write_text(finding.model_dump_json(indent=2), encoding="utf-8")
         self._handoff(
