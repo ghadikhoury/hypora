@@ -210,7 +210,7 @@ async def test_a_stored_verdict_cannot_publish_an_uncompleted_final_job(
     save_dataset_profile(database, profile)
     from hypora.core.controller.contract import build_data_contract
 
-    run._contract(task, build_data_contract(task, list(frame.columns)))
+    await run._contract(task, build_data_contract(task, list(frame.columns)))
     trial = TrialFile.model_validate(
         {
             "trial_id": "trl_stale",

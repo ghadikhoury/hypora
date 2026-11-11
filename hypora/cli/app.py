@@ -5,7 +5,7 @@
     hypora status [RUN_ID]
     hypora trace RUN_ID [--filter type=model_call,tool_call] [--filter role=single_agent]
     hypora cancel RUN_ID
-    hypora approve RUN_ID        # placeholder until the interactive plan gate (S3.D2)
+    hypora approve RUN_ID [--deny --reason TEXT] [--hash PREFIX] [--yes]
     hypora eval --cases dev --config default --systems agent,baseline --profile dev
 
 The CLI is one client of the runtime (spec principle 11): it builds a `RunRequest` and hands it
@@ -25,11 +25,13 @@ from typing import Annotated, Final
 import anyio
 import typer
 
+from hypora.cli.approve import ApprovalRefused, approval_lines, check_hash_prefix, record_decision
 from hypora.cli.eval import eval_command
 from hypora.cli.run import PreflightError, RunOptions, execute, result_lines
 from hypora.cli.status import TERMINAL, run_status_lines, runs_table_lines
 from hypora.cli.trace import parse_filters, render_rows, summary, trace_rows
 from hypora.cli.workers import WorkerMode
+from hypora.core.controller.approval_gate import pending_approval
 from hypora.core.controller.controller import RunResult
 from hypora.core.controller.limits import CANCEL_FILE
 from hypora.core.schemas import ApprovalPolicy, MetricName, TaskType
@@ -89,7 +91,12 @@ def run(
     ] = None,
     approve: Annotated[
         ApprovalPolicy | None,
-        typer.Option("--approve", help="Plan approval; Stage 1 supports auto_within_contract."),
+        typer.Option(
+            "--approve",
+            help="Plan approval policy (default: flags.approval_policy). interactive waits for "
+            "your decision (inline in a terminal, else `hypora approve`); unattended runs use "
+            "auto_within_contract.",
+        ),
     ] = None,
     run_id: Annotated[str | None, typer.Option("--run-id", help="Run ID (default: new).")] = None,
     worker: Annotated[
@@ -207,15 +214,63 @@ def trace(
 
 
 @app.command()
-def approve(run_id: Annotated[str, typer.Argument(help="The run whose plan to approve.")]) -> None:
-    """Placeholder: interactive plan approval arrives with the plan gate (S3.D2)."""
+def approve(
+    run_id: Annotated[str, typer.Argument(help="The run whose pending plan to decide.")],
+    deny: Annotated[bool, typer.Option("--deny", help="Deny the plan (needs --reason).")] = False,
+    reason: Annotated[
+        str | None, typer.Option("--reason", help="Why; required with --deny.")
+    ] = None,
+    hash_prefix: Annotated[
+        str | None,
+        typer.Option("--hash", help="The plan hash (or its prefix) you reviewed; must match."),
+    ] = None,
+    yes: Annotated[bool, typer.Option("--yes", help="Do not ask for confirmation.")] = False,
+    db: DbOption = DEFAULT_DB,
+    runs_root: RunsRootOption = DEFAULT_RUNS_ROOT,
+) -> None:
+    """Approve or deny a run's pending plan and budget (spec §10.2): the exact hash shown."""
+    if deny and not (reason or "").strip():
+        raise _fail("--deny needs --reason TEXT", 2)
+    database = _open_existing(db)
+    try:
+        run_status = load_run(database, run_id).status
+        pending = pending_approval(database, run_id)
+    except RecordNotFound:
+        raise _fail(f"no run {run_id} in {db}", 1) from None
+    finally:
+        database.close()
+    if run_status in TERMINAL:
+        raise _fail(f"run {run_id} already ended {run_status.value}; nothing to approve", 1)
+    if pending is None:
+        raise _fail(f"run {run_id} has no plan approval pending", 1)
+    if pending.policy is not ApprovalPolicy.INTERACTIVE:
+        raise _fail(
+            f"run {run_id}'s plan is decided by the {pending.policy.value} policy, not by a person",
+            1,
+        )
+    root = runs_root.resolve()
+    if not (root / run_id).is_dir():  # the controller watches this folder only
+        raise _fail(
+            f"no run folder {root / run_id}; pass the --runs-root the run was started with", 1
+        )
+    try:
+        check_hash_prefix(pending, hash_prefix)
+    except ApprovalRefused as exc:
+        raise _fail(str(exc), 1) from None
+    for line in approval_lines(root, pending):
+        typer.echo(line)
+    verb = "Deny" if deny else "Approve"
+    if not yes and not typer.confirm(f"{verb} plan {pending.artifact_hash[:12]}?"):
+        raise _fail("nothing recorded", 1)
+    try:
+        path = record_decision(root, pending, approve=not deny, reason=reason)
+    except ApprovalRefused as exc:
+        raise _fail(str(exc), 1) from None
     typer.echo(
-        f"Interactive approval is not available yet (S3.D2). Stage 1 runs approve their plan by "
-        f"policy (D-019); see `hypora trace {run_id} --filter "
-        "type=approval_requested,approval_granted`.",
-        err=True,
+        f"{'Denied' if deny else 'Approved'} {pending.approval_id} "
+        f"(hash {pending.artifact_hash[:12]}); decision written to {path}. The run picks it up "
+        f"at its next check. Follow it with `hypora status {run_id}`."
     )
-    raise typer.Exit(1)
 
 
 @app.command()

@@ -30,10 +30,10 @@ from sqlalchemy.engine import Connection
 
 from hypora.core.config.flags import RetrievalMode
 from hypora.core.hashing import canonical_hash
+from hypora.core.policy.approvals import approval_problem
 from hypora.core.policy.firewall import DataFirewall
 from hypora.core.schemas import (
     TRIAL_DIR_TEMPLATE,
-    ApprovalDecision,
     DatasetProfile,
     ExperimentContract,
     Family,
@@ -52,6 +52,7 @@ from hypora.core.schemas import (
 from hypora.core.schemas.events import PolicyRule
 from hypora.core.schemas.trials import TrialDesign
 from hypora.execution.protocol import experiments as protocol
+from hypora.execution.sandbox.image import tabular_image_tag
 from hypora.execution.sandbox.outputs import read_output_bytes
 from hypora.mcp_server import errors
 from hypora.mcp_server.models import (
@@ -89,7 +90,6 @@ from hypora.storage.jobs import TERMINAL_STATES, JobNotFound, JobRecord, new_job
 from hypora.storage.records import (
     RecordNotFound,
     StoredTrial,
-    load_approval,
     load_experiment_contract,
     load_task_spec,
     load_trial,
@@ -1180,30 +1180,35 @@ class HyporaTools:
         )
 
     def _check_approval(self, contract: ExperimentContract, approval_ref: str) -> None:
-        recovery = "Omit approval_ref; experiments run under the contract's own approval."
+        """The shared approval check (`approvals.approval_problem`, S3.5), as MCP errors: a
+        reference that is not the contract's own approval is APPROVAL_MISMATCH; any other problem
+        (missing, denied, another run or plan hash, a superseded contract) is APPROVAL_INVALID."""
+        session = self.session
+        problem = approval_problem(
+            session.database,
+            session.run_id,
+            contract,
+            approval_ref,
+            runs_root=session.runs_root,
+            dataset_path=session.dataset_path(session.config.experiment_dataset),
+            sandbox_image=tabular_image_tag(),
+        )
+        if problem is None:
+            return
         if approval_ref != contract.approval_id:
             raise errors.policy(
                 "APPROVAL_MISMATCH",
                 f"{approval_ref!r} is not the approval of contract v{contract.version}.",
-                recovery,
+                "Omit approval_ref; experiments run under the contract's own approval.",
                 decided_by=PolicyRule.APPROVAL_STATE,
             )
-        try:
-            approval = load_approval(self.session.database, approval_ref)
-        except RecordNotFound:
-            approval = None
-        if (
-            approval is None
-            or approval.run_id != self.session.run_id
-            or approval.decision is not ApprovalDecision.APPROVED
-            or approval.artifact_hash != contract.approved_plan_hash
-        ):
-            raise errors.policy(
-                "APPROVAL_INVALID",
-                "The contract's plan has no valid approval on record.",
-                "Wait for the user to approve the plan.",
-                decided_by=PolicyRule.APPROVAL_STATE,
-            )
+        raise errors.policy(
+            "APPROVAL_INVALID",
+            f"The contract's plan has no valid approval on record: {problem}.",
+            "Wait for the user to approve the current plan; a larger scope needs a new run and "
+            "a new approval.",
+            decided_by=PolicyRule.APPROVAL_STATE,
+        )
 
     @staticmethod
     def _check_limits(limits: JobLimits, ceiling: JobLimits) -> None:

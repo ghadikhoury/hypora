@@ -11,7 +11,7 @@ from hypora.core.controller.contract import (
     build_experiment_contract,
     build_plan,
 )
-from hypora.core.controller.controller import stage1_flag_notes
+from hypora.core.policy.approvals import plan_scope_hash, scope_hash
 from hypora.core.schemas import (
     AUTO_APPROVER,
     ApprovalPolicy,
@@ -80,14 +80,13 @@ def test_the_policy_approves_the_exact_plan_hash() -> None:
     assert contract.budget == budget and contract.default_job_limits == LIMITS
 
 
-def test_flags_that_stage_1_cannot_honour_are_called_out() -> None:
-    defaults = stage1_flag_notes(FeatureFlags())  # agent_mode multi, approval interactive
-    assert len(defaults) == 1
-    assert "S3.5" in defaults[0]
-    stage1 = FeatureFlags.model_validate(
-        {"agent_mode": "single", "approval_policy": "auto_within_contract"}
-    )
-    assert stage1_flag_notes(stage1) == []
+def test_the_interactive_policy_is_honoured_not_called_out() -> None:
+    # S3.5: the plan gate honours flags.approval_policy, so the Stage-1 note that said the
+    # interactive gate was missing is gone (tests/controller/test_approval_gate.py runs it).
+    from hypora.core.controller import controller
+
+    assert FeatureFlags().approval_policy is ApprovalPolicy.INTERACTIVE
+    assert not hasattr(controller, "stage1_flag_notes")
 
 
 def test_explicit_secondary_metrics_are_unioned_with_defaults_and_quality_target() -> None:
@@ -113,3 +112,35 @@ def test_every_supported_metric_reaches_the_agent_report(task_type: TaskType) ->
     from hypora.evaluation.case import metrics_for
 
     assert set(METRIC_SETS[task_type]) == metrics_for(task_type)
+
+
+def test_a_plan_built_with_a_scope_is_bound_to_it() -> None:
+    from tests.policy.test_approvals import make_scope
+
+    task = spec()
+    data = build_data_contract(task, ["a", "b", "y"])
+    scope = make_scope()
+    plan = build_plan(
+        task, data, Budget(), version=2, policy=ApprovalPolicy.INTERACTIVE, scope=scope
+    )
+    assert plan_scope_hash(plan) == scope_hash(scope)
+    assert (plan.version, plan.approval_policy) == (2, ApprovalPolicy.INTERACTIVE)
+    assert plan.content_hash() != build_plan(task, data, Budget(), version=2).content_hash()
+    assert plan_scope_hash(build_plan(task, data, Budget())) is None  # no scope, no binding
+
+
+def test_policy_approval_with_bounds_refuses_a_plan_outside_them() -> None:
+    from tests.policy.test_approvals import BUDGET, make_bounds, make_scope
+
+    task = spec()
+    data = build_data_contract(task, ["a", "b", "y"])
+    scope = make_scope(requested_dependencies=("torch",))
+    plan = build_plan(task, data, BUDGET, scope=scope)
+    with pytest.raises(ContractError, match="new dependencies requested: torch"):
+        approve_by_policy(plan, scope=scope, bounds=make_bounds())
+    with pytest.raises(ContractError, match="needs the plan's approval scope"):
+        approve_by_policy(plan, bounds=make_bounds())
+    inside = make_scope()
+    plan = build_plan(task, data, BUDGET, scope=inside)
+    approval = approve_by_policy(plan, scope=inside, bounds=make_bounds())
+    assert approval.artifact_hash == plan.content_hash()

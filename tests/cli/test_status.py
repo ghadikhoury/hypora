@@ -144,7 +144,13 @@ def test_cancel_refuses_what_it_cannot_cancel(
     assert unknown.exit_code == 1 and "no run run_nope" in unknown.output
 
 
-def test_approve_is_a_placeholder_until_the_plan_gate() -> None:
-    result = runner.invoke(app, ["approve", RUN_ID])
-    assert result.exit_code == 1
-    assert "S3.D2" in result.output and "type=approval_requested,approval_granted" in result.output
+def test_approve_refuses_a_run_that_already_ended(
+    database: Database, runs_root: Path, tmp_path: Path
+) -> None:
+    Seeder(database).set_status(RunStatus.DONE)
+    (runs_root / RUN_ID).mkdir()
+    db = str(tmp_path / "hypora.sqlite")
+    args = ["--db", db, "--runs-root", str(runs_root), "--yes"]
+    result = runner.invoke(app, ["approve", RUN_ID, *args])
+    assert result.exit_code == 1 and "already ended DONE" in result.output
+    assert not (runs_root / RUN_ID / "approvals").exists()

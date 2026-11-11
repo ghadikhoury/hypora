@@ -48,8 +48,10 @@ class ScriptedRun:
         job_limits: dict[str, Any] | None = None,
         on_intake: Callable[[], None] | None = None,
         on_tool_result: Callable[[str, dict[str, Any]], None] | None = None,
+        pipeline_py: str | None = None,
     ) -> None:
         self.run_id = run_id
+        self.pipeline_py = LINEAR if pipeline_py is None else pipeline_py
         self.compare = compare
         self.compared = False
         self.poll_seconds = poll_seconds
@@ -142,7 +144,7 @@ class ScriptedRun:
                 "write_trial_files",
                 idempotency_key=f"{self.run_id}:write_1",
                 design=DESIGN,
-                pipeline_py=LINEAR,
+                pipeline_py=self.pipeline_py,
             )
         if last.tool_name == "write_trial_files":
             self.trial_id = result["trial_id"]
@@ -170,6 +172,6 @@ class ScriptedRun:
                     "kind": "candidate",
                     "hypothesis": "Confirm the regularized model against the measured reference",
                 },
-                pipeline_py=LINEAR,
+                pipeline_py=self.pipeline_py,
             )
         return text_result(f"Trial {self.trial_id} is the selected trial.")

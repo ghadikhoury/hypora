@@ -19,7 +19,7 @@ from hypora.core.config.resources import DetectedResources, GpuDetection
 from hypora.core.config.run_config import RunConfig
 from hypora.core.controller.controller import RunController
 from hypora.core.llm import LLMAdapter, ProviderAdmission, ProviderClient, load_price_table
-from hypora.core.schemas import Provider
+from hypora.core.schemas import ApprovalPolicy, Provider
 from hypora.storage.database import Database
 from hypora.storage.events import EventLog
 from hypora.storage.migrate import migrate
@@ -57,7 +57,16 @@ def database(tmp_path: Path) -> Iterator[Database]:
 
 @pytest.fixture
 def run_config() -> RunConfig:
-    return RunConfig.build(load_settings(), hardware=HARDWARE)
+    """The configured defaults, with the plan gate on the bounded policy (the default is
+    `interactive`, which waits for a person; `tests/controller/test_approval_gate.py` covers it)."""
+    config = RunConfig.build(load_settings(), hardware=HARDWARE)
+    return config.model_copy(
+        update={
+            "flags": config.flags.model_copy(
+                update={"approval_policy": ApprovalPolicy.AUTO_WITHIN_CONTRACT}
+            )
+        }
+    )
 
 
 @pytest.fixture

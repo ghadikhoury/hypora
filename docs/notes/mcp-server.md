@@ -40,6 +40,7 @@ tools/call ─► tool_call event (arguments redacted: long strings -> size + SH
           ─► unknown argument names ───── refuse ─► UNKNOWN_ARGUMENTS
           ─► the tool (input validated by its schema; ToolFailure for anything the agent can act on)
           ─► any failure -> ToolError (spec §12 error contract; a crash's own text never leaves)
+          ─► injection screen (successful results of the four untrusted-text tools; S3.5)
           ─► data firewall over the whole result ─ block ─► FIREWALL_BLOCKED (policy_decision
                                                              with the rule; WARNING log)
           ─► tool_result event (status ok / error / denied, summary, latency)
@@ -137,9 +138,38 @@ dropped. `tools/list` shows only `ROLE_ALLOWLISTS[role]` (`hypora/core/policy/al
 without an entry gets no tools. Other runs are out of reach: their trials and jobs answer
 `TRIAL_NOT_FOUND` / `EXPERIMENT_NOT_FOUND`, exactly like IDs that do not exist.
 
-`defenses.allowlist` and `defenses.firewall` (`configs/flags.yaml`, spec §19.4) switch the two
-defenses for the F6 ablations; the launcher copies them into the session. Off is never silent:
-each call records `policy_decision` "defenses.X is off".
+`defenses.allowlist`, `defenses.firewall` and `defenses.injection_filter` (`configs/flags.yaml`,
+spec §19.4) switch the server's defenses for the F6 ablations; the launcher copies them, and
+`defenses.approval` (enforced by the controller's plan gate), into the session. Off is never
+silent: each affected call records `policy_decision` "defenses.X is off".
+
+**Local authentication (S3.5, D-044).** The launcher (`write_session` in
+`hypora/core/controller/local.py`) creates a random 32-byte secret per session, writes the session
+file with mode 0600 holding only the secret's SHA-256 (`SessionConfig.secret_sha256`), and passes
+the secret to the server child in its environment only (`HYPORA_MCP_SESSION_SECRET`, merged over
+the MCP SDK's safe default environment). `python -m hypora.mcp_server` removes the variable from
+its environment, compares hashes in constant time, and without the right secret logs the session
+ID and the reason (never the secret), writes no protocol byte and exits with status 2. In-process
+servers (tests, the fixed baseline's own reads) are built by the trusted launcher itself and need
+no secret. This proves only that the server was started by the process that wrote the session
+file; no remote transport is exposed, so none is built (spec §12). Same-user residuals are in
+`docs/notes/threat-model.md`. Tests: `tests/mcp_contracts/test_session_auth.py`.
+
+## Injection screen (S3.5 design §2.5; `hypora/core/policy/injection.py`)
+
+Successful results of `get_model_evidence`, `retrieve_methodology`, `get_experiment_logs` and
+`get_experiment_status` carry text written outside the platform (model cards, web passages,
+sandbox logs). At the boundary, before the data firewall, every string in them is screened line by
+line for instruction-like text (overrides such as "ignore previous instructions", chat role
+markers, "call <tool name>", approval claims). A hit is replaced by a fixed marker and the call
+records a `policy_decision` decided by `injection_filter` with counts per category only (never the
+text); a clean result records "passed". Dict keys, numbers and the platform's own guidance field
+`next_step` are not screened, and error results (written by the platform) are not either. A result
+the screen cannot walk is withheld (`INJECTION_SCREEN_FAILED`). With `defenses.injection_filter`
+off results pass unchanged and every screened call records that the filter was off. Output schemas
+and tool descriptions are unchanged (`docs/mcp/tools.json`). It is a pattern screen; the structural
+defenses (allowlists, approval checks, scope refusals, firewall, sandbox) stay mandatory either
+way. Tests: `tests/policy/test_injection.py`, `tests/mcp_contracts/test_injection_filter.py`.
 
 ## Data firewall (spec §4.3; D-018)
 
@@ -254,7 +284,9 @@ The dev workspace is a developer tool, not an evaluation case. Its data is real 
 as bundled with scikit-learn, so no download is needed. `--force` recreates it. Scripted check
 (no UI), as used for this PR: `npx -y @modelcontextprotocol/inspector@2.10.1 --cli <launcher>
 --method tools/list` (put the server command in a launcher script: the Inspector CLI reads `-m`
-as its own option). It lists all six tools and calls each one. The Inspector reports two schema
+as its own option; since S3.5 the launcher must also export `HYPORA_MCP_SESSION_SECRET` from
+`runs/mcp-dev/session.secret`, the dev workspace's owner-only copy of its session secret, which
+`dev_server.py` reads by itself). It lists all six tools and calls each one. The Inspector reports two schema
 "portability" warnings, both for `config`, which is deliberately free-form JSON (the trial's own
 hyperparameters, `JsonValue` in the S0.2 schemas).
 

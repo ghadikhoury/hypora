@@ -374,6 +374,12 @@ class _BaselineRun(_Run):
         """The fixed pipeline is always model-free, regardless of agent comparison flags."""
         return False
 
+    @property
+    def approval_policy(self) -> ApprovalPolicy:
+        """The comparator never waits for a person: its plan is decided by the bounded policy
+        (spec §10.3), whatever `flags.approval_policy` says, so baseline runs behave as before."""
+        return ApprovalPolicy.AUTO_WITHIN_CONTRACT
+
     async def execute(self) -> RunResult:
         """The controller's run; a refused case still leaves a run, its events, and a report, so
         the graders find evidence of the refusal rather than an empty log."""
@@ -419,22 +425,20 @@ class _BaselineRun(_Run):
         from hypora.execution.harness.partition import create_partition_lock
 
         data = fixed_data_contract(spec, [str(column) for column in frame.columns])
-        contract = self._contract(spec, data)
+        contract = await self._contract(spec, data)
         create_partition_lock(
             frame, contract, self.dataset_fingerprint, self.run_dir / "partition-lock.json"
         )
         return contract
 
-    def _contract(self, spec: TaskSpecification, data: DataContract) -> ExperimentContract:
+    async def _contract(self, spec: TaskSpecification, data: DataContract) -> ExperimentContract:
         save_data_contract(self.database, self.run_id, data)
         plan = fixed_plan(spec, data, self.budget)
-        (self.run_dir / "approved_plan.json").write_text(
-            plan.model_dump_json(indent=2), encoding="utf-8"
-        )
+        # The controller's plan gate binds the plan to its scope and writes approved_plan.json.
         contract = fixed_contract(
             spec,
             data,
-            self._approve(plan, BASELINE_NOTE),
+            await self._approve(plan, BASELINE_NOTE),
             budget=self.budget,
             job_limits=self.controller.run_config.budgets.job_limits,
             bounds=self.system_input.contract_bounds,

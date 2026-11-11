@@ -1,23 +1,15 @@
 """The server as a separate process over stdio, launched the way the agent runtime will (S1.5)."""
 
-import sys
-from pathlib import Path
-
 import pytest
-from mcp import Client, StdioServerParameters
+from mcp import Client
 
-from tests.mcp_contracts.helpers import DESIGN, LINEAR, fresh_key, open_session
+from tests.mcp_contracts.helpers import DESIGN, LINEAR, fresh_key, open_session, stdio_parameters
 
 pytestmark = pytest.mark.anyio
-REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 async def test_a_stdio_client_lists_and_calls_tools(session_file):
-    parameters = StdioServerParameters(
-        command=sys.executable,
-        args=["-m", "hypora.mcp_server", "--session", str(session_file)],
-        cwd=str(REPO_ROOT),
-    )
+    parameters = stdio_parameters(session_file)
     async with Client(parameters, read_timeout_seconds=120) as client:
         assert client.server_info is not None and client.server_info.name == "hypora"
         assert "No tool returns raw dataset rows" in (client.instructions or "")

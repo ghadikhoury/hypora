@@ -32,28 +32,60 @@ user's objective.
 |---|---|---|
 | `INTAKE/INTAKE` | One structured call drafts the `TaskSpecification` from the goal and the column names and dtypes (never values); form fields override it; code fixes the task type from the target's values and the metric from the task | LLM drafts, code settles |
 | `PROFILE/INTAKE` | `profile_tabular` over the bytes the experiments will read | code |
-| `CONTRACT/WAITING_APPROVAL` | Data contract, plan, policy approval of the plan's hash, experiment contract (below) | code (Stage-1 placeholder) |
-| `PHASE_B/PHASE_B` | Worker subprocess starts; the single agent runs trials through the MCP server; unfinished jobs are drained; the final trial is chosen; its `final` job runs | agent experiments, code chooses |
+| `CONTRACT/WAITING_APPROVAL` | Data contract, plan, the plan gate on the plan's exact hash (below), experiment contract | the user or the bounded policy (S3.5) |
+| `PHASE_B/PHASE_B` | The approval is re-checked; worker subprocess starts; the agent runs trials through the MCP server; unfinished jobs are drained; the final trial is chosen; its `final` job runs | agent experiments, code chooses |
 | `REPORT/REPORTING` | `report.json` and `report.md` from stored records, plus the Reporter's narrative | code; LLM narrates |
 | `DONE` / `FAILED` / `CANCELLED` | DONE only with a verified final model | code |
 
 The state machine is the explicit table `states.TRANSITIONS: (state, event) -> state`; a pair
 not in the table is refused. Each applied row updates `runs.status` and appends its
 `stage_transition` event in one transaction. Any failure before the report is an `error` event and
-a `fail` row into `REPORT`, so every run still gets a report that says what happened. S3.1 introduces the A/B/C loop; S3.3 adds methodology decisions and S3.5 adds the interactive approval gate.
+a `fail` row into `REPORT`, so every run still gets a report that says what happened. S3.1 introduces the A/B/C loop; S3.3 adds methodology decisions and S3.5 adds the plan gate below.
 
-## Stage-1 placeholders (D-019 1a, 2a)
+## Default data contract (D-019 1a)
 
-Until C's data planning (S3.3) and the plan + budget gate (S3.5) exist:
+The fixed baseline and tests still use the code-built contract: every column except the target and
+the user's forbidden columns (excluded with evidence `task_spec:v1`); stratified split for
+classification, random for regression; 20% test; 3-fold validation. Agent runs use C's
+evidence-backed methodology (S3.3). Leakage candidates and ID-like columns are shown to the agent
+in its context, not excluded: a candidate is not a verdict.
 
-- **Data contract:** every column except the target and the user's forbidden columns (excluded
-  with evidence `task_spec:v1`); stratified split for classification, random for regression;
-  20% test; 3-fold validation. Leakage candidates and ID-like columns are shown to the agent in
-  its context, not excluded: a candidate is not a verdict.
-- **Approval:** the controller records `approval_requested` for the exact plan hash, stores an
-  `ApprovalRecord` by `policy:auto_within_contract`, and records `approval_granted`. The plan is
-  written to `runs/<run>/approved_plan.json`. The note "Stage-1 placeholder" is in the plan, the
-  approval reason, and the report.
+## Plan approval gate (S3.5, D-044; spec §10)
+
+`_Run._approve` runs for every plan version (v1, and v2 after C's feature revision: a changed
+artifact resets approval):
+
+1. It builds the `ApprovalScope` (`hypora/core/policy/approvals.py`) from the values the run will
+   use: the hash of the run's dataset snapshot, the data-contract hash, the budget, the configured
+   job limits, each session role's tools (its allowlist intersected with the case's permitted
+   tools), the worker ceiling, `parallel_mode`, the sandbox image tag, and the LLM providers that
+   see data summaries (none for the model-free baseline). `bind_scope` writes the scope's hash into
+   the plan's notes before the plan is hashed, so the approved hash covers the scope. The plan goes
+   to `runs/<run>/approved_plan.json` (`approved_plan_v<N>.json` for later versions) and the scope
+   to `approval_scope_v<N>.json`.
+2. `ApprovalGate.decide` (`approval_gate.py`) records `approval_requested`, decides, saves the
+   record and records `approval_granted` / `approval_denied`. `flags.approval_policy`:
+   `interactive` (the default) waits in `CONTRACT/WAITING_APPROVAL` with no worker or session alive
+   for the user's decision file `runs/<run>/approvals/<approval_id>.json` (`hypora approve`, or the
+   inline prompt of `hypora run`); a decision for another hash is an `APPROVAL_STALE` error and is
+   ignored. `auto_within_contract` grants only inside the request's bounds (`within_bounds`).
+   `defenses.approval` off (F6 ablation) grants with approver `policy:defense_off`, recorded in a
+   `policy_decision`, the request summary and the report's limitations. The fixed baseline always
+   uses `auto_within_contract`, so baseline runs never wait.
+3. Terminal outcomes, through existing transitions: a user rejection reports and ends
+   `CANCELLED`; a policy denial, a stale approval, or the wall clock running out while waiting
+   ends `FAILED`; a user cancel while waiting ends `CANCELLED`. Waiting spends nothing.
+
+The approval is re-checked (`_recheck_approval`: the plan file re-read and re-hashed against the
+scope recomputed from live values, plus `approval_problem`) at the start of Phase B, before each C
+worker session, and before the final job is queued. A failed re-check is an `error` event
+`APPROVAL_STALE` and a `fail` into `REPORT` with no further job queued; the Phase B cleanup
+cancels unfinished jobs and stops the worker. The MCP server (`submit_experiment`) and the
+experiment worker at lease run the same `approval_problem` check. For an artifact-backed gate
+request they re-read the bound plan and scope, and check the actual dataset, image and execution
+limits before accepting work. A lower execution budget or job limit remains within the approved
+ceiling; an expansion is refused. Legacy/dev records without an artifact-backed gate request
+retain their existing approval-record validation.
 
 ## Limits (spec §6.8)
 
@@ -111,9 +143,16 @@ training/scoring IDs and training classes, all with scikit-learn called directly
 (the frozen model's hash
 is unchanged and its predict stage completed), and each stage's effective limits against the
 submitted job's limits. Validation, final refit, and test prediction use those same limits. The
-learned-transform leakage
-check is `skipped` until the affected verification is implemented in S3.5. The verdict is stored with the test result
+learned-transform leakage check is `skipped`: it is not implemented (D-044 8.4), and every report
+states that as a mandatory limitation. The verdict is stored with the test result
 (`results.verification_json`) and the trial becomes `verified` or `verification_failed`.
+
+Before the final job, in multi-agent runs, A reviews C's output, the stored validation evidence,
+and the candidate's code: the hash of its submitted `pipeline.py` and a bounded excerpt (at most
+200 lines of 200 characters, 8000 characters in all) screened line by line by the data firewall
+(always on here) and, with `defenses.injection_filter` on, the injection screen, with credential
+shapes redacted (D-044 3.8). A can choose `report`, which stops before verification so no model is
+verified; no model output can skip, waive or upgrade a check.
 
 ## Reporter v1 (D-019 4a)
 
@@ -124,6 +163,17 @@ Reporter LLM then writes a short narrative that may not contain digits: it refer
 validator rejects any other digit and the adapter retries once. A narrative that still fails, or a
 run limit, leaves the report without one and says so. The deterministic report is written before
 the narrative call, so a failure there still leaves a complete report.
+
+Since S3.5 the verdict (`verification_status`, failed and skipped checks), the mandatory
+limitations, resource use and the approval are written by code from stored records, and rendered
+above the narrative (`docs/notes/threat-model.md`, row 7). A run that stopped before its contract
+gets `build_early_stop_report`. A user cancel during the narrative after a passed final job
+withdraws the selected final model while retaining `completed_verification` from the completed
+final job: the run ends cancelled, but the passed or failed checks remain visible. Recomputing
+with `final_trial_id=None` discovers the same completed job, so the stored report loads and
+equals the grader's recomputation. In multi-agent runs A writes the narrative; its
+`limitations` (its own methodological concerns) are also recorded as `open_questions` on its
+handoff.
 
 ## Prompts
 
@@ -149,6 +199,13 @@ inlining them. Changing a prompt's text means bumping its version.
   allowed columns, a baseline before one candidate, and the case's budget and job limits.
   `test_s33_methodology.py` holds the runs that must stop before Phase B, a fix on the target
   among them.
+- `tests/controller/test_approval_gate.py` (S3.5): approve (with a stale decision ignored first),
+  a feature revision asking again, user rejection, policy denial, a plan, snapshot or image change
+  after approval, a change before a worker session and before the final job, cancel and wall-clock
+  expiry while waiting, and the approval defense off. `tests/controller/test_integrity.py`: a failed
+  check against an overclaiming narrative, a cancel during the narrative, A's code review and stop,
+  instructions in sandbox logs (filter on and off), in research and worker text, and (sandbox) trial
+  code trying to forge an approval.
 - Unit tests for the state table, the Stage-1 contract, every guard limit, final selection,
   intake, the agent loop, prompts, the reporter, and every verifier check (with the harness's own
   scorer producing the numbers the verifier recomputes).

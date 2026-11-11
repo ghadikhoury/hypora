@@ -162,7 +162,8 @@ class JobQueue:
 
         Idempotent per `idempotency_key` (spec §11): resubmitting the same job returns the
         existing ID; reusing the key for different content is an error. The approval itself is
-        checked by the caller (S3.D2); `approval_ref` is recorded in the transition reason.
+        checked by the caller and again by the experiment worker at lease
+        (`approvals.approval_problem`, S3.5); `approval_ref` is recorded in the transition reason.
         """
         limits_json = limits.model_dump(mode="json")
         with self.database.write() as connection:

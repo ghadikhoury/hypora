@@ -2,7 +2,6 @@
 change, invisible to the input schema, and it never holds a thread or skips the call boundary."""
 
 import json
-import sys
 import time
 from collections.abc import AsyncIterator, Callable
 from functools import partial
@@ -11,7 +10,7 @@ from typing import Any
 
 import anyio
 import pytest
-from mcp import Client, StdioServerParameters
+from mcp import Client
 from mcp.server.mcpserver import MCPServer
 from mcp.shared.exceptions import MCPError
 from pydantic import ValidationError
@@ -31,6 +30,7 @@ from tests.mcp_contracts.helpers import (
     new_trial,
     open_session,
     start_job,
+    stdio_parameters,
     submit,
 )
 
@@ -308,11 +308,7 @@ async def test_a_stdio_client_that_gives_up_ends_the_wait_in_the_server_process(
     config = json.loads(session_file.read_bytes())
     config["status_wait_seconds"] = MAX_STATUS_WAIT_SECONDS
     session_file.write_text(json.dumps(config), encoding="utf-8")
-    parameters = StdioServerParameters(
-        command=sys.executable,
-        args=["-m", "hypora.mcp_server", "--session", str(session_file)],
-        cwd=str(Path(__file__).resolve().parents[2]),
-    )
+    parameters = stdio_parameters(session_file)
     session = open_session(session_file)  # reads the log the server process writes
 
     def status_events(kind: str) -> list[Any]:

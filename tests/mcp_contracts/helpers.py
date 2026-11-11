@@ -2,18 +2,21 @@
 is about the tools, not the sandbox (test_end_to_end.py runs the real worker in Docker)."""
 
 import json
+import sys
 import uuid
 from pathlib import Path
 from typing import Any
 
-from mcp import Client
+from mcp import Client, StdioServerParameters
 
 from hypora.execution.protocol import experiments as protocol
-from hypora.mcp_server.session import DefenseSwitches, Session, SessionConfig
+from hypora.mcp_server.dev import dev_secret
+from hypora.mcp_server.session import SESSION_SECRET_ENV, DefenseSwitches, Session, SessionConfig
 from hypora.storage.artifacts import ArtifactStore
 from hypora.storage.jobs import WorkerCapacity
 
-TEMPLATES = Path(__file__).resolve().parents[2] / "hypora/execution/templates/tabular"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+TEMPLATES = REPO_ROOT / "hypora/execution/templates/tabular"
 LINEAR = (TEMPLATES / "linear" / "pipeline.py").read_text()
 RUN_ID = "run_mcp_dev"
 DESIGN = {
@@ -24,6 +27,18 @@ DESIGN = {
     "expected_effect": "roc_auc above 0.95",
     "estimated_cost": {"compute_seconds": 30},
 }
+
+
+def stdio_parameters(session_file: Path, secret: str | None = None) -> StdioServerParameters:
+    """`python -m hypora.mcp_server` for the workspace's session, launched the way the controller
+    does: with the session secret (the dev workspace's own, unless a test passes another) in the
+    child's environment only."""
+    return StdioServerParameters(
+        command=sys.executable,
+        args=["-m", "hypora.mcp_server", "--session", str(session_file)],
+        cwd=str(REPO_ROOT),
+        env={SESSION_SECRET_ENV: dev_secret(session_file) if secret is None else secret},
+    )
 
 
 def open_session(session_file: Path, **changes: Any) -> Session:

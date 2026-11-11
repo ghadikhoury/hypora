@@ -1063,3 +1063,41 @@ unless A supplies a validated justification and the overlap flags allow it. Exis
 job concurrency and resource pools are unchanged. Worker token admission, accounting and local
 caps protect aggregate reservations; failures return through stored findings to C. S4.2
 reconfirms the provisional ceiling using its required readiness evidence.
+
+
+## D-044 — S3.5 plan approval and result integrity design (2026-11-10)
+
+Ghadi approved the S3.5 design "as recommended" in the orchestration session. No frozen schema,
+event type, MCP tool signature or description, fit/predict interface, dependency, sandbox,
+migration, grader or merged eval case changes.
+
+- Security scope (trigger 3), all eight items:
+  - 3.1 `hypora/core/policy/approvals.py`: one shared check that an approval is real and current.
+  - 3.2 The gate honors `flags.approval_policy`; `auto_within_contract` checks the case's bounds.
+  - 3.3 The controller reads the user's decision file `runs/<run>/approvals/<id>.json`.
+  - 3.4 The experiment worker re-checks the approval at lease.
+  - 3.5 A per-session MCP secret; the 0600 session file holds only its hash.
+  - 3.6 `hypora/core/policy/injection.py` and its `defenses.injection_filter` switch.
+  - 3.7 `defenses.approval` wired; off is always recorded and reported.
+  - 3.8 A bounded, firewall-screened trial code excerpt is shown to A before final verification.
+- Models outside the frozen set (`ApprovalScope`, `ApprovalBounds`, the new `Report` and
+  `EarlyStopReport` fields) are not frozen schemas (the D-042 pattern); the plan binds its scope
+  through a `scope_sha256=` line in `phase_b_plan.notes` instead of a new `ApprovedPlan` field.
+- Trigger-8 resolutions:
+  - 8.1 Plain `hypora run` and `make run` now wait for the user (`interactive` default);
+    unattended runs pass `--approve auto_within_contract`.
+  - 8.2 The F5 local-authentication evidence is the per-session secret plus a test that the
+    server refuses to serve without it; no remote transport.
+  - 8.3 The injection filter is built now, so the S5.3 comparison is real.
+  - 8.4 The learned-transform leakage check is not built; every report states it as a mandatory
+    limitation.
+  - 8.5 A larger scope (permissions, dependencies, data transfers, budget) is blocked and
+    recorded; it needs a new run and a new approval, not an in-run extension.
+  - 8.6 A feature revision's new plan version asks for approval again (changed artifact resets
+    approval).
+  - 8.7 A user rejection ends the run `CANCELLED`; policy denial, stale approval and wall-clock
+    expiry while waiting end it `FAILED`.
+- Implementation deviation: the injection screen leaves the platform's own `next_step` field
+  unscreened (`PLATFORM_KEYS`). `get_experiment_status` puts guidance such as "call
+  get_experiment_status again now" there; screening it would withhold the platform's instructions
+  as a tool-call injection. Every other string in a screened result is screened.

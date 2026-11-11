@@ -5,7 +5,7 @@
 execution-plane process, leases such jobs from the state database's queue (spec §14.2) and, per
 job:
 
-    lease -> verify request, dataset hash, snapshot -> start (LEASED -> RUNNING)
+    lease -> verify request, approval + limits, dataset hash, snapshot -> start (LEASED -> RUNNING)
           -> TabularHarness.validate (one fit + one predict sandbox per fold), heartbeating
           -> store artifacts + results + outcome.json -> complete / fail / confirm_cancelled
 
@@ -31,6 +31,7 @@ from typing import Any
 
 import pandas as pd  # type: ignore[import-untyped]
 
+from hypora.core.policy.approvals import approval_problem, limits_problems
 from hypora.core.policy.firewall import DataFirewall
 from hypora.core.schemas import ExperimentContract, JobState, Operation, VerificationResult
 from hypora.core.verification.verifier import (
@@ -267,6 +268,11 @@ class ExperimentWorker:
             contract = load_experiment_contract(
                 self.database, job.run_id, request.request.contract_version
             )
+            # Spec §14.1: verify the job's scope, approval reference and limits at lease, before
+            # anything is launched. The MCP server checked them at submit; this is the second lock.
+            refused = self._approval_refusal(job, request, contract)
+            if refused is not None:
+                return self._fail(job, None, "APPROVAL_INVALID", refused, False)
             dataset = Path(request.dataset_path)
             source = dataset.read_bytes()
             if hashlib.sha256(source).hexdigest() != request.dataset_sha256:
@@ -371,6 +377,32 @@ class ExperimentWorker:
         except StaleJobState:
             return ExperimentRun(job.id, None, outcome)
         return ExperimentRun(job.id, record.status, outcome)
+
+    def _approval_refusal(
+        self, job: JobRecord, request: ExperimentRequest, contract: ExperimentContract
+    ) -> str | None:
+        """Why this job may not run under its approval (None when it may): the request must be
+        for this job's run and trial, its approval must be valid and current for the contract
+        (`approval_problem`), and its limits must stay within the contract's."""
+        submitted = request.request
+        if submitted.run_id != job.run_id or submitted.trial_id != job.trial_id:
+            return "the job's request names another run or trial"
+        problem = approval_problem(
+            self.database,
+            job.run_id,
+            contract,
+            submitted.approval_ref,
+            runs_root=self.runs_root,
+            dataset_path=Path(request.dataset_path),
+            sandbox_image=self.image,
+        )
+        if problem is not None:
+            return problem
+        over = limits_problems(job.limits, contract.default_job_limits)
+        over += limits_problems(submitted.limits, contract.default_job_limits)
+        if over:
+            return "limits exceed the contract: " + ", ".join(dict.fromkeys(over))
+        return None
 
     def _finalize(
         self,
