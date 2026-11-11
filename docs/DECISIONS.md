@@ -4,6 +4,12 @@ Decisions that only Ghadi can make (`🧑 HUMAN · DECIDE`, and owner instructio
 defaults). Newest last. Each entry is immutable once merged; a reversal is a new entry that names the
 one it supersedes.
 
+**This is a reference, not required reading.** Look up an entry when a document, comment or review
+cites its number. The rules in force are in `AGENTS.md` (process), `docs/PLAN.md` (order, model
+policy) and `docs/PROJECT_SPEC.md` (behavior); where an old entry disagrees with those, it has been
+superseded. For how the repository is worked on, **D-041 is the current entry**: it replaces the
+check, CI and stacking rules of D-022, D-023, D-029, D-034 and D-037, which remain below as history.
+
 ## Template
 
 ```
@@ -889,7 +895,7 @@ live calls only resolve a specified unmet evidence need. Reuse valid results, de
 and collect full readiness/final evidence only at planned gates. No unnecessary agent/model sweeps.
 No recorded result, grader, sandbox policy, tool contract or course minimum is changed here.
 
-## D-038 ? S3.1 role identities and bounded tool permissions
+## D-038 — S3.1 role identities and bounded tool permissions
 
 - Date: 2026-11-09. Decided by Ghadi for S3.1 after review of the concrete migration.
 - Add actor identifiers `agent_a`, `agent_b`, and `agent_c` while retaining legacy
@@ -903,7 +909,7 @@ No recorded result, grader, sandbox policy, tool contract or course minimum is c
 - Require tests of A/B confinement under ablation, C's six-tool ceiling, old-record and
   single-agent compatibility, and the worker-unavailable result.
 
-### D-038 addendum ? bounded lead assignment
+### D-038 addendum — bounded lead assignment
 
 - Ghadi approved one optional plain-text `LeadAction.assignment` field. It is required only
   when A directs C to continue; older records without the field remain readable.
@@ -913,7 +919,7 @@ No recorded result, grader, sandbox policy, tool contract or course minimum is c
   accepted assignment using the existing short-text/hash redaction. No MCP signature, event type,
   trial interface or other frozen schema changes are authorized by this addendum.
 
-### D-038 addendum ? filter sensitive decision artifacts before storage
+### D-038 addendum — filter sensitive decision artifacts before storage
 
 - Ghadi explicitly approved a narrow filter for A's decision to assign C, including retry inputs
   and failures. Existing model-call events, usage, costs, model/config metadata and safe decision
@@ -922,7 +928,7 @@ No recorded result, grader, sandbox policy, tool contract or course minimum is c
   contain a dataset value, credential or file content. Invalid/unsafe responses use a fixed marker;
   safe assignments pass the independent controller boundary before the event and C handoff.
 
-### D-038 addendum ? redaction of new role outputs and escaped configured secrets
+### D-038 addendum — redaction of new role outputs and escaped configured secrets
 
 - Ghadi approved applying the existing configured-secret redactor to new A/B role-output
   artifacts and role-to-role forwarding, including retry messages and error text. Existing
@@ -932,13 +938,13 @@ No recorded result, grader, sandbox policy, tool contract or course minimum is c
   are added; nonsecret text is preserved.
 
 
-## D-039 ? B's bounded read-only research tools
+## D-039 — B's bounded read-only research tools
 
 - Date: 2026-11-10. Ghadi approved the concrete S3.2 MCP contract and security changes.
 - Expose search_model_catalog, get_model_evidence, and retrieve_methodology to Agent B.
   Preserve C's existing six tools and deny B execution and worker delegation, including in
   allowlist ablations. The existing single-agent comparison receives the same three read-only
-  research tools under the same restrictions, preserving the spec ?6.9 baseline.
+  research tools under the same restrictions, preserving the spec §6.9 baseline.
 - External requests use fixed public categories and approved sources; do not send user goals,
   private details, dataset fields, or free-form search strings to research sources. Bounded
   methodology queries run locally and are filtered from events and stored model artifacts;
@@ -948,3 +954,69 @@ No recorded result, grader, sandbox policy, tool contract or course minimum is c
 - Retain the existing events, run limits, policy checks and data firewall; cover permissions,
   provenance, external failures, injection boundaries and no-private-data egress with tests.
   This approves no new execution/delegation tool, event type, trial interface, or eval-profile change.
+
+## D-041 — Parallel CI jobs, a fast local check, and one short process document
+- Date: 2026-11-10
+- Step: process; applies to every later step. Replaces the check, CI and stacking rules of D-022,
+  D-023, D-029, D-034 and D-037 where they differ. The reviewer flow (D-024, D-026) and the
+  docs-only route (D-037) are unchanged.
+- Decided by: Ghadi. He asked why each PR took one to two hours, approved the audit's
+  recommendations, and left the details to the coding agent.
+- Measured on 2026-11-10:
+  - The single CI job grew from 6 min (Nov 6) to 17–19 min; its limit is 20 min. Tests went from
+    1,247 to 2,316 in the same four days. Lint and mypy take 21 s.
+  - 91 tests start containers and take about 11 of the 18 test minutes. About 70 scripted
+    controller and baseline tests take 3–4 more. The other 2,150 take about 3.
+  - Recent step PRs took 73–155 min from open to merge with 2–8 pushes each, and every push waited
+    for the whole job. On PR #36 about 55 of 111 minutes were CI waits.
+  - PRs #32, #35 (twice) and #36 failed in CI on tests outside the author's hand-picked local
+    set. Each failure cost a full CI round and another push.
+  - Re-reviews arrived 2–15 min after a push and found real bugs. Review was not the delay.
+- Options considered: (a) raise the time limit and keep one job; (b, chosen) run the same tests
+  as parallel jobs behind one required status, and add a fast local check; (c) `pytest-xdist`
+  inside one job; (d) run the container tests only on some PRs or nightly.
+- Decision:
+  - **CI:** one job for lint and types, one for the in-process tests, one for the scripted agent
+    loops, three for the container tests, all in parallel. `make test-fast` plus
+    `make test-containers` is exactly `make test`, so no test is dropped or run twice. The
+    required status keeps the name `make check`: it always runs and passes only if every job
+    succeeded, or if the change is prose only and the test jobs were skipped. Branch protection
+    is not edited. Each job prints its 25 slowest tests.
+  - **Local:** tests run about twice as slowly on WSL as in CI (the in-process tests took 6 min,
+    the scripted agent loops 7 more), so local runs cannot beat parallel CI and are kept short.
+    Once before opening a PR: `make check-fast` (lint, types, in-process tests), started in the
+    background during the self-check; the agent-loop tests if the change touches the controller,
+    roles, MCP server, baseline or runner; and the container tests that exercise the changed
+    code, required on WSL for trigger-3 changes. For review fixes: the tests for what changed.
+    A full local `make check` is not routine.
+  - **Every code PR gets every test in CI.** No PR type skips the container tests; only prose-only
+    changes skip tests, as before.
+  - **No stacking** unless Ghadi allows it for a specific case. He had already prohibited it in
+    practice, and the rules for it were the longest part of AGENTS.md.
+  - **Documents:** AGENTS.md is the only description of how the repository is worked on. PLAN.md
+    holds only the remaining steps; completed steps moved unchanged to
+    `docs/archive/PLAN-completed-steps.md`. Labels, triggers and the real-data rule are defined
+    once, in AGENTS.md. Together the two files went from about 11,300 words to 6,300. This log
+    (10,000 words) is a reference, not required reading.
+  - **The process is now stable (new trigger 10).** Ghadi's instruction: agents must not keep
+    changing this policy; it changes when he asks, or in the rare case it is really needed. So a
+    change to AGENTS.md, the plan's rules, CI, the check targets, the pre-commit hooks or GitHub
+    settings needs his request or approval, goes in its own small PR with a decision entry, and
+    is otherwise blocked by the Reviewer. "Slower than I would like" is not a reason; "a required
+    check cannot pass" is. AGENTS.md, "Changing this process", lists what is and is not covered.
+- Why:
+  - (a) fixes nothing: the wait stays, and the suite is still growing. (c) was rejected in D-022
+    for races on the sandbox image and timing-sensitive tests; separate runners have neither
+    problem. (d) would let a container regression merge, which is the risk this project's sandbox
+    and data-firewall tests exist to prevent.
+  - D-029 declined the CI split because CI took 7 min then and was not the main delay. At 17–19
+    min per push, it is.
+  - One broad local run before the PR opens covers the tests authors were not picking by hand,
+    without making every later push wait for it.
+- Consequences:
+  - `.github/workflows/ci.yml`, the `Makefile` (`check-fast`, `test-fast`, `test-containers`) and
+    `tests/unit/test_ci_shards.py`, which fails if a shard is defined but not run, if a test
+    directory is in no shard or two, or if the required status would pass with a failed,
+    cancelled or missing job.
+  - No test, required check, review rule, secret scan, schema, tool, event, case or grading rule
+    is removed or changed. Triggers 1–9 are unchanged; trigger 10 is added.

@@ -1,6 +1,6 @@
 # Review checklist
 
-Used by authors before opening a PR and by the Reviewer (D-029). These are the kinds of blocking bugs
+Used by authors before opening a PR and by the Reviewer. These are the kinds of blocking bugs
 that review has already caught in this repo. It adds to the step's "Done when" items and spec sections
 and does not replace them. Add a line when review catches a new kind of bug.
 
@@ -25,15 +25,15 @@ and does not replace them. Add a line when review catches a new kind of bug.
 - **Project rules:** every model call, tool call, state transition, and policy decision emits an event;
   new compared behavior has a feature flag; evaluation and demos use real data.
 - **The fix is complete:** sibling code paths have the same fix, and a test fails without it.
-
 - **Hidden metric parity:** systems report every supported task metric without reading the hidden
   grading rule; an undefined required metric fails explicitly rather than silently losing evidence
   (PR #27).
-
 - **Incomplete comparisons:** harness errors are missing measurements, not graded system failures;
   paired wins/bootstrap require two graded outcomes and incomplete rates have no inferential CI (PR #28).
 - **Hidden-data guards:** check complete numeric/short-valued rows and the tail of large datasets;
   a distinctive-scalar heuristic alone is insufficient (PR #28).
-
 - **Fail-closed fallback:** a refused fallback record must not cancel unrelated cases; preserve its
   accounting receipt. Public input metadata is not newly disclosed hidden data (PR #28).
+- **Tests stay cheap:** a test that starts a container carries the `sandbox` or `docker` marker, and
+  exists only because the behavior crosses the container boundary; everything else is a scripted
+  or unit test. The CI log lists each job's 25 slowest tests (D-041).

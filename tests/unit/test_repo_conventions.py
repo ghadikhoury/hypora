@@ -104,7 +104,7 @@ def test_claude_md_only_imports_agents_md() -> None:
 @pytest.mark.parametrize(
     "required",
     [
-        # Labels (PLAN.md §0.2)
+        # Labels (AGENTS.md is their only definition; PLAN.md §0.2 points there)
         "🧑 HUMAN · SETUP",
         "🧑 HUMAN · SECRET",
         "🧑 HUMAN · DECIDE",
@@ -112,16 +112,32 @@ def test_claude_md_only_imports_agents_md() -> None:
         "🔍 REVIEW FOCUS",
         "⇉ PARALLEL",
         "→ SERIAL",
-        # Stop-and-ask triggers (PLAN.md §0.3) and the escalation convention
+        "⏸ LATER",
+        # Stop-and-ask triggers and the escalation convention (PLAN.md §0.3 points here)
         "Stop-and-ask triggers",
         "🧑 ACTION NEEDED FROM GHADI",
-        # Model policy (PLAN.md §1)
+        # Model policy (PLAN.md §1 is the authority; AGENTS.md summarizes it)
         "Model policy",
         "`dev`",
         "`eval`",
-        # Team setup
+        # Team setup and the checks every push needs (D-041)
         "Reviewer",
+        "make check-fast",
+        "Real-data rule",
+        # The process changes only on the owner's request or approval (trigger 10, D-041)
+        "## Changing this process",
+        "10. A change would modify **how the repository is worked on**",
     ],
 )
 def test_agents_md_covers_conventions(required: str) -> None:
     assert required in (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+
+
+def test_plan_points_to_agents_md_for_process_rules() -> None:
+    """Labels, triggers and the real-data rule have one definition; PLAN.md keeps the anchors."""
+    plan = (REPO_ROOT / "docs" / "PLAN.md").read_text(encoding="utf-8")
+    for heading in ("### 0.2 Labels", "### 0.3 Global stop-and-ask triggers", "### 0.4 Real-data"):
+        section = plan.split(heading, 1)[1].split("\n#", 1)[0]
+        assert "`AGENTS.md`" in section, f"{heading} must point to AGENTS.md"
+    assert "docs/archive/PLAN-completed-steps.md" in plan
+    assert (REPO_ROOT / "docs" / "archive" / "PLAN-completed-steps.md").is_file()

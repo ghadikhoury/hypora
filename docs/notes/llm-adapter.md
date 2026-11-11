@@ -2,7 +2,7 @@
 
 > Implementation reference for the existing system. The target A/B/C ownership and permissions
 > are in spec §§5–9 (D-036); legacy roles/config names here are not the new runtime implementation.
-> Former roadmap IDs map through PLAN Appendix A.
+> Former roadmap IDs map through Appendix A of `docs/archive/PLAN-completed-steps.md`.
 
 Package: `hypora/core/llm/`. Every model call in Hypora goes through
 `LLMAdapter.complete(messages, tier=..., context=..., tools=..., output_schema=...)`.

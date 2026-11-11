@@ -1,12 +1,23 @@
 # Hypora — instructions for coding agents
 
 > This is the only agent-instructions file. `CLAUDE.md` just imports it (`@AGENTS.md`) so Claude
-> Code loads the same text; edit this file, never `CLAUDE.md` (D-014).
+> Code loads the same text; edit this file, never `CLAUDE.md` (D-014). The process below was set by
+> D-041.
 
-**Rule zero: before writing any code, read your step in `docs/PLAN.md` and every spec section it
-references in `docs/PROJECT_SPEC.md`.** The spec defines *what* Hypora is; the plan defines *how and in
-what order* it is built. On behavior the spec wins; on order or process the plan wins. When you work
-through a part, read the shared sections once and then only what each new step adds.
+## Start here
+
+1. **Work in a WSL clone on a fresh branch of `origin/main`.** If your tool loaded this file from
+   another folder (for example the Windows checkout), re-read it from your clone: that copy can be
+   weeks old.
+2. **Rule zero: before writing any code, read your step in `docs/PLAN.md` and every spec section it
+   cites in `docs/PROJECT_SPEC.md`.** The spec defines *what* Hypora is; the plan defines *in what
+   order* it is built. On behavior the spec wins; on order the plan wins; on how the repository is
+   worked on, this file wins.
+3. Read the note in `docs/notes/` for the component you touch, and
+   `docs/notes/review-checklist.md` before you open a PR.
+
+That is all a step needs. Do not read `docs/DECISIONS.md` end to end (look up a `D-NNN` when
+something cites it), `docs/archive/`, the rest of the spec, or `results/`.
 
 ## Project summary
 
@@ -18,372 +29,286 @@ workers. A may authorize independent B/C overlap. A deterministic runtime enforc
 and sandboxed execution (D-036; spec §§5–9). Platform code (never LLM code) owns data
 splits, held-out labels, and metrics. Every step is recorded in an append-only event log.
 
+"Agent A/B/C" always means these product roles, never the agents working on this repository.
+
 ## Where things live
 
 | Need | File |
 |---|---|
 | What Hypora is (behavior, contracts, tool and event definitions) | `docs/PROJECT_SPEC.md` |
-| How and in what order it is built (steps, labels, triggers) | `docs/PLAN.md` |
-| Owner decisions, newest last | `docs/DECISIONS.md` |
-| Design notes per step | `docs/notes/` |
+| The remaining steps, their order, model policy, course dates | `docs/PLAN.md` |
+| How the repository is worked on (this file is the only source) | `AGENTS.md` |
+| Owner decisions, newest last; a reference, not required reading | `docs/DECISIONS.md` |
+| Design notes per component; kinds of bug review has caught | `docs/notes/`, `docs/notes/review-checklist.md` |
 | Frozen schemas and MCP tool contract (generated; never hand-edit) | `docs/schemas/`, `docs/mcp/tools.json` |
+| Completed steps and old step IDs (history only) | `docs/archive/PLAN-completed-steps.md` |
 
-`docs/PLAN.md` owns product steps, scope, model policy and dependencies. This file owns the detailed
-repository implementation/review procedure. The product A/B/C role names never grant repository
-merge permissions. Keep short summaries linked to the authoritative section.
-
-## Team and workflow
+## Roles
 
 | Who | Does | Never does |
 |---|---|---|
-| **Ghadi** (project owner) | Assigns a part, stream, or step to each agent and handles every 🧑 item | Relay PRs between agents or review each PR (D-029) |
-| **Repository implementers** | Implement steps, one PR per step, often in parallel on different steps | Push to `main`, merge their own PR, edit the other agent's branches |
-| **Reviewer** (separate agent) | Reviews every PR with comments, starting as soon as it opens (no waiting for CI); merges once the review passes and every required check is green on the reviewed commit ("Reviewer flow" below) | Write or push code; merge on a red or pending check |
+| **Ghadi** (project owner) | Assigns steps and handles every 🧑 item | Relay PRs between agents or review each PR |
+| **Implementer** (a coding agent) | Implements assigned steps, one PR per step | Push to `main`, merge its own PR, edit another agent's branch |
+| **Reviewer** (a separate agent) | Reviews every PR as soon as it opens; merges once the review passes and the required checks are green on the reviewed commit | Write or push code; merge on a red or pending check |
 
-- **One step = one PR.** Use the step ID, branch name, and scope exactly as written in `docs/PLAN.md`.
-  Implement nothing from future steps and drop nothing the step requires. If the plan seems wrong or
-  impossible, stop and ask Ghadi instead of improvising.
-- **Decision log:** record important owner decisions in `docs/DECISIONS.md`. Keep it for decisions
-  only; put implementation notes in `docs/notes/` and status reports in PRs.
-- **Branching:** `git fetch`, then branch from the latest `origin/main`. **No one pushes to `main`**
-  (branch protection enforces it: PR required, `make check` and `gitleaks` must pass, no
-  force-push; D-013).
-- **Parallel work (D-025):** prefer running independent steps at the same time across Agent A and
-  Agent B; no agent sits idle waiting on another PR's checks when an independent step is available.
-  Independent steps listed in `docs/PLAN.md` Appendix B may run together after their prerequisites merge. Stay inside your
-  step's directories. If you must touch a shared file (`hypora/core/schemas/`, `configs/flags.yaml`, tool
-  registries), keep the change minimal, rebase on `main` right before opening the PR, and resolve
-  conflicts without overwriting the other agent's work.
-- **Opening a PR:** run the pre-PR checks ("Checks before a PR and in CI" below), verify every "Done
-  when" criterion, and self-check the changed behavior and complete changed-file list against the
-  step and relevant items in `docs/notes/review-checklist.md`. For high-impact work (security,
-  frozen contracts, grading, `🔍 REVIEW FOCUS`), make a fresh-context whole-diff author pass (use a
-  subagent with no prior context if available) and fix its findings. Every PR still gets the separate
-  Reviewer's full first review. Fill in `.github/pull_request_template.md` completely (including a
-  genuine Explain-it check), then report the PR number, link, summary, surprises, and "Ready for review."
-- **Review comments:** read all of them (`gh pr view <N> --comments` plus inline comments via
-  `gh api repos/{owner}/{repo}/pulls/<N>/comments`). Fix every blocking comment on the same branch
-  and reply to each saying what changed. Fix the whole kind of bug, not only the reported line: check
-  the sibling code paths and add a regression test. If you disagree, reply with your reasoning; if
-  still contested after one round, tell Ghadi. Push, then say "Ready for re-review."
+## How a step gets done
 
-### Working through a part (D-029)
+**One step = one PR.** Use the step ID, branch name and scope exactly as written in `docs/PLAN.md`.
+Implement nothing from future steps and drop nothing the step requires. A step is one coherent
+change, including its prompts, helpers and wiring; do not split it by file type. If the plan seems
+wrong or impossible, stop and ask Ghadi instead of improvising.
 
-Ghadi may assign a whole part (`S2`), step group (`S3.2` and `S3.3`), or list of steps in one prompt:
+1. **Branch.** `git fetch`, then `git switch -c <branch> origin/main` in your own clone.
+2. **Implement** the step with its tests. Stay inside the step's directories. If you must touch a
+   shared file (`hypora/core/schemas/`, `configs/flags.yaml`, tool registries), keep the change
+   minimal and rebase on `main` right before opening the PR.
+3. **Check** as "Checks" below says, and fix what fails before you push.
+4. **Open the PR.** Verify every "Done when" item, self-check the diff against
+   `docs/notes/review-checklist.md`, and fill in `.github/pull_request_template.md` (with a genuine
+   Explain-it check). For high-impact work (security, frozen contracts, grading, `🔍 REVIEW FOCUS`),
+   first have a fresh-context sub-agent read the whole diff, and fix what it finds. Report the PR
+   number, a short summary, anything surprising, and "Ready for review."
+5. **Answer the review.** Read every comment (`gh pr view <N> --comments`, plus inline comments via
+   `gh api repos/{owner}/{repo}/pulls/<N>/comments`). Fix each blocking one on the same branch, fix
+   the same kind of bug in sibling code paths, add a regression test, and reply to each comment
+   saying what changed. If you disagree, reply with your reasoning; if it is still contested after
+   one round, tell Ghadi. Run the tests for what you changed, push once with all the fixes of the
+   round, and say "Ready for re-review."
+6. **The Reviewer merges.** Start the next step from the new `origin/main`.
 
-> You are Coding Agent A. Work through S2.1, S2.2, S2.5, and S2.6 in order, following "Working through
-> a part" in AGENTS.md. Stop only for 🧑 items and stop-and-ask triggers.
+**Several steps in one prompt.** Work through them in the given order, still one PR per step.
+Priority: review comments on your open PRs, then a red check on your PR, then the next step. Once a
+PR is open, go straight to the next step that depends only on merged work. Do not wait idle, and do
+not poll in a tight loop; check review and CI state at natural pauses.
 
-**Each step is still one PR with its own review.** Never combine steps in a PR. Work only on the steps
-assigned to you. Once a PR is open, go straight to the next step and do not ask Ghadi to relay anything.
+**No stacking.** Never branch from an unmerged PR. If your next step depends on one, take another
+assigned step or wait. Ghadi can allow a stack for a specific case; then open the child with
+`gh pr create --base <parent>`, and after the parent merges run
+`git rebase --onto origin/main <old-parent-tip> <branch>`, force-push with `--force-with-lease`, and
+`gh pr edit <N> --base main`.
 
-**Priority order:** review comments on your open PRs, then a red check on your PR, then the next step.
-Check open PRs before starting each step and at natural pauses. When waiting, use completion
-notifications where available or poll at reasonable intervals; avoid busy polling and duplicate monitors.
-Verify actual review, CI and merge state rather than treating a delay as completion.
+**A bug in an earlier step.** If its PR is still open, fix it on that branch. If it has merged, open
+a small fix PR from `origin/main` with a regression test, and rebase your step once it merges.
 
-**How to start the next step:**
+**Sub-agents** are extra coding agents you launch to write this repository's code. Use one per step
+only for steps `docs/PLAN.md` allows in parallel and whose dependencies have merged. Each works in
+its own clone (`git clone https://github.com/ghadikhoury/hypora.git ~/hypora-<step>`, then
+`make setup`), handles one step, opens one PR and never merges. Run container tests and live model
+runs one at a time across sub-agents; they compete for CPU and share a daily cap.
 
-| The next step depends on | What to do |
-|---|---|
-| Only merged work | Branch from the latest `origin/main`, even if your other PRs are still open |
-| Your own open PR | Work on another independent assigned step, or wait; stack only if Ghadi explicitly authorizes it and the conditions below hold |
-| Another agent's open PR | Do not stack. Take another assigned step; wait only if there is none |
+**Decision log.** Record owner decisions in `docs/DECISIONS.md`, each as a new entry at the end.
+Implementation notes go in `docs/notes/`, status reports in PRs.
 
-**Only when Ghadi explicitly authorizes stacking**, you may stack on your own open PR when all of these hold:
-- It has no unresolved blocking comment and no red check.
-- If it has `🔍 REVIEW FOCUS`, touches trigger-3 code, or defines a contract the next step builds on,
-  its first review has finished with no blocking comment.
-- The stack stays at two unmerged PRs at most, counting the new one.
-- The next step commits no recorded results. Gate steps and Stage 5 runs start from merged code.
+## Changing this process
 
-`→ SERIAL` controls the order in which steps merge. Under these conditions, a step after a serial step
-may start before that serial step merges, but it can never merge first.
+**The process is stable. It changes when Ghadi asks, or in the rare case that it is actually
+broken, and then only with his approval (trigger 10).** Do not improve, reword, reorganize or
+"streamline" it on your own initiative, in a step's PR or in a separate one.
 
-**Stacking commands** (`<parent>` is the branch your step builds on):
-```bash
-git switch -c <step-branch> <parent>
-gh pr create --base <parent>    # start the body with "Stacked on #<parent PR>. Do not merge before it."
-```
+This covers: this file; the rules in `docs/PLAN.md` §0–§2; `.github/` (CI workflows and the PR
+template); the check and test targets in the `Makefile`; `scripts/ci_scope.py`;
+`.pre-commit-config.yaml`; and the repository's GitHub settings, including branch protection.
 
-**When the parent merges,** move the child onto `main`, then delete the parent's branch. The parent was
-squash-merged, so its original commits are not in `main`, and `<old-parent-tip>` is the parent's last
-commit (its PR's `headRefOid`):
-```bash
-git fetch origin
-git rebase --onto origin/main <old-parent-tip> <step-branch>
-git push --force-with-lease
-gh pr edit <N> --base main
-git push origin --delete <parent>
-```
-Comment the old and new head commits on the PR so the Reviewer can compare them.
+- **Broken** means it blocks work or lets a defect through: a required check that cannot pass, a
+  rule that contradicts another, a command that no longer exists. Slower than you would like, or
+  worded differently from how you would write it, is not broken.
+- **If you think it is broken,** finish what you can, then raise a `🧑 ACTION NEEDED FROM GHADI`
+  block with the evidence (the failing run, the two conflicting lines, the measured time) and the
+  smallest change that fixes it. Change nothing until he answers.
+- **An approved change** is one small PR of its own, with a new `docs/DECISIONS.md` entry that
+  names the request and what it supersedes. It never rides along in a step's PR.
+- **The Reviewer blocks** any PR that touches the files above without citing Ghadi's request or
+  approval.
 
-**If the earlier step has a bug:**
-- **Parent PR still open:** stop the child and fix the bug on the parent's branch, with a test. Then
-  rebase the child with `git rebase --onto <parent> <old-parent-tip> <step-branch>` and force-push it
-  with `--force-with-lease`. Never fix a parent's bug only in the child's PR.
-- **The fix changes something the child relies on:** update the child and tell the Reviewer what
-  changed. If the parent needs major rework, mark the child as a draft until the parent passes review.
-- **Parent already merged:** open a small fix PR from `origin/main` with a regression test
-  (`<parent-step-branch>-fix`, as with PR #9), then rebase your step once it merges. If your step can't
-  proceed without the fix, wait for its merge unless Ghadi explicitly authorizes stacking.
-- **The design itself looks wrong,** or the spec can't work as written: stop that chain and use trigger
-  8. Continue only with steps that do not depend on it.
+Not process changes, and needing no approval: adding a line to `docs/notes/review-checklist.md`
+when review catches a new kind of bug; a component note in `docs/notes/`; adding a decision
+entry; marking a merged step complete in `docs/PLAN.md` §4 and moving its text to the archive;
+adding a product `make` target that a step specifies.
 
-### Coding sub-agents for parallel steps (D-029)
+## Checks (D-041)
 
-"Sub-agents" here means **extra coding agents that an implementing agent launches to write this
-repository's code faster** (for example, Claude Code's subagents). They are a development tool only.
-They are distinct from Hypora's product Agents A/B/C and C's workers, and they change nothing in
-the spec, the product's agent roles, or this team's roles.
+CI is the merge gate. It runs every non-live test on every code PR, as parallel jobs, and is faster
+than this machine: tests take about twice as long on WSL. So run locally only what is listed here,
+and let CI do the rest.
 
-**Use them only for parallel steps.** When two or more of your assigned steps are ready at the same
-time, launch one sub-agent per step, as many as there are such steps. Steps qualify when both hold:
-- `docs/PLAN.md` allows them together: same `⇉ PARALLEL` group or an explicitly independent pair in PLAN Appendix B, or historical S2.1
-  alongside the `S2-prep` steps.
-- Each step's dependencies have merged, or it may stack under "Working through a part".
+| When | Run locally | Time on WSL |
+|---|---|---|
+| While iterating, and before each push of review fixes | The tests for what you changed (`uv run pytest <paths>`). The commit hook runs lint and types | seconds to minutes |
+| Once, before opening the PR (every code PR) | `make check-fast`: lint, types, and the 2,150 in-process tests. Start it in the background while you self-check the diff and write the PR description | about 7 min |
+| Also before opening the PR, if you changed the controller, roles, prompts, MCP server, baseline or evaluation runner | `make test-fast SHARD=agents`: the scripted agent loops in `tests/controller` and `tests/baseline` | about 7 min |
+| Also before opening the PR, if you changed code a container test exercises | That test path, for example `uv run pytest tests/sandbox` or `tests/harness`; or a whole CI shard, `make test-containers SHARD=controller\|harness\|rest`. **Required for trigger-3 changes** (sandbox, policy, data firewall, secrets), because Docker Desktop behaves differently from CI's Docker | minutes |
+| Not routine | `make check`: everything in one serial run plus a full-history secret scan. Only to chase a failure that CI shows and smaller runs cannot reproduce, or when Ghadi asks | 20–45 min |
 
-**Steps that depend on each other are never parallel:** do them in order, with no sub-agent needed for
-the sake of it. If your tool has no sub-agents, work through the steps one at a time.
+**CI** runs on every PR and every push to `main`: lint and types, the in-process tests, the
+scripted agent loops, and the container tests in three shards, each as its own job. The required
+statuses are `make check`, which passes only if every one of those jobs passed, and `gitleaks`.
 
-**Rules:**
-- **Own clone:** each sub-agent works in its own clone under `~`, never a shared working directory, a
-  worktree, or `/mnt/c`: `git clone https://github.com/ghadikhoury/hypora.git ~/hypora-<step>`, then
-  `make setup`.
-- **Same bar:** each sub-agent handles one step and opens one PR, with its own branch, checks, fresh
-  self-check, any required fresh-context pass, and Explain-it check. Give it the step ID, "Done
-  when", spec sections, and directories.
-- **No merging:** sub-agents never merge. PRs from your sub-agents count as your own for stacking.
-- **You coordinate:** assign steps so shared files don't collide, verify each result yourself, and see
-  that review comments get fixed. Sub-agents report to you, and you raise any 🧑 block for Ghadi.
-- **Take turns on heavy runs:** run Docker-based tests and live model runs one at a time across
-  sub-agents. They compete for CPU, some tests are timing-sensitive, and live runs share a daily cap.
-  Writing code and running other tests can be fully parallel.
+- **Docs-only changes** (Markdown under `docs/` or `results/`, and the root and template docs) need
+  no local checks. `scripts/ci_scope.py` decides the route: CI then skips lint and tests and only
+  `gitleaks` and the lightweight `make check` status run. Runtime prompts
+  (`hypora/core/roles/prompts/`) and any mixed change count as code.
+- **Keep tests cheap.** A test that starts a container carries the `sandbox` or `docker` marker,
+  which keeps `make test-fast` free of Docker. Add a container test only when the behavior crosses
+  the container boundary, and a scripted agent-loop test only when it needs the real controller
+  and MCP server process; otherwise write a unit test. Each CI job prints its 25 slowest tests.
+- **A red check:** read the failure and reproduce that test locally before pushing again. Never
+  re-run a job hoping it passes, and never repeat a check that is already green on the same commit.
+- **Test selections live in the `Makefile`.** `make test-fast` plus `make test-containers` is
+  exactly `make test`. `tests/unit/test_ci_shards.py` checks that CI runs every shard and that the
+  required status depends on every job. No `pytest-xdist`: parallelism is between CI jobs only.
+- **Secret scanning:** a pre-commit hook scans staged changes, the required `gitleaks` job scans
+  each PR and push, and a daily job scans the full history. `make secrets` runs a history audit on
+  request.
+- **Never weaken a gate to get a merge:** no skip directives, no removed tests, no edits to branch
+  protection.
 
-### Reviewer flow (D-024, D-026, D-029)
+## Review (D-024, D-026, D-041)
 
-- **Watch the queue until told to stop.** Use notifications where available or poll at reasonable
-  intervals; avoid duplicate monitors and busy polling. Review open PRs oldest first and parents
-  before children without waiting for Ghadi to relay numbers. While CI is pending, review other PRs
-  and return to merge; confirm actual CI completion on the reviewed head.
-- **Start reviewing as soon as the PR is open.** Do not wait for CI or anything else.
-- If CI is red, still finish the whole review, so the author gets all feedback in one round.
-- **Review depth does not change when work arrives as a part.** Ghadi relies on this review for now:
-  read the entire first-pass diff against the step's "Done when" and spec sections, reproduce each
-  blocking claim, and apply every `🔍 REVIEW FOCUS` check.
-- **Report everything in the first pass,** including the same kind of bug elsewhere in the diff.
-- **Blocking** means wrong behavior, a spec or plan violation, a security or data-integrity problem, or
-  a missing "Done when" item. **Nits never hold a merge.**
-- **Stacked PRs:** review only the child's own diff (its PR base is the parent). A child may pass
-  review before its parent merges, but merge from the bottom up and only once its base is `main`. Do
-  not use `--delete-branch` on a parent with an open child; its author deletes that branch after
-  retargeting.
-- **Pure rebases:** when a push only moves a reviewed PR onto new commits, compare with `git range-diff`.
-  If its own changes are the same, the review stands; otherwise re-review what changed. Required
-  checks must still pass on the new head.
-- **Last PR of a part:** also check that the part's steps fit together, and that the part's "Done when"
-  items hold on the merged code.
-- **Review the diff; rely on CI for full validation.** Do not run `make check`, the full test suite,
-  other checks already covered by CI, or manually rerun CI jobs. Run a targeted test only when it
-  is needed to verify a specific review claim.
-- **Genuine docs-only fixes:** review the diff; no local checks or manual CI run unless a specific
-  claim needs verification. D-037 routes the required status without the full suite; runtime prompt
-  Markdown remains code-facing work. Existing required GitHub statuses still govern merging.
-- If commits are pushed after your review, re-review only the changes since the commit you reviewed
-  (`git diff <reviewed>..<head>`) and the code they directly affect. A new serious problem still blocks.
-- **Before merging**, confirm that the PR's head commit (`gh pr view <N> --json headRefOid`) is the
-  one you reviewed (or a pure rebase of it, as above) and that `gh pr checks <N>` shows every required
-  check passed on it. Never merge on a red or pending check.
+For the Reviewer:
 
-### The "🧑 ACTION NEEDED FROM GHADI" convention
+- **Watch the PR queue until told to stop**, oldest PR first. Start as soon as a PR opens; do not
+  wait for CI. If CI is red, still finish the review so the author gets everything in one round.
+- **First pass:** read the whole diff against the step's "Done when" items and spec sections,
+  reproduce each blocking claim, apply every `🔍 REVIEW FOCUS` check, and use
+  `docs/notes/review-checklist.md`. Report everything at once, including the same kind of bug
+  elsewhere in the diff.
+- **Blocking** means wrong behavior, a spec or plan violation, a security or data-integrity
+  problem, or a missing "Done when" item. **Nits never hold a merge.**
+- **Rely on CI for validation.** Do not run `make check`, the test suite, or anything CI already
+  covers, and do not re-run CI jobs. Run a targeted test only to verify a specific review claim.
+- **After new commits,** review only the changes since the commit you reviewed
+  (`git diff <reviewed>..<head>`) and the code they directly affect. For a pure rebase, compare with
+  `git range-diff`; if the PR's own changes are the same, the review stands.
+- **Before merging,** confirm the PR's head (`gh pr view <N> --json headRefOid`) is the commit you
+  reviewed and that `gh pr checks <N>` shows `make check` and `gitleaks` passed on it. Squash-merge.
+  Never merge on a red or pending check.
+- **Last PR of a stage:** also check that the stage's steps fit together on the merged code.
+- When review catches a new kind of bug, add one line to `docs/notes/review-checklist.md`.
 
-Whenever a 🧑 label or a stop-and-ask trigger applies, the agent's message **starts** with a block
-titled `🧑 ACTION NEEDED FROM GHADI` that lists exactly what Ghadi must do (commands, settings,
-decisions with options and a recommendation), and then the agent **waits for confirmation** before
-continuing that step and anything that depends on it. Raise it at the point it is needed: before
-starting the step, or before opening its PR. Meanwhile, keep working on assigned steps that do not
-depend on the answer, and group pending items into one block where you can.
+## Stop-and-ask triggers
+
+These apply to every step, labeled or not. Stop and ask Ghadi when:
+
+1. A change would modify a **schema in `hypora/core/schemas/`**, an **MCP tool signature/description**,
+   the **trial `fit`/`predict` interface**, or the **event types** after they were approved.
+2. A **new dependency** is needed that is not already in `pyproject.toml` / `package.json` **and** is
+   not named in spec §22 or in the current step. (Dependencies named there are pre-approved; pin
+   them in `pyproject.toml` and commit `uv.lock`.)
+3. A change touches **security**: `hypora/core/policy/`, `hypora/execution/sandbox/`, the data
+   firewall, auth, or secret handling.
+4. A change modifies **merged eval cases, grading rules, or hidden splits**. Creating them as a step
+   specifies is not a change; the Reviewer checks that work.
+5. A change modifies the **`eval` model profile**.
+6. An operation would spend **more than $5 of API credits** in one run, or start GPU jobs.
+7. Tests or the dev eval **regress** and the cause is not clear after one investigation.
+8. The spec is **ambiguous or contradictory**, or something **cannot be implemented as specified**.
+9. A required **real OpenML/UCI dataset cannot be obtained**. List its OpenML/UCI dataset IDs
+   and wait for Ghadi; never substitute synthetic data.
+10. A change would modify **how the repository is worked on** ("Changing this process" below).
+
+Everything else proceeds without asking.
+
+**The "🧑 ACTION NEEDED FROM GHADI" convention.** When a trigger or a 🧑 label applies, your message
+**starts** with a block titled `🧑 ACTION NEEDED FROM GHADI` that lists exactly what Ghadi must do
+(commands, settings, or a decision with options and a recommendation). Then wait for his answer
+before continuing that step or anything that depends on it. Meanwhile, keep working on assigned
+steps that do not depend on the answer, and group pending items into one block where you can.
+
+## Labels
+
+Check for these on your step **before starting** it and **before opening its PR**.
+
+| Label | Meaning | What the implementer does |
+|---|---|---|
+| `🧑 HUMAN · SETUP` | Something must be installed or configured on Ghadi's machine or an external account | Stop, list the exact actions, wait for confirmation |
+| `🧑 HUMAN · SECRET` | A credential is needed | Stop and name the variable and where it goes ("Secrets" below) |
+| `🧑 HUMAN · DECIDE` | A choice only Ghadi can make | Present 2–3 options with a recommendation, wait, record the decision in `docs/DECISIONS.md` |
+| `🧑 HUMAN · COURSE` | A course deliverable only Ghadi can submit or perform | Prepare all materials, then hand off with a checklist |
+| `🔍 REVIEW FOCUS` | High-impact PR (contracts, security, grading, prompts) | The Reviewer applies the listed extra checks. Never blocks on Ghadi |
+| `⇉ PARALLEL · <group>` | May be implemented at the same time as the other steps in the group | Dependencies listed on the step still apply |
+| `→ SERIAL` | Must merge before any step that follows it in the stage | Steps that do not depend on it may still be worked on |
+| `⏸ LATER` | Moved after the core (D-028) | Do not start it until Ghadi assigns it |
+
+**No step requires human approval to merge.** The Reviewer merges every PR that passes review and CI.
 
 ## Secrets
 
 - Never ask for a key value in chat. Name the variable and where it goes: local `.env` (git-ignored)
   and/or GitHub Actions secrets. `.env.example` lists names only, never values.
-- Never print, log, or commit a secret. gitleaks runs in pre-commit and in CI; GitHub secret scanning
-  with push protection is enabled on the repository.
+- Never print, log, read aloud, or commit a secret. GitHub secret scanning with push protection is
+  enabled on the repository, in addition to the gitleaks checks above.
 
 ## Development environment and commands
 
 Ghadi's machine is Windows 11 with Docker Desktop on WSL2; CI runs on GitHub's Ubuntu runners.
 **Work from the WSL filesystem (`~/hypora`, or your own clone under `~`), never from `/mnt/c`:**
 Docker Desktop's bind mounts can break the working directory of processes on the Windows drive, and
-permissions and speed differ there (`docs/notes/dev-environment.md`). Run
-`make` from a POSIX shell: the **WSL2 Ubuntu** shell on Windows (`wsl -d Ubuntu-24.04`), or Linux.
-The `.venv` is a Linux environment, so don't run `uv sync` from PowerShell in this folder, and make
-commits from WSL so the pre-commit hooks can run. All text files use LF line endings (`.gitattributes`).
+permissions and speed differ there (`docs/notes/dev-environment.md`). Run `make` from the WSL2
+Ubuntu shell (`wsl -d Ubuntu-24.04`) or Linux. The `.venv` is a Linux environment, so do not run
+`uv sync` from PowerShell, and commit from WSL so the pre-commit hooks run. All text files use LF
+line endings (`.gitattributes`).
 
 | Command | What it does |
 |---|---|
 | `make setup` | `uv sync --locked` (pinned Python 3.12 + locked dev deps) and install the pre-commit hooks |
-| `make lint` | `ruff check` + `ruff format --check` |
-| `make typecheck` | `mypy` (strict on `hypora/core/`) |
-| `make test` | `pytest` (live provider calls excluded; sandbox tests need Docker and build the sandbox image on first run) |
-| `make test-live` | Live LLM calls on the free Gemini tier only; needs `GEMINI_API_KEY` in `.env`. Follows "Live runs" below. Paid tests (`-m "live and paid"`) run only on his explicit request |
-| `make secrets` | gitleaks over the full git history (needs Docker running) |
-| `make schemas` | Regenerate `docs/schemas/` after a schema change (a test fails if it is stale) |
-| `make mcp-tools` | Regenerate `docs/mcp/tools.json`, the frozen MCP tool contract, after an approved tool change (a test fails if it is stale) |
-| `make sandbox-image` | Build the hash-tagged tabular sandbox image (needs Docker) |
-| `make sandbox-lock` | Re-lock the sandbox image's packages (with hashes) after editing `requirements-tabular.in` |
-| `make check` | Full validation plus history secret audit; explicit local authorization required |
-| `make check-ci` | CI full non-live regression: lint + types + all tests; gitleaks runs separately |
-| `make run` | Run the agent end to end (`hypora run`): the demo task on OpenML 46918, or `DATA=<file> GOAL="..." [TARGET=<col>]`. Makes live model calls on the active profile, so it follows "Live runs" below |
+| `make check-fast` | Lint, types, and the in-process tests (`make test-fast SHARD=rest`). Run before opening a PR |
+| `make lint` / `make typecheck` | `ruff check` + `ruff format --check`; `mypy` (strict on `hypora/core/`) |
+| `make test-fast [SHARD=agents\|rest]` | The tests that start no container. `agents` is the scripted agent loops; `rest` is everything else. No Docker needed |
+| `make test-containers [SHARD=controller\|harness\|rest]` | The tests that start containers (needs Docker; builds the sandbox image on first run) |
+| `make test` | Every non-live test: `test-fast` and `test-containers` together |
+| `make check` | Full local validation plus a full-history secret scan. Not routine ("Checks") |
+| `make test-live` | Live LLM calls on the free Gemini tier; needs `GEMINI_API_KEY` in `.env`. Follows "Live runs" |
+| `make secrets` | gitleaks over the full git history (needs Docker) |
+| `make schemas` / `make mcp-tools` | Regenerate `docs/schemas/` or `docs/mcp/tools.json` after an approved change (a test fails if either is stale) |
+| `make sandbox-image` / `make sandbox-lock` | Build the hash-tagged sandbox image; re-lock its packages after editing `requirements-tabular.in` |
+| `make run` | Run the agent end to end: the demo task on OpenML 46918, or `DATA=<file> GOAL="..." [TARGET=<col>]`. Makes live model calls; follows "Live runs" |
+| `make eval` | Compare agent and baseline on a case set; saves graded records, statistics, and regression flags |
 | `make snapshot SOURCE=openml\|uci ID=<id>` | Fetch a real dataset into `data/snapshots/` with its manifest entry (D-015, D-021) |
-| `make eval` | Compare agent and baseline on a case set; saves graded records, statistics, and regression flags (S2.4) |
-| `make up` / `make worker-up` / `make down` | Mode 1 compose stack: the API placeholder; the opt-in compose experiment worker (D-020); stop both |
+| `make up` / `make worker-up` / `make down` | Compose stack: the API placeholder; the opt-in compose experiment worker (D-020); stop both |
 
 The `hypora` CLI (`uv run hypora run | status | trace | cancel | approve`) is documented in
 `docs/notes/cli.md`.
 
 **Layout:** all Python code lives in the top-level `hypora/` package, which mirrors spec §22.1
 (`hypora/core/...`, `hypora/execution/...`), so imports look like `hypora.core.schemas`. `web/`,
-`configs/`, `tests/`, and `docs/` stay at the repo root (`docs/DECISIONS.md` D-001).
-
-**Dependencies:** anything named in spec §22 or in the current step is pre-approved; pin it in
-`pyproject.toml` and commit `uv.lock`. Anything else triggers stop-and-ask.
-
-### Coding-agent checks before a PR and in CI (D-037)
-
-This section owns validation policy. PLAN references it rather than repeating the rules.
-
-- **Genuine docs-only changes:** review the diff; no local make, lint/types, pytest, live runs or
-  manual CI reruns. Run a specific check only to resolve a concrete concern. The required GitHub
-  `make check` status performs checkout and conservative file classification only; it does not
-  execute the command. The separate `gitleaks` check remains required. There is no Python dependency
-  setup, full suite or Docker run for this route.
-- **Markdown is not automatically prose.** Runtime prompts, unknown Markdown locations, generated
-  contracts, executable/mode changes, code-to-doc renames, mixed changes, CI config and ambiguous
-  Git metadata use full validation. `scripts/ci_scope.py` is the actual routing authority. Both
-  rename paths and the complete before/after main-push range are covered. Never use a label or skip-workflow
-  directive to bypass a required check.
-- **Code PRs and code pushes to main keep full non-live regression coverage.** CI runs
-  `make check-ci` (lint, types and the full test suite including Docker). It installs locked
-  dependencies without local commit hooks and caches the exact sandbox image. Existing CI
-  concurrency cancels obsolete runs. No new nightly full-test schedule is introduced.
-- **Local code iteration:** run affected tests, including relevant container/process/security and
-  required WSL tests, plus lint/types before opening and after substantive fixes. Reuse successful
-  commit-hook lint/type results for the same tree rather than running identical commands twice.
-  Add regressions for actual bugs, not tests mirroring trivial implementation details.
-- **No automatic local full suite.** A full local `make check` or full pytest run requires Ghadi's
-  explicit authorization for that specific run when targeted evidence cannot resolve the issue.
-  Authors and reviewers rely on GitHub for broad validation. Do not repeat already-green checks
-  for unchanged code or manually rerun jobs without investigating the failure first.
-- **Secret scanning:** local staged scan and required incremental PR/main scanning remain. Existing
-  daily/manual full-history scanning remains. `make secrets` stays available for explicit history
-  audits; CI does not repeat that audit inside each regression job. No secrets may be printed.
-- **Merge:** independent review plus successful required `make check` and `gitleaks` statuses on
-  the reviewed commit, including docs-only PRs. Do not remove global protection to skip docs tests.
-- **Review and PR scope:** review while CI runs, re-review deltas, and never block on nits. One step
-  is a coherent behavior change including its prompt/helpers/wiring. Do not split those into extra
-  PRs solely by file type. Continue independent authorized work while checks run. No extra review
-  or monitoring agents for unchanged status. Keep stacking authorization and step dependencies.
-- No pytest-xdist is introduced. Relevant failing tests may be rerun after diagnosis; full suite
-  retries need a concrete reason. Explicit security/data-integrity checks remain mandatory.
+`configs/`, `tests/`, and `docs/` stay at the repo root (D-001).
 
 ## Definition of Done (every PR)
 
-- Implements exactly the step's scope; references the step ID and spec sections in the PR description.
-- Unit tests for new logic; integration tests where a step crosses a process/container boundary.
-- Required statuses pass under D-037; code changes retain lint, types, full non-live tests and secret scanning.
+- Implements exactly the step's scope; the PR description names the step ID and spec sections.
+- Unit tests for new logic; integration tests where a step crosses a process or container boundary.
+- `make check` and `gitleaks` are green on the reviewed commit.
 - New behavior that an evaluation must compare is behind a **feature flag** (spec §19.4).
 - Every model call, tool call, state transition, and policy decision emits an **event** (spec §15.1).
 - No credentials, raw private data, or large artifacts committed.
 - Public functions have docstrings; non-obvious decisions get a short note in `docs/notes/`.
 
-## Labels (PLAN.md §0.2)
-
-**Human intervention labels.** Check for these **before starting** a step and **before opening its PR**:
-
-| Label | Meaning | What the implementing agent does |
-|---|---|---|
-| `🧑 HUMAN · SETUP` | Something must be installed/configured on Ghadi's machine or an external account | Stop, list the exact actions, wait for confirmation |
-| `🧑 HUMAN · SECRET` | A credential is needed | Stop, say which variable name in `.env` / GitHub Actions secrets is needed. **Never ask for the key value in chat; never print, log, or commit it** |
-| `🧑 HUMAN · DECIDE` | A choice only Ghadi can make | Present 2–3 options with a recommendation, wait for the decision, record it in `docs/DECISIONS.md` |
-| `🧑 HUMAN · COURSE` | A course deliverable only Ghadi can submit/perform | Prepare all materials, then hand off with a checklist |
-
-**No step requires human approval to merge.** The Reviewer merges every PR that passes review and CI.
-
-**Review focus label** (for the Reviewer; never blocks on Ghadi):
-
-| Label | Meaning | What the reviewing agent does |
-|---|---|---|
-| `🔍 REVIEW FOCUS` | High-impact PR (contracts, security, grading, prompts) | Applies the listed extra checks before merging |
-
-**Parallelism labels:**
-
-| Label | Meaning |
-|---|---|
-| `⇉ PARALLEL · <group>` | Can be implemented at the same time as every other step with the same group tag, by separate coding agents on separate branches. Dependencies listed on the step still apply. |
-| `→ SERIAL` | Must merge in order, before any step that follows it in the stage. Steps that do not depend on it may run alongside it; stacking needs Ghadi's explicit authorization and the conditions in "Working through a part". |
-
-**Scope label:**
-
-| Label | Meaning |
-|---|---|
-| `⏸ LATER` | Moved after the core (D-028; `docs/PLAN.md` "Later track"). Do not start it until Ghadi assigns it. |
-
-## Stop-and-ask triggers (PLAN.md §0.3)
-
-These apply to every step, labeled or not. Stop and ask Ghadi (with a `🧑 ACTION NEEDED FROM GHADI`
-block) when:
-
-1. A change would modify a **schema in `hypora/core/schemas/`**, an **MCP tool signature/description**,
-   the **trial `fit`/`predict` interface**, or the **event types** after they were approved.
-2. A **new dependency** is needed that is not already in `pyproject.toml` / `package.json` **and** is
-   not named in spec §22 or in the current step. (Dependencies named there are pre-approved; pin them.)
-3. A change touches **security**: `hypora/core/policy/`, `hypora/execution/sandbox/`, the data
-   firewall, auth, or secret handling.
-4. A change modifies **merged eval cases, grading rules, or hidden splits**. Creating them as a step
-   specifies is not a change (D-029); the Reviewer checks that work.
-5. A change modifies the **`eval` model profile**.
-6. An operation would spend **more than $5 of API credits** in one run, or start GPU jobs.
-7. Tests or the dev eval **regress** and the cause is not clear after one investigation.
-8. The spec is **ambiguous or contradictory**, or something **cannot be implemented as specified**.
-9. A required **real OpenML/UCI dataset cannot be obtained**. List its OpenML/UCI dataset IDs
-   and wait for Ghadi; never substitute synthetic data (PLAN.md §0.4).
-
-Everything else proceeds without asking.
-
-## Real-data rule (PLAN.md §0.4, D-015)
+## Real-data rule (D-015)
 
 - Evaluation, dev cases, demos, and recorded runs use **real OpenML/UCI datasets** fetched
   with `scripts/snapshot_dataset.py`, with a manifest entry recording source URL, version,
-  license, retrieval date, and SHA-256 (S1.6).
+  license, retrieval date, and SHA-256.
 - Synthetic data is allowed **only in unit tests and in trap-planting scripts that modify a
   real dataset**. Never substitute synthetic data for an unavailable real dataset.
-- If a required real dataset cannot be obtained, stop, list the OpenML/UCI dataset IDs, and
-  ask Ghadi how to proceed (trigger 9). Kaggle is not an evaluation source.
+- If a required real dataset cannot be obtained, stop and ask (trigger 9). Kaggle is not an
+  evaluation source. Spec §17 and §19.2 state the same rule.
 
-Spec §17 and §19.2 state the same rule.
+## Model policy and live runs
 
-## Model policy and evaluation
+`docs/PLAN.md` §1 is the authority on the `dev` and `eval` profiles, pinned model IDs, fallback,
+and recorded evidence. In short: `dev` (free Gemini tier) is for development; `eval` is pinned, has
+no fallback, and is the only profile for recorded results. Never mix models inside recorded
+results, and never change the `eval` profile without a decision from Ghadi (trigger 5).
 
-The `dev` and `eval` profiles are specified in `docs/PLAN.md` §1, which is authoritative for profiles, pinned model IDs, fallback, recorded evidence and
-model changes. Spec §§17–20 define the evaluation and course evidence. D-033 records the temporary
-Stage 2 Luna lock; D-036 sets the next single readiness collection at S4.2. Do not repeat full dev
-evaluations at every step or treat existing inactive flags as working features. Run live calls only
-under the "Live runs" authorization rules above. Never mix models inside recorded eval results.
+**Live runs:**
 
-
-### Live runs (D-029, D-036, D-037)
-
-- Default to scripted models (`tests/controller/scripted.py`) and deterministic tool fixtures.
-  A normal implementation or review fix does not require any live provider call.
-- Use the smallest free dev task only when the current step explicitly requires live evidence or
-  model-facing behavior changed and scripted tests cannot answer the specific question. Record
-  what uncertainty the run resolves. Reuse valid evidence when behavior and inputs are unchanged.
-- After a live failure, run the affected case and a control when necessary. Do not rerun the full
-  dev set after every fix. S4.2 owns the next full readiness collection; Stage 5 retains its required
-  final frozen evidence. No extra runs solely for PR ceremony, review, handoff or presentation.
-- Paid scope and budget must be authorized. Existing session authorization persists within that
-  scope; do not ask again for the same run budget. Otherwise ask before work expected to cost about
-  $1 or more, and retain trigger 6 above $5 or for GPU jobs. No speculative provider/model sweeps.
-- CI excludes live calls. Never put provider keys in routine PR jobs or add live calls to make check.
+- Default to scripted models (`tests/controller/scripted.py`) and deterministic tool fixtures. A
+  normal implementation or review fix needs no live provider call, and CI never makes one.
+- Use the smallest free `dev` task only when the step requires live evidence, or when model-facing
+  behavior changed and scripted tests cannot answer the question. Say what the run resolves, and
+  reuse valid evidence when behavior and inputs are unchanged.
+- After a live failure, re-run the affected case and a control if needed, not the whole dev set.
+  S4.2 owns the next full readiness collection; Stage 5 owns the final frozen evidence.
+- Paid runs need Ghadi's authorization for their scope and budget. An authorization holds within
+  that scope; otherwise ask before work expected to cost about $1 or more, and trigger 6 applies
+  above $5 or for GPU jobs. No speculative provider or model sweeps.
