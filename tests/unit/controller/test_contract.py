@@ -11,7 +11,6 @@ from hypora.core.controller.contract import (
     build_experiment_contract,
     build_plan,
 )
-from hypora.core.controller.controller import stage1_flag_notes
 from hypora.core.policy.approvals import plan_scope_hash, scope_hash
 from hypora.core.schemas import (
     AUTO_APPROVER,
@@ -81,14 +80,13 @@ def test_the_policy_approves_the_exact_plan_hash() -> None:
     assert contract.budget == budget and contract.default_job_limits == LIMITS
 
 
-def test_flags_that_stage_1_cannot_honour_are_called_out() -> None:
-    defaults = stage1_flag_notes(FeatureFlags())  # agent_mode multi, approval interactive
-    assert len(defaults) == 1
-    assert "S3.5" in defaults[0]
-    stage1 = FeatureFlags.model_validate(
-        {"agent_mode": "single", "approval_policy": "auto_within_contract"}
-    )
-    assert stage1_flag_notes(stage1) == []
+def test_the_interactive_policy_is_honoured_not_called_out() -> None:
+    # S3.5: the plan gate honours flags.approval_policy, so the Stage-1 note that said the
+    # interactive gate was missing is gone (tests/controller/test_approval_gate.py runs it).
+    from hypora.core.controller import controller
+
+    assert FeatureFlags().approval_policy is ApprovalPolicy.INTERACTIVE
+    assert not hasattr(controller, "stage1_flag_notes")
 
 
 def test_explicit_secondary_metrics_are_unioned_with_defaults_and_quality_target() -> None:

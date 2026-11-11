@@ -22,7 +22,7 @@ from hypora.core.controller.controller import RunController, RunRequest
 from hypora.core.llm.adapter import LLMAdapter
 from hypora.core.llm.rate_limit import ProviderAdmission
 from hypora.core.llm.sinks import FileModelIOStore
-from hypora.core.schemas import MetricName, TaskType
+from hypora.core.schemas import ApprovalPolicy, MetricName, TaskType
 from hypora.storage.database import Database
 from hypora.storage.events import EventLog
 from hypora.storage.migrate import migrate
@@ -40,6 +40,14 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument("--metric", type=MetricName, choices=list(MetricName), default=None)
     parser.add_argument("--forbid", action="append", default=[], help="a column not to use")
     parser.add_argument("--run-id", help="run ID (default: a new one)")
+    parser.add_argument(
+        "--approve",
+        type=ApprovalPolicy,
+        choices=list(ApprovalPolicy),
+        default=None,
+        help="plan approval policy (default: flags.approval_policy). interactive waits for "
+        "`hypora approve RUN_ID` from another terminal (S3.5)",
+    )
     parser.add_argument("--db", type=Path, default=REPO_ROOT / "runs" / "hypora.sqlite")
     parser.add_argument("--runs-root", type=Path, default=REPO_ROOT / "runs")
     return parser.parse_args(argv)
@@ -49,6 +57,14 @@ async def run(args: argparse.Namespace) -> int:
     """Execute the developer entry point and return its process exit code."""
     settings = load_settings()
     run_config = RunConfig.build(settings)
+    if args.approve is not None:
+        flags = run_config.flags.model_copy(update={"approval_policy": args.approve})
+        run_config = run_config.model_copy(update={"flags": flags})
+    if run_config.flags.approval_policy is ApprovalPolicy.INTERACTIVE:
+        print(
+            "The run waits for your plan decision: hypora approve RUN_ID (see hypora status).",
+            file=sys.stderr,
+        )
     args.runs_root.mkdir(parents=True, exist_ok=True)
     database = Database(args.db.resolve())
     try:

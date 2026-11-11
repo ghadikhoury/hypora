@@ -441,6 +441,17 @@ def _limitations(
         else:
             lines.append(f"The {handoff.from_role.value} role handed off {handoff.status.value}.")
     lines += _approval_limitation(approval, expected=approval_expected)
+    # A later plan version can be denied after an earlier one was approved (a feature revision
+    # asks again): that denial is the reason the run stopped, so it is stated too.
+    for event in timeline.before:
+        if isinstance(event, ApprovalDeniedEvent) and (
+            approval is None or event.payload.approval_id != approval.approval_id
+        ):
+            reason = (_cut(event.payload.reason) or "no reason given").rstrip(".")
+            lines.append(
+                f"Plan approval {event.payload.approval_id} was denied by "
+                f"{event.payload.approver}: {reason}."
+            )
     if verification_status != "not_run":
         lines.append(TEST_ONCE_LIMITATION)
     return lines

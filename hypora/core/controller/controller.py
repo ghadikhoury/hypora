@@ -8,10 +8,13 @@ narrate (Reporter).
 
     INTAKE    Intake drafts the TaskSpecification; code settles every field it can check.
     PROFILE   the dataset profile, from the exact bytes the experiments will read.
-    CONTRACT  data contract, plan, the plan hash approved by policy, experiment contract.
-    PHASE_B   the experiment worker starts; the single agent runs trials through the MCP
-              server; the controller drains unfinished jobs, selects the final trial, and queues
-              its `final` job (re-validate, refit, score the test split once, verifier v1).
+    CONTRACT  data contract, plan, the plan gate (S3.5: `approval_gate.py`; the user or the
+              bounded policy approves the plan's exact hash, which covers its scope), experiment
+              contract. A rejected plan reports and ends CANCELLED (user) or FAILED (policy).
+    PHASE_B   the approval is re-checked (here, before each worker session and before the final
+              job); the experiment worker starts; the agent runs trials through the MCP server;
+              the controller drains unfinished jobs, selects the final trial, and queues its
+              `final` job (re-validate, refit, score the test split once, verifier v1).
     REPORT    report.json and report.md from stored records, plus the Reporter's narrative.
 
 A failure at any stage is an `error` event and a `fail` transition into REPORT, so every run
@@ -36,11 +39,11 @@ import pandas as pd  # type: ignore[import-untyped]
 from mcp import Client
 from pydantic import BaseModel, TypeAdapter
 
-from hypora.core.config.flags import AgentMode, FeatureFlags, Toggle
+from hypora.core.config.flags import AgentMode, Toggle
 from hypora.core.config.run_config import RunConfig
+from hypora.core.controller.approval_gate import ApprovalGate, GateResult, GateVerdict
 from hypora.core.controller.contract import (
     ContractError,
-    approve_by_policy,
     build_experiment_contract,
     build_plan,
 )
@@ -62,16 +65,26 @@ from hypora.core.controller.workers import (
 )
 from hypora.core.llm.adapter import LLMAdapter, worker_first_call_bound
 from hypora.core.llm.types import CallContext, Message, ToolSpec
+from hypora.core.policy.approvals import (
+    ApprovalBounds,
+    ApprovalScope,
+    approval_problem,
+    bind_scope,
+    effective_tools,
+    plan_file_problem,
+    write_scope,
+)
 from hypora.core.policy.firewall import DataFirewall
+from hypora.core.policy.injection import screen_text
 from hypora.core.roles.base import USER_CANCEL, RunLimitReached
 from hypora.core.roles.intake import IntakeError, IntakeForm, _task_type, run_intake
 from hypora.core.roles.methodology import propose_data_contract
 from hypora.core.roles.multi import LeadAction, ResearchObservation, draft_plan, main_role_call
-from hypora.core.roles.outcome_evidence import derive_outcome_evidence, has_authorized_model_route
+from hypora.core.roles.outcome_evidence import has_authorized_model_route
 from hypora.core.roles.prompt_loader import load_prompt
 from hypora.core.roles.reporter import (
-    EarlyStopReport,
     Report,
+    build_early_stop_report,
     build_report,
     metric_summary,
     render_early_stop,
@@ -88,9 +101,7 @@ from hypora.core.roles.single_agent import (
 from hypora.core.roles.worker import WorkerProposal, WorkerReport, WorkerRequest
 from hypora.core.scheduler.ready import ReadyTask, run_ready
 from hypora.core.schemas import (
-    AUTO_APPROVER,
     ActorRole,
-    ApprovalArtifactType,
     ApprovalPolicy,
     ApprovalRecord,
     ApprovedPlan,
@@ -119,8 +130,6 @@ from hypora.core.schemas import (
 )
 from hypora.core.schemas.briefs import Brief, FindingSchemaName
 from hypora.core.schemas.events import (
-    ApprovalGrantedPayload,
-    ApprovalRequestedPayload,
     ErrorPayload,
     HandoffPayload,
     PlanPayload,
@@ -130,6 +139,7 @@ from hypora.core.schemas.events import (
 from hypora.core.schemas.findings import FindingStatus, TrialFinding, TrialOutcome
 from hypora.execution.harness.runner import load_tabular
 from hypora.execution.protocol import experiments as protocol
+from hypora.execution.sandbox.image import tabular_image_tag
 from hypora.mcp_server.server import _redact
 from hypora.profiling.tabular import leakage_screen_summary, profile_tabular
 from hypora.storage.database import Database
@@ -147,7 +157,6 @@ from hypora.storage.records import (
     list_trials,
     load_result,
     run_jobs,
-    save_approval,
     save_data_contract,
     save_dataset_profile,
     save_experiment_contract,
@@ -167,6 +176,11 @@ FINAL_JOB_STAGES: Final = 10
 EXAMPLE_PIPELINE: Final = "linear/pipeline.py"
 _WORKER_NARRATIVE_FIELDS: Final = ("summary", "claims", "confidence", "open_questions")
 """TrialFinding fields a worker model authors; C receives them as untrusted worker text."""
+MAX_CODE_LINES: Final = 200
+MAX_CODE_LINE_CHARS: Final = 200
+MAX_CODE_EXCERPT_CHARS: Final = 8000
+CODE_LINE_WITHHELD: Final = "[line withheld by the data firewall]"
+"""Bounds and marker of the candidate code excerpt A reviews before final verification."""
 
 
 @dataclass(frozen=True)
@@ -217,16 +231,24 @@ def new_run_id() -> str:
     return f"run_{uuid.uuid4().hex[:12]}"
 
 
-def stage1_flag_notes(flags: FeatureFlags) -> list[str]:
-    """Say so when the run's flags ask for what Stage 1 does not have yet, instead of letting a
-    run look like it used them (D-019)."""
-    notes = []
-    if flags.approval_policy is not ApprovalPolicy.AUTO_WITHIN_CONTRACT:
-        notes.append(
-            f"flags.approval_policy is {flags.approval_policy.value!r}, but the interactive plan "
-            "gate arrives in S3.5; this run's plan was approved by policy (D-019)."
-        )
-    return notes
+class ApprovalStale(ContractError):
+    """A re-check found the approval no longer authorizes the work (S3.5 design §2.2): the plan
+    file or the live scope changed, or the approval is not the current contract's. Raised before
+    any further job is queued; the run reports and ends FAILED."""
+
+
+class PlanDenied(Exception):
+    """The plan gate denied the plan: the user rejected it (the run ends CANCELLED) or the
+    `auto_within_contract` policy found it outside the case's bounds (the run ends FAILED)."""
+
+    def __init__(self, result: GateResult) -> None:
+        super().__init__(result.reason)
+        self.result = result
+
+    @property
+    def by_user(self) -> bool:
+        """Whether a person rejected the plan (as opposed to the bounded policy)."""
+        return self.result.verdict is GateVerdict.DENIED_BY_USER
 
 
 def select_final(
@@ -375,6 +397,10 @@ class _Run:
         self.research_brief = ""
         self.overlap_reason: str | None = None
         self.methodology_draft: tuple[DataContract, dict[str, tuple[str, str]]] | None = None
+        self.plan_path: Path | None = None
+        """The approved plan file of the current contract, re-read at every approval re-check."""
+        self.approval: ApprovalRecord | None = None
+        self.plan_denied: PlanDenied | None = None
 
     # --- the run ----------------------------------------------------------------------------------
 
@@ -397,7 +423,8 @@ class _Run:
             if self._multi:
                 await self._research_and_decide(spec, profile)
             contract = await self._prepare_data_contract(spec, frame, profile)
-            approval_reason = f"plan approved by policy ({AUTO_APPROVER})"
+            approver = self.approval.approver if self.approval else "unknown"
+            approval_reason = f"plan approved by {approver} ({self.approval_policy_recorded.value})"
             if self._multi:
                 approval_reason += "; A authorized C assignment: " + json.dumps(
                     _redact(self.lead_assignment), ensure_ascii=True, sort_keys=True
@@ -407,6 +434,11 @@ class _Run:
             self._advance(RunEvent.PHASE_B_DONE, self.notes[-1] if self.notes else "phase B done")
         except LeadStop:
             self._advance(RunEvent.FAIL, "Agent A chose to report")
+        except PlanDenied as denied:
+            self.plan_denied = denied
+            who = "the user" if denied.by_user else "policy"
+            self.notes.append(f"The plan was denied by {who}: {denied.result.reason}")
+            self._advance(RunEvent.FAIL, f"plan denied by {who}")
         except Exception as exc:  # recorded, then the run still reports
             self._failed(exc)
             self._advance(RunEvent.FAIL, f"{self.state.stage} failed: {type(exc).__name__}")
@@ -419,6 +451,8 @@ class _Run:
         else:
             if USER_CANCEL in self.guard.fired:
                 event, reason = RunEvent.REPORTED_CANCELLED, "cancelled by the user"
+            elif self.plan_denied is not None and self.plan_denied.by_user:
+                event, reason = RunEvent.REPORTED_CANCELLED, "plan rejected by the user"
             elif verified:
                 event, reason = RunEvent.REPORTED_VERIFIED, "verified final model"
             else:
@@ -443,7 +477,7 @@ class _Run:
             self.controller.workspace_id,
             family=self.family,
             status=START.status,
-            approval_policy=ApprovalPolicy.AUTO_WITHIN_CONTRACT,
+            approval_policy=self.approval_policy_recorded,
             budget_usd=None if b.max_usd is None else Decimal(str(b.max_usd)),
             budget_compute_s=(
                 None if b.max_compute_seconds is None else Decimal(str(b.max_compute_seconds))
@@ -459,6 +493,19 @@ class _Run:
     @property
     def _multi(self) -> bool:
         return self.controller.run_config.flags.agent_mode is AgentMode.MULTI
+
+    @property
+    def approval_policy(self) -> ApprovalPolicy:
+        """The plan gate's configured policy (`flags.approval_policy`)."""
+        return self.controller.run_config.flags.approval_policy
+
+    @property
+    def approval_policy_recorded(self) -> ApprovalPolicy:
+        """The policy the run's records name: with `defenses.approval` off the gate grants by
+        policy, so the records say `auto_within_contract` (the gate does the same)."""
+        if not self.controller.run_config.flags.defenses.approval:
+            return ApprovalPolicy.AUTO_WITHIN_CONTRACT
+        return self.approval_policy
 
     async def _main_role(
         self, role: ActorRole, context: str, *, require_assignment: bool = False
@@ -703,7 +750,7 @@ class _Run:
         save_dataset_profile(self.database, profile)
         return profile
 
-    def _contract(self, spec: TaskSpecification, data: DataContract) -> ExperimentContract:
+    async def _contract(self, spec: TaskSpecification, data: DataContract) -> ExperimentContract:
         save_data_contract(self.database, self.run_id, data)
         plan = build_plan(
             spec,
@@ -711,10 +758,7 @@ class _Run:
             self.budget,
             note="Evidence-backed methodology; split locked before experiments.",
         )
-        (self.run_dir / "approved_plan.json").write_text(
-            plan.model_dump_json(indent=2), encoding="utf-8"
-        )
-        approval = self._approve(
+        approval = await self._approve(
             plan, "Data methodology approved; diagnostic partition to be locked."
         )
         contract = build_experiment_contract(
@@ -730,7 +774,6 @@ class _Run:
             if self._multi
             else "Single-agent data methodology selected; platform locks diagnostic rows."
         )
-        self.notes += stage1_flag_notes(self.controller.run_config.flags)
         return contract
 
     async def _propose_methodology(
@@ -858,7 +901,7 @@ class _Run:
             + self.research_brief
         ):
             raise LeadStop
-        provisional = self._contract(spec, draft)
+        provisional = await self._contract(spec, draft)
         lock_path = self.run_dir / "partition-lock.json"
         create_partition_lock(frame, provisional, self.dataset_fingerprint, lock_path)
         locked = load_verified_partition(frame, provisional, self.dataset_fingerprint, lock_path)
@@ -907,11 +950,11 @@ class _Run:
             data,
             self.budget,
             note="Evidence-backed methodology; split locked before experiments.",
-        ).model_copy(update={"version": 2})
-        (self.run_dir / "approved_plan_v2.json").write_text(
-            plan.model_dump_json(indent=2), encoding="utf-8"
+            version=2,
         )
-        approval = self._approve(plan, "C's evidence-backed feature revision; split locked")
+        # A changed artifact resets approval (spec §10.2; D-044 8.6): plan v2 is a new hash and
+        # a new approval ID, so the gate asks again under the run's policy.
+        approval = await self._approve(plan, "C's evidence-backed feature revision; split locked")
         contract = build_experiment_contract(
             spec,
             data,
@@ -923,37 +966,119 @@ class _Run:
         save_experiment_contract(self.database, contract)
         return contract
 
-    def _approve(self, plan: ApprovedPlan, note: str) -> ApprovalRecord:
-        """Approve `plan` by policy and record the request, the decision, and both their events."""
-        approval = approve_by_policy(plan, reason=note)
-        self._event(
-            EventType.APPROVAL_REQUESTED,
-            ApprovalRequestedPayload(
-                approval_id=approval.approval_id,
-                artifact_type=ApprovalArtifactType.PLAN,
-                artifact_hash=approval.artifact_hash,
-                policy=approval.policy,
-                summary=f"Phase B plan v{plan.version} within budget; {note}",
-            ),
+    async def _approve(self, plan: ApprovedPlan, note: str) -> ApprovalRecord:
+        """Bind `plan` to its approval scope, write both files, and let the plan gate decide.
+
+        The gate records the request, the decision and their events (S3.5 design §2.2). Returns
+        the granted record; raises PlanDenied on a denial, and the guard's RunCancelled or
+        RunLimitReached when the user cancels or the wall clock runs out while waiting.
+        """
+        scope = self._approval_scope(plan.data_contract_hash)
+        bound = bind_scope(
+            plan.model_copy(update={"approval_policy": self.approval_policy_recorded}), scope
         )
-        save_approval(self.database, approval)
-        self._event(
-            EventType.APPROVAL_GRANTED,
-            ApprovalGrantedPayload(
-                approval_id=approval.approval_id,
-                artifact_type=ApprovalArtifactType.PLAN,
-                artifact_hash=approval.artifact_hash,
-                approver=approval.approver,
-                policy=approval.policy,
-            ),
-            actor=ActorRole.POLICY_ENGINE,
+        name = (
+            "approved_plan.json" if bound.version == 1 else f"approved_plan_v{bound.version}.json"
         )
-        return approval
+        path = self.run_dir / name
+        path.write_text(bound.model_dump_json(indent=2), encoding="utf-8")
+        write_scope(self.run_dir, bound.version, scope)
+        self.plan_path = path
+        gate = ApprovalGate(
+            database=self.database,
+            runs_root=self.controller.runs_root,
+            run_id=self.run_id,
+            policy=self.approval_policy,
+            defense_on=self.controller.run_config.flags.defenses.approval,
+            guard=self.guard,
+            poll_seconds=self.controller.poll_seconds,
+        )
+        result = await gate.decide(bound, scope, self._approval_bounds(), note=note)
+        if not result.granted:
+            raise PlanDenied(result)
+        self.approval = result.record
+        return result.record
+
+    def _session_roles(self) -> tuple[ActorRole, ...]:
+        """The roles that get an MCP session in this run (their tools are part of the scope)."""
+        if not self._multi:
+            return (ActorRole.SINGLE_AGENT,)
+        roles = [ActorRole.AGENT_B, ActorRole.AGENT_C]
+        if self.controller.run_config.flags.max_c_workers:
+            roles.append(ActorRole.TRIAL_WORKER)
+        return tuple(roles)
+
+    def _llm_providers(self) -> tuple[str, ...]:
+        """The LLM providers that can receive this run's data summaries (none without a model)."""
+        if self.controller.adapter is None:  # the model-free fixed baseline
+            return ()
+        config = self.controller.run_config
+        profiles = [config.active_profile]
+        fallback = config.active_profile.fallback
+        if fallback.enabled and fallback.tiers_from is not None:
+            profiles.append(config.models.profile(fallback.tiers_from))
+        return tuple(
+            sorted(
+                {
+                    model.provider.value
+                    for profile in profiles
+                    for model in (profile.tiers.lead, profile.tiers.worker, profile.tiers.cheap)
+                }
+            )
+        )
+
+    def _approval_scope(self, data_contract_hash: str) -> ApprovalScope:
+        """Everything the plan approval covers, computed from the values the run will use now.
+
+        The dataset hash is re-read from the run's private snapshot, so the re-checks catch an
+        edited snapshot as well as an edited plan, budget, tool set or worker ceiling.
+        """
+        config = self.controller.run_config
+        flags = config.flags
+        return ApprovalScope(
+            run_id=self.run_id,
+            dataset_sha256=hashlib.sha256(self.dataset.read_bytes()).hexdigest(),
+            data_contract_hash=data_contract_hash,
+            budget=self.budget,
+            job_limits=config.budgets.job_limits,
+            tools=effective_tools(self._session_roles(), self.request.permitted_tools),
+            max_c_workers=flags.max_c_workers if self._multi else 0,
+            parallel_mode=flags.parallel_mode.value,
+            sandbox_image=tabular_image_tag(),
+            llm_providers=self._llm_providers(),
+        )
+
+    def _approval_bounds(self) -> ApprovalBounds:
+        """What `auto_within_contract` may approve: the request's own budget, the configured job
+        limits, the role allowlists intersected with the case's permitted tools, and the
+        configured worker ceiling (spec §10.3)."""
+        config = self.controller.run_config
+        return ApprovalBounds(
+            budget=self.budget,
+            job_limits=config.budgets.job_limits,
+            tools=effective_tools(self._session_roles(), self.request.permitted_tools),
+            max_c_workers=config.flags.max_c_workers,
+        )
+
+    def _recheck_approval(self, contract: ExperimentContract, where: str) -> None:
+        """Re-read and re-hash the approved plan against the live scope, and re-check the
+        approval record (design §2.2). Raises ApprovalStale, before any further job, on failure."""
+        if self.plan_path is None:
+            problem: str | None = "no approved plan file is on record"
+        else:
+            scope = self._approval_scope(contract.data_contract.content_hash())
+            problem = plan_file_problem(self.plan_path, contract, scope) or approval_problem(
+                self.database, self.run_id, contract, contract.approval_id
+            )
+        if problem is not None:
+            raise ApprovalStale(f"approval re-check {where}: {problem}")
 
     async def _phase_b(
         self, spec: TaskSpecification, contract: ExperimentContract, profile: DatasetProfile
     ) -> None:
         try:
+            # Before the worker or any session starts: nothing runs on a stale approval.
+            self._recheck_approval(contract, "at the start of Phase B")
             self.worker.start()
             await self._experiments(spec, contract, profile)
         finally:
@@ -977,10 +1102,14 @@ class _Run:
         nominated = outcome.final.final_trial_id if outcome.final else None
         if self._multi and not await self._lead_decision(
             "Review C's completed work and decide whether to continue to independent final "
-            "verification, or report. The platform remains responsible for verification. "
+            "verification, or report. The platform remains responsible for verification; "
+            "report stops before it, so no model is verified. "
             f"C output: {outcome.final.model_dump_json() if outcome.final else 'unavailable'}. "
-            f"Platform evidence: {self._trial_evidence()}. Run notes: {self.notes}"
+            f"Platform evidence: {self._trial_evidence()}. "
+            f"Candidate code (untrusted, screened): {self._code_evidence(contract, nominated)}. "
+            f"Run notes: {self.notes}"
         ):
+            self.notes.append("Agent A chose to report before final verification.")
             return
         completed = {
             job.trial_id
@@ -1057,26 +1186,40 @@ class _Run:
                 if c.run_config.flags.planning is Toggle.ON:
                     plan = await self._plan(instance, role, context, [tool.name for tool in tools])
                     context += "\nPlan to follow: " + plan.model_dump_json()
+                stale: ApprovalStale | None = None
                 if self._multi and c.run_config.flags.max_c_workers:
-                    facts, reports = await self._workers(spec, contract, profile, instance, tools)
-                    # Only runtime-owned status, job and reference fields are platform facts;
-                    # worker narrative is model-authored and must be reconciled, not trusted.
-                    context += (
-                        "\nWorker findings (platform facts): "
-                        + facts
-                        + "\nWorker reports (untrusted worker-reported text, not verified): "
-                        + reports
+                    try:
+                        facts, reports = await self._workers(
+                            spec, contract, profile, instance, tools
+                        )
+                    except ApprovalStale as exc:
+                        # Leave the MCP client's task group first, so the stop is not wrapped.
+                        stale = exc
+                    else:
+                        # Only runtime-owned status, job and reference fields are platform
+                        # facts; worker narrative is model-authored and must be reconciled.
+                        context += (
+                            "\nWorker findings (platform facts): "
+                            + facts
+                            + "\nWorker reports (untrusted worker-reported text, not verified): "
+                            + reports
+                        )
+                outcome: AgentOutcome | None = None
+                if stale is None:
+                    outcome = await run_single_agent(
+                        c.adapter,
+                        self.guard,
+                        channel,
+                        tools,
+                        run_id=self.run_id,
+                        context=context,
+                        max_turns=c.max_agent_turns,
+                        role=role,
                     )
-                outcome = await run_single_agent(
-                    c.adapter,
-                    self.guard,
-                    channel,
-                    tools,
-                    run_id=self.run_id,
-                    context=context,
-                    max_turns=c.max_agent_turns,
-                    role=role,
-                )
+        if stale is not None:
+            self._handoff(instance, role, HandoffStatus.FAILED)
+            raise stale
+        assert outcome is not None
         final = outcome.final.final_trial_id if outcome.final else None
         status = (
             HandoffStatus.COMPLETE
@@ -1206,6 +1349,8 @@ class _Run:
 
         def task(brief: Brief) -> ReadyTask:
             async def run() -> None:
+                # Before each worker session (design §2.2): a stale approval opens no session.
+                self._recheck_approval(contract, f"before worker {brief.brief_id}")
                 findings[brief.brief_id] = await self._worker(
                     brief, reservations, parent_instance, spec, contract, profile
                 )
@@ -1219,6 +1364,9 @@ class _Run:
                 if self.controller.run_config.flags.parallel_mode is Toggle.ON
                 else 1,
             )
+            stale = [exc for exc in failures.values() if isinstance(exc, ApprovalStale)]
+            if stale:
+                raise stale[0]
             if failures:
                 raise RuntimeError("Worker cleanup failed")
         finally:
@@ -1566,6 +1714,7 @@ class _Run:
         except RunLimitReached as reached:
             self.notes.append(f"No final evaluation: {reached}.")
             return
+        self._recheck_approval(contract, "before the final job")
         job_id = queue_final_job(
             self.queue, self.controller.runs_root, self.run_id, trial_id, source_job_id
         )
@@ -1643,12 +1792,8 @@ class _Run:
                 runs_root=self.controller.runs_root,
             )
         except RecordNotFound:  # stopped before the contract: nothing was measured
-            early = EarlyStopReport(
-                run_id=self.run_id,
-                notes=self.notes,
-                evidence=derive_outcome_evidence(
-                    self.database, self.controller.runs_root, self.run_id
-                ),
+            early = build_early_stop_report(
+                self.database, self.run_id, notes=self.notes, runs_root=self.controller.runs_root
             )
             json_path.write_text(early.model_dump_json(indent=2), encoding="utf-8")
             md_path.write_text(render_early_stop(early), encoding="utf-8")
@@ -1669,11 +1814,20 @@ class _Run:
         instance = self._role_started(role, ModelTier.CHEAP)
         report = await write_narrative(self.controller.adapter, self.guard, report, role=role)
         self._notice_cancel()
-        if USER_CANCEL in self.guard.fired:
+        if USER_CANCEL in self.guard.fired and report.final is not None:
+            # A cancel during the narrative withdraws the final model. Rebuild the facts from the
+            # stored records (never patch `outcome`/`final`: the verification fields, sources and
+            # limitations must stay what a recomputation gives, and the stored JSON must load).
+            report = build_report(
+                self.database,
+                self.run_id,
+                final_trial_id=None,
+                notes=self.notes,
+                runs_root=self.controller.runs_root,
+            ).model_copy(update={"narrative_note": "No narrative: cancelled by the user."})
+        elif USER_CANCEL in self.guard.fired:
             report = report.model_copy(
                 update={
-                    "outcome": "no_verified_model",
-                    "final": None,
                     "narrative": None,
                     "narrative_note": "No narrative: cancelled by the user.",
                     "notes": self.notes,
@@ -1681,11 +1835,14 @@ class _Run:
             )
         json_path.write_text(report.model_dump_json(indent=2), encoding="utf-8")
         md_path.write_text(render_markdown(report), encoding="utf-8")
+        # A's own methodological concerns are also recorded on its handoff (design §2.3).
+        concerns = list(report.narrative.limitations) if report.narrative else []
         self._handoff(
             instance,
             role,
             HandoffStatus.COMPLETE if report.narrative else HandoffStatus.PARTIAL,
             output_ref=f"report:{self.run_id}",
+            open_questions=concerns if role is ActorRole.AGENT_A else None,
         )
         return report.outcome == "verified_model"
 
@@ -1732,6 +1889,8 @@ class _Run:
         code = (
             "INTAKE_FAILED"
             if isinstance(exc, IntakeError)
+            else "APPROVAL_STALE"
+            if isinstance(exc, ApprovalStale)
             else "CONTRACT_FAILED"
             if isinstance(exc, ContractError)
             else "CONTROLLER_ERROR"
@@ -1744,7 +1903,11 @@ class _Run:
                 component="controller",
                 code=code,
                 message=f"{stage}: {message}",
-                error_class=ErrorClass.MISSING_DATA if own else None,
+                error_class=ErrorClass.POLICY_QUOTA
+                if isinstance(exc, ApprovalStale)
+                else ErrorClass.MISSING_DATA
+                if own
+                else None,
                 retryable=False,
             ),
         )
@@ -1799,6 +1962,56 @@ class _Run:
                 }
             )
         return json.dumps({"trials": facts, "omitted": max(0, len(trials) - 20)})[:20000]
+
+    def _code_evidence(self, contract: ExperimentContract, nominated: str | None) -> str:
+        """The candidate trial's pipeline code for A's pre-final review (design §2.3, item 3.8).
+
+        The candidate is the trial the controller would send to final verification. A sees the
+        hash of its submitted `pipeline.py` (re-hashed against the job's record) and a bounded
+        excerpt: every line passes the data firewall (always on here) and, with
+        `defenses.injection_filter` on, the injection screen; credential shapes are redacted.
+        A has no tools, so this text is all it can read of the code.
+        """
+        selection = select_final(self.database, self.run_id, contract.primary_metric, nominated)
+
+        def unavailable(reason: str) -> str:
+            return json.dumps({"code": "unavailable", "reason": reason})
+
+        if selection.trial_id is None or selection.source_job_id is None:
+            return unavailable(selection.reason)
+        folder = protocol.job_dir(self.controller.runs_root, self.run_id, selection.source_job_id)
+        try:
+            request = protocol.read_request(folder)
+            source = (folder / protocol.TRIAL_SNAPSHOT_DIR / "pipeline.py").read_bytes()
+        except (OSError, ValueError):
+            return unavailable("the candidate's pipeline snapshot cannot be read")
+        digest = hashlib.sha256(source).hexdigest()
+        if digest != request.trial_files.get("pipeline.py"):
+            return unavailable("the candidate's pipeline changed after it was submitted")
+        lines = source.decode("utf-8", errors="replace").splitlines()
+        shown = [line[:MAX_CODE_LINE_CHARS] for line in lines[:MAX_CODE_LINES]]
+        try:
+            screened, _ = DataFirewall([load_tabular(self.dataset)]).screen_untrusted(shown)
+        except Exception:
+            return unavailable("the data firewall could not screen the code")
+        withheld = sum(line is None for line in screened)
+        text = "\n".join(CODE_LINE_WITHHELD if line is None else line for line in screened)
+        injected = 0
+        if self.controller.run_config.flags.defenses.injection_filter:
+            text, hits = screen_text(text)
+            injected = sum(hits.values())
+        excerpt = self.controller.adapter.redact_for_log(text)[:MAX_CODE_EXCERPT_CHARS]
+        return json.dumps(
+            {
+                "trial_id": selection.trial_id,
+                "pipeline_sha256": digest,
+                "lines_total": len(lines),
+                "lines_shown": len(shown),
+                "lines_withheld_by_firewall": withheld,
+                "lines_withheld_by_injection_filter": injected,
+                "excerpt": excerpt,
+            }
+        )
 
     async def _plan(
         self,
