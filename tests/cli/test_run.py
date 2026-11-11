@@ -77,7 +77,7 @@ def scripted(run_id: str) -> AdapterFactory:
             models=models,
             profile=run_config.model_profile,
             prices=load_price_table(),
-            clients={Provider.GEMINI: ScriptedRun(run_id, poll_seconds=1.0)},
+            clients={Provider.GEMINI: ScriptedRun(run_id, compare=True, poll_seconds=1.0)},
             events=EventLog(database),
             admission=ProviderAdmission(models.rate_limits),
         )
@@ -319,7 +319,7 @@ def test_a_cli_run_on_a_snapshot_ends_verified_and_is_inspectable(
         status.output
     )
     assert "Final     " in status.output and ": verified | test roc_auc 0." in status.output
-    assert "Jobs      2: COMPLETED 2" in status.output
+    assert "Jobs      3: COMPLETED 3" in status.output
 
     trace = runner.invoke(app, ["trace", run_id, "--db", db, "-f", "type=stage_transition"])
     assert trace.exit_code == 0, trace.output

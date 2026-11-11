@@ -132,7 +132,10 @@ async def test_a_run_ends_with_a_verified_model_and_a_report(
         manifest = yaml.safe_load(store.get(f"{job.job_id}.manifest").path.read_text())
         assert all(stage["limits"] == limits for stage in manifest["resources"])
         assert manifest["dataset_fingerprint"] == original_sha256
-    assert [trial.status for trial in list_trials(database, RUN_ID)] == ["validated", "verified"]
+    assert {trial.kind: trial.status for trial in list_trials(database, RUN_ID)} == {
+        "baseline": "validated",
+        "candidate": "verified",
+    }
     every_prompt = {e.payload.prompt_ref for e in events if e.type.value == "model_call"}
     assert every_prompt == {
         "intake@v1",
