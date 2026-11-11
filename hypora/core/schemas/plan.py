@@ -1,4 +1,5 @@
-"""Plans written before acting, and revised after failures (course F4; PLAN.md S3.H1, S3.H2)."""
+"""Plans written before acting, and revised after failures
+(course F4; S3.1 plans, S4.1 revisions)."""
 
 from typing import Self
 

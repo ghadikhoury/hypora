@@ -86,7 +86,14 @@ from hypora.research.mcp_tools import (
 )
 from hypora.storage.artifacts import ArtifactStore
 from hypora.storage.idempotency import IdempotencyConflict, IdempotencyLedger, Reservation
-from hypora.storage.jobs import TERMINAL_STATES, JobNotFound, JobRecord, new_job_id
+from hypora.storage.jobs import (
+    RESERVED_KEY_PREFIX,
+    TERMINAL_STATES,
+    JobNotFound,
+    JobRecord,
+    is_reserved_key,
+    new_job_id,
+)
 from hypora.storage.records import (
     RecordNotFound,
     StoredTrial,
@@ -862,6 +869,14 @@ class HyporaTools:
             raise errors.invalid(
                 "IDEMPOTENCY_KEY_FORMAT",
                 f"idempotency_key must start with this run's ID: '{prefix}'.",
+                f"Use a key such as '{prefix}call_0001'.",
+            )
+        if is_reserved_key(self.session.run_id, key):
+            # The controller's own keys (the final job) must never be claimable by a role.
+            raise errors.invalid(
+                "IDEMPOTENCY_KEY_RESERVED",
+                f"idempotency_key may not start with '{prefix}{RESERVED_KEY_PREFIX}': "
+                "that namespace is reserved for the platform.",
                 f"Use a key such as '{prefix}call_0001'.",
             )
 

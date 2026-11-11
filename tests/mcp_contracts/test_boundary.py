@@ -142,6 +142,7 @@ async def test_policy_decisions_are_recorded_for_every_check(client, session):
     decisions = [e.payload for e in events(session, "policy_decision")]
     assert [(d.decided_by.value, d.decision.value) for d in decisions] == [
         ("role_allowlist", "allow"),
+        ("injection_filter", "allow"),  # dataset names are untrusted text
         ("data_firewall", "allow"),
     ]
 

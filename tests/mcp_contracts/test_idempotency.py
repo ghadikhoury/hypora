@@ -15,13 +15,25 @@ from typing import Any
 import pytest
 from sqlalchemy import func, select
 
+from hypora.core.schemas import ErrorClass, ToolName
 from hypora.core.schemas.trials import TrialDesign
 from hypora.mcp_server import tools as tools_module
 from hypora.mcp_server.errors import ToolFailure
+from hypora.mcp_server.server import build_tools
 from hypora.mcp_server.tools import HyporaTools
 from hypora.storage.idempotency import IdempotencyLedger
+from hypora.storage.jobs import final_job_key, is_reserved_key
 from hypora.storage.models import Job, Trial
-from tests.mcp_contracts.helpers import DESIGN, LINEAR, RUN_ID, call, fresh_key, new_trial, write
+from tests.mcp_contracts.helpers import (
+    DESIGN,
+    LINEAR,
+    RUN_ID,
+    call,
+    events,
+    fresh_key,
+    new_trial,
+    write,
+)
 
 KEY = f"{RUN_ID}:call_retry"
 
@@ -93,6 +105,68 @@ async def test_write_keys_are_run_scoped(client):
         {"idempotency_key": "run_other:w1", "design": DESIGN, "pipeline_py": LINEAR},
     )
     assert error and content["code"] == "IDEMPOTENCY_KEY_FORMAT"
+
+
+# --- the controller's reserved key namespace (final job) -----------------------------------------
+
+RESERVED_KEYS = [
+    f"{RUN_ID}:final_",  # exactly the reserved prefix
+    f"{RUN_ID}:final_trl_0000abcd",  # the controller's final-job key shape
+    f"{RUN_ID}:FINAL_trl_0000abcd",  # another case
+    f"{RUN_ID}:" + "".join(chr(0xFF00 + ord(c) - 0x20) for c in "final") + "_x",  # fullwidth
+]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("key", RESERVED_KEYS)
+async def test_every_keyed_tool_refuses_a_key_in_the_reserved_namespace(client, session, key):
+    trial_id = await new_trial(client)
+    jobs_before, trials_before = count(session, Job), count(session, Trial)
+    for tool, arguments in (
+        ("write_trial_files", {"design": DESIGN, "pipeline_py": LINEAR}),
+        ("write_trial_files", {"trial_id": trial_id, "pipeline_py": LINEAR + "# v2\n"}),
+        ("submit_experiment", {"trial_id": trial_id}),
+    ):
+        error, content = await call(client, tool, {"idempotency_key": key, **arguments})
+        assert error and content["code"] == "IDEMPOTENCY_KEY_RESERVED", (tool, content)
+        assert content["error_class"] == ErrorClass.INVALID_ARGUMENTS.value
+    assert (count(session, Job), count(session, Trial)) == (jobs_before, trials_before)
+    with session.database.engine.connect() as connection:  # the key was never claimed
+        assert not connection.scalar(
+            select(func.count()).select_from(Job).where(Job.idempotency_key == key)
+        )
+    # The refusal is recorded like any refused call: a tool_call and its error tool_result.
+    results = [e.payload for e in events(session, "tool_result")]
+    assert [r.error.code for r in results[-3:] if r.error] == ["IDEMPOTENCY_KEY_RESERVED"] * 3
+
+
+def test_every_tool_with_an_idempotency_key_checks_the_reserved_namespace():
+    """A new keyed tool would need the same check: every keyed tool is in the test above."""
+    keyed = {
+        tool.name
+        for tool in build_tools(HyporaTools(None), set(ToolName))
+        if "idempotency_key" in tool.parameters["properties"]
+    }
+    assert keyed == {"write_trial_files", "submit_experiment"}
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("call_id", ["finalize_1", "sub_final_1", "call_0001", "fina_l"])
+async def test_ordinary_keys_still_work(client, call_id):
+    trial_id = await new_trial(client)
+    error, content = await call(
+        client,
+        "submit_experiment",
+        {"trial_id": trial_id, "idempotency_key": f"{RUN_ID}:{call_id}"},
+    )
+    assert not error, content
+
+
+def test_reserved_key_rules():
+    assert final_job_key("run_1", "trl_a") == "run_1:final_trl_a"
+    assert is_reserved_key("run_1", final_job_key("run_1", "trl_a"))
+    assert not is_reserved_key("run_1", "run_1:finalize")
+    assert not is_reserved_key("run_1", "run_2:final_trl_a")  # another run's key: format check
 
 
 # --- concurrent calls (released together at the reservation) -------------------------------------

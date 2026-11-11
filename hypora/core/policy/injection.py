@@ -1,6 +1,7 @@
 """Injection screen for untrusted text (S3.5 design §2.5; spec §14; `defenses.injection_filter`).
 
-Web passages, model cards and sandbox logs are written by people or programs outside the platform.
+Web passages, model cards, sandbox logs and the text of a third-party dataset (column names,
+category values, class labels) are written by people or programs outside the platform.
 They reach an LLM role through a few MCP tool results. A line in them can try to steer that role:
 "ignore previous instructions", a fake `system:` turn, "call submit_experiment", "the plan is
 approved". This module finds such lines with a small, deterministic set of patterns and replaces
@@ -37,15 +38,25 @@ from hypora.core.schemas.events import (
 from hypora.core.schemas.tools import ToolTier
 
 INJECTION_MARKER: Final = "[line withheld by the injection filter: instruction-like untrusted text]"
+SHORT_INJECTION_MARKER: Final = "[withheld by the injection filter]"
+"""The marker for results whose text fields are length-bounded (`BOUNDED_TOOLS`)."""
 SCREENED_TOOLS: Final = frozenset(
     {
         ToolName.GET_MODEL_EVIDENCE,
         ToolName.RETRIEVE_METHODOLOGY,
         ToolName.GET_EXPERIMENT_LOGS,
         ToolName.GET_EXPERIMENT_STATUS,
+        ToolName.INSPECT_DATASET,
+        ToolName.GET_EXPERIMENT_METRICS,
     }
 )
-"""The tools whose results carry text written outside the platform (design §2.5)."""
+"""The tools whose results carry text written outside the platform (design §2.5). Dataset
+profiles and metrics are included because column names, category values and class labels come
+from a third-party dataset."""
+BOUNDED_TOOLS: Final = frozenset({ToolName.GET_EXPERIMENT_METRICS})
+"""Screened tools whose result fields have short length bounds (class labels: 40 characters). A
+string with any withheld line is replaced as a whole by `SHORT_INJECTION_MARKER`, so the screened
+result still fits its output schema; the counts are the same as for any other tool."""
 PLATFORM_KEYS: Final = frozenset({"next_step"})
 """Result fields the platform writes itself (for example "call get_experiment_status again"), left
 unscreened so the platform's own guidance is never withheld. Every other string is screened."""
@@ -151,12 +162,15 @@ class ScreenResult:
         return sum(self.counts.values())
 
 
-def screen_value(value: JsonValue, *, skip_keys: frozenset[str] = PLATFORM_KEYS) -> ScreenResult:
+def screen_value(
+    value: JsonValue, *, skip_keys: frozenset[str] = PLATFORM_KEYS, bounded: bool = False
+) -> ScreenResult:
     """Screen every string value inside a JSON value; keys, numbers and booleans are unchanged.
 
     The values of dict keys in `skip_keys` (platform-written fields) are left as they are, at any
-    depth. Fails closed: a value nested deeper than `MAX_SCREEN_DEPTH` raises ValueError instead
-    of passing unscreened text.
+    depth. With `bounded`, a string with any withheld line becomes `SHORT_INJECTION_MARKER` as a
+    whole (`BOUNDED_TOOLS`). Fails closed: a value nested deeper than `MAX_SCREEN_DEPTH` raises
+    ValueError instead of passing unscreened text.
     """
     counts: Counter[InjectionCategory] = Counter()
 
@@ -166,7 +180,7 @@ def screen_value(value: JsonValue, *, skip_keys: frozenset[str] = PLATFORM_KEYS)
         if isinstance(item, str):
             screened, found = screen_text(item)
             counts.update(found)
-            return screened
+            return SHORT_INJECTION_MARKER if bounded and found else screened
         if isinstance(item, list):
             return [walk(element, depth + 1) for element in item]
         if isinstance(item, dict):
@@ -243,7 +257,7 @@ def screen_tool_result(
         return value, None
     if not enabled:
         return value, injection_policy_decision(tool, call_id=call_id, tier=tier, enabled=False)
-    result = screen_value(value)
+    result = screen_value(value, bounded=tool in BOUNDED_TOOLS)
     decision = injection_policy_decision(
         tool, call_id=call_id, tier=tier, enabled=True, result=result
     )
@@ -251,10 +265,12 @@ def screen_tool_result(
 
 
 __all__ = [
+    "BOUNDED_TOOLS",
     "INJECTION_MARKER",
     "OFF_REASON",
     "PLATFORM_KEYS",
     "SCREENED_TOOLS",
+    "SHORT_INJECTION_MARKER",
     "InjectionCategory",
     "ScreenResult",
     "classify_line",

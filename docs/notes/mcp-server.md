@@ -40,7 +40,7 @@ tools/call ─► tool_call event (arguments redacted: long strings -> size + SH
           ─► unknown argument names ───── refuse ─► UNKNOWN_ARGUMENTS
           ─► the tool (input validated by its schema; ToolFailure for anything the agent can act on)
           ─► any failure -> ToolError (spec §12 error contract; a crash's own text never leaves)
-          ─► injection screen (successful results of the four untrusted-text tools; S3.5)
+          ─► injection screen (successful results of the six untrusted-text tools; S3.5)
           ─► data firewall over the whole result ─ block ─► FIREWALL_BLOCKED (policy_decision
                                                              with the rule; WARNING log)
           ─► tool_result event (status ok / error / denied, summary, latency)
@@ -68,6 +68,12 @@ contents by hash) and the IDs it plans to create (`trial_id` or `job_id`):
 
 The reservation serializes concurrent calls, so two different requests are never both accepted
 under one key (the PR #15 review's race), and identical ones always share one trial or job.
+
+Keys whose call-ID part starts with `final_` (compared after Unicode and case folding) are
+reserved for the controller's final job (`hypora/storage/jobs.py` `final_job_key`): both tools
+refuse them with `IDEMPOTENCY_KEY_RESERVED` before anything is reserved, so no role can claim
+the final job's key first. The controller also checks that the job queued under that key is its
+own FINAL job and otherwise fails the run closed (`FinalJobConflict`).
 
 `write_trial_files` overwrites files, so its effects also run in an exclusive window
 (`IdempotencyLedger.execute_once`): checking for a recorded result, writing the files and the
@@ -157,13 +163,16 @@ file; no remote transport is exposed, so none is built (spec §12). Same-user re
 
 ## Injection screen (S3.5 design §2.5; `hypora/core/policy/injection.py`)
 
-Successful results of `get_model_evidence`, `retrieve_methodology`, `get_experiment_logs` and
-`get_experiment_status` carry text written outside the platform (model cards, web passages,
-sandbox logs). At the boundary, before the data firewall, every string in them is screened line by
+Successful results of `get_model_evidence`, `retrieve_methodology`, `get_experiment_logs`,
+`get_experiment_status`, `inspect_dataset` and `get_experiment_metrics` carry text written outside
+the platform (model cards, web passages, sandbox logs, and a third-party dataset's column names,
+category values and class labels). At the boundary, before the data firewall, every string in them is screened line by
 line for instruction-like text (overrides such as "ignore previous instructions", chat role
 markers, "call <tool name>", approval claims). A hit is replaced by a fixed marker and the call
 records a `policy_decision` decided by `injection_filter` with counts per category only (never the
-text); a clean result records "passed". Dict keys, numbers and the platform's own guidance field
+text); a clean result records "passed". In `get_experiment_metrics`, whose labels are bounded to
+40 characters, a string with a hit is replaced as a whole by a short marker so the result still
+fits its output schema. (Group labels never appear in metrics: groups are unnamed.) Dict keys, numbers and the platform's own guidance field
 `next_step` are not screened, and error results (written by the platform) are not either. A result
 the screen cannot walk is withheld (`INJECTION_SCREEN_FAILED`). With `defenses.injection_filter`
 off results pass unchanged and every screened call records that the filter was off. Output schemas
