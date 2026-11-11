@@ -403,19 +403,24 @@ async def test_a_change_after_approval_stops_before_phase_b_work(
     ]
 
 
+@pytest.mark.parametrize("after_metrics", [1, 2])
 async def test_a_change_before_the_final_job_queues_no_final_job(
     make_controller: ControllerFactory,
     database: Database,
     dataset: Path,
     runs_root: Path,
     monkeypatch: pytest.MonkeyPatch,
+    after_metrics: int,
 ) -> None:
     scripted_sandbox.install(monkeypatch)
     run_id = "run_gate_stale_final"
     edited: list[str] = []
+    metrics_seen: list[str] = []
 
     def edit_after_first_metrics(tool: str, _: dict[str, Any]) -> None:
-        if tool == "get_experiment_metrics" and not edited:
+        if tool == "get_experiment_metrics":
+            metrics_seen.append(tool)
+        if len(metrics_seen) == after_metrics and not edited:
             _edit_plan_notes(runs_root / run_id / "approved_plan.json")
             edited.append(tool)
 
@@ -427,21 +432,25 @@ async def test_a_change_before_the_final_job_queues_no_final_job(
         result = await controller.run(RunRequest(dataset=dataset, goal="x", run_id=run_id))
 
     assert edited and result.state == FAILED and not result.verified
-    [stale] = [e for e in _events(database, run_id, "error") if e.payload.code == "APPROVAL_STALE"]
-    assert "before the final job" in stale.payload.message
     jobs = run_jobs(database, run_id)
     phases = [
         protocol.read_request(protocol.job_dir(runs_root, run_id, job.job_id)).phase for job in jobs
     ]
     assert protocol.ExperimentPhase.FINAL not in phases
     # The changed artifact invalidates approval at submit, before a candidate can compute.
-    assert len(jobs) == 1
+    assert len(jobs) == after_metrics
     denied = [
         e.payload
         for e in _events(database, run_id, "tool_result")
         if e.payload.tool == "submit_experiment"
     ]
-    assert any("APPROVAL_INVALID" in str(payload) for payload in denied)
+    if after_metrics == 1:
+        assert any(p.error is not None and p.error.code == "APPROVAL_INVALID" for p in denied)
+    else:
+        [stale] = [
+            e for e in _events(database, run_id, "error") if e.payload.code == "APPROVAL_STALE"
+        ]
+        assert "before the final job" in stale.payload.message
     assert all(
         job.status in (JobState.COMPLETED, JobState.CANCELLED, JobState.FAILED) for job in jobs
     )

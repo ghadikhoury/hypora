@@ -319,7 +319,9 @@ def test_limits_above_the_contract_are_refused_at_lease(setup):
     refused_at_lease(worker, tools, job_id, "limits exceed the contract")
 
 
-@pytest.mark.parametrize("change", ["plan", "scope", "dataset", "image", "missing_plan"])
+@pytest.mark.parametrize(
+    "change", ["plan", "scope", "dataset", "image", "missing_plan", "missing_scope"]
+)
 def test_artifact_changed_after_submit_is_refused_at_lease(setup, change):
     """A queued job cannot outlive the exact plan/scope its user approved."""
     session, tools, worker = setup
@@ -384,6 +386,8 @@ def test_artifact_changed_after_submit_is_refused_at_lease(setup, change):
         path.write_bytes(path.read_bytes() + b"\n")
     elif change == "image":
         worker.image = "changed-image"
+    elif change == "missing_scope":
+        scope_path.unlink()
     else:
         plan_path.unlink()
     refused_at_lease(worker, tools, job_id, "approved")
