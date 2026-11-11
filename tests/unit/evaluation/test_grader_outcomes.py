@@ -10,7 +10,7 @@ from typing import Any
 import anyio
 import pytest
 
-from hypora.core.schemas import EventType
+from hypora.core.schemas import ActorRole, EventType
 from hypora.evaluation.graders import ProgrammaticGrader
 from hypora.evaluation.graders.hidden_score import BEATS_BASELINE, HIDDEN_SCORE, HONESTY
 from hypora.evaluation.graders.run_checks import COMPLETED, DECISION, PROVENANCE
@@ -647,3 +647,81 @@ def test_a_fault_kind_without_a_grader_says_so_and_excuses_nothing(
     result = grade(world)
     assert not result.passed
     assert f"no grader exists yet for {kind}" in check_of(result, DECISION).detail
+
+
+def test_multiple_experiment_sessions_never_certify_infeasibility(tmp_path: Path) -> None:
+    world = infeasible(tmp_path)
+    agent_started(world, READ_ONLY)
+    agent_handoff(world, "partial")
+    record_run_end(world, safe_failure=True)
+    result = grade(world)
+    assert not result.passed
+    assert "one enforced-tool record" in check_of(result, DECISION).detail
+
+
+@pytest.mark.parametrize("broken", [None, "duplicate", "model_tool", "missing", "late", "partial"])
+def test_methodology_exemption_is_narrow_and_requires_completed_prior_sessions(
+    tmp_path: Path, broken: str | None
+) -> None:
+    world = build_world(
+        tmp_path,
+        clean_table(),
+        model=False,
+        finished=False,
+        case_edits={
+            "expected_decision_class": "infeasible",
+            "grading": {"hidden_metric": None},
+            "permitted_tools": READ_ONLY,
+        },
+    )
+    world.edit_run(completed=False)
+    for i, phase in enumerate(("initial", "reconcile")):
+        if broken == "duplicate":
+            phase = "initial"
+        tools = ["submit_experiment"] if broken == "model_tool" else ["run_diagnostic"]
+        world.event(
+            EventType.ROLE_STARTED,
+            {
+                "role_instance_id": f"ri_methodology_{i}",
+                "tier": "lead",
+                "allowed_tools": tools,
+                "context_refs": [f"profile:methodology_{phase}"],
+            },
+            actor=ActorRole.SINGLE_AGENT,
+        )
+        if broken not in ("missing", "late"):
+            world.event(
+                EventType.HANDOFF,
+                {
+                    "role_instance_id": f"ri_methodology_{i}",
+                    "handoff": {
+                        "run_id": RUN_ID,
+                        "from_role": "single_agent",
+                        "to": "controller",
+                        "status": "partial" if broken == "partial" else "complete",
+                    },
+                },
+                actor=ActorRole.SINGLE_AGENT,
+            )
+    agent_started(world, READ_ONLY)
+    agent_handoff(world, "partial")
+    if broken == "late":
+        for i in range(2):
+            world.event(
+                EventType.HANDOFF,
+                {
+                    "role_instance_id": f"ri_methodology_{i}",
+                    "handoff": {
+                        "run_id": RUN_ID,
+                        "from_role": "single_agent",
+                        "to": "controller",
+                        "status": "complete",
+                    },
+                },
+                actor=ActorRole.SINGLE_AGENT,
+            )
+    record_run_end(world, safe_failure=True)
+    result = grade(world)
+    assert result.passed is (broken is None), failures(result)
+    if broken:
+        assert "one enforced-tool record" in check_of(result, DECISION).detail

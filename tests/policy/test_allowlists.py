@@ -21,9 +21,11 @@ RESEARCH_TOOLS = {
 
 
 def test_single_agent_gets_research_and_existing_tools():
-    assert allowed_tools(ActorRole.SINGLE_AGENT) == S1_4_TOOLS | RESEARCH_TOOLS
+    assert allowed_tools(ActorRole.SINGLE_AGENT) == S1_4_TOOLS | RESEARCH_TOOLS | {
+        ToolName.RUN_DIAGNOSTIC
+    }
     assert allowed_tools(ActorRole.AGENT_B) == RESEARCH_TOOLS
-    assert allowed_tools(ActorRole.AGENT_C) == S1_4_TOOLS
+    assert allowed_tools(ActorRole.AGENT_C) == S1_4_TOOLS | {ToolName.RUN_DIAGNOSTIC}
 
 
 def test_roles_without_an_allowlist_get_nothing():

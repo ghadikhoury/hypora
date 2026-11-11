@@ -123,3 +123,17 @@ def test_stratified_validation_refuses_classes_with_too_few_rows(frame, contract
     contract = contract_factory("stratified", "stratified_kfold_9")
     with pytest.raises(ValueError, match="partition could not be prepared"):
         create_partition_lock(frame, contract, "a" * 64, tmp_path / "lock")
+
+
+def test_no_partition_is_locked_or_verified_for_a_contract_that_rewrites_labels(
+    frame, contract_factory, tmp_path
+):
+    path = tmp_path / "lock"
+    create_partition_lock(frame, contract_factory("random", "kfold_3"), "a" * 64, path)
+    fixes = [{"cast_dtype": {"column": "y", "dtype": "int64"}}]
+    rewriting = contract_factory("random", "kfold_3", fixes=fixes)
+    with pytest.raises(ValueError, match="partition could not be prepared"):
+        load_verified_partition(frame, rewriting, "a" * 64, path)
+    with pytest.raises(ValueError, match="partition could not be prepared"):
+        create_partition_lock(frame, rewriting, "a" * 64, tmp_path / "other")
+    assert not (tmp_path / "other").exists()

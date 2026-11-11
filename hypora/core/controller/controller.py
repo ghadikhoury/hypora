@@ -740,7 +740,14 @@ class _Run:
                 if c.tool_channel_wrapper is not None:
                     channel = c.tool_channel_wrapper(channel)
                 instance = self._role_started(
-                    role, ModelTier.LEAD, allowed_tools=[tool.name for tool in tool_specs]
+                    role,
+                    ModelTier.LEAD,
+                    allowed_tools=[tool.name for tool in tool_specs],
+                    context_refs=[
+                        "profile:methodology_reconcile"
+                        if previous
+                        else "profile:methodology_initial"
+                    ],
                 )
                 try:
                     if c.run_config.flags.planning is Toggle.ON:
@@ -935,7 +942,7 @@ class _Run:
             for trial in list_trials(self.database, self.run_id)
             if trial.trial_id in completed
         }
-        if self._multi and not {"baseline", "candidate"} <= kinds:
+        if not {"baseline", "candidate"} <= kinds:
             self.notes.append(
                 "No final model: a completed baseline and candidate are required for comparison."
             )

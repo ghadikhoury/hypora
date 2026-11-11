@@ -141,6 +141,14 @@ inlining them. Changing a prompt's text means bumping its version.
   COMPLETED jobs, a verified trial, and a report whose numbers are the stored ones.
 - `tests/controller/test_stops.py`: step limit, zero spend, user cancel, and a bad target, with a
   real MCP server and no sandbox, plus transport/startup failure cleanup.
+- `tests/controller/test_s33_execution.py` (S3.3): the real leakage, group and time dev cases
+  through execution, with a scripted model and a scripted container launch.
+  `tests/controller/scripted_sandbox.py` replaces only `SandboxLauncher.run` and runs each stage's
+  template in the test process; the MCP server, job queue, experiment worker, harness and verifier
+  are real. The tests read back each stage's inputs: exactly the locked rows of the contract's
+  allowed columns, a baseline before one candidate, and the case's budget and job limits.
+  `test_s33_methodology.py` holds the runs that must stop before Phase B, a fix on the target
+  among them.
 - Unit tests for the state table, the Stage-1 contract, every guard limit, final selection,
   intake, the agent loop, prompts, the reporter, and every verifier check (with the harness's own
   scorer producing the numbers the verifier recomputes).

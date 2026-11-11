@@ -17,6 +17,7 @@ def test_every_prompt_file_has_a_header_naming_it() -> None:
         "agent_a_report",
         "agent_b",
         "agent_c",
+        "agent_c_methodology",
         "intake",
         "reporter",
         "role_plan",

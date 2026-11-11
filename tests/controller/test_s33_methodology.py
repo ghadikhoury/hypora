@@ -1,6 +1,9 @@
-"""Scripted S3.3 controller integration on frozen real dev cases; no network or Docker."""
+"""Scripted S3.3 methodology on frozen real dev cases: the runs that must stop before Phase B.
 
-import hashlib
+The runs that go on to execute a baseline and a candidate under the contract C chose are in
+`test_s33_execution.py`, which shares this module's script. No network or Docker.
+"""
+
 import json
 
 import pytest
@@ -15,21 +18,13 @@ from hypora.evaluation.case import CASES_DIR, load_case_set
 from hypora.evaluation.cases.dev.calibrate import visible_and_hidden
 from hypora.evaluation.cases.dev.plant_grouped_rows import PLANTING as GROUP_PLANTING
 from hypora.evaluation.cases.dev.plant_target_leakage import PLANTING as LEAK_PLANTING
-from hypora.execution.harness.partition import load_verified_partition
-from hypora.execution.harness.runner import load_tabular
-from hypora.storage.events import EventLog
-from hypora.storage.records import load_experiment_contract
+from hypora.storage.records import RecordNotFound, load_experiment_contract
 from tests.controller.conftest import NoWorker
 from tests.controller.test_multi_loop import ScriptedMulti
 from tests.unit.evaluation.test_dev_cases import _has_snapshot
 
 pytestmark = pytest.mark.anyio
 CASES = {case.id: case for case in load_case_set(CASES_DIR / "dev")}
-SETTINGS = {
-    "dev_target_leakage": ("random", None, "collections_referrals_12m"),
-    "dev_grouped_rows": ("group", "patient_id", None),
-    "dev_temporal_order": ("temporal", "dteday", "casual"),
-}
 PLANTINGS = {"dev_target_leakage": LEAK_PLANTING, "dev_grouped_rows": GROUP_PLANTING}
 
 
@@ -38,11 +33,35 @@ class MethodologyScript(ScriptedMulti):
 
     def __init__(self, run_id, strategy, split_key, leakage, *, stop_on_conflict=False):
         super().__init__(run_id)
-        self.strategy, self.split_key, self.leakage = strategy, split_key, leakage
+        self.strategy, self.split_key = strategy, split_key
+        # One suspicious column or several; each is excluded on its own supervised diagnostic.
+        self.leakage = (leakage,) if isinstance(leakage, str) else tuple(leakage or ())
         self.stop_on_conflict = stop_on_conflict
         self.change_split = False
         self.ambiguous_target = False
+        self.fixes = []  # non-learned fixes C puts in its first proposal
         self.diagnostics = []
+
+    def _undiagnosed(self):
+        seen = {
+            item["column"]
+            for item in self.diagnostics
+            if item["diagnostic"] == "feature_predictiveness"
+        }
+        return [column for column in self.leakage if column not in seen]
+
+    def _predictiveness(self, context, column):
+        task = TaskSpecification.model_validate_json(
+            context.split("Task specification: ", 1)[1].split("\n", 1)[0]
+        )
+        assert task.task_type is not None
+        return self._call(
+            "run_diagnostic",
+            diagnostic="feature_predictiveness",
+            column=column,
+            target=task.target,
+            task_type=task.task_type.value,
+        )
 
     async def generate(self, request):
         schema = request.output_schema_name
@@ -105,16 +124,18 @@ class MethodologyScript(ScriptedMulti):
                         "test_fraction": 0.2,
                         "validation": "walk_forward_3",
                     }
-            if locked and self.leakage:
+                if self.fixes:
+                    payload["non_learned_fixes"] = self.fixes
+            for column in self.leakage if locked else ():
                 result = next(
                     item
                     for item in self.diagnostics
-                    if item["diagnostic"] == "feature_predictiveness"
+                    if item["diagnostic"] == "feature_predictiveness" and item["column"] == column
                 )
-                payload["allowed_features"].remove(self.leakage)
+                payload["allowed_features"].remove(column)
                 payload["excluded_features"].append(
                     {
-                        "name": self.leakage,
+                        "name": column,
                         "reason": "Suspicious predictive feature",
                         "evidence": result["diagnostic_id"],
                     }
@@ -132,22 +153,14 @@ class MethodologyScript(ScriptedMulti):
             result = json.loads(request.messages[-1].content)
             if not request.messages[-1].is_error:
                 self.diagnostics.append(result)
+                if locked and self._undiagnosed():
+                    return self._predictiveness(context, self._undiagnosed()[0])
             return text_result("Diagnostic reviewed.")
         if not locked and self.split_key is not None:
             diagnostic = "group_overlap" if self.strategy == "group" else "timestamp_order"
             return self._call("run_diagnostic", diagnostic=diagnostic, column=self.split_key)
         if locked and self.leakage:
-            task = TaskSpecification.model_validate_json(
-                context.split("Task specification: ", 1)[1].split("\n", 1)[0]
-            )
-            assert task.task_type is not None
-            return self._call(
-                "run_diagnostic",
-                diagnostic="feature_predictiveness",
-                column=self.leakage,
-                target=task.target,
-                task_type=task.task_type.value,
-            )
+            return self._predictiveness(context, self.leakage[0])
         return text_result("No diagnostic required.")
 
 
@@ -172,63 +185,49 @@ def _configure(make_controller, run_config, script):
     return controller
 
 
-@pytest.mark.parametrize("case_id", list(SETTINGS))
-async def test_real_case_diagnostics_reach_frozen_phase_b_contract(
-    case_id, tmp_path, make_controller, run_config, monkeypatch, database, runs_root
+async def test_a_fix_on_the_target_stops_the_run_before_review_lock_or_contract(
+    tmp_path, make_controller, run_config, database, monkeypatch
 ):
+    """Review of PR #37: C's cast of the regression target was accepted, and then truncated the
+    labels of every row, held-out ones included. Now the proposal never leaves validation.
+    (Every kind of fix is covered where the rule lives: tests/unit/controller/test_methodology.py
+    and tests/harness/test_data.py.)"""
     from hypora.core.controller.controller import _Run
 
-    case = CASES[case_id]
+    case = CASES["dev_grouped_rows"]
     dataset = _write_visible_case(case, tmp_path)
-    strategy, key, leak = SETTINGS[case_id]
-    script = MethodologyScript("run_method", strategy, key, leak)
+    script = MethodologyScript("run_label_fix", "group", "patient_id", None)
+    script.fixes = [{"cast_dtype": {"column": case.constraints.target, "dtype": "int64"}}]
     controller = _configure(make_controller, run_config, script)
-    captured = {}
+    reached = []
 
-    async def capture_phase_b(self, spec, contract, profile):
-        captured["contract"] = contract
-        source = self.dataset.read_bytes()
-        captured["locked"] = load_verified_partition(
-            load_tabular(self.dataset, source=source),
-            contract,
-            hashlib.sha256(source).hexdigest(),
-            self.run_dir / "partition-lock.json",
-        )
+    async def phase_b(*args):
+        reached.append(True)
 
-    monkeypatch.setattr(_Run, "_phase_b", capture_phase_b)
-    await controller.run(
+    monkeypatch.setattr(_Run, "_phase_b", phase_b)
+    result = await controller.run(
         RunRequest(
             dataset=dataset,
             goal=case.request,
-            run_id="run_method",
+            run_id="run_label_fix",
             target=case.constraints.target,
             task_type=case.constraints.task_type,
             primary_metric=case.constraints.primary_metric,
             permitted_tools=tuple(case.permitted_tools),
         )
     )
-    assert "contract" in captured, "controller did not reach Phase B with a frozen contract"
-    contract = captured["contract"]
-    stored = load_experiment_contract(database, "run_method", contract.version)
-    assert stored.content_hash() == contract.content_hash()
-    assert contract.data_contract.split.strategy.value == (
-        "stratified" if strategy == "random" else strategy
+    proposals = [r for r in script.requests if r.output_schema_name == "DataContract"]
+    assert len(proposals) == 1  # C did propose it; nothing after validation happened
+    assert not reached and not result.verified
+    assert any("CONTRACT stage failed: MethodologyError" in note for note in result.notes)
+    assert not any(
+        "Review C's proposed" in r.messages[1].content
+        for r in script.requests
+        if r.output_schema_name == "LeadAction"
     )
-    if key:
-        assert key in {
-            contract.data_contract.split.group_key,
-            contract.data_contract.split.time_key,
-        }
-        assert any(item["column"] == key for item in script.diagnostics)
-    if leak:
-        assert leak not in contract.data_contract.allowed_features
-        assert any(item.name == leak for item in contract.data_contract.excluded_features)
-        assert any(item["diagnostic"] == "feature_predictiveness" for item in script.diagnostics)
-    locked = captured["locked"]
-    assert set(locked.diagnostic).isdisjoint(locked.prepared.test)
-    assert all(set(locked.diagnostic).isdisjoint(f.validation) for f in locked.prepared.folds)
-    events = list(EventLog(database).read("run_method"))
-    assert any(event.type.value == "tool_call" for event in events)
+    assert not (controller.runs_root / "run_label_fix" / "partition-lock.json").exists()
+    with pytest.raises(RecordNotFound):
+        load_experiment_contract(database, "run_label_fix")
 
 
 async def test_a_stops_on_conflicting_methodology(

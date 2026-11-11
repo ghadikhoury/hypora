@@ -16,7 +16,9 @@ Never silently decide an ambiguous target or invent evidence. Use open_questions
 issues. Group identifiers and time columns may be excluded as features and still be split keys.
 Choose holdout, group or time splits suited to the user's intended deployment; a temporal split
 must hold later observations out, and groups must remain disjoint. Learned transforms belong only
-in trial fit. Non-learned fixes must be justified and preserve the source data.
+in trial fit. Non-learned fixes must be justified and preserve the source data. They may change
+feature columns only: never propose a fix on the target or on a split key, because the platform
+rejects the whole proposal. The platform parses a time key itself.
 
 After examining available evidence, stop calling tools. Return a complete DataContract using the
 given task's exact target and task type and data_contract_version 1.

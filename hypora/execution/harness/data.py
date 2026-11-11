@@ -18,6 +18,7 @@ from hypora.core.schemas import ExperimentContract
 from hypora.core.schemas.contracts import (
     CastDtypeFix,
     DropColumnFix,
+    NonLearnedFix,
     ParseDatetimeFix,
     SetMissingFix,
     SplitStrategy,
@@ -46,10 +47,34 @@ class PreparedData:
     diagnostic: np.ndarray = field(default_factory=lambda: np.array([], dtype=int))
 
 
+def fix_column(fix: NonLearnedFix) -> str:
+    """The one column a non-learned fix rewrites, whichever kind of fix it is."""
+    if isinstance(fix, ParseDatetimeFix):
+        return fix.parse_datetime
+    if isinstance(fix, UnitConvertFix):
+        return fix.unit_convert.column
+    if isinstance(fix, DropColumnFix):
+        return fix.drop_column
+    if isinstance(fix, CastDtypeFix):
+        return fix.cast_dtype.column
+    if isinstance(fix, SetMissingFix):
+        return fix.set_missing.column
+    # A new kind of fix must be classified here before any contract may carry it.
+    raise ValueError("unsupported non-learned fix")
+
+
 def apply_contract(frame: pd.DataFrame, contract: ExperimentContract) -> pd.DataFrame:
-    """Apply only row-wise, non-learned fixes; reject unsupported conversions explicitly."""
+    """Apply only row-wise, non-learned fixes; reject unsupported conversions explicitly.
+
+    The fixed frame supplies the labels of every training, validation and test row, so no fix
+    may name the target: a cast, conversion, re-parse, missing-value marker or drop there would
+    change the ground truth that every reported metric is scored against. This is refused before
+    any fix is applied, for every kind of fix, whoever built the contract.
+    """
     if frame.columns.has_duplicates:
         raise ValueError("dataset column names must be unique")
+    if any(fix_column(fix) == contract.target for fix in contract.data_contract.non_learned_fixes):
+        raise ValueError("non-learned fixes must not rewrite the target column")
     result = frame.reset_index(drop=True).copy()
     for fix in contract.data_contract.non_learned_fixes:
         if isinstance(fix, ParseDatetimeFix):

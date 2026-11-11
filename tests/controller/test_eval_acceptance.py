@@ -85,7 +85,7 @@ def _scripted_adapter(
         models=models,
         profile=run_config.model_profile,
         prices=load_price_table(),
-        clients={Provider.GEMINI: _RetryingRun(run_id)},
+        clients={Provider.GEMINI: _RetryingRun(run_id, compare=True)},
         events=EventLog(database),
         admission=ProviderAdmission(models.rate_limits),
     )

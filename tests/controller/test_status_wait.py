@@ -264,9 +264,12 @@ async def test_a_limit_cancels_a_running_job_and_its_worker_ends_cleanly(
 @pytest.mark.parametrize(
     ("limit", "budget"),
     [
-        ("max_steps", {"max_steps": 14}),
-        ("max_llm_tokens", {"max_llm_tokens": 1000}),
-        ("max_usd", {"max_usd": 0.0004}),  # about 7 scripted turns at Flash-Lite's list price
+        ("max_steps", {"max_steps": 30}),
+        ("max_llm_tokens", {"max_llm_tokens": 3000}),
+        (
+            "max_usd",
+            {"max_usd": 0.0012},
+        ),  # leaves room for methodology before the stuck-job polling limit
     ],
 )
 async def test_turn_limits_still_stop_a_model_waiting_on_a_stuck_job(

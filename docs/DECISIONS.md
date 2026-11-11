@@ -1037,3 +1037,11 @@ No recorded result, grader, sandbox policy, tool contract or course minimum is c
   and temporal-order development cases only. Their data, hidden splits, traps and grading
   thresholds remain unchanged. The case fingerprints change; historical records retain their
   original identity and are not relabeled or overwritten.
+
+
+### D-043 ? S3.3 review fixes and capability-proof compatibility (2026-11-10)
+Ghadi approved the narrow change to the merged infeasibility grader in this session: distinguish
+completed, explicitly marked, diagnostic-only methodology invocations from the one experiment
+capability record. Multiple experiment sessions still fail closed, and tool, job, plan, case and
+report checks remain mandatory. Target-directed fixes are refused for every fix variant, and the
+baseline/candidate final-selection gate applies equally to single and multi LLM configurations.
