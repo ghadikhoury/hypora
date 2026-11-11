@@ -67,6 +67,8 @@ class ScriptedRun:
 
     async def generate(self, request: ProviderRequest) -> ProviderResult:
         self.requests.append(request)
+        if request.output_schema_name == "WorkerProposal":
+            return json_result({"workers": []})
         schema = request.output_schema_name
         if "You are Hypora's data and implementation specialist" in request.messages[0].content:
             if schema == "PlanDraft":

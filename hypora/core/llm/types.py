@@ -182,6 +182,7 @@ class CallContext:
     span_id: str | None = None
     parent_span_id: str | None = None
     sensitive_output_filter: Callable[[str], str] | None = None
+    admit_token_attempt: Callable[[int, int], int] | None = None
 
 
 @dataclass(frozen=True)

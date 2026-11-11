@@ -24,12 +24,12 @@ import json
 import re
 import unicodedata
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from decimal import Decimal
 from importlib import resources
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
 
 import anyio
 import pandas as pd  # type: ignore[import-untyped]
@@ -54,7 +54,14 @@ from hypora.core.controller.local import (
 )
 from hypora.core.controller.methodology import validate_data_proposal
 from hypora.core.controller.states import START, RunEvent, RunState, next_state
-from hypora.core.llm.adapter import LLMAdapter
+from hypora.core.controller.workers import (
+    WorkerGuard,
+    WorkerReservations,
+    authorize_worker,
+    worker_scope,
+)
+from hypora.core.llm.adapter import LLMAdapter, worker_first_call_bound
+from hypora.core.llm.types import CallContext, Message, ToolSpec
 from hypora.core.policy.firewall import DataFirewall
 from hypora.core.roles.base import USER_CANCEL, RunLimitReached
 from hypora.core.roles.intake import IntakeError, IntakeForm, _task_type, run_intake
@@ -78,6 +85,8 @@ from hypora.core.roles.single_agent import (
     ToolChannel,
     run_single_agent,
 )
+from hypora.core.roles.worker import WorkerProposal, WorkerReport, WorkerRequest
+from hypora.core.scheduler.ready import ReadyTask, run_ready
 from hypora.core.schemas import (
     AUTO_APPROVER,
     ActorRole,
@@ -108,6 +117,7 @@ from hypora.core.schemas import (
     TaskType,
     ToolName,
 )
+from hypora.core.schemas.briefs import Brief, FindingSchemaName
 from hypora.core.schemas.events import (
     ApprovalGrantedPayload,
     ApprovalRequestedPayload,
@@ -117,6 +127,7 @@ from hypora.core.schemas.events import (
     RoleStartedPayload,
     StageTransitionPayload,
 )
+from hypora.core.schemas.findings import FindingStatus, TrialFinding, TrialOutcome
 from hypora.execution.harness.runner import load_tabular
 from hypora.execution.protocol import experiments as protocol
 from hypora.mcp_server.server import _redact
@@ -154,6 +165,8 @@ MCP_READ_TIMEOUT_S: Final = 300.0
 FINAL_JOB_STAGES: Final = 10
 """Upper bound on the sandbox stages of a final job, for its timeout (folds x 2 + freeze + test)."""
 EXAMPLE_PIPELINE: Final = "linear/pipeline.py"
+_WORKER_NARRATIVE_FIELDS: Final = ("summary", "claims", "confidence", "open_questions")
+"""TrialFinding fields a worker model authors; C receives them as untrusted worker text."""
 
 
 @dataclass(frozen=True)
@@ -360,6 +373,8 @@ class _Run:
         self.role_invocations = 0
         self.lead_assignment = ""
         self.research_brief = ""
+        self.overlap_reason: str | None = None
+        self.methodology_draft: tuple[DataContract, dict[str, tuple[str, str]]] | None = None
 
     # --- the run ----------------------------------------------------------------------------------
 
@@ -457,12 +472,15 @@ class _Run:
                 role=role,
                 context=context,
                 assignment_validator=self._validate_assignment if require_assignment else None,
+                overlap_validator=self._validate_assignment,
             )
             if isinstance(result, LeadAction):
                 if result.action == "continue" and require_assignment and result.assignment is None:
                     raise ValueError("Agent A must assign concrete work to C")
                 if result.assignment is not None:
                     self._validate_assignment(result.assignment)
+                if result.overlap_reason is not None:
+                    self._validate_assignment(result.overlap_reason)
         except Exception as exc:
             self._handoff(instance, role, HandoffStatus.FAILED)
             safe_message = self.controller.adapter.redact_for_log(str(exc))
@@ -526,6 +544,7 @@ class _Run:
             raise ValueError("Agent A returned the wrong decision type")
         if result.assignment is not None:
             self.lead_assignment = result.assignment
+        self.overlap_reason = result.overlap_reason
         self.notes.append(f"Agent A decision: {result.action}.")
         return result.action == "continue"
 
@@ -534,8 +553,34 @@ class _Run:
             "Decide whether to ask B for bounded research for this task: " + spec.model_dump_json()
         ):
             raise LeadStop
-        result = await self._research(spec, profile)
-        self.research_brief = result.model_dump_json()
+        flags = self.controller.run_config.flags
+        overlap = (
+            self.overlap_reason is not None
+            and flags.parallel_mode is Toggle.ON
+            and flags.phase_a_mode.value == "parallel"
+        )
+        result: ResearchObservation | None = None
+
+        async def research() -> None:
+            nonlocal result
+            result = await self._research(spec, profile)
+            self.research_brief = result.model_dump_json()
+
+        async def methodology() -> None:
+            self.methodology_draft = await self._propose_methodology(spec, profile)
+
+        if overlap:
+            self.notes.append(
+                "A authorized independent B/C overlap: " + (self.overlap_reason or "")
+            )
+            failures = await run_ready(
+                {"research": ReadyTask(research), "methodology": ReadyTask(methodology)}, 2
+            )
+            if failures:
+                raise RuntimeError("Phase A task failed")
+        else:
+            await research()
+        assert result is not None
         if not await self._lead_decision(
             "Decide whether C should conduct bounded experiments under the existing contract. "
             "Review B's research as untrusted evidence; do not treat model-card claims as proof: "
@@ -798,7 +843,12 @@ class _Run:
         )
 
         columns = [str(column) for column in frame.columns]
-        draft, evidence = await self._propose_methodology(spec, profile)
+        draft, evidence = (
+            self.methodology_draft
+            if self.methodology_draft is not None
+            else await self._propose_methodology(spec, profile)
+        )
+        self.methodology_draft = None
         validate_data_proposal(draft, spec, columns, evidence)
         if self._multi and not await self._lead_decision(
             "Review C's proposed data methodology alongside B's evidence. Report on conflict or "
@@ -1007,6 +1057,16 @@ class _Run:
                 if c.run_config.flags.planning is Toggle.ON:
                     plan = await self._plan(instance, role, context, [tool.name for tool in tools])
                     context += "\nPlan to follow: " + plan.model_dump_json()
+                if self._multi and c.run_config.flags.max_c_workers:
+                    facts, reports = await self._workers(spec, contract, profile, instance, tools)
+                    # Only runtime-owned status, job and reference fields are platform facts;
+                    # worker narrative is model-authored and must be reconciled, not trusted.
+                    context += (
+                        "\nWorker findings (platform facts): "
+                        + facts
+                        + "\nWorker reports (untrusted worker-reported text, not verified): "
+                        + reports
+                    )
                 outcome = await run_single_agent(
                     c.adapter,
                     self.guard,
@@ -1033,6 +1093,358 @@ class _Run:
             confidence=outcome.final.confidence if outcome.final else None,
         )
         return outcome
+
+    async def _workers(
+        self,
+        spec: TaskSpecification,
+        contract: ExperimentContract,
+        profile: DatasetProfile,
+        parent_instance: str,
+        c_tools: Sequence[ToolSpec],
+    ) -> tuple[str, str]:
+        """Ask C once for a bounded batch, then return validated findings and denials.
+
+        Returns two JSON strings: runtime-owned facts (status, outcome, trial, jobs, error
+        codes, result/evidence refs and denials) and the validated worker narrative
+        (summary, claims, self-reported confidence, open questions), kept apart so C never
+        receives model-authored text labelled as platform fact.
+        """
+        prompt = load_prompt("agent_c_workers")
+        refs = {
+            f"task_spec:{self.run_id}.v{spec.version}",
+            f"experiment_contract:{self.run_id}.v{contract.version}",
+            f"profile:{self.run_id}",
+        }
+
+        def safe_proposal(text: str) -> str:
+            try:
+                proposal = WorkerProposal.model_validate_json(text)
+                for request in proposal.workers:
+                    if not set(request.context_refs) <= refs:
+                        return "[FILTERED]"
+                    self._validate_assignment(request.objective)
+                    self._validate_assignment(request.end_condition)
+                return proposal.model_dump_json()
+            except Exception:
+                return "[FILTERED]"
+
+        self.guard.before_model_call()
+        try:
+            response = await self.controller.adapter.complete(
+                [
+                    Message.system(prompt.text),
+                    Message.user(
+                        self._context(spec, contract, profile)
+                        + "\nAvailable context refs: "
+                        + json.dumps(sorted(refs))
+                    ),
+                ],
+                tier=ModelTier.LEAD,
+                context=CallContext(
+                    run_id=self.run_id,
+                    actor_role=ActorRole.AGENT_C,
+                    prompt_ref=prompt.ref,
+                    sensitive_output_filter=safe_proposal,
+                ),
+                output_schema=WorkerProposal,
+            )
+        except Exception as exc:
+            from hypora.core.llm.errors import LLMError
+
+            if isinstance(exc, LLMError):
+                self.guard.after_model_error(exc)
+            raise
+        self.guard.after_model_call(response)
+        if response.tool_calls or not isinstance(response.parsed, WorkerProposal):
+            raise ValueError("Invalid worker proposal")
+        reservations = WorkerReservations(
+            self.guard, self.controller.run_config.flags.max_c_workers
+        )
+        denials: list[str] = []
+        briefs: list[Brief] = []
+        findings: dict[str, TrialFinding] = {}
+        system = load_prompt("c_worker").text
+
+        def first_call_tokens(request: WorkerRequest) -> int:
+            """The admission bound of the worker's first call, plus one bounded reply."""
+            # Same-length placeholder identity: the real brief ID is minted on approval.
+            brief = Brief(
+                brief_id="brf_" + "0" * 16,
+                run_id=self.run_id,
+                issued_by=ActorRole.AGENT_C,
+                assigned_role=ActorRole.TRIAL_WORKER,
+                objective=request.objective,
+                output_schema=FindingSchemaName.TRIAL_FINDING,
+                allowed_tools=request.allowed_tools,
+                end_condition=request.end_condition,
+                context_refs=request.context_refs,
+                budget=request.budget,
+            )
+            wanted = {tool.value for tool in request.allowed_tools}
+            return worker_first_call_bound(
+                (
+                    Message.system(system),
+                    Message.user(self._worker_context(brief, spec, contract, profile)),
+                ),
+                tuple(tool for tool in c_tools if tool.name in wanted),
+            )
+
+        for request in response.parsed.workers:
+            brief, denial = authorize_worker(
+                ActorRole.AGENT_C,
+                request,
+                reservations=reservations,
+                permitted_tools={ToolName(tool.name) for tool in c_tools},
+                context_refs=refs,
+                validate_text=self._validate_assignment,
+                first_call_tokens=first_call_tokens,
+            )
+            if brief is not None:
+                briefs.append(brief)
+            if denial is not None:
+                denials.append(denial)
+
+        def task(brief: Brief) -> ReadyTask:
+            async def run() -> None:
+                findings[brief.brief_id] = await self._worker(
+                    brief, reservations, parent_instance, spec, contract, profile
+                )
+
+            return ReadyTask(run)
+
+        try:
+            failures = await run_ready(
+                {brief.brief_id: task(brief) for brief in briefs},
+                self.controller.run_config.flags.max_c_workers
+                if self.controller.run_config.flags.parallel_mode is Toggle.ON
+                else 1,
+            )
+            if failures:
+                raise RuntimeError("Worker cleanup failed")
+        finally:
+            for brief in briefs:
+                reservations.release(brief.brief_id)
+        self.guard.check_cancel()
+        facts: list[dict[str, Any]] = []
+        reports: list[dict[str, Any]] = []
+        for finding in findings.values():
+            dumped = finding.model_dump(mode="json")
+            reports.append(
+                {"brief_id": finding.brief_id}
+                | {key: dumped.pop(key) for key in _WORKER_NARRATIVE_FIELDS}
+            )
+            facts.append(dumped)
+        return (
+            json.dumps({"findings": facts, "denials": denials}),
+            json.dumps({"reports": reports}),
+        )
+
+    def _worker_context(
+        self,
+        brief: Brief,
+        spec: TaskSpecification,
+        contract: ExperimentContract,
+        profile: DatasetProfile,
+    ) -> str:
+        """A worker's only context: its brief and the records it references."""
+        # No peer transcript, lead assignment or research scratchpad is shared.
+        context = "Brief: " + brief.model_dump_json()
+        records = {
+            f"task_spec:{self.run_id}.v{spec.version}": spec.model_dump_json(),
+            f"experiment_contract:{self.run_id}.v{contract.version}": contract.model_dump_json(),
+            f"profile:{self.run_id}": profile.model_dump_json(),
+        }
+        for ref in brief.context_refs:
+            context += "\nReferenced record " + ref + ": " + records[ref]
+        return context
+
+    async def _worker(
+        self,
+        brief: Brief,
+        reservations: WorkerReservations,
+        parent_instance: str,
+        spec: TaskSpecification,
+        contract: ExperimentContract,
+        profile: DatasetProfile,
+    ) -> TrialFinding:
+        """Run one isolated worker, always releasing its reservation and cancelling failures."""
+        from hypora.storage.records import load_trial
+
+        c = self.controller
+        folder = self.run_dir / "workers" / brief.brief_id
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "brief.json").write_text(brief.model_dump_json(indent=2), encoding="utf-8")
+        guard = WorkerGuard(self.guard, brief, reservations)
+        instance = self._role_started(
+            ActorRole.TRIAL_WORKER,
+            ModelTier.WORKER,
+            allowed_tools=[t.value for t in brief.allowed_tools],
+            context_refs=brief.context_refs,
+            brief_id=brief.brief_id,
+            parent_instance=parent_instance,
+        )
+        status = HandoffStatus.FAILED
+        code = "WORKER_FAILED"
+        outcome: AgentOutcome | None = None
+        report: WorkerReport | None = None
+        try:
+            session = write_session(
+                folder / "session.json",
+                run_id=self.run_id,
+                role=ActorRole.TRIAL_WORKER,
+                database=c.database_path,
+                runs_root=c.runs_root,
+                dataset=self.dataset,
+                flags=c.run_config.flags,
+                permitted_tools=tuple(brief.allowed_tools),
+                brief_id=brief.brief_id,
+            )
+            timeout = brief.budget.timeout_seconds or 300
+            async with worker_scope(self.guard, timeout):
+                with (folder / "mcp.log").open("a", encoding="utf-8") as errlog:
+                    async with Client(
+                        mcp_transport(session, errlog), read_timeout_seconds=MCP_READ_TIMEOUT_S
+                    ) as client:
+                        channel: ToolChannel = McpToolChannel(client)
+                        tools = await McpToolChannel(client).specs()
+                        if c.tool_channel_wrapper is not None:
+                            channel = c.tool_channel_wrapper(channel)
+                        context = self._worker_context(brief, spec, contract, profile)
+                        outcome = await run_single_agent(
+                            c.adapter,
+                            guard,
+                            channel,
+                            tools,
+                            run_id=self.run_id,
+                            context=context,
+                            max_turns=c.max_agent_turns,
+                            role=ActorRole.TRIAL_WORKER,
+                        )
+            if outcome is None:
+                # The watcher cancelled the body: a user cancel or a shared run limit.
+                if self.guard.cancel_requested():
+                    status, code = HandoffStatus.CANCELLED, "WORKER_FAILED"
+                else:
+                    status, code = HandoffStatus.PARTIAL, "WORKER_LIMIT_REACHED"
+            elif outcome.worker_report is not None:
+                candidate = outcome.worker_report
+                # Validate every worker-authored field before any of it is kept: rejected
+                # text must never reach the finding, C's context or disk.
+                self._validate_assignment(candidate.summary)
+                for claim in candidate.claims:
+                    self._validate_assignment(claim.statement)
+                for question in candidate.open_questions:
+                    self._validate_assignment(question)
+                report = candidate
+                status = HandoffStatus.COMPLETE
+                code = ""
+            elif outcome.stop is not None or guard.exhausted:
+                status = (
+                    HandoffStatus.CANCELLED
+                    if self.guard.cancel_requested()
+                    else HandoffStatus.PARTIAL
+                )
+                code = "WORKER_LIMIT_REACHED"
+        except anyio.get_cancelled_exc_class():
+            status, code = HandoffStatus.CANCELLED, "WORKER_FAILED"
+        except RunLimitReached:
+            status, code = HandoffStatus.PARTIAL, "WORKER_LIMIT_REACHED"
+        except TimeoutError:
+            code = "WORKER_TIMEOUT"
+        except Exception:
+            # Provider, protocol and text-validation exceptions are not safe narrative.
+            code = "WORKER_FAILED"
+        finally:
+            with anyio.CancelScope(shield=True):
+                if self.guard.cancel_requested():
+                    status, code = HandoffStatus.CANCELLED, "WORKER_FAILED"
+                if status is not HandoffStatus.COMPLETE:
+                    for job in run_jobs(self.database, self.run_id):
+                        trial = load_trial(self.database, job.trial_id)
+                        if trial.batch_id == brief.brief_id and job.status not in TERMINAL_STATES:
+                            self._cancel(job.job_id, "Worker stopped")
+                    # Let the existing execution worker acknowledge cancellation before
+                    # its owning controller tears it down. Queued jobs cancel immediately.
+                    deadline = anyio.current_time() + 5
+                    while anyio.current_time() < deadline:
+                        pending = [
+                            job
+                            for job in run_jobs(self.database, self.run_id)
+                            if load_trial(self.database, job.trial_id).batch_id == brief.brief_id
+                            and job.status not in TERMINAL_STATES
+                        ]
+                        if not pending:
+                            break
+                        await anyio.sleep(0.05)
+                reservations.release(brief.brief_id)
+        own = [
+            t
+            for t in list_trials(self.database, self.run_id)
+            if load_trial(self.database, t.trial_id).batch_id == brief.brief_id
+        ]
+        jobs = [
+            j
+            for j in run_jobs(self.database, self.run_id)
+            if any(t.trial_id == j.trial_id for t in own)
+        ]
+        completed = [j for j in jobs if j.status is JobState.COMPLETED]
+        failed = [
+            j
+            for j in jobs
+            if j.status in (JobState.FAILED, JobState.FAILED_TERMINAL, JobState.CANCELLED)
+        ]
+        if failed and status is not HandoffStatus.CANCELLED:
+            status, code = HandoffStatus.FAILED, "WORKER_FAILED"
+        if report is not None:
+            allowed_refs = set(brief.context_refs)
+            allowed_refs.update(f"trial:{trial.trial_id}" for trial in own)
+            allowed_refs.update(f"job:{job.job_id}" for job in jobs)
+            allowed_refs.update(f"result:{job.trial_id}/validation" for job in completed)
+            if any(not set(claim.evidence_refs) <= allowed_refs for claim in report.claims):
+                report = None
+                if status is not HandoffStatus.CANCELLED:
+                    status, code = HandoffStatus.FAILED, "WORKER_FAILED"
+        finding = TrialFinding(
+            brief_id=brief.brief_id,
+            run_id=self.run_id,
+            status=FindingStatus.COMPLETE
+            if status is HandoffStatus.COMPLETE
+            else FindingStatus.BUDGET_EXHAUSTED
+            if code == "WORKER_LIMIT_REACHED"
+            else FindingStatus.FAILED,
+            trial_id=own[0].trial_id if own else "trl_uncreated_" + brief.brief_id,
+            outcome=TrialOutcome.COMPLETED
+            if completed and not failed
+            else TrialOutcome.FAILED
+            if code
+            else TrialOutcome.SUBMITTED
+            if jobs
+            else TrialOutcome.ABANDONED,
+            job_ids=[j.job_id for j in jobs],
+            error_codes=[code] if code else [],
+            result_refs=[f"result:{j.trial_id}/validation" for j in completed],
+            evidence_refs=[f"job:{j.job_id}" for j in jobs],
+            confidence=report.confidence if report is not None else 0.0,
+            claims=report.claims if report is not None else [],
+            open_questions=report.open_questions if report is not None else [],
+            summary=report.summary
+            if report is not None
+            else (
+                "Worker completed bounded work."
+                if not code
+                else "Worker returned an unresolved failure."
+            ),
+        )
+        (folder / "finding.json").write_text(finding.model_dump_json(indent=2), encoding="utf-8")
+        self._handoff(
+            instance,
+            ActorRole.TRIAL_WORKER,
+            status,
+            brief_id=brief.brief_id,
+            output_ref=f"worker_finding:{brief.brief_id}",
+            evidence_refs=finding.evidence_refs,
+        )
+        return finding
 
     def _context(
         self, spec: TaskSpecification, contract: ExperimentContract, profile: DatasetProfile
@@ -1350,6 +1762,8 @@ class _Run:
         *,
         allowed_tools: list[str] | None = None,
         context_refs: list[str] | None = None,
+        brief_id: str | None = None,
+        parent_instance: str | None = None,
     ) -> str:
         self.role_invocations += 1
         instance = f"ri_{self.run_id}_{role.value}_{self.role_invocations}"
@@ -1359,6 +1773,8 @@ class _Run:
             role,
             RoleStartedPayload(
                 role_instance_id=instance,
+                brief_id=brief_id,
+                parent_role_instance_id=parent_instance,
                 tier=tier,
                 allowed_tools=allowed_tools or [],
                 context_refs=context_refs or [],
@@ -1441,11 +1857,13 @@ class _Run:
         output_ref: str | None = None,
         confidence: float | None = None,
         open_questions: list[str] | None = None,
+        brief_id: str | None = None,
     ) -> None:
         handoff = Handoff(
             run_id=self.run_id,
             from_role=role,
-            to=ActorRole.CONTROLLER,
+            to=ActorRole.AGENT_C if brief_id else ActorRole.CONTROLLER,
+            brief_id=brief_id,
             status=status,
             candidates=candidates or [],
             evidence_refs=evidence_refs or [],

@@ -7,7 +7,7 @@ exist only here because no schema needs them.
 from enum import StrEnum
 from typing import Annotated
 
-from pydantic import BeforeValidator, PositiveInt
+from pydantic import BeforeValidator, Field, PositiveInt
 
 from hypora.core.schemas.common import ApprovalPolicy, FrozenModel
 
@@ -87,3 +87,4 @@ class FeatureFlags(FrozenModel):
     max_research_workers: PositiveInt = 4
     max_diagnostic_workers: PositiveInt = 4
     max_parallel_trials: PositiveInt = 3
+    max_c_workers: int = Field(default=2, ge=0, le=2)

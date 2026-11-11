@@ -168,7 +168,14 @@ class HyporaTools:
             trial = load_trial(self.session.database, trial_id)
         except RecordNotFound:
             trial = None
-        if trial is None or trial.run_id != self.session.run_id:
+        if (
+            trial is None
+            or trial.run_id != self.session.run_id
+            or (
+                self.session.config.brief_id is not None
+                and trial.batch_id != self.session.config.brief_id
+            )
+        ):
             raise errors.missing(
                 "TRIAL_NOT_FOUND",
                 f"This run has no trial {trial_id!r}.",
@@ -190,6 +197,8 @@ class HyporaTools:
                 "Use the job_id returned by submit_experiment.",
                 job_id=job_id,
             )
+        if self.session.config.brief_id is not None:
+            self._trial(job.trial_id)
         return job
 
     def _firewall(self) -> DataFirewall | None:
@@ -810,7 +819,12 @@ class HyporaTools:
                 ) from None
             if trial_file is not None:
                 upsert_trial(
-                    session.database, session.run_id, trial_file, directory, connection=connection
+                    session.database,
+                    session.run_id,
+                    trial_file,
+                    directory,
+                    connection=connection,
+                    batch_id=session.config.brief_id,
                 )
             contract = self._contract()
             return TrialFilesResult.model_validate(
@@ -855,7 +869,17 @@ class HyporaTools:
         self, tool: ToolName, key: str, request: dict[str, Any], plan: dict[str, Any]
     ) -> Reservation:
         """Claim the key for this exact request (hash of every resolved field), atomically."""
-        digest = canonical_hash({"tool": tool.value, "request": request})
+        digest = canonical_hash(
+            {
+                "tool": tool.value,
+                "request": request,
+                **(
+                    {"brief_id": self.session.config.brief_id}
+                    if self.session.config.brief_id is not None
+                    else {}
+                ),
+            }
+        )
         try:
             return self._ledger.reserve(
                 run_id=self.session.run_id,

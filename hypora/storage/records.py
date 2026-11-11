@@ -190,6 +190,7 @@ class StoredTrial:
     run_id: str
     dir: str
     status: str
+    batch_id: str | None = None
 
 
 def upsert_trial(
@@ -199,6 +200,7 @@ def upsert_trial(
     directory: str,
     *,
     connection: Connection | None = None,
+    batch_id: str | None = None,
 ) -> None:
     """Create or update a `trials` row from the trial's `trial.yaml` design (status `draft`).
 
@@ -206,7 +208,7 @@ def upsert_trial(
     """
     values = {
         "run_id": run_id,
-        "batch_id": None,
+        "batch_id": batch_id,
         "kind": trial.kind,
         "hypothesis": trial.hypothesis,
         "parent_trial_id": trial.parent_trial_id,
@@ -227,16 +229,19 @@ def _upsert_trial(connection: Connection, run_id: str, trial_id: str, values: di
     elif existing != run_id:
         raise ValueError(f"trial {trial_id} belongs to another run")
     else:
-        connection.execute(update(Trial).where(Trial.id == trial_id).values(**values))
+        updates = {key: value for key, value in values.items() if key != "batch_id"}
+        connection.execute(update(Trial).where(Trial.id == trial_id).values(**updates))
 
 
 def load_trial(database: Database, trial_id: str) -> StoredTrial:
-    statement = select(Trial.id, Trial.run_id, Trial.dir, Trial.status).where(Trial.id == trial_id)
+    statement = select(Trial.id, Trial.run_id, Trial.dir, Trial.status, Trial.batch_id).where(
+        Trial.id == trial_id
+    )
     with database.engine.connect() as connection:
         row = connection.execute(statement).one_or_none()
     if row is None:
         raise RecordNotFound(f"no trial {trial_id}")
-    return StoredTrial(row.id, row.run_id, row.dir, row.status)
+    return StoredTrial(row.id, row.run_id, row.dir, row.status, row.batch_id)
 
 
 def set_trial_status(database: Database, trial_id: str, status: str) -> None:

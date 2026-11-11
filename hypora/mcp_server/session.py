@@ -48,6 +48,7 @@ class DefenseSwitches(StrictModel):
 class SessionConfig(Record):
     """Written by the trusted launcher; never by the agent."""
 
+    brief_id: Identifier | None = None
     session_id: Identifier
     role: ActorRole
     run_id: Identifier
@@ -71,6 +72,10 @@ class SessionConfig(Record):
 
     @model_validator(mode="after")
     def _consistent(self) -> "SessionConfig":
+        if self.role is ActorRole.TRIAL_WORKER and self.brief_id is None:
+            raise ValueError("trial workers require a trusted brief scope")
+        if self.brief_id is not None and self.role is not ActorRole.TRIAL_WORKER:
+            raise ValueError("only trial workers have a brief scope")
         if self.experiment_dataset not in self.datasets:
             raise ValueError("experiment_dataset must be one of the session's datasets")
         for name, value in {"database": self.database, "runs_root": self.runs_root}.items():
@@ -85,6 +90,7 @@ class Session:
     """Runtime state of one session: database handles, caches, and the data firewall."""
 
     def __init__(self, config: SessionConfig) -> None:
+        config = SessionConfig.model_validate(config.model_dump(mode="json"))
         self.config = config
         self.database = Database(Path(config.database))
         self.events = EventLog(self.database)

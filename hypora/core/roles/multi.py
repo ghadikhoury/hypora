@@ -21,6 +21,7 @@ class LeadAction(StrictModel):
     action: Literal["continue", "report"]
     reason: str = Field(min_length=1, max_length=2000)
     assignment: str | None = Field(default=None, min_length=1, max_length=2000)
+    overlap_reason: str | None = Field(default=None, min_length=1, max_length=500)
 
 
 class ResearchObservation(StrictModel):
@@ -39,6 +40,7 @@ async def main_role_call(
     role: ActorRole,
     context: str,
     assignment_validator: Callable[[str], None] | None = None,
+    overlap_validator: Callable[[str], None] | None = None,
 ) -> LeadAction | ResearchObservation:
     """Call A or B without a tool channel and validate the structured result."""
     if role not in (ActorRole.AGENT_A, ActorRole.AGENT_B):
@@ -49,13 +51,23 @@ async def main_role_call(
     def filter_sensitive_output(text: str) -> str:
         try:
             decision = LeadAction.model_validate_json(text)
-            if decision.action == "continue" and decision.assignment is None:
+            if (
+                assignment_validator is not None
+                and decision.action == "continue"
+                and decision.assignment is None
+            ):
                 return "[FILTERED]"
-            if decision.assignment is not None:
-                assert assignment_validator is not None
+            if decision.assignment is not None and assignment_validator is not None:
                 assignment_validator(decision.assignment)
+            if decision.overlap_reason is not None:
+                assert overlap_validator is not None
+                overlap_validator(decision.overlap_reason)
             return json.dumps(
-                {"action": decision.action, "assignment": decision.assignment},
+                {
+                    "action": decision.action,
+                    "assignment": decision.assignment,
+                    "overlap_reason": decision.overlap_reason,
+                },
                 ensure_ascii=True,
             )
         except Exception:
@@ -71,7 +83,9 @@ async def main_role_call(
                 actor_role=role,
                 prompt_ref=prompt.ref,
                 sensitive_output_filter=(
-                    filter_sensitive_output if assignment_validator is not None else None
+                    filter_sensitive_output
+                    if assignment_validator is not None or overlap_validator is not None
+                    else None
                 ),
             ),
             output_schema=schema,

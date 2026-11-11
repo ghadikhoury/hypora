@@ -29,6 +29,7 @@ from hypora.core.llm.errors import LLMError
 from hypora.core.llm.types import CallContext, Message, ToolSpec
 from hypora.core.roles.base import CallGuard, RunLimitReached
 from hypora.core.roles.prompt_loader import load_prompt
+from hypora.core.roles.worker import WorkerReport
 from hypora.core.schemas import ActorRole, Identifier, ModelTier, StrictModel, ToolName
 
 MAX_TOOL_RESULT_CHARS: Final = 60_000
@@ -52,6 +53,7 @@ class AgentOutcome:
     turns: int
     tool_calls: int
     stop: RunLimitReached | None = None
+    worker_report: WorkerReport | None = None
     error: str | None = None  # a model call that failed for good (after retries)
 
 
@@ -150,8 +152,18 @@ async def run_single_agent(
     role: ActorRole = ActorRole.SINGLE_AGENT,
 ) -> AgentOutcome:
     """Run the tool loop until the model stops calling tools, a limit fires, or a call fails."""
-    system = load_prompt("agent_c" if role is ActorRole.AGENT_C else "single_agent")
-    call_context = CallContext(run_id=run_id, actor_role=role, prompt_ref=system.ref)
+    worker = role is ActorRole.TRIAL_WORKER
+    tier = ModelTier.WORKER if worker else ModelTier.LEAD
+    system = load_prompt(
+        "c_worker" if worker else "agent_c" if role is ActorRole.AGENT_C else "single_agent"
+    )
+    call_context = CallContext(
+        run_id=run_id,
+        actor_role=role,
+        prompt_ref=system.ref,
+        sensitive_output_filter=(lambda text: "[FILTERED]") if worker else None,
+        admit_token_attempt=getattr(guard, "admit_token_attempt", None) if worker else None,
+    )
     messages: list[Message] = [Message.system(system.text), Message.user(context)]
     turns = tool_calls = 0
     try:
@@ -160,7 +172,7 @@ async def run_single_agent(
                 raise guard.stop("max_agent_turns", turns, max_turns)
             guard.before_model_call()
             response = await adapter.complete(
-                messages, tier=ModelTier.LEAD, context=call_context, tools=tools
+                messages, tier=tier, context=call_context, tools=tools
             )
             guard.after_model_call(response)
             turns += 1
@@ -193,14 +205,20 @@ async def run_single_agent(
         guard.after_model_error(exc)
         return AgentOutcome(None, turns, tool_calls, error=f"{type(exc).__name__}: {exc}"[:300])
 
-    final_prompt = load_prompt("single_agent_final")
+    final_prompt = load_prompt("c_worker_final" if worker else "single_agent_final")
     try:
         guard.before_model_call()
         answer = await adapter.complete(
             [*messages, Message.user(final_prompt.text)],
-            tier=ModelTier.LEAD,
-            context=CallContext(run_id=run_id, actor_role=role, prompt_ref=final_prompt.ref),
-            output_schema=FinalAnswer,
+            tier=tier,
+            context=CallContext(
+                run_id=run_id,
+                actor_role=role,
+                prompt_ref=final_prompt.ref,
+                sensitive_output_filter=(lambda text: "[FILTERED]") if worker else None,
+                admit_token_attempt=getattr(guard, "admit_token_attempt", None) if worker else None,
+            ),
+            output_schema=WorkerReport if worker else FinalAnswer,
         )
         guard.after_model_call(answer)
     except RunLimitReached as reached:
@@ -209,4 +227,9 @@ async def run_single_agent(
         guard.after_model_error(exc)
         return AgentOutcome(None, turns, tool_calls, error=f"{type(exc).__name__}: {exc}"[:300])
     final = answer.parsed if isinstance(answer.parsed, FinalAnswer) else None
-    return AgentOutcome(final, turns + 1, tool_calls)
+    return AgentOutcome(
+        final,
+        turns + 1,
+        tool_calls,
+        worker_report=answer.parsed if isinstance(answer.parsed, WorkerReport) else None,
+    )

@@ -446,3 +446,40 @@ async def test_events_land_in_the_real_event_log(tmp_path: Path, prices: Any) ->
         assert event.payload.model_id == DEV_MODEL and event.actor_role.value == "single_agent"
     finally:
         database.close()
+
+
+@pytest.mark.asyncio
+async def test_worker_attempt_admission_counts_large_native_replay_before_dispatch(make_adapter):
+    from dataclasses import replace
+
+    from hypora.core.controller.workers import WorkerBudgetExceeded
+    from hypora.core.llm.types import MessageRole, ProviderReplay
+
+    provider = FakeProvider([text_result("must never be dispatched")])
+    adapter, _, _ = make_adapter(provider)
+    observed = []
+
+    def admit(input_bound, output):
+        observed.append(input_bound)
+        if input_bound > 10000:
+            raise WorkerBudgetExceeded("worker token envelope exceeded")
+        return output
+
+    opaque = "private_native_state" * 10000
+    context = replace(CONTEXT, admit_token_attempt=admit)
+    with pytest.raises(WorkerBudgetExceeded):
+        await adapter.complete(
+            [
+                Message(
+                    role=MessageRole.ASSISTANT,
+                    content="visible",
+                    replay=ProviderReplay(
+                        provider=Provider.GEMINI, model_id=DEV_MODEL, items=[{"native": opaque}]
+                    ),
+                )
+            ],
+            tier=ModelTier.WORKER,
+            context=context,
+        )
+    assert observed[0] > len(opaque)
+    assert not provider.requests

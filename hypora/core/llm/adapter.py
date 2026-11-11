@@ -72,6 +72,10 @@ from hypora.core.schemas.events import (
 )
 
 _MAX_VALIDATION_FEEDBACK = 2000
+WORKER_REPLY_TOKENS = 2048
+"""Output a worker attempt asks for when its request names no output cap."""
+_MODEL_ID_ALLOWANCE = 128
+"""Bytes reserved for the model ID when bounding a worker call before the model is chosen."""
 
 SCHEMA_RETRY_PROMPT = (
     "Your previous reply did not validate against the required JSON schema `{schema}`.\n"
@@ -532,6 +536,13 @@ class LLMAdapter:
 
         while True:
             reservation: Reservation | None = None
+            if context.admit_token_attempt is not None:
+                # Text-only workers use a conservative byte envelope, not the admission
+                # heuristic. Include full schemas/tool framing and provider wrapper reserve.
+                ceiling = context.admit_token_attempt(
+                    _worker_input_bound(request), request.max_output_tokens or WORKER_REPLY_TOKENS
+                )
+                request = replace(request, max_output_tokens=ceiling)
             try:
                 # Permit first, then the rate-limit slot, then the request: the windows are
                 # charged at the moment of dispatch (rate_limit.ProviderAdmission.dispatch).
@@ -775,6 +786,38 @@ def _validate(
     except ValidationError as exc:
         errors = exc.errors(include_url=False, include_input=False, include_context=False)
         return None, json.dumps(errors, default=str)[:_MAX_VALIDATION_FEEDBACK]
+
+
+def _worker_input_bound(request: ProviderRequest) -> int:
+    """Bound private text request size including opaque provider-native replay.
+
+    This is deliberately separate from the storage payload, which omits replay. JSON's
+    ASCII representation covers unicode/escaping, and every supported tokenizer emits at
+    most one token per byte, so the byte length already bounds the token count. The fixed
+    reserve covers provider framing for the supported text-only SDK encoders; unsupported
+    non-JSON native inputs fail before dispatch.
+    """
+    private = _request_payload(request)
+    private["messages"] = [message.model_dump(mode="json") for message in request.messages]
+    wire = json.dumps(private, ensure_ascii=True).encode("utf-8")
+    return len(wire) + 4096
+
+
+def worker_first_call_bound(messages: Sequence[Message], tools: Sequence[ToolSpec]) -> int:
+    """Tokens a worker budget must hold for its first call: input bound plus one reply.
+
+    Uses the same bound the adapter admits each worker attempt with, so the controller can
+    deny a brief whose budget could never start instead of opening a session that can only
+    exhaust. The model identifier is not yet known, so a placeholder longer than any
+    configured model ID stands in for it and the result never undercounts.
+    """
+    request = ProviderRequest(
+        model_id="m" * _MODEL_ID_ALLOWANCE,
+        temperature=0.0,
+        messages=tuple(messages),
+        tools=tuple(tools),
+    )
+    return _worker_input_bound(request) + WORKER_REPLY_TOKENS
 
 
 def _request_payload(request: ProviderRequest) -> dict[str, JsonValue]:
