@@ -7,6 +7,7 @@ from typing import Any
 import anyio
 import pytest
 
+from hypora.core.config.flags import Toggle
 from hypora.core.controller import controller as module
 from hypora.core.roles.single_agent import AgentOutcome
 from hypora.core.roles.worker import WorkerReport
@@ -29,7 +30,7 @@ def _harness(monkeypatch, tmp_path, report: WorkerReport | None, jobs: list[Any]
     run.controller = NS(
         database_path=tmp_path / "db",
         runs_root=tmp_path,
-        run_config=NS(flags=None),
+        run_config=NS(flags=NS(planning=Toggle.OFF)),  # no recovery session in these stubs
         tool_channel_wrapper=None,
         adapter=NS(redact_for_log=lambda text: text),
         max_agent_turns=5,

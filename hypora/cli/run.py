@@ -30,6 +30,7 @@ from hypora.core.schemas import (
     Budget,
     EventType,
     MetricName,
+    RequestedAction,
     TaskType,
 )
 from hypora.core.schemas.events import ToolResultPayload, ToolResultStatus
@@ -79,6 +80,12 @@ class RunOptions:
     run_id: str | None = None
     worker: WorkerMode = WorkerMode.HOST
     quiet: bool = False
+    advice_only: bool = False
+    """Research and advice only (spec §5.3): A reports B's evidence and nothing runs on the data."""
+
+
+ADVICE_ACTIONS: Final = (RequestedAction.MODEL_SEARCH,)
+"""The requested actions of an advice-only run: a model search, with no Phase B action."""
 
 
 class AdapterFactory(Protocol):
@@ -257,6 +264,7 @@ async def execute(
         forbidden_columns=options.forbid,
         budget=budget,
         run_id=run_id,
+        requested_actions=ADVICE_ACTIONS if options.advice_only else (),
     )
     runs_root = options.runs_root.resolve()
     runs_root.mkdir(parents=True, exist_ok=True)

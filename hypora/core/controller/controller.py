@@ -82,6 +82,12 @@ from hypora.core.roles.methodology import propose_data_contract
 from hypora.core.roles.multi import LeadAction, ResearchObservation, draft_plan, main_role_call
 from hypora.core.roles.outcome_evidence import has_authorized_model_route
 from hypora.core.roles.prompt_loader import load_prompt
+from hypora.core.roles.recovery import (
+    Recovery,
+    RecoveryAction,
+    RecoverySession,
+    decision_reasons,
+)
 from hypora.core.roles.reporter import (
     Report,
     build_early_stop_report,
@@ -110,6 +116,7 @@ from hypora.core.schemas import (
     DataContract,
     DatasetProfile,
     ErrorClass,
+    EscalationType,
     EventType,
     ExperimentContract,
     Family,
@@ -123,6 +130,7 @@ from hypora.core.schemas import (
     Operation,
     Plan,
     PlanStep,
+    RequestedAction,
     SubmitExperimentRequest,
     TaskSpecification,
     TaskType,
@@ -131,6 +139,7 @@ from hypora.core.schemas import (
 from hypora.core.schemas.briefs import Brief, FindingSchemaName
 from hypora.core.schemas.events import (
     ErrorPayload,
+    EscalationPayload,
     HandoffPayload,
     PlanPayload,
     PolicyDecisionPayload,
@@ -140,10 +149,18 @@ from hypora.core.schemas.events import (
     StageTransitionPayload,
 )
 from hypora.core.schemas.findings import FindingStatus, TrialFinding, TrialOutcome
+from hypora.core.schemas.strategy import RecommendationKind
 from hypora.execution.harness.runner import load_tabular
 from hypora.execution.protocol import experiments as protocol
 from hypora.execution.sandbox.image import tabular_image_tag
 from hypora.mcp_server.server import _redact
+from hypora.profiling.integrity import ERROR_CODE as INTEGRITY_ERROR_CODE
+from hypora.profiling.integrity import (
+    IntegrityFinding,
+    check_integrity,
+    describe_findings,
+    finding_details,
+)
 from hypora.profiling.tabular import leakage_screen_summary, profile_tabular
 from hypora.storage.database import Database
 from hypora.storage.events import EventLog
@@ -202,6 +219,8 @@ class RunRequest:
     secondary_metrics: tuple[MetricName, ...] = ()
     quality_target: float | None = None
     visible_constraints: str | None = None
+    requested_actions: tuple[RequestedAction, ...] = ()
+    """What the user asked for (spec §3); empty means training. Advice-only actions skip Phase B."""
 
     def __post_init__(self) -> None:
         if self.run_id is not None:
@@ -326,6 +345,35 @@ class LeadStop(Exception):
     """A decided to stop rather than authorize the next phase."""
 
 
+class AdviceOnly(LeadStop):
+    """The request asks for advice only, so nothing runs on the user's data (spec §5.3)."""
+
+
+PHASE_B_ACTIONS: Final = frozenset(
+    {
+        RequestedAction.TRAIN,
+        RequestedAction.FINE_TUNE,
+        RequestedAction.EVALUATE_AS_IS,
+        RequestedAction.OPTIMIZE_INFERENCE,
+    }
+)
+"""Requested actions that run something on the user's data, so they need Phase B (spec §5.3)."""
+
+
+def needs_phase_b(spec: TaskSpecification) -> bool:
+    """Whether the request asks for work on the user's data, rather than for advice only."""
+    return bool(set(spec.requested_actions) & PHASE_B_ACTIONS)
+
+
+class DataIntegrityError(ContractError):
+    """The dataset has a defect the platform cannot resolve without the user (spec §6.3: a label
+    change needs clarification). The run stops before any role sees target-derived data."""
+
+    def __init__(self, findings: Sequence[IntegrityFinding]) -> None:
+        super().__init__(describe_findings(findings))
+        self.findings = tuple(findings)
+
+
 class RunController:
     """Runs one request at a time against a state database and a runs/ directory."""
 
@@ -340,10 +388,12 @@ class RunController:
         max_agent_turns: int = MAX_AGENT_TURNS,
         poll_seconds: float = POLL_SECONDS,
         worker_factory: WorkerFactory = WorkerProcess,
-        tool_channel_wrapper: Callable[[ToolChannel], ToolChannel] | None = None,
+        tool_channel_wrapper: Callable[[ToolChannel, ActorRole], ToolChannel] | None = None,
     ) -> None:
         """`tool_channel_wrapper` is the evaluation harness's fault injection point (spec §19.2):
-        it wraps the agent's connection to the MCP server. The agent can't see or reach it."""
+        it wraps every role session's connection to the MCP server (B, C's methodology and
+        experiment sessions, the single agent, C's workers), with the session's role. No role
+        can see or reach it."""
         self.worker_factory = worker_factory
         self.tool_channel_wrapper = tool_channel_wrapper
         self.database = database
@@ -398,6 +448,8 @@ class _Run:
         self.role_invocations = 0
         self.lead_assignment = ""
         self.research_brief = ""
+        self.research_plan: Plan | None = None
+        """B's latest research plan: a data-driven re-research revises it."""
         self.overlap_reason: str | None = None
         self.methodology_draft: tuple[DataContract, dict[str, tuple[str, str]]] | None = None
         self.plan_path: Path | None = None
@@ -425,6 +477,12 @@ class _Run:
             self._advance(RunEvent.PROFILED, f"profile {profile.fingerprint[:12]}")
             if self._multi:
                 await self._research_and_decide(spec, profile)
+            elif not needs_phase_b(spec):
+                self.notes.append(
+                    "Advice-only request: Phase B skipped (spec §5.3). The single-agent "
+                    "configuration has no separate research role, so it reports without advice."
+                )
+                raise AdviceOnly
             contract = await self._prepare_data_contract(spec, frame, profile)
             approver = self.approval.approver if self.approval else "unknown"
             approval_reason = f"plan approved by {approver} ({self.approval_policy_recorded.value})"
@@ -435,6 +493,8 @@ class _Run:
             self._advance(RunEvent.APPROVED, approval_reason)
             await self._phase_b(spec, contract, profile)
             self._advance(RunEvent.PHASE_B_DONE, self.notes[-1] if self.notes else "phase B done")
+        except AdviceOnly:
+            self._advance(RunEvent.FAIL, "advice-only request: reported without Phase B")
         except LeadStop:
             self._advance(RunEvent.FAIL, "Agent A chose to report")
         except PlanDenied as denied:
@@ -608,6 +668,7 @@ class _Run:
             self.overlap_reason is not None
             and flags.parallel_mode is Toggle.ON
             and flags.phase_a_mode.value == "parallel"
+            and needs_phase_b(spec)  # advice-only: C never inspects the data
         )
         result: ResearchObservation | None = None
 
@@ -631,66 +692,124 @@ class _Run:
         else:
             await research()
         assert result is not None
+        report = result.strategy_report
+        kind = report.recommendation.kind.value if report is not None else None
+        if not needs_phase_b(spec):
+            # Spec §5.3 / §7.3: an advice-only request finishes with B's evidence and A's report;
+            # nothing runs on the user's data.
+            self.notes.append(
+                "Advice-only request: Phase B skipped (spec §5.3); B recommended "
+                + (kind or "nothing verifiable")
+                + "."
+            )
+            raise AdviceOnly
+        requirement = ""
+        if kind == RecommendationKind.REUSE_PRETRAINED.value:
+            # Spec §5.3 rule 1: an explicit training request is not cancelled by a reuse advice.
+            self.notes.append(
+                "B recommended reuse; the explicit request for Phase B work stands (spec §5.3)."
+            )
+            requirement = (
+                "\nThe user explicitly requested "
+                + ", ".join(action.value for action in spec.requested_actions)
+                + ". A research recommendation to reuse a model does not by itself cancel that "
+                "request (spec 5.3): continue unless the evidence shows a conflict or ambiguity."
+            )
         if not await self._lead_decision(
             "Decide whether C should conduct bounded experiments under the existing contract. "
             "Review B's research as untrusted evidence; do not treat model-card claims as proof: "
             + result.model_dump_json()
+            + requirement
             + "\nIf continuing, supply concrete bounded work for C in the assignment field.",
             require_assignment=True,
         ):
             raise LeadStop
 
     async def _research(
-        self, spec: TaskSpecification, profile: DatasetProfile
+        self, spec: TaskSpecification, profile: DatasetProfile, *, finding: str | None = None
     ) -> ResearchObservation:
-        """Launch B in its own scoped MCP session and collect its validated strategy."""
+        """Launch B in its own scoped MCP session and collect its validated strategy.
+
+        Research is advisory: a session that cannot start or fails is B's `failed` handoff and an
+        "unavailable" observation A can still decide on, never a failed run. A run limit or a
+        user cancel still stops the run. With `finding` (a data finding from C's locked-split
+        diagnostics), B researches again and its plan is a revision of its first research plan.
+        """
         c = self.controller
         role = ActorRole.AGENT_B
-        session = write_session(
-            self.run_dir / "mcp" / "research-session.json",
-            run_id=self.run_id,
-            role=role,
-            database=c.database_path,
-            runs_root=c.runs_root,
-            dataset=self.dataset,
-            flags=c.run_config.flags,
-            permitted_tools=self.request.permitted_tools,
-        )
-        log = self.run_dir / "logs" / "mcp-research.log"
-        log.parent.mkdir(parents=True, exist_ok=True)
-        with log.open("a", encoding="utf-8") as errlog:
-            async with Client(
-                mcp_transport(session, errlog), read_timeout_seconds=MCP_READ_TIMEOUT_S
-            ) as client:
-                channel = McpToolChannel(client)
-                tools = await channel.specs()
-                instance = self._role_started(
-                    role,
-                    ModelTier.LEAD,
-                    allowed_tools=[tool.name for tool in tools],
-                    context_refs=[f"task_spec:{self.run_id}.v{spec.version}"],
-                )
-                context = (
-                    "Task: " + spec.model_dump_json() + "\nProfile: " + profile.model_dump_json()
-                )
-                if c.run_config.flags.planning is Toggle.ON:
-                    plan = await self._plan(
-                        instance,
+        instance: str | None = None
+        try:
+            session = write_session(
+                self.run_dir / "mcp" / "research-session.json",
+                run_id=self.run_id,
+                role=role,
+                database=c.database_path,
+                runs_root=c.runs_root,
+                dataset=self.dataset,
+                flags=c.run_config.flags,
+                permitted_tools=self.request.permitted_tools,
+            )
+            log = self.run_dir / "logs" / "mcp-research.log"
+            log.parent.mkdir(parents=True, exist_ok=True)
+            with log.open("a", encoding="utf-8") as errlog:
+                async with Client(
+                    mcp_transport(session, errlog), read_timeout_seconds=MCP_READ_TIMEOUT_S
+                ) as client:
+                    channel: ToolChannel = McpToolChannel(client)
+                    tools = await McpToolChannel(client).specs()
+                    if c.tool_channel_wrapper is not None:
+                        channel = c.tool_channel_wrapper(channel, role)
+                    names = [tool.name for tool in tools]
+                    instance = self._role_started(
                         role,
-                        context,
-                        [tool.name for tool in tools],
-                        goal="Gather bounded research evidence for the task",
+                        ModelTier.LEAD,
+                        allowed_tools=names,
+                        context_refs=[f"task_spec:{self.run_id}.v{spec.version}"],
                     )
-                    context += "\nPlan to follow: " + plan.model_dump_json()
-                outcome = await run_research_agent(
-                    c.adapter,
-                    self.guard,
-                    channel,
-                    tools,
-                    run_id=self.run_id,
-                    context=context,
-                    max_turns=c.max_agent_turns,
-                )
+                    context = (
+                        "Task: "
+                        + spec.model_dump_json()
+                        + "\nProfile: "
+                        + profile.model_dump_json()
+                    )
+                    if finding is not None:
+                        context += "\nData finding that may change the research question: "
+                        context += finding
+                    plan: Plan | None = None
+                    if c.run_config.flags.planning is Toggle.ON:
+                        plan = await self._plan(
+                            instance,
+                            role,
+                            context,
+                            names,
+                            goal="Gather bounded research evidence for the task",
+                            revises=self.research_plan if finding is not None else None,
+                            reason=finding,
+                        )
+                        self.research_plan = plan
+                        context += "\nPlan to follow: " + plan.model_dump_json()
+                    outcome = await run_research_agent(
+                        c.adapter,
+                        self.guard,
+                        channel,
+                        tools,
+                        run_id=self.run_id,
+                        context=context,
+                        max_turns=c.max_agent_turns,
+                        recovery=self._recovery(instance, role, context, names, plan),
+                    )
+        except Exception as exc:
+            limit = _run_limit(exc)  # the MCP client's task group may wrap it
+            if limit is not None:
+                if instance is not None:
+                    self._handoff(instance, role, HandoffStatus.PARTIAL)
+                raise limit from None
+            if instance is None:
+                instance = self._role_started(role, ModelTier.LEAD)
+            self._handoff(instance, role, HandoffStatus.FAILED)
+            reason = f"Research session failed ({type(exc).__name__}); A decides without it."
+            self.notes.append(reason)
+            return ResearchObservation(summary="Research unavailable.", uncertainties=[reason])
         if outcome.observation is None:
             self._handoff(instance, role, HandoffStatus.PARTIAL)
             reason = outcome.error or "Research could not complete."
@@ -722,6 +841,7 @@ class _Run:
                     quality_target=r.quality_target,
                     forbidden_columns=r.forbidden_columns,
                     budget=self.budget,
+                    requested_actions=r.requested_actions,
                 ),
                 frame=frame,
                 dataset_ref=f"dataset:{DATASET_ID}",
@@ -752,6 +872,22 @@ class _Run:
         profile.fingerprint = self.dataset_fingerprint
         save_dataset_profile(self.database, profile)
         return profile
+
+    def _check_integrity(self, frame: pd.DataFrame, spec: TaskSpecification) -> None:
+        """Stop safely on a target defect only the user can resolve (`hypora.profiling.integrity`).
+
+        Runs once the plan is approved and before the partition lock, the first step that reads
+        target values. Platform code reads the target here; no role sees the result before the
+        run stops, and the stop's error event records the findings (codes, counts, hashed rows:
+        no values) so the grader can prove the stop was caused by them."""
+        assert spec.target is not None  # _profile has already required it
+        findings = check_integrity(frame, spec.target, spec.task_type)
+        if findings:
+            self.notes.append(
+                "The user must clarify how rows with these labels should be treated; the "
+                "platform does not drop, impute or change labels on its own."
+            )
+            raise DataIntegrityError(findings)
 
     async def _contract(self, spec: TaskSpecification, data: DataContract) -> ExperimentContract:
         save_data_contract(self.database, self.run_id, data)
@@ -829,7 +965,7 @@ class _Run:
                 channel: ToolChannel = McpToolChannel(client)
                 tool_specs = await McpToolChannel(client).specs()
                 if c.tool_channel_wrapper is not None:
-                    channel = c.tool_channel_wrapper(channel)
+                    channel = c.tool_channel_wrapper(channel, role)
                 instance = self._role_started(
                     role,
                     ModelTier.LEAD,
@@ -841,10 +977,10 @@ class _Run:
                     ],
                 )
                 try:
+                    names = [tool.name for tool in tool_specs]
+                    plan: Plan | None = None
                     if c.run_config.flags.planning is Toggle.ON:
-                        plan = await self._plan(
-                            instance, role, context, [tool.name for tool in tool_specs]
-                        )
+                        plan = await self._plan(instance, role, context, names)
                         context += "\nPlan to follow: " + plan.model_dump_json()
                     proposal, evidence = await propose_data_contract(
                         c.adapter,
@@ -855,6 +991,7 @@ class _Run:
                         role=role,
                         context=context,
                         max_turns=c.max_agent_turns,
+                        recovery=self._recovery(instance, role, context, names, plan),
                     )
                 except Exception as exc:
                     self._handoff(
@@ -905,6 +1042,9 @@ class _Run:
         ):
             raise LeadStop
         provisional = await self._contract(spec, draft)
+        # Before the partition is locked, so before any target-aware step: a malformed target
+        # stops here, with the approved plan's intent on record (D-032 safe-stop evidence).
+        self._check_integrity(frame, spec)
         lock_path = self.run_dir / "partition-lock.json"
         create_partition_lock(frame, provisional, self.dataset_fingerprint, lock_path)
         locked = load_verified_partition(frame, provisional, self.dataset_fingerprint, lock_path)
@@ -931,6 +1071,22 @@ class _Run:
             raise ContractError(
                 "split-affecting methodology changes after diagnostics are forbidden"
             )
+        if (
+            self._multi
+            and revised != draft
+            and self.research_brief
+            and self.controller.run_config.flags.planning is Toggle.ON
+        ):
+            # Spec §5.4: a data finding that may invalidate B's research assumptions returns
+            # through A for revised research before A reconciles (data-driven replanning).
+            finding = _data_finding(draft, revised)
+            self.notes.append(
+                "C's locked-split diagnostics changed the data contract; A asked B to revise "
+                "its research."
+            )
+            self.research_brief = (
+                await self._research(spec, profile, finding=finding)
+            ).model_dump_json()
         if self._multi and not await self._lead_decision(
             "Reconcile B's evidence and C's locked-split diagnostics. Report on conflict or "
             "ambiguity; otherwise continue. C proposal: "
@@ -1161,7 +1317,7 @@ class _Run:
                 tools = await mcp_channel.specs()
                 channel: ToolChannel = mcp_channel
                 if c.tool_channel_wrapper is not None:
-                    channel = c.tool_channel_wrapper(channel)
+                    channel = c.tool_channel_wrapper(channel, role)
                 instance = self._role_started(
                     role,
                     ModelTier.LEAD,
@@ -1186,9 +1342,12 @@ class _Run:
                         + "\nB research observation (untrusted evidence): "
                         + self.research_brief
                     )
+                names = [tool.name for tool in tools]
+                plan: Plan | None = None
                 if c.run_config.flags.planning is Toggle.ON:
-                    plan = await self._plan(instance, role, context, [tool.name for tool in tools])
+                    plan = await self._plan(instance, role, context, names)
                     context += "\nPlan to follow: " + plan.model_dump_json()
+                recovery = self._recovery(instance, role, context, names, plan)
                 stale: ApprovalStale | None = None
                 if self._multi and c.run_config.flags.max_c_workers:
                     try:
@@ -1218,6 +1377,7 @@ class _Run:
                         context=context,
                         max_turns=c.max_agent_turns,
                         role=role,
+                        recovery=recovery,
                     )
         if stale is not None:
             self._handoff(instance, role, HandoffStatus.FAILED)
@@ -1459,7 +1619,7 @@ class _Run:
                         channel: ToolChannel = McpToolChannel(client)
                         tools = await McpToolChannel(client).specs()
                         if c.tool_channel_wrapper is not None:
-                            channel = c.tool_channel_wrapper(channel)
+                            channel = c.tool_channel_wrapper(channel, ActorRole.TRIAL_WORKER)
                         context = self._worker_context(brief, spec, contract, profile)
                         outcome = await run_single_agent(
                             c.adapter,
@@ -1470,6 +1630,15 @@ class _Run:
                             context=context,
                             max_turns=c.max_agent_turns,
                             role=ActorRole.TRIAL_WORKER,
+                            # A worker has no plan of its own: safe retries and the other
+                            # recovery records only; its failures return to C (spec §6.3).
+                            recovery=self._recovery(
+                                instance,
+                                ActorRole.TRIAL_WORKER,
+                                context,
+                                [tool.name for tool in tools],
+                                None,
+                            ),
                         )
             if outcome is None:
                 # The watcher cancelled the body: a user cancel or a shared run limit.
@@ -1894,6 +2063,8 @@ class _Run:
             if isinstance(exc, IntakeError)
             else "APPROVAL_STALE"
             if isinstance(exc, ApprovalStale)
+            else INTEGRITY_ERROR_CODE
+            if isinstance(exc, DataIntegrityError)
             else "CONTRACT_FAILED"
             if isinstance(exc, ContractError)
             else "CONTROLLER_ERROR"
@@ -1912,6 +2083,9 @@ class _Run:
                 if own
                 else None,
                 retryable=False,
+                details=finding_details(exc.findings)
+                if isinstance(exc, DataIntegrityError)
+                else {},
             ),
         )
         self.notes.append(f"The {stage} stage failed: {message}.")
@@ -2053,6 +2227,68 @@ class _Run:
             }
         )
 
+    def _recovery(
+        self,
+        instance: str,
+        role: ActorRole,
+        context: str,
+        allowed_tools: list[str],
+        plan: Plan | None,
+    ) -> RecoverySession | None:
+        """Tool-error recovery for one role session (`hypora.core.roles.recovery`), or None with
+        `planning` off: the F4 comparison arm sees raw errors, with no plan and no replanning.
+
+        Every decision is a `policy_decision` event; a revision is a new `plan` event drafted by
+        the session's planner (A in multi mode); repeated refusals are an `escalation` event."""
+        if self.controller.run_config.flags.planning is not Toggle.ON:
+            return None
+        current = plan
+
+        async def replan(reason: str) -> str | None:
+            nonlocal current
+            if current is None:
+                return None
+            try:
+                current = await self._plan(
+                    instance, role, context, allowed_tools, revises=current, reason=reason
+                )
+            except RunLimitReached:
+                raise
+            except Exception:
+                # The failed planning call is already recorded and accounted; the role keeps
+                # its current plan and sees the failure's guidance.
+                return None
+            return current.model_dump_json()
+
+        def decide(recovery: Recovery, extra: list[str]) -> None:
+            stop = recovery.action is RecoveryAction.STOP
+            self._event(
+                EventType.POLICY_DECISION,
+                PolicyDecisionPayload(
+                    tool=recovery.tool,
+                    decision=PolicyOutcome.DENY if stop else PolicyOutcome.ALLOW,
+                    decided_by=PolicyRule.IDEMPOTENCY
+                    if stop or recovery.action is RecoveryAction.RETRY
+                    else None,
+                    reasons=decision_reasons(recovery, extra),
+                ),
+                actor=ActorRole.POLICY_ENGINE,
+            )
+
+        def escalate(recovery: Recovery) -> None:
+            self._event(
+                EventType.ESCALATION,
+                EscalationPayload(
+                    escalation_type=EscalationType.REPEATED_FAILURE,
+                    summary=recovery.reason() + "; the role stopped calling tools",
+                ),
+                actor=role,
+            )
+
+        return RecoverySession(
+            decide=decide, escalate=escalate, replan=replan if plan is not None else None
+        )
+
     async def _plan(
         self,
         instance: str,
@@ -2061,9 +2297,21 @@ class _Run:
         allowed_tools: list[str],
         *,
         goal: str = "Run a bounded experiment under the approved contract",
+        revises: Plan | None = None,
+        reason: str | None = None,
     ) -> Plan:
+        """Draft the role's plan before its first tool call, or a revision of `revises`.
+
+        A revision (after a tool failure, or a data finding that changes the research question)
+        is a new `plan` event with the next revision number, the plan it replaces and the
+        platform-written reason; the earlier plan stays in the log unchanged."""
         planner = ActorRole.AGENT_A if self._multi else role
         planner_instance = self._role_started(planner, ModelTier.LEAD) if self._multi else instance
+        if revises is not None:
+            context += (
+                f"\nPlan revision {revises.revision + 1}. The current plan no longer holds: "
+                f"{reason}. Current plan: {revises.model_dump_json()}"
+            )
         try:
             draft = await draft_plan(
                 self.controller.adapter,
@@ -2077,7 +2325,10 @@ class _Run:
                 plan_id=f"plan_{uuid.uuid4().hex[:12]}",
                 run_id=self.run_id,
                 role=planner,
-                goal=goal,
+                goal=revises.goal if revises is not None else goal,
+                revision=1 if revises is None else revises.revision + 1,
+                revises=None if revises is None else revises.plan_id,
+                revision_reason=None if revises is None else reason,
                 steps=[
                     PlanStep(
                         step=i,
@@ -2130,6 +2381,34 @@ class _Run:
             role,
             HandoffPayload(role_instance_id=instance, handoff=handoff).model_dump(mode="json"),
         )
+
+
+def _data_finding(draft: DataContract, revised: DataContract) -> str:
+    """What C's locked-split diagnostics changed, as column names and evidence IDs only."""
+    before = {item.name for item in draft.excluded_features}
+    added = [item for item in revised.excluded_features if item.name not in before]
+    restored = sorted(set(revised.allowed_features) - set(draft.allowed_features))
+    parts = []
+    if added:
+        parts.append(
+            "features excluded after locked-split diagnostics: "
+            + ", ".join(f"{item.name} (evidence {item.evidence})" for item in added)
+        )
+    if restored:
+        parts.append("features restored: " + ", ".join(restored))
+    return "; ".join(parts) or "the data contract's feature list changed"
+
+
+def _run_limit(exc: BaseException) -> RunLimitReached | None:
+    """The run limit (or user cancel) behind `exc`, looking inside exception groups."""
+    if isinstance(exc, RunLimitReached):
+        return exc
+    if isinstance(exc, BaseExceptionGroup):
+        for inner in exc.exceptions:
+            found = _run_limit(inner)
+            if found is not None:
+                return found
+    return None
 
 
 def _describe(outcome: AgentOutcome) -> str:

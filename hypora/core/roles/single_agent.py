@@ -14,7 +14,7 @@ agent, decides what is final (D-019).
 """
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Final, Protocol
 
@@ -29,6 +29,7 @@ from hypora.core.llm.errors import LLMError
 from hypora.core.llm.types import CallContext, Message, ToolSpec
 from hypora.core.roles.base import CallGuard, RunLimitReached
 from hypora.core.roles.prompt_loader import load_prompt
+from hypora.core.roles.recovery import RecoverySession
 from hypora.core.roles.worker import WorkerReport
 from hypora.core.schemas import ActorRole, Identifier, ModelTier, StrictModel, ToolName
 
@@ -140,6 +141,46 @@ async def _call_watching_limits(
     return result
 
 
+async def call_tool(
+    channel: ToolChannel,
+    guard: CallGuard,
+    name: str,
+    arguments: Mapping[str, JsonValue],
+    recovery: RecoverySession | None = None,
+    *,
+    started: Callable[[], None] = lambda: None,
+    watch: bool = False,
+) -> tuple[bool, str]:
+    """Make one guarded tool call; with `recovery`, a failure is mapped to its recovery action.
+
+    Every attempt, including a platform retry, asks the guard first and is accounted after, so
+    retries spend steps and stop at any run limit like any other call. `started` is called once
+    per attempt the guard admitted. A waiting tool (every tool with `watch`) is watched for
+    limits while it runs.
+    """
+
+    async def invoke() -> tuple[bool, str]:
+        guard.before_tool_call(name, arguments)
+        started()
+        try:
+            if watch or name in WAITING_TOOLS:
+                return await _call_watching_limits(channel, guard, name, arguments)
+            return await channel.call(name, arguments)
+        finally:  # a cancelled wait still ran, and its events are in the log
+            guard.after_tool_call(name)
+
+    is_error, content = await invoke()
+    if not is_error or recovery is None:
+        return is_error, content
+    return await recovery.handle(name, arguments, content, invoke)
+
+
+def revised_plan_message(recovery: RecoverySession | None) -> Message | None:
+    """The plan revision a failure caused this turn, shown once after the turn's tool results."""
+    plan = recovery.take_revised_plan() if recovery is not None else None
+    return None if plan is None else Message.user("Revised plan to follow: " + plan)
+
+
 async def run_single_agent(
     adapter: LLMAdapter,
     guard: CallGuard,
@@ -150,8 +191,12 @@ async def run_single_agent(
     context: str,
     max_turns: int,
     role: ActorRole = ActorRole.SINGLE_AGENT,
+    recovery: RecoverySession | None = None,
 ) -> AgentOutcome:
-    """Run the tool loop until the model stops calling tools, a limit fires, or a call fails."""
+    """Run the tool loop until the model stops calling tools, a limit fires, or a call fails.
+
+    With `recovery` (the `planning` flag on), tool failures are retried, replanned, clarified or
+    stopped by `hypora.core.roles.recovery`; without it the model sees each raw error."""
     worker = role is ActorRole.TRIAL_WORKER
     tier = ModelTier.WORKER if worker else ModelTier.LEAD
     system = load_prompt(
@@ -187,18 +232,20 @@ async def run_single_agent(
                         )
                     )
                     continue
-                guard.before_tool_call(call.name, call.arguments)
-                tool_calls += 1
-                try:
-                    if call.name in WAITING_TOOLS:
-                        is_error, content = await _call_watching_limits(
-                            channel, guard, call.name, call.arguments
-                        )
-                    else:
-                        is_error, content = await channel.call(call.name, call.arguments)
-                finally:  # a cancelled wait still ran, and its events are in the log
-                    guard.after_tool_call(call.name)
+
+                def started() -> None:
+                    nonlocal tool_calls
+                    tool_calls += 1
+
+                is_error, content = await call_tool(
+                    channel, guard, call.name, call.arguments, recovery, started=started
+                )
                 messages.append(Message.tool_result(call, content, is_error=is_error))
+            revised = revised_plan_message(recovery)
+            if revised is not None:
+                messages.append(revised)
+            if recovery is not None and recovery.stopped:
+                break  # repeated refusals: the role stops calling tools and answers
     except RunLimitReached as reached:
         return AgentOutcome(None, turns, tool_calls, stop=reached)
     except LLMError as exc:

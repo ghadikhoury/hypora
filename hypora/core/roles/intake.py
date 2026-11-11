@@ -88,6 +88,8 @@ class IntakeForm:
     quality_target: float | None = None
     forbidden_columns: tuple[str, ...] = ()
     budget: Budget = field(default_factory=Budget)
+    requested_actions: tuple[RequestedAction, ...] = ()
+    """Spec §3 actions from a structured field; empty means the default, training."""
 
 
 def _columns(frame: pd.DataFrame) -> str:
@@ -205,11 +207,14 @@ async def run_intake(
     if form.forbidden_columns:
         from_form.append("forbidden_columns")
     unknown = sorted(set(forbidden) - set(columns))
+    actions = list(dict.fromkeys(form.requested_actions)) or [RequestedAction.TRAIN]
+    if form.requested_actions:
+        from_form.append("requested_actions")
     return TaskSpecification(
         run_id=run_id,
         version=1,
         objective=draft.objective,
-        requested_actions=[RequestedAction.TRAIN],
+        requested_actions=actions,
         dataset_ref=dataset_ref,
         family_hint=Family.TABULAR,
         task_type=task_type,
