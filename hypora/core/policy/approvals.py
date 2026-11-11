@@ -304,8 +304,12 @@ def execution_binding_problem(
         )
         live = scope.model_dump(mode="json")
         live["data_contract_hash"] = contract.data_contract.content_hash()
-        live["budget"] = contract.budget.model_dump(mode="json")
-        live["job_limits"] = contract.default_job_limits.model_dump(mode="json")
+        # The approved scope is a ceiling: a baseline or task may narrow its actual execution
+        # limits without requiring a new approval. Expansion is always refused.
+        over = limits_problems(contract.default_job_limits, scope.job_limits)
+        over += _budget_problems(contract.budget, scope.budget)
+        if over:
+            return "execution exceeds the approved scope: " + "; ".join(over)
         if dataset_path is not None:
             live["dataset_sha256"] = hashlib.sha256(dataset_path.read_bytes()).hexdigest()
         if sandbox_image is not None:

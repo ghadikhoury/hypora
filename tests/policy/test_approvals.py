@@ -35,11 +35,14 @@ from hypora.core.schemas import (
     ApprovalRecord,
     ApprovedPlan,
     Budget,
+    EventType,
     ExperimentContract,
     JobLimits,
     ToolName,
 )
+from hypora.core.schemas.events import ApprovalRequestedPayload
 from hypora.storage.database import Database
+from hypora.storage.events import EventLog
 from hypora.storage.records import save_approval, save_experiment_contract
 from tests.unit.controller.helpers import RUN_ID, run_database, spec
 
@@ -284,3 +287,50 @@ def test_a_plan_or_scope_changed_after_approval_is_caught(tmp_path: Path) -> Non
     assert "plan changed" in str(plan_file_problem(path, contract, scope))
     path.write_text("{not json", encoding="utf-8")
     assert "missing or invalid" in str(plan_file_problem(path, contract, scope))
+
+
+@pytest.mark.parametrize("wall_seconds,allowed", [(30, True), (60, True), (120, False)])
+def test_bound_execution_limits_may_narrow_but_never_expand(
+    database: Database,
+    tmp_path: Path,
+    wall_seconds: int,
+    allowed: bool,
+) -> None:
+    scope = make_scope()
+    plan = make_plan(scope)
+    record = approve(database, plan)
+    contract = contract_for(record).model_copy(
+        update={
+            "default_job_limits": LIMITS.model_copy(update={"max_wall_seconds": wall_seconds}),
+        }
+    )
+    save_experiment_contract(database, contract)
+    folder = tmp_path / "runs" / RUN_ID
+    folder.mkdir(parents=True)
+    (folder / "approved_plan.json").write_text(plan.model_dump_json())
+    write_scope(folder, 1, scope)
+    EventLog(database).append(
+        RUN_ID,
+        EventType.APPROVAL_REQUESTED,
+        ActorRole.CONTROLLER,
+        ApprovalRequestedPayload(
+            approval_id=record.approval_id,
+            artifact_type=ApprovalArtifactType.PLAN,
+            artifact_hash=plan.content_hash(),
+            artifact_ref=f"approved_plan:{RUN_ID}.v1",
+            policy=ApprovalPolicy.AUTO_WITHIN_CONTRACT,
+            summary="Bound plan",
+        ).model_dump(mode="json"),
+    )
+    problem = approval_problem(
+        database,
+        RUN_ID,
+        contract,
+        record.approval_id,
+        runs_root=tmp_path / "runs",
+        sandbox_image=scope.sandbox_image,
+    )
+    if allowed:
+        assert problem is None
+    else:
+        assert problem is not None and "exceeds the approved scope" in problem
