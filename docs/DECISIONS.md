@@ -1045,3 +1045,21 @@ completed, explicitly marked, diagnostic-only methodology invocations from the o
 capability record. Multiple experiment sessions still fail closed, and tool, job, plan, case and
 report checks remain mandatory. Target-directed fixes are refused for every fix variant, and the
 baseline/candidate final-selection gate applies equally to single and multi LLM configurations.
+
+
+## D-042 - Bounded C-only workers and justified overlap (2026-11-10)
+
+Ghadi approved the S3.4 proposal during the orchestration session: at most two active C-only
+trial workers, six trial tools narrowed per brief, isolated sessions and worker-owned trials,
+aggregate budget reservations, bounded model-facing proposal/report models, and A-justified
+independent B/C overlap. The approved security scope adds the worker allowlist and always-on
+confinement, trusted brief session IDs, trial/job ownership checks, and worker retry redaction.
+No frozen schemas, MCP signatures, event types, fit/predict interface, eval model profile,
+grading rules, dependencies or sandbox changes are authorized by this decision.
+
+The default max_c_workers is two, with zero preserving the no-worker comparison arm.
+parallel_mode off serializes workers and forbids B/C overlap; research-first remains the default
+unless A supplies a validated justification and the overlap flags allow it. Existing experiment
+job concurrency and resource pools are unchanged. Worker token admission, accounting and local
+caps protect aggregate reservations; failures return through stored findings to C. S4.2
+reconfirms the provisional ceiling using its required readiness evidence.

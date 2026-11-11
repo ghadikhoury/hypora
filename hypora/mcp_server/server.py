@@ -143,6 +143,7 @@ class HyporaMCPServer(MCPServer):
             ActorRole.AGENT_A,
             ActorRole.AGENT_B,
             ActorRole.AGENT_C,
+            ActorRole.TRIAL_WORKER,
         }
         # A trusted diagnostic-only session remains narrow even for the single-agent
         # comparison with the optional allowlist defense disabled.
@@ -197,24 +198,6 @@ class HyporaMCPServer(MCPServer):
                     session_id=self.session.config.session_id,
                 ),
             )
-            if self.session.role is ActorRole.AGENT_C and name in {
-                "request_worker",
-                "spawn_worker",
-            }:
-                await self._policy(
-                    call_id,
-                    tool,
-                    tier,
-                    PolicyOutcome.DENY,
-                    PolicyRule.ROLE_ALLOWLIST,
-                    ["Worker requests are unavailable until S3.4"],
-                )
-                refusal = errors.policy(
-                    "WORKERS_UNAVAILABLE",
-                    "Worker requests are unavailable until S3.4.",
-                    "Continue without workers.",
-                ).error
-                return await self._respond(call_id, tool, tier, started, error=refusal)
             if not await self._allowlist(call_id, tool, tier, name):
                 refusal = errors.policy(
                     "TOOL_NOT_ALLOWED",
@@ -307,6 +290,7 @@ class HyporaMCPServer(MCPServer):
         """The server-side role allowlist; True lets the call proceed."""
         if name == ToolName.RUN_DIAGNOSTIC.value and self.session.role not in {
             ActorRole.AGENT_C,
+            ActorRole.TRIAL_WORKER,
             ActorRole.SINGLE_AGENT,
         }:
             await self._policy(

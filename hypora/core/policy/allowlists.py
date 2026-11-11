@@ -34,6 +34,16 @@ ROLE_ALLOWLISTS: Mapping[ActorRole, frozenset[ToolName]] = MappingProxyType(
         ActorRole.AGENT_B: frozenset(
             {T.SEARCH_MODEL_CATALOG, T.GET_MODEL_EVIDENCE, T.RETRIEVE_METHODOLOGY}
         ),
+        ActorRole.TRIAL_WORKER: frozenset(
+            {
+                T.INSPECT_DATASET,
+                T.WRITE_TRIAL_FILES,
+                T.SUBMIT_EXPERIMENT,
+                T.GET_EXPERIMENT_STATUS,
+                T.GET_EXPERIMENT_METRICS,
+                T.GET_EXPERIMENT_LOGS,
+            }
+        ),
         ActorRole.AGENT_C: frozenset(
             {
                 T.INSPECT_DATASET,

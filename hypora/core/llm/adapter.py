@@ -368,7 +368,7 @@ class LLMAdapter:
         retry_response = outcome.response.message
         if context.sensitive_output_filter is not None:
             retry_response = Message(role=MessageRole.ASSISTANT, content="[FILTERED]")
-        elif context.actor_role in (ActorRole.AGENT_A, ActorRole.AGENT_B):
+        elif context.actor_role in (ActorRole.AGENT_A, ActorRole.AGENT_B, ActorRole.TRIAL_WORKER):
             # A/B role output can contain a configured secret. Do not forward it even
             # when the provider must repair malformed structured output.
             cleaned = redact(retry_response.model_dump(mode="json"), self._secrets)
@@ -532,6 +532,14 @@ class LLMAdapter:
 
         while True:
             reservation: Reservation | None = None
+            if context.admit_token_attempt is not None:
+                # Text-only workers use a conservative byte envelope, not the admission
+                # heuristic. Include full schemas/tool framing and provider wrapper reserve.
+                wire = json.dumps(_request_payload(request), ensure_ascii=True).encode("utf-8")
+                ceiling = context.admit_token_attempt(
+                    len(wire) + 4096, request.max_output_tokens or 2048
+                )
+                request = replace(request, max_output_tokens=ceiling)
             try:
                 # Permit first, then the rate-limit slot, then the request: the windows are
                 # charged at the moment of dispatch (rate_limit.ProviderAdmission.dispatch).
@@ -607,6 +615,7 @@ class LLMAdapter:
         elif validation_error is not None and context.actor_role in (
             ActorRole.AGENT_A,
             ActorRole.AGENT_B,
+            ActorRole.TRIAL_WORKER,
         ):
             # Error locations may contain unexpected model-provided object keys.
             # Scrub configured secrets before feedback reaches a retry or exception.

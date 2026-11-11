@@ -20,3 +20,4 @@ flags:
   max_research_workers: 4
   max_diagnostic_workers: 4
   max_parallel_trials: 3
+  max_c_workers: 2

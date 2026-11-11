@@ -78,6 +78,9 @@ class ScriptedMulti(ScriptedRun):
     evidence: dict[str, object]
 
     async def generate(self, request):
+        if request.output_schema_name == "WorkerProposal":
+            self.requests.append(request)
+            return json_result({"workers": []})
         if "You are Hypora's data and implementation specialist" in request.messages[0].content:
             return await super().generate(request)
         if request.output_schema_name == "LeadAction":

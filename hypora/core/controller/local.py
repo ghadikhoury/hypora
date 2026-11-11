@@ -66,10 +66,12 @@ def write_session(
     flags: FeatureFlags,
     status_wait_seconds: float = MAX_STATUS_WAIT_SECONDS,
     permitted_tools: tuple[ToolName, ...] | None = None,
+    brief_id: str | None = None,
 ) -> Path:
     """Write the MCP session file for `role` on `run_id`; returns its path."""
     config = SessionConfig(
-        session_id=f"sess_{run_id}_{role.value}",
+        session_id=f"sess_{run_id}_{brief_id or role.value}",
+        brief_id=brief_id,
         role=role,
         run_id=run_id,
         database=str(database.resolve()),

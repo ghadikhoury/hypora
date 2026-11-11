@@ -58,11 +58,10 @@ async def test_c_is_confined_to_approved_tools_and_cannot_spawn(session_file, al
             assert error and result["code"] == "TOOL_NOT_ALLOWED"
             for name in ("request_worker", "spawn_worker"):
                 error, result = await call(client, name)
-                assert error and result["code"] == "WORKERS_UNAVAILABLE"
-                assert "unavailable until S3.4" in result["message"]
+                assert error and result["code"] == "TOOL_NOT_ALLOWED"
                 recorded = events(session, "tool_result")[-1].payload
                 assert recorded.status.value == "denied"
-                assert recorded.error.code == "WORKERS_UNAVAILABLE"
+                assert recorded.error.code == "TOOL_NOT_ALLOWED"
                 decisions = [
                     event.payload
                     for event in events(session, "policy_decision")
@@ -72,3 +71,75 @@ async def test_c_is_confined_to_approved_tools_and_cannot_spawn(session_file, al
                 assert len(decisions) == 1 and decisions[0].decision.value == "deny"
     finally:
         session.close()
+
+
+@pytest.mark.parametrize("allowlist", [True, False])
+async def test_worker_brief_tools_remain_mandatory_and_spawning_denied(session_file, allowlist):
+    from hypora.core.schemas import ToolName
+
+    session = open_session(
+        session_file,
+        role=ActorRole.TRIAL_WORKER,
+        brief_id="brf_one",
+        permitted_tools=(ToolName.INSPECT_DATASET,),
+        defenses={"allowlist": allowlist, "firewall": True},
+    )
+    try:
+        async with Client(HyporaMCPServer(session)) as client:
+            assert {t.name for t in (await client.list_tools()).tools} == {"inspect_dataset"}
+            for name in {
+                "delegate",
+                "request_worker",
+                "spawn_worker",
+                "run_diagnostic",
+                "write_trial_files",
+            } | RESEARCH_TOOLS:
+                error, result = await call(client, name)
+                assert error and result["code"] == "TOOL_NOT_ALLOWED"
+    finally:
+        session.close()
+
+
+async def test_workers_cannot_rewrite_read_or_deduplicate_sibling_trials(session_file):
+    from tests.mcp_contracts.helpers import DESIGN, LINEAR, RUN_ID, new_trial, submit
+
+    first = open_session(session_file, role=ActorRole.TRIAL_WORKER, brief_id="brf_one")
+    second = open_session(session_file, role=ActorRole.TRIAL_WORKER, brief_id="brf_two")
+    lead = open_session(session_file, role=ActorRole.AGENT_C)
+    try:
+        async with Client(HyporaMCPServer(first)) as a, Client(HyporaMCPServer(second)) as b:
+            trial = await new_trial(a)
+            error, job = await submit(a, trial, key="own")
+            assert not error, job
+            for name, arguments in [
+                (
+                    "write_trial_files",
+                    {
+                        "trial_id": trial,
+                        "pipeline_py": LINEAR,
+                        "idempotency_key": RUN_ID + ":rewrite",
+                    },
+                ),
+                ("submit_experiment", {"trial_id": trial, "idempotency_key": RUN_ID + ":submit"}),
+                ("get_experiment_status", {"job_id": job["job_id"]}),
+                ("get_experiment_metrics", {"job_id": job["job_id"]}),
+                ("get_experiment_logs", {"job_id": job["job_id"]}),
+            ]:
+                error, result = await call(b, name, arguments)
+                assert error and result["code"] == "TRIAL_NOT_FOUND"
+            original = {
+                "design": DESIGN,
+                "pipeline_py": LINEAR,
+                "idempotency_key": RUN_ID + ":shared_key",
+            }
+            error, created = await call(a, "write_trial_files", original)
+            assert not error, created
+            error, denied = await call(b, "write_trial_files", original)
+            assert error and denied["code"] == "IDEMPOTENCY_KEY_REUSED"
+        async with Client(HyporaMCPServer(lead)) as c:
+            error, result = await call(c, "get_experiment_status", {"job_id": job["job_id"]})
+            assert not error, result
+    finally:
+        first.close()
+        second.close()
+        lead.close()
