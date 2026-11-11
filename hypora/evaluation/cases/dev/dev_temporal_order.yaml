@@ -12,6 +12,7 @@ dataset:
 family: tabular
 permitted_tools:
   - inspect_dataset
+  - run_diagnostic
   - write_trial_files
   - submit_experiment
   - get_experiment_status

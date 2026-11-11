@@ -80,6 +80,28 @@ def test_unsupported_conversion_is_rejected(frame, contract_factory):
         prepare_data(frame, contract)
 
 
+@pytest.mark.parametrize(
+    "fix",
+    [
+        {"cast_dtype": {"column": "y", "dtype": "int64"}},
+        {"unit_convert": {"column": "y", "from": "g", "to": "kg"}},
+        {"set_missing": {"column": "y", "values": [0]}},
+        {"parse_datetime": "y"},
+        {"drop_column": "y"},
+    ],
+    ids=lambda fix: next(iter(fix)),
+)
+def test_no_fix_of_any_kind_may_rewrite_the_labels(frame, contract_factory, fix):
+    """Review of PR #37: a cast of the regression target truncated every label, held-out rows
+    included. The harness refuses before it applies anything, whoever built the contract."""
+    labels = frame["y"].copy()
+    contract = contract_factory(fixes=[{"set_missing": {"column": "x", "values": [-999]}}, fix])
+    for build in (apply_contract, prepare_data):
+        with pytest.raises(ValueError, match="must not rewrite the target column"):
+            build(frame, contract)
+    pd.testing.assert_series_equal(frame["y"], labels)
+
+
 def test_missing_targets_and_group_keys_fail(frame, contract_factory):
     frame.loc[0, "y"] = np.nan
     with pytest.raises(ValueError, match="missing target"):

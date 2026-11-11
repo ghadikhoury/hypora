@@ -48,7 +48,7 @@ async def test_inspect_dataset_profiles_the_contracts_dataset_without_rows(clien
     assert not error
     assert profile["dataset_ref"] == "dataset:ds_main"  # an ID, never a host path
     tabular = profile["tabular"]
-    assert tabular["n_rows"] == 569 and tabular["target"]["column"] == "target"
+    assert 0 < tabular["n_rows"] < 569 and tabular["target"]["column"] == "target"
     frame = session.frame("ds_main")
     assert not DataFirewall([frame]).check_payload(profile).blocked
     again_error, again = await call(client, "inspect_dataset", {"dataset_id": "ds_main"})
@@ -59,7 +59,7 @@ async def test_inspect_dataset_structural_and_explicit_target(client):
     error, profile = await call(
         client, "inspect_dataset", {"target": "mean radius", "task_type": "regression"}
     )
-    assert not error and profile["tabular"]["target"]["column"] == "mean radius"
+    assert error and code(profile) == "TARGET_NOT_AUTHORIZED"
 
 
 @pytest.mark.parametrize(
@@ -68,7 +68,7 @@ async def test_inspect_dataset_structural_and_explicit_target(client):
         ({"dataset_id": "ds_other"}, "DATASET_NOT_FOUND"),
         ({"target": "target"}, "TASK_TYPE_REQUIRED"),
         ({"task_type": "regression"}, "TARGET_REQUIRED"),
-        ({"target": "nope", "task_type": "regression"}, "UNKNOWN_COLUMN"),
+        ({"target": "nope", "task_type": "regression"}, "TARGET_NOT_AUTHORIZED"),
         ({"target": "target", "task_type": "forecasting"}, "TASK_TYPE_UNSUPPORTED"),
         ({"dataset_id": "../etc"}, "INVALID_ARGUMENTS"),
     ],

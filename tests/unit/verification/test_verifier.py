@@ -95,9 +95,10 @@ def evidence(
     classes = sorted(target.iloc[development].unique()) if classification else []
     terms = contract(task, metric)
 
+    diagnostic, pool = development[:6], development[6:]
     folds, fold_scores, planned_folds = [], [], []
     for number in range(3):
-        rows = development[(development // 3) % 3 == number]
+        rows = pool[(pool // 3) % 3 == number]
         train = np.setdiff1d(development, rows)
         planned_folds.append(ValidationFold(train, rows))
         fold_classes = sorted(target.iloc[train].unique()) if classification else []
@@ -120,6 +121,7 @@ def evidence(
         development_ids=development,
         test_ids=test,
         validation_folds=planned_folds,
+        diagnostic_ids=diagnostic,
         group_values=None,
         time_values=None,
         validation_predictions=pd.concat(folds, ignore_index=True),
@@ -352,3 +354,16 @@ def test_a_fold_missing_from_both_scores_and_predictions_still_fails() -> None:
     )
     assert statuses(damaged)[V.SPLIT_RESPECTED] is CheckStatus.FAILED
     assert not verify_final(damaged).passed
+
+
+def test_verifier_rejects_diagnostic_validation_overlap() -> None:
+    source = evidence()
+    contaminated = np.append(source.diagnostic_ids, source.validation_folds[0].validation_ids[0])
+    result = statuses(dataclasses.replace(source, diagnostic_ids=contaminated))
+    assert result[V.SPLIT_RESPECTED] is CheckStatus.FAILED
+
+
+def test_verifier_rejects_missing_diagnostic_partition() -> None:
+    source = evidence()
+    result = statuses(dataclasses.replace(source, diagnostic_ids=np.array([], dtype=int)))
+    assert result[V.SPLIT_RESPECTED] is CheckStatus.FAILED

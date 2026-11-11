@@ -1,6 +1,6 @@
 """Apply the data contract and build reproducible, disjoint tabular splits."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import pairwise
 
 import numpy as np
@@ -18,6 +18,7 @@ from hypora.core.schemas import ExperimentContract
 from hypora.core.schemas.contracts import (
     CastDtypeFix,
     DropColumnFix,
+    NonLearnedFix,
     ParseDatetimeFix,
     SetMissingFix,
     SplitStrategy,
@@ -43,12 +44,37 @@ class PreparedData:
     development: np.ndarray
     test: np.ndarray
     folds: tuple[Fold, ...]
+    diagnostic: np.ndarray = field(default_factory=lambda: np.array([], dtype=int))
+
+
+def fix_column(fix: NonLearnedFix) -> str:
+    """The one column a non-learned fix rewrites, whichever kind of fix it is."""
+    if isinstance(fix, ParseDatetimeFix):
+        return fix.parse_datetime
+    if isinstance(fix, UnitConvertFix):
+        return fix.unit_convert.column
+    if isinstance(fix, DropColumnFix):
+        return fix.drop_column
+    if isinstance(fix, CastDtypeFix):
+        return fix.cast_dtype.column
+    if isinstance(fix, SetMissingFix):
+        return fix.set_missing.column
+    # A new kind of fix must be classified here before any contract may carry it.
+    raise ValueError("unsupported non-learned fix")
 
 
 def apply_contract(frame: pd.DataFrame, contract: ExperimentContract) -> pd.DataFrame:
-    """Apply only row-wise, non-learned fixes; reject unsupported conversions explicitly."""
+    """Apply only row-wise, non-learned fixes; reject unsupported conversions explicitly.
+
+    The fixed frame supplies the labels of every training, validation and test row, so no fix
+    may name the target: a cast, conversion, re-parse, missing-value marker or drop there would
+    change the ground truth that every reported metric is scored against. This is refused before
+    any fix is applied, for every kind of fix, whoever built the contract.
+    """
     if frame.columns.has_duplicates:
         raise ValueError("dataset column names must be unique")
+    if any(fix_column(fix) == contract.target for fix in contract.data_contract.non_learned_fixes):
+        raise ValueError("non-learned fixes must not rewrite the target column")
     result = frame.reset_index(drop=True).copy()
     for fix in contract.data_contract.non_learned_fixes:
         if isinstance(fix, ParseDatetimeFix):
@@ -159,21 +185,36 @@ def prepare_data(frame: pd.DataFrame, contract: ExperimentContract) -> PreparedD
     target = frame[contract.target]
     ids = np.arange(len(frame))
     development, test = _holdout(frame, ids, target, split, contract.seed)
+    # Reserve an early/disjoint subset solely for target-aware diagnostics.  D is always
+    # training, never validation or test, so supervised data analysis cannot contaminate CV.
+    if split.strategy in (SplitStrategy.TEMPORAL, SplitStrategy.GROUP_TEMPORAL):
+        diagnostic, pool = _temporal_cut(frame, development, 0.8, split)
+    else:
+        pool, diagnostic = _holdout(
+            frame,
+            development,
+            target,
+            split.model_copy(update={"test_fraction": 0.2}),
+            contract.seed,
+        )
+    diagnostic, pool = np.asarray(diagnostic), np.asarray(pool)
+    if not len(diagnostic) or not len(pool):
+        raise ValueError("not enough rows for a diagnostic partition and validation")
     scheme = split.validation
     folds = []
     if scheme == "holdout":
-        a, b = _holdout(frame, development, target, split, contract.seed)
-        folds.append(Fold(np.asarray(a), np.asarray(b)))
+        a, b = _holdout(frame, pool, target, split, contract.seed)
+        folds.append(Fold(np.concatenate([diagnostic, a]), np.asarray(b)))
     else:
         name, count = scheme.rsplit("_", 1)
         k = int(count)
         if name == "walk_forward":
             if split.time_key is None:
                 raise ValueError("walk_forward requires a temporal split with time_key")
-            development = _time_order(frame, development, split.time_key)
-            blocks = _temporal_blocks(frame, development, split)
+            pool = _time_order(frame, pool, split.time_key)
+            blocks = _temporal_blocks(frame, pool, split)
             for a, b in TimeSeriesSplit(n_splits=k).split(blocks):
-                train = np.concatenate([blocks[i] for i in a])
+                train = np.concatenate([diagnostic, *[blocks[i] for i in a]])
                 valid = np.concatenate([blocks[i] for i in b])
                 if split.group_key and (
                     set(frame.loc[train, split.group_key]) & set(frame.loc[valid, split.group_key])
@@ -185,18 +226,20 @@ def prepare_data(frame: pd.DataFrame, contract: ExperimentContract) -> PreparedD
                 if split.group_key is None:
                     raise ValueError("group_kfold requires a grouped split")
                 splitter = GroupKFold(n_splits=k)
-                iterator = splitter.split(
-                    development, groups=frame.loc[development, split.group_key]
-                )
+                iterator = splitter.split(pool, groups=frame.loc[pool, split.group_key])
             elif name == "stratified_kfold":
+                # sklearn only warns when a class has fewer than k members, which can silently
+                # omit that class from validation folds. Fail closed instead.
+                if target.iloc[pool].value_counts().min() < k:
+                    raise ValueError("not enough rows per class for stratified validation")
                 splitter = StratifiedKFold(n_splits=k, shuffle=True, random_state=contract.seed)
-                iterator = splitter.split(development, target.iloc[development])
+                iterator = splitter.split(pool, target.iloc[pool])
             elif name == "kfold":
                 splitter = KFold(n_splits=k, shuffle=True, random_state=contract.seed)
-                iterator = splitter.split(development)
+                iterator = splitter.split(pool)
             else:
                 raise ValueError(f"unsupported validation scheme: {scheme}")
-            folds.extend(Fold(development[a], development[b]) for a, b in iterator)
+            folds.extend(Fold(np.concatenate([diagnostic, pool[a]]), pool[b]) for a, b in iterator)
     return PreparedData(
         frame,
         frame[list(contract.data_contract.allowed_features)],
@@ -204,4 +247,5 @@ def prepare_data(frame: pd.DataFrame, contract: ExperimentContract) -> PreparedD
         np.asarray(development),
         np.asarray(test),
         tuple(folds),
+        diagnostic,
     )

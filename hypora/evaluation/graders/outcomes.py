@@ -17,12 +17,14 @@ from hypora.core.roles.outcome_evidence import (
 from hypora.core.roles.reporter import EarlyStopReport, Report, build_report
 from hypora.core.schemas import (
     ActorRole,
+    HandoffStatus,
     JobState,
     RunStatus,
     Stage,
     ToolName,
 )
 from hypora.core.schemas.events import (
+    HandoffEvent,
     JobTransitionEvent,
     RoleStartedEvent,
     StageTransitionEvent,
@@ -231,6 +233,32 @@ def verify_infeasibility(context: GradingContext) -> list[str]:
         for e in run_log.events
         if isinstance(e, RoleStartedEvent) and e.actor_role is ActorRole.SINGLE_AGENT
     ]
+    # S3.3's two diagnostic-only methodology invocations are not experiment sessions.
+    # Exempt only explicit, unique phase markers with narrow tools and completed handoffs
+    # before the actual capability record. Any extra experiment session still invalidates proof.
+    seen_phases: set[str] = set()
+    experiment_starts = []
+    for start in starts:
+        refs = start.payload.context_refs
+        phase = refs[0] if len(refs) == 1 else ""
+        completed = any(
+            isinstance(event, HandoffEvent)
+            and event.payload.role_instance_id == start.payload.role_instance_id
+            and event.payload.handoff.status is HandoffStatus.COMPLETE
+            and start.seq < event.seq < (decision.capability_event_seq or 0)
+            for event in run_log.events
+        )
+        methodology = (
+            phase in {"profile:methodology_initial", "profile:methodology_reconcile"}
+            and phase not in seen_phases
+            and set(start.payload.allowed_tools) <= {ToolName.RUN_DIAGNOSTIC.value}
+            and completed
+        )
+        if methodology:
+            seen_phases.add(phase)
+        else:
+            experiment_starts.append(start)
+    starts = experiment_starts
     submit = ToolName.SUBMIT_EXPERIMENT.value
     problems = []
     if len(starts) != 1 or starts[0].seq != decision.capability_event_seq:

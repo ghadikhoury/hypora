@@ -9,6 +9,7 @@ import pytest
 
 from hypora.core.schemas import JobLimits, Operation
 from hypora.core.schemas.trials import TrialDesign
+from hypora.execution.harness.partition import LOCK_FILE, create_partition_lock
 from hypora.execution.harness.runner import HarnessFailure, TabularHarness
 from hypora.execution.protocol import experiments as protocol
 from hypora.execution.sandbox.launcher import SandboxLauncher
@@ -31,6 +32,13 @@ def setup(tmp_path: Path):
     session_file = create_dev_workspace(tmp_path / "ws")
     session = Session(SessionConfig.model_validate_json(session_file.read_bytes()))
     tools = HyporaTools(session)
+    lock_dir = session.runs_root / session.run_id
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    contract = session.contract()
+    assert contract is not None
+    create_partition_lock(
+        session.frame("ds_main"), contract, session.dataset_sha256("ds_main"), lock_dir / LOCK_FILE
+    )
     worker = ExperimentWorker(
         session.database,
         session.runs_root,
@@ -164,3 +172,21 @@ def test_submit_refuses_a_dataset_changed_since_the_session_indexed_it(setup):
     with pytest.raises(ToolFailure) as refused:
         tools.submit_experiment(trial_id=trial, idempotency_key=fresh_key())
     assert refused.value.error.code == "DATASET_CHANGED"
+
+
+def test_missing_partition_lock_stops_before_sandbox(setup):
+    session, tools, worker = setup
+    submitted(tools)
+    (session.runs_root / session.run_id / LOCK_FILE).unlink()
+    ran = worker.run_once()
+    assert ran.final_state.value == "FAILED_TERMINAL"
+    assert ran.outcome.error_code == "PREPARATION_FAILED"
+
+
+def test_modified_partition_lock_stops_before_sandbox(setup):
+    session, tools, worker = setup
+    submitted(tools)
+    (session.runs_root / session.run_id / LOCK_FILE).write_text("{}")
+    ran = worker.run_once()
+    assert ran.final_state.value == "FAILED_TERMINAL"
+    assert ran.outcome.error_code == "PREPARATION_FAILED"

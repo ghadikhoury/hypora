@@ -38,6 +38,7 @@ async def test_the_session_lists_only_its_roles_tools(client):
         "get_model_evidence",
         "retrieve_methodology",
         "inspect_dataset",
+        "run_diagnostic",
         "write_trial_files",
         "submit_experiment",
         "get_experiment_status",
@@ -114,7 +115,7 @@ async def test_an_unexpected_crash_reaches_the_agent_as_a_generic_error(client, 
     def explode(*args, **kwargs):
         raise RuntimeError("/home/someone/secret/path and cell value 13.71")
 
-    monkeypatch.setattr("hypora.mcp_server.tools.profile_tabular", explode)
+    monkeypatch.setattr(HyporaTools, "_diagnostic_dataset", explode)
     error, content = await call(client, "inspect_dataset")
     assert error and content["code"] == "INTERNAL_ERROR"
     assert "secret" not in content["message"] and "13.71" not in content["message"]

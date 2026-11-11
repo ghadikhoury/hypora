@@ -69,6 +69,7 @@ class FinalEvidence:
     development_ids: np.ndarray
     test_ids: np.ndarray
     validation_folds: Sequence[ValidationFold]
+    diagnostic_ids: np.ndarray
     group_values: pd.Series | None  # the split's group key per row, if grouped
     time_values: pd.Series | None  # the split's time key per row, if temporal
     validation_predictions: pd.DataFrame  # fold, row_id, prediction[, p_i]
@@ -197,6 +198,11 @@ class _Checks:
         development = set(self.e.development_ids.tolist())
         test = set(self.e.test_ids.tolist())
         pairs = [("development/test", self.e.development_ids, self.e.test_ids)]
+        diagnostic = set(self.e.diagnostic_ids.tolist())
+        if not diagnostic or len(diagnostic) != len(self.e.diagnostic_ids):
+            problems.append("diagnostic partition is empty or has duplicate row IDs")
+        if not diagnostic.issubset(development) or diagnostic & test:
+            problems.append("diagnostic rows must be in development and outside test")
         for name, ids in (("development", self.e.development_ids), ("test", self.e.test_ids)):
             if len(ids) != len(set(ids.tolist())):
                 problems.append(f"{name}: duplicate row IDs")
@@ -214,6 +220,8 @@ class _Checks:
         for number, fold in enumerate(self.e.validation_folds):
             train, validation = set(fold.train_ids.tolist()), set(fold.validation_ids.tolist())
             scored_rows.extend(fold.validation_ids.tolist())
+            if diagnostic & validation or not diagnostic.issubset(train):
+                problems.append(f"fold {number}: diagnostic rows must be training-only")
             if not train or not validation:
                 problems.append(f"fold {number}: empty training or validation rows")
             if len(train) != len(fold.train_ids) or len(validation) != len(fold.validation_ids):
@@ -223,8 +231,8 @@ class _Checks:
             pairs.append((f"fold {number}", fold.train_ids, fold.validation_ids))
         if len(scored_rows) != len(set(scored_rows)):
             problems.append("validation scoring rows overlap across folds")
-        if "kfold_" in scheme and set(scored_rows) != development:
-            problems.append("K-fold validation does not score every development row")
+        if "kfold_" in scheme and set(scored_rows) | diagnostic != development:
+            problems.append("K-fold validation and diagnostic rows do not cover development")
         split = self.e.contract.data_contract.split
         for name, train_ids, held_out_ids in pairs:
             if split.strategy in (SplitStrategy.GROUP, SplitStrategy.GROUP_TEMPORAL):

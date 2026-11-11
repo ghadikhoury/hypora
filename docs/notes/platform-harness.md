@@ -69,6 +69,16 @@ Supported non-learned fixes: datetime parsing, dtype casting, missing-marker rep
 dropping, and explicit F/C/K, g/kg, ms/s unit conversions. Unsupported conversions fail rather than
 guess. Missing/nonfinite targets and missing group/time keys require contract/data correction.
 
+No fix may name the target (S3.3). The fixed frame supplies the labels of validation and test rows
+as well as training rows, so `apply_contract` refuses the whole contract before it applies
+anything, for every kind of fix: a cast could truncate a regression target and every metric would
+then be scored against altered labels. C's proposals are refused earlier, in
+`hypora/core/controller/methodology.py`, which also refuses a fix on a split key (it would change
+which rows are held out; re-parsing the time key is allowed, being the parse the split applies
+itself) and a fix on a column the dataset lacks. The task specification has no field recording a
+user's decision to transform the labels, so there is no authorized exception; adding one is a
+schema change. Fixes on feature columns, allowed or excluded, are unaffected.
+
 ## Predictions, scoring, and reproducibility
 
 Every template defines fit(train, ctx) and predict(model, X). TrainData exposes X/y and optional

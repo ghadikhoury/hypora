@@ -40,6 +40,7 @@ from hypora.core.verification.verifier import (
     verify_final,
 )
 from hypora.execution.harness.data import apply_contract
+from hypora.execution.harness.partition import LOCK_FILE, load_verified_partition
 from hypora.execution.harness.runner import (
     HarnessFailure,
     TabularHarness,
@@ -277,6 +278,14 @@ class ExperimentWorker:
                 if hashlib.sha256(content).hexdigest() != digest:
                     return self._fail(job, None, "SNAPSHOT_CHANGED", f"{name} changed", False)
             firewall = self._firewall(dataset, source, contract)
+            # Verify immutable row identities before starting any sandbox work.  Use the same
+            # bytes whose fingerprint was checked above and that the harness will consume.
+            load_verified_partition(
+                load_tabular(dataset, source=source),
+                contract,
+                request.dataset_sha256,
+                self.runs_root / job.run_id / LOCK_FILE,
+            )
         except Exception as exc:  # a malformed job folder: not the trial's fault, not retryable
             log.exception("job %s: cannot prepare", job.id)
             return self._fail(job, None, "PREPARATION_FAILED", type(exc).__name__, False)
@@ -392,6 +401,7 @@ class ExperimentWorker:
             development_ids=data.development,
             test_ids=data.test,
             validation_folds=tuple(ValidationFold(f.train, f.validation) for f in data.folds),
+            diagnostic_ids=data.diagnostic,
             group_values=data.frame[split.group_key] if split.group_key else None,
             time_values=data.frame[split.time_key] if split.time_key else None,
             validation_predictions=pd.read_parquet(

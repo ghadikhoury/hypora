@@ -75,6 +75,7 @@ TOOL_ORDER: Final = (
     ToolName.GET_MODEL_EVIDENCE,
     ToolName.RETRIEVE_METHODOLOGY,
     ToolName.INSPECT_DATASET,
+    ToolName.RUN_DIAGNOSTIC,
     ToolName.WRITE_TRIAL_FILES,
     ToolName.SUBMIT_EXPERIMENT,
     ToolName.GET_EXPERIMENT_STATUS,
@@ -86,6 +87,7 @@ TITLES: Final = {
     ToolName.GET_MODEL_EVIDENCE: "Read exact-revision model evidence",
     ToolName.RETRIEVE_METHODOLOGY: "Retrieve cited methodology",
     ToolName.INSPECT_DATASET: "Profile a dataset",
+    ToolName.RUN_DIAGNOSTIC: "Run a data diagnostic",
     ToolName.WRITE_TRIAL_FILES: "Write a trial's files",
     ToolName.SUBMIT_EXPERIMENT: "Queue a trial for validation",
     ToolName.GET_EXPERIMENT_STATUS: "Experiment status",
@@ -142,12 +144,23 @@ class HyporaMCPServer(MCPServer):
             ActorRole.AGENT_B,
             ActorRole.AGENT_C,
         }
-        if session.config.defenses.allowlist or self.product_role:
+        # A trusted diagnostic-only session remains narrow even for the single-agent
+        # comparison with the optional allowlist defense disabled.
+        self.diagnostic_only = (
+            session.role is ActorRole.SINGLE_AGENT
+            and session.config.permitted_tools is not None
+            and frozenset(session.config.permitted_tools) <= {ToolName.RUN_DIAGNOSTIC}
+        )
+        if session.config.defenses.allowlist or self.product_role or self.diagnostic_only:
             self.allowed = allowed_tools(session.role)
             if session.config.permitted_tools is not None:
                 self.allowed &= frozenset(session.config.permitted_tools)
         else:  # F6 ablation: every tool, whatever the role
             self.allowed = frozenset(TOOL_ORDER)
+        # A diagnostic is a product-role capability even when an ablation disables
+        # the ordinary role allowlist: no worker, A or B may acquire this tool.
+        if session.role not in {ActorRole.AGENT_C, ActorRole.SINGLE_AGENT}:
+            self.allowed -= frozenset({ToolName.RUN_DIAGNOSTIC})
         definitions = build_tools(self.tools, self.allowed)
         self._parameters = {
             tool.name: frozenset(tool.parameters["properties"]) for tool in definitions
@@ -179,7 +192,7 @@ class HyporaMCPServer(MCPServer):
                 ToolCallPayload(
                     call_id=call_id,
                     tool=tool,
-                    arguments=_research_event_args(name, arguments),
+                    arguments=_redact_tool_arguments(name, arguments),
                     idempotency_key=_idempotency_key(arguments),
                     session_id=self.session.config.session_id,
                 ),
@@ -292,7 +305,24 @@ class HyporaMCPServer(MCPServer):
 
     async def _allowlist(self, call_id: str, tool: str, tier: ToolTier | None, name: str) -> bool:
         """The server-side role allowlist; True lets the call proceed."""
-        if not self.session.config.defenses.allowlist and not self.product_role:
+        if name == ToolName.RUN_DIAGNOSTIC.value and self.session.role not in {
+            ActorRole.AGENT_C,
+            ActorRole.SINGLE_AGENT,
+        }:
+            await self._policy(
+                call_id,
+                tool,
+                tier,
+                PolicyOutcome.DENY,
+                PolicyRule.ROLE_ALLOWLIST,
+                ["role cannot use data diagnostics"],
+            )
+            return False
+        if (
+            not self.session.config.defenses.allowlist
+            and not self.product_role
+            and not self.diagnostic_only
+        ):
             await self._policy(
                 call_id, tool, tier, PolicyOutcome.ALLOW, None, ["defenses.allowlist is off"]
             )
@@ -504,6 +534,14 @@ def _research_event_args(name: str, arguments: dict[str, Any]) -> dict[str, Any]
     if isinstance(value, str) and value in allowed and set(arguments) == {field}:
         return {field: value}
     return {"filtered": True}
+
+
+def _redact_tool_arguments(name: str, arguments: dict[str, Any]) -> Any:
+    """Do not persist arbitrary diagnostic arguments, which may contain dataset values."""
+    if name in {ToolName.RUN_DIAGNOSTIC.value, ToolName.INSPECT_DATASET.value}:
+        encoded = json.dumps(arguments, sort_keys=True, default=str, ensure_ascii=True)
+        return {"chars": len(encoded), "sha256": hashlib.sha256(encoded.encode()).hexdigest()}
+    return _research_event_args(name, arguments)
 
 
 def _redact(value: Any, depth: int = 0) -> Any:

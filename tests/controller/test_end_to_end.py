@@ -43,7 +43,11 @@ async def test_a_run_ends_with_a_verified_model_and_a_report(
 
     # poll_seconds=0: a model that never pauses between status calls, as gpt-6-luna did (D-030).
     script = ScriptedRun(
-        RUN_ID, job_limits=limits, on_intake=change_source_during_intake, poll_seconds=0
+        RUN_ID,
+        compare=True,
+        job_limits=limits,
+        on_intake=change_source_during_intake,
+        poll_seconds=0,
     )
     controller = make_controller(script)
     result = await controller.run(
@@ -118,9 +122,9 @@ async def test_a_run_ends_with_a_verified_model_and_a_report(
     }
     assert "error" not in kinds
 
-    # Two jobs: the agent's validation job, then the controller's final job.
+    # Baseline and candidate validation jobs, then the controller's final job.
     jobs = run_jobs(database, RUN_ID)
-    assert [job.status.value for job in jobs] == ["COMPLETED", "COMPLETED"]
+    assert [job.status.value for job in jobs] == ["COMPLETED", "COMPLETED", "COMPLETED"]
     import yaml  # type: ignore[import-untyped]
 
     store = ArtifactStore(database, controller.runs_root / RUN_ID / "artifacts")
@@ -128,7 +132,10 @@ async def test_a_run_ends_with_a_verified_model_and_a_report(
         manifest = yaml.safe_load(store.get(f"{job.job_id}.manifest").path.read_text())
         assert all(stage["limits"] == limits for stage in manifest["resources"])
         assert manifest["dataset_fingerprint"] == original_sha256
-    assert [trial.status for trial in list_trials(database, RUN_ID)] == ["verified"]
+    assert {trial.kind: trial.status for trial in list_trials(database, RUN_ID)} == {
+        "baseline": "validated",
+        "candidate": "verified",
+    }
     every_prompt = {e.payload.prompt_ref for e in events if e.type.value == "model_call"}
     assert every_prompt == {
         "intake@v1",
@@ -136,4 +143,5 @@ async def test_a_run_ends_with_a_verified_model_and_a_report(
         "single_agent_final@v1",
         "reporter@v1",
         "role_plan@v1",
+        "agent_c_methodology@v1",
     }

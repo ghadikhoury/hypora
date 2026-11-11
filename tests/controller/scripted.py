@@ -44,11 +44,14 @@ class ScriptedRun:
         run_id: str,
         *,
         poll_seconds: float = 2.0,
+        compare: bool = False,
         job_limits: dict[str, Any] | None = None,
         on_intake: Callable[[], None] | None = None,
         on_tool_result: Callable[[str, dict[str, Any]], None] | None = None,
     ) -> None:
         self.run_id = run_id
+        self.compare = compare
+        self.compared = False
         self.poll_seconds = poll_seconds
         self.job_limits = job_limits
         self.on_intake = on_intake
@@ -65,6 +68,30 @@ class ScriptedRun:
     async def generate(self, request: ProviderRequest) -> ProviderResult:
         self.requests.append(request)
         schema = request.output_schema_name
+        if "You are Hypora's data and implementation specialist" in request.messages[0].content:
+            if schema == "PlanDraft":
+                return json_result(
+                    {
+                        "steps": [
+                            {"tool": None, "purpose": "Review metadata", "success_check": "Done"}
+                        ]
+                    }
+                )
+            if schema == "DataContract":
+                from hypora.core.controller.contract import build_data_contract
+                from hypora.core.schemas import TaskSpecification
+
+                context = request.messages[1].content
+                decoder = json.JSONDecoder()
+                task = decoder.raw_decode(context.split("Task specification: ", 1)[1])[0]
+                profile = decoder.raw_decode(context.split("Target-free dataset metadata: ", 1)[1])[
+                    0
+                ]
+                spec = TaskSpecification.model_validate(task)
+                columns = [item["name"] for item in profile["tabular"]["columns"]]
+                columns.append(spec.target)
+                return json_result(build_data_contract(spec, columns).model_dump(mode="json"))
+            return text_result("Metadata reviewed.")
         if schema == "PlanDraft":
             return json_result(
                 {
@@ -120,7 +147,7 @@ class ScriptedRun:
             return self._call(
                 "submit_experiment",
                 trial_id=self.trial_id,
-                idempotency_key=f"{self.run_id}:submit_1",
+                idempotency_key=f"{self.run_id}:submit_{self.trial_id}",
                 **({"limits": self.job_limits} if self.job_limits is not None else {}),
             )
         if last.tool_name == "submit_experiment":
@@ -131,4 +158,16 @@ class ScriptedRun:
                 await anyio.sleep(self.poll_seconds)
                 return self._call("get_experiment_status", job_id=self.job_id)
             return self._call("get_experiment_metrics", job_id=self.job_id)
-        return text_result(f"Trial {self.trial_id} is the best (and only) trial.")
+        if last.tool_name == "get_experiment_metrics" and self.compare and not self.compared:
+            self.compared = True
+            return self._call(
+                "write_trial_files",
+                idempotency_key=f"{self.run_id}:write_candidate",
+                design={
+                    **DESIGN,
+                    "kind": "candidate",
+                    "hypothesis": "Confirm the regularized model against the measured reference",
+                },
+                pipeline_py=LINEAR,
+            )
+        return text_result(f"Trial {self.trial_id} is the selected trial.")

@@ -47,3 +47,40 @@ async def test_allowlist_off_ablation_ignores_the_case_list(session_file) -> Non
             assert len((await client.list_tools()).tools) == 9
     finally:
         session.close()
+
+
+@pytest.mark.parametrize("allowlist", [True, False])
+async def test_single_agent_diagnostic_session_is_narrow_during_ablation(session_file, allowlist):
+    session = open_session(
+        session_file,
+        role=ActorRole.SINGLE_AGENT,
+        permitted_tools=(ToolName.RUN_DIAGNOSTIC,),
+        defenses={"allowlist": allowlist, "firewall": True},
+    )
+    try:
+        async with Client(HyporaMCPServer(session)) as client:
+            names = {tool.name for tool in (await client.list_tools()).tools}
+            assert names == {"run_diagnostic"}
+            for name in ("inspect_dataset", "write_trial_files", "submit_experiment", "unknown"):
+                error, content = await call(client, name, {})
+                assert error and content["code"] == "TOOL_NOT_ALLOWED"
+    finally:
+        session.close()
+
+
+@pytest.mark.parametrize("allowlist", [True, False])
+async def test_single_agent_empty_diagnostic_session_denies_all_tools(session_file, allowlist):
+    session = open_session(
+        session_file,
+        role=ActorRole.SINGLE_AGENT,
+        permitted_tools=(),
+        defenses={"allowlist": allowlist, "firewall": True},
+    )
+    try:
+        async with Client(HyporaMCPServer(session)) as client:
+            assert not (await client.list_tools()).tools
+            for name in ("run_diagnostic", "inspect_dataset", "write_trial_files", "unknown"):
+                error, content = await call(client, name, {})
+                assert error and content["code"] == "TOOL_NOT_ALLOWED"
+    finally:
+        session.close()
