@@ -92,8 +92,14 @@ def authorize_worker(
     permitted_tools: set[ToolName],
     context_refs: set[str],
     validate_text: Callable[[str], None],
+    first_call_tokens: Callable[[WorkerRequest], int] | None = None,
 ) -> tuple[Brief | None, str | None]:
-    """Validate C's request before reserving capacity or exposing a worker session."""
+    """Validate C's request before reserving capacity or exposing a worker session.
+
+    `first_call_tokens` returns the tokens the worker's first model call needs (the same
+    admission bound the adapter applies); a brief whose budget is smaller is denied, since
+    its session could only exhaust before doing any work.
+    """
     guard = reservations.guard
     rule = PolicyRule.ROLE_ALLOWLIST
     reason: str | None = None
@@ -113,6 +119,14 @@ def authorize_worker(
             validate_text(request.end_condition)
         except Exception:
             rule, reason = PolicyRule.DATA_FIREWALL, "Worker brief failed sensitive-content checks."
+    if reason is None and first_call_tokens is not None:
+        needed = first_call_tokens(request)
+        if request.budget.max_tokens < needed:
+            rule, reason = (
+                PolicyRule.BUDGET,
+                f"Worker token budget cannot cover its first model call: request at least "
+                f"{needed} max_tokens, or fewer tools and context references.",
+            )
     brief: Brief | None = None
     if reason is None:
         key = "brf_" + uuid4().hex[:16]

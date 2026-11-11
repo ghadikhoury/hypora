@@ -20,7 +20,11 @@ bounded output before dispatch, including retries/fallbacks; exceeding actual ca
 The adapter's existing run-level USD/compute and wall-clock controls remain authoritative.
 
 Workers receive only their brief and requested records, never A/B/C transcripts. Findings contain
-code-populated trial/job/outcome/result references; text does not supply measured values. Failure,
+code-populated trial/job/outcome/result references; text does not supply measured values. The
+worker's summary, claims, confidence and questions are kept only if every field passes the
+plain-prose and data-boundary checks; otherwise none of them reaches the finding, disk or C. C
+receives runtime-owned facts and worker narrative in separate blocks, the latter labelled as
+untrusted worker-reported text. Failure,
 timeout and cancellation cancel only the worker's jobs, await bounded acknowledgment, close the
 MCP session and release the reservation. The controller's phase shutdown remains the backstop.
 

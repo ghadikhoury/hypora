@@ -62,6 +62,15 @@ def test_nested_or_excess_tools_and_foreign_refs_denied(database, tmp_path: Path
         WorkerReport.model_validate({"summary": "done", "workers": []})
 
 
+def test_budget_that_cannot_cover_first_call_is_denied_before_reservation(database, tmp_path):
+    reservations = WorkerReservations(guard(database, tmp_path), 2)
+    brief, reason = authorize(reservations, first_call_tokens=lambda proposal: 1001)
+    assert brief is None and "at least 1001 max_tokens" in reason
+    assert not reservations.active
+    brief, reason = authorize(reservations, first_call_tokens=lambda proposal: 1000)
+    assert brief is not None and reason is None
+
+
 def test_atomic_slot_and_aggregate_reservation(database, tmp_path: Path) -> None:
     reservations = WorkerReservations(
         guard(

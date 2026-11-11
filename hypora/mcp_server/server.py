@@ -290,7 +290,6 @@ class HyporaMCPServer(MCPServer):
         """The server-side role allowlist; True lets the call proceed."""
         if name == ToolName.RUN_DIAGNOSTIC.value and self.session.role not in {
             ActorRole.AGENT_C,
-            ActorRole.TRIAL_WORKER,
             ActorRole.SINGLE_AGENT,
         }:
             await self._policy(

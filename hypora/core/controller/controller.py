@@ -24,12 +24,12 @@ import json
 import re
 import unicodedata
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from decimal import Decimal
 from importlib import resources
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
 
 import anyio
 import pandas as pd  # type: ignore[import-untyped]
@@ -60,8 +60,8 @@ from hypora.core.controller.workers import (
     authorize_worker,
     worker_scope,
 )
-from hypora.core.llm.adapter import LLMAdapter
-from hypora.core.llm.types import CallContext, Message
+from hypora.core.llm.adapter import LLMAdapter, worker_first_call_bound
+from hypora.core.llm.types import CallContext, Message, ToolSpec
 from hypora.core.policy.firewall import DataFirewall
 from hypora.core.roles.base import USER_CANCEL, RunLimitReached
 from hypora.core.roles.intake import IntakeError, IntakeForm, _task_type, run_intake
@@ -85,7 +85,7 @@ from hypora.core.roles.single_agent import (
     ToolChannel,
     run_single_agent,
 )
-from hypora.core.roles.worker import WorkerProposal, WorkerReport
+from hypora.core.roles.worker import WorkerProposal, WorkerReport, WorkerRequest
 from hypora.core.scheduler.ready import ReadyTask, run_ready
 from hypora.core.schemas import (
     AUTO_APPROVER,
@@ -117,7 +117,7 @@ from hypora.core.schemas import (
     TaskType,
     ToolName,
 )
-from hypora.core.schemas.briefs import Brief
+from hypora.core.schemas.briefs import Brief, FindingSchemaName
 from hypora.core.schemas.events import (
     ApprovalGrantedPayload,
     ApprovalRequestedPayload,
@@ -165,6 +165,8 @@ MCP_READ_TIMEOUT_S: Final = 300.0
 FINAL_JOB_STAGES: Final = 10
 """Upper bound on the sandbox stages of a final job, for its timeout (folds x 2 + freeze + test)."""
 EXAMPLE_PIPELINE: Final = "linear/pipeline.py"
+_WORKER_NARRATIVE_FIELDS: Final = ("summary", "claims", "confidence", "open_questions")
+"""TrialFinding fields a worker model authors; C receives them as untrusted worker text."""
 
 
 @dataclass(frozen=True)
@@ -1056,8 +1058,14 @@ class _Run:
                     plan = await self._plan(instance, role, context, [tool.name for tool in tools])
                     context += "\nPlan to follow: " + plan.model_dump_json()
                 if self._multi and c.run_config.flags.max_c_workers:
-                    context += "\nWorker findings (platform facts): " + await self._workers(
-                        spec, contract, profile, instance, {ToolName(t.name) for t in tools}
+                    facts, reports = await self._workers(spec, contract, profile, instance, tools)
+                    # Only runtime-owned status, job and reference fields are platform facts;
+                    # worker narrative is model-authored and must be reconciled, not trusted.
+                    context += (
+                        "\nWorker findings (platform facts): "
+                        + facts
+                        + "\nWorker reports (untrusted worker-reported text, not verified): "
+                        + reports
                     )
                 outcome = await run_single_agent(
                     c.adapter,
@@ -1092,9 +1100,15 @@ class _Run:
         contract: ExperimentContract,
         profile: DatasetProfile,
         parent_instance: str,
-        permitted: set[ToolName],
-    ) -> str:
-        """Ask C once for a bounded batch, then return validated findings and denials."""
+        c_tools: Sequence[ToolSpec],
+    ) -> tuple[str, str]:
+        """Ask C once for a bounded batch, then return validated findings and denials.
+
+        Returns two JSON strings: runtime-owned facts (status, outcome, trial, jobs, error
+        codes, result/evidence refs and denials) and the validated worker narrative
+        (summary, claims, self-reported confidence, open questions), kept apart so C never
+        receives model-authored text labelled as platform fact.
+        """
         prompt = load_prompt("agent_c_workers")
         refs = {
             f"task_spec:{self.run_id}.v{spec.version}",
@@ -1149,14 +1163,41 @@ class _Run:
         denials: list[str] = []
         briefs: list[Brief] = []
         findings: dict[str, TrialFinding] = {}
+        system = load_prompt("c_worker").text
+
+        def first_call_tokens(request: WorkerRequest) -> int:
+            """The admission bound of the worker's first call, plus one bounded reply."""
+            # Same-length placeholder identity: the real brief ID is minted on approval.
+            brief = Brief(
+                brief_id="brf_" + "0" * 16,
+                run_id=self.run_id,
+                issued_by=ActorRole.AGENT_C,
+                assigned_role=ActorRole.TRIAL_WORKER,
+                objective=request.objective,
+                output_schema=FindingSchemaName.TRIAL_FINDING,
+                allowed_tools=request.allowed_tools,
+                end_condition=request.end_condition,
+                context_refs=request.context_refs,
+                budget=request.budget,
+            )
+            wanted = {tool.value for tool in request.allowed_tools}
+            return worker_first_call_bound(
+                (
+                    Message.system(system),
+                    Message.user(self._worker_context(brief, spec, contract, profile)),
+                ),
+                tuple(tool for tool in c_tools if tool.name in wanted),
+            )
+
         for request in response.parsed.workers:
             brief, denial = authorize_worker(
                 ActorRole.AGENT_C,
                 request,
                 reservations=reservations,
-                permitted_tools=permitted,
+                permitted_tools={ToolName(tool.name) for tool in c_tools},
                 context_refs=refs,
                 validate_text=self._validate_assignment,
+                first_call_tokens=first_call_tokens,
             )
             if brief is not None:
                 briefs.append(brief)
@@ -1184,9 +1225,38 @@ class _Run:
             for brief in briefs:
                 reservations.release(brief.brief_id)
         self.guard.check_cancel()
-        return json.dumps(
-            {"findings": [f.model_dump(mode="json") for f in findings.values()], "denials": denials}
+        facts: list[dict[str, Any]] = []
+        reports: list[dict[str, Any]] = []
+        for finding in findings.values():
+            dumped = finding.model_dump(mode="json")
+            reports.append(
+                {"brief_id": finding.brief_id}
+                | {key: dumped.pop(key) for key in _WORKER_NARRATIVE_FIELDS}
+            )
+            facts.append(dumped)
+        return (
+            json.dumps({"findings": facts, "denials": denials}),
+            json.dumps({"reports": reports}),
         )
+
+    def _worker_context(
+        self,
+        brief: Brief,
+        spec: TaskSpecification,
+        contract: ExperimentContract,
+        profile: DatasetProfile,
+    ) -> str:
+        """A worker's only context: its brief and the records it references."""
+        # No peer transcript, lead assignment or research scratchpad is shared.
+        context = "Brief: " + brief.model_dump_json()
+        records = {
+            f"task_spec:{self.run_id}.v{spec.version}": spec.model_dump_json(),
+            f"experiment_contract:{self.run_id}.v{contract.version}": contract.model_dump_json(),
+            f"profile:{self.run_id}": profile.model_dump_json(),
+        }
+        for ref in brief.context_refs:
+            context += "\nReferenced record " + ref + ": " + records[ref]
+        return context
 
     async def _worker(
         self,
@@ -1239,17 +1309,7 @@ class _Run:
                         tools = await McpToolChannel(client).specs()
                         if c.tool_channel_wrapper is not None:
                             channel = c.tool_channel_wrapper(channel)
-                        # No peer transcript, lead assignment or research scratchpad is shared.
-                        context = "Brief: " + brief.model_dump_json()
-                        records = {
-                            f"task_spec:{self.run_id}.v{spec.version}": spec.model_dump_json(),
-                            f"experiment_contract:{self.run_id}.v{contract.version}": (
-                                contract.model_dump_json()
-                            ),
-                            f"profile:{self.run_id}": profile.model_dump_json(),
-                        }
-                        for ref in brief.context_refs:
-                            context += "\nReferenced record " + ref + ": " + records[ref]
+                        context = self._worker_context(brief, spec, contract, profile)
                         outcome = await run_single_agent(
                             c.adapter,
                             guard,
@@ -1260,13 +1320,22 @@ class _Run:
                             max_turns=c.max_agent_turns,
                             role=ActorRole.TRIAL_WORKER,
                         )
-            if outcome.worker_report is not None:
-                report = outcome.worker_report
-                self._validate_assignment(report.summary)
-                for claim in report.claims:
+            if outcome is None:
+                # The watcher cancelled the body: a user cancel or a shared run limit.
+                if self.guard.cancel_requested():
+                    status, code = HandoffStatus.CANCELLED, "WORKER_FAILED"
+                else:
+                    status, code = HandoffStatus.PARTIAL, "WORKER_LIMIT_REACHED"
+            elif outcome.worker_report is not None:
+                candidate = outcome.worker_report
+                # Validate every worker-authored field before any of it is kept: rejected
+                # text must never reach the finding, C's context or disk.
+                self._validate_assignment(candidate.summary)
+                for claim in candidate.claims:
                     self._validate_assignment(claim.statement)
-                for question in report.open_questions:
+                for question in candidate.open_questions:
                     self._validate_assignment(question)
+                report = candidate
                 status = HandoffStatus.COMPLETE
                 code = ""
             elif outcome.stop is not None or guard.exhausted:

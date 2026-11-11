@@ -1053,7 +1053,7 @@ Ghadi approved the S3.4 proposal during the orchestration session: at most two a
 trial workers, six trial tools narrowed per brief, isolated sessions and worker-owned trials,
 aggregate budget reservations, bounded model-facing proposal/report models, and A-justified
 independent B/C overlap. The approved security scope adds the worker allowlist and always-on
-confinement, trusted brief session IDs, trial/job ownership checks, and worker retry redaction.
+confinement, trusted brief session IDs, and trial/job ownership checks.
 No frozen schemas, MCP signatures, event types, fit/predict interface, eval model profile,
 grading rules, dependencies or sandbox changes are authorized by this decision.
 
