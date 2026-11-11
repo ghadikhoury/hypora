@@ -11,6 +11,11 @@ a malformed-data stop was caused by a defect really present in them (D-032; spec
 finding names a code, the column, a row count, and the SHA-256 of the affected row positions:
 never a value, so it is safe in events and reports.
 
+An evaluation case can only carry the text defects: the hidden split refuses missing and
+non-finite labels outright (`hypora/evaluation/hidden_split.py`). The other checks protect
+`hypora run` on a user's own file, where the harness would otherwise refuse later without saying
+why.
+
 Feature defects (a numeric column with a stray token, an infinite measurement) are not findings:
 a pipeline can handle them inside `fit`, and C's methodology owns them.
 """
