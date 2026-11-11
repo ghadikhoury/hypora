@@ -192,7 +192,11 @@ def test_worker_scores_every_cv_fold(frame, contract_factory, tmp_path, sandbox_
     assert len(result.scores["folds"]) == 3
     saved = pd.read_parquet(result.artifacts / "predictions.parquet", engine="pyarrow")
     assert saved["row_id"].is_unique
-    assert set(saved["row_id"]) == set(result.prepared.development)
+    # Diagnostic-only rows may train a fold, but never contribute validation predictions.
+    assert set(saved["row_id"]) == (
+        set(result.prepared.development) - set(result.prepared.diagnostic)
+    )
+    assert set(saved["row_id"]).isdisjoint(result.prepared.diagnostic)
     assert all("per_group" in score for score in result.scores["folds"])
 
 

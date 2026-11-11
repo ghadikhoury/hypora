@@ -122,7 +122,7 @@ async def test_a_run_ends_with_a_verified_model_and_a_report(
     }
     assert "error" not in kinds
 
-    # Two jobs: the agent's validation job, then the controller's final job.
+    # Baseline and candidate validation jobs, then the controller's final job.
     jobs = run_jobs(database, RUN_ID)
     assert [job.status.value for job in jobs] == ["COMPLETED", "COMPLETED", "COMPLETED"]
     import yaml  # type: ignore[import-untyped]
@@ -132,7 +132,7 @@ async def test_a_run_ends_with_a_verified_model_and_a_report(
         manifest = yaml.safe_load(store.get(f"{job.job_id}.manifest").path.read_text())
         assert all(stage["limits"] == limits for stage in manifest["resources"])
         assert manifest["dataset_fingerprint"] == original_sha256
-    assert [trial.status for trial in list_trials(database, RUN_ID)] == ["verified", "verified"]
+    assert [trial.status for trial in list_trials(database, RUN_ID)] == ["validated", "verified"]
     every_prompt = {e.payload.prompt_ref for e in events if e.type.value == "model_call"}
     assert every_prompt == {
         "intake@v1",
