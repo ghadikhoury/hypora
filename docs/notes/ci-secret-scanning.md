@@ -1,10 +1,17 @@
 # CI and secret scanning (S0.1)
 
-**Validation and secret scanning are separate (D-037).** The required `make check` status
-classifies the actual change. Genuine prose-only changes skip dependency setup, make/pytest and
-Docker. Other changes keep full non-live regression on PRs and main pushes through `make check-ci`.
+**Validation and secret scanning are separate (D-037, D-041).** The `scope` job classifies the
+actual change. Genuine prose-only changes skip dependency setup, lint, pytest and Docker. Other
+changes run every non-live test on PRs and main pushes, as parallel jobs: lint and types, the tests
+that start no container in two shards, and the container tests in three. The `Makefile` owns the
+selections (`make test-fast`, `make test-containers`), and together they are exactly `make test`.
 Missing/ambiguous metadata, runtime prompts, unknown paths and mixed changes require full validation.
-The required status name stays stable for branch protection; no global exemption is needed.
+
+The required status is still named `make check`, so branch protection is unchanged. That job
+always runs, and passes only when every other job succeeded, or when the change is prose only and
+the test jobs were skipped. `tests/unit/test_ci_shards.py` checks that the shards cover every test
+directory once, that CI runs each shard, and that the required status fails for any failed,
+cancelled or missing job.
 
 | Secret scan | When | Scope |
 |---|---|---|
@@ -13,7 +20,7 @@ The required status name stays stable for branch protection; no global exemption
 | Existing scheduled/manual gitleaks | Daily or explicit dispatch | Full history |
 | `make secrets` | Explicit history audit | Full reachable history, verified by wrapper below |
 
-CI no longer runs a duplicate full-history scan inside every `make check` job. The existing
+CI does not run a full-history scan inside the test jobs. The existing
 daily full-history secret scan remains; there is no new scheduled full pytest/regression suite.
 Historical leaks outside the changed range are detected by scheduled/manual audits rather than
 every PR. A new leak still blocks the required PR scan.
@@ -63,8 +70,8 @@ directory is explicitly refused.
 repos/worktrees: clean history, a deleted marker on another branch, a detached worktree HEAD,
 broken metadata, and shallow history. A test reproduces the old scanner's zero-exit false clear
 and proves the wrapper rejects it. Markers use a test-only custom rule, never real credentials.
-Docker tests run in the normal test suite (and CI); `pytest -m 'not docker'` excludes those image
-tests for an ordinary unit-only iteration, while `make check` always includes them.
+Docker tests run in the normal test suite (and CI); `make test-fast` leaves out every test marked
+`docker` or `sandbox`, while `make test` and CI always include them.
 
 References: [Git's metadata environment](https://git-scm.com/docs/git#Documentation/git.txt-GIT_COMMON_DIR)
 and [the pinned gitleaks CLI](https://github.com/gitleaks/gitleaks/tree/v8.30.1#usage).

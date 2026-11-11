@@ -1,5 +1,8 @@
 name: CI
 
+# The same non-live tests as one serial `make check-ci`, run as parallel jobs (D-041). The Makefile
+# owns the test selections; tests/unit/test_ci_shards.py checks that this file runs every shard.
+
 on:
   pull_request:
   push:
@@ -13,11 +16,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
-    # Preserve the required status name. Docs emit this status without running make/pytest.
-    name: make check
+  scope:
+    name: scope
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 5
+    outputs:
+      docs_only: ${{ steps.scope.outputs.docs_only }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -26,43 +30,132 @@ jobs:
       - name: Determine validation scope
         id: scope
         run: python3 scripts/ci_scope.py
-      - name: Documentation-only status
-        if: steps.scope.outputs.docs_only == 'true'
-        run: echo "Prose-only change; no Python setup, make check, pytest or Docker tests. Secret scanning runs separately."
+
+  static:
+    name: lint and types
+    needs: scope
+    if: needs.scope.outputs.docs_only != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
-        if: steps.scope.outputs.docs_only != 'true'
         with:
           version: "0.12.17"
           enable-cache: true
       - name: Install locked dependencies without development hooks
-        if: steps.scope.outputs.docs_only != 'true'
+        run: uv sync --locked
+      - name: Lint and type-check
+        run: make lint typecheck
+
+  fast:
+    name: tests without containers (${{ matrix.shard }})
+    needs: scope
+    if: needs.scope.outputs.docs_only != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [agents, rest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.17"
+          enable-cache: true
+      - name: Install locked dependencies without development hooks
+        run: uv sync --locked
+      - name: Tests that start no container
+        run: make test-fast SHARD=${{ matrix.shard }} PYTEST_ARGS=--durations=25
+
+  containers:
+    name: container tests (${{ matrix.shard }})
+    needs: scope
+    if: needs.scope.outputs.docs_only != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [controller, harness, rest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.17"
+          enable-cache: true
+      - name: Install locked dependencies without development hooks
         run: uv sync --locked
       - name: Restore sandbox image
-        if: steps.scope.outputs.docs_only != 'true'
         id: sandbox-cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: /tmp/hypora-sandbox-cache
           key: sandbox-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('hypora/execution/sandbox/Dockerfile.tabular', 'hypora/execution/sandbox/requirements-tabular.lock', 'hypora/execution/sandbox/.dockerignore', 'hypora/execution/sandbox/image.py') }}
       - name: Load cached sandbox image
-        if: steps.scope.outputs.docs_only != 'true' && steps.sandbox-cache.outputs.cache-hit == 'true'
+        if: steps.sandbox-cache.outputs.cache-hit == 'true'
         run: docker load --input /tmp/hypora-sandbox-cache/image.tar
       - name: Prepare exact sandbox image
-        if: steps.scope.outputs.docs_only != 'true'
         run: make sandbox-image
       # Save before running untrusted trial code or tests, not in a post-test hook.
       - name: Export sandbox image
-        if: steps.scope.outputs.docs_only != 'true' && steps.sandbox-cache.outputs.cache-hit != 'true'
+        if: steps.sandbox-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p /tmp/hypora-sandbox-cache
           image=$(uv run --locked python -c 'from hypora.execution.sandbox.image import tabular_image_tag; print(tabular_image_tag())')
           docker save --output /tmp/hypora-sandbox-cache/image.tar "$image"
       - name: Save sandbox image
-        if: steps.scope.outputs.docs_only != 'true' && steps.sandbox-cache.outputs.cache-hit != 'true'
+        if: steps.sandbox-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: /tmp/hypora-sandbox-cache
           key: ${{ steps.sandbox-cache.outputs.cache-primary-key }}
-      - name: Full non-live regression suite
-        if: steps.scope.outputs.docs_only != 'true'
-        run: make check-ci
+      - name: Tests that start containers
+        run: make test-containers SHARD=${{ matrix.shard }} PYTEST_ARGS=--durations=25
+
+  check:
+    # The one required status (branch protection names it). It always runs, and passes only when
+    # every job above succeeded, or when the change is prose only and the test jobs were skipped.
+    name: make check
+    needs: [scope, static, fast, containers]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every job
+        env:
+          SCOPE: ${{ needs.scope.result }}
+          DOCS_ONLY: ${{ needs.scope.outputs.docs_only }}
+          STATIC: ${{ needs.static.result }}
+          FAST: ${{ needs.fast.result }}
+          CONTAINERS: ${{ needs.containers.result }}
+        run: |
+          echo "scope=$SCOPE docs_only=$DOCS_ONLY static=$STATIC fast=$FAST containers=$CONTAINERS"
+          if [ "$SCOPE" != "success" ]; then
+            echo "The scope job did not succeed." >&2
+            exit 1
+          fi
+          if [ "$DOCS_ONLY" = "true" ]; then
+            if [ "$STATIC" = "skipped" ] && [ "$FAST" = "skipped" ] && [ "$CONTAINERS" = "skipped" ]; then
+              echo "Prose-only change: no lint, types or tests. Secret scanning runs separately."
+              exit 0
+            fi
+            echo "Prose-only change, but a test job was not skipped." >&2
+            exit 1
+          fi
+          if [ "$STATIC" = "success" ] && [ "$FAST" = "success" ] && [ "$CONTAINERS" = "success" ]; then
+            echo "Lint, types and every test shard passed."
+            exit 0
+          fi
+          echo "A required job failed, was cancelled, or did not run." >&2
+          exit 1

@@ -2,7 +2,7 @@
 
 > Implementation reference for the existing system. The target A/B/C ownership and permissions
 > are in spec §§5–9 (D-036); legacy roles/config names here are not the new runtime implementation.
-> Former roadmap IDs map through PLAN Appendix A.
+> Former roadmap IDs map through Appendix A of `docs/archive/PLAN-completed-steps.md`.
 
 Spec: sections 5, 6.8, 6.9, 8.6, 15.1. Decisions: D-019 (this step), D-005 (stage alongside
 status), D-018 (MCP sessions). Packages: `hypora/core/controller/` (state machine, limits,

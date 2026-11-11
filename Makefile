@@ -32,8 +32,26 @@ ARGS ?=
 COMPOSE := docker compose
 WORKER_COMPOSE := $(COMPOSE) -f docker-compose.yml -f docker-compose.worker.yml
 
-.PHONY: help setup lint typecheck test test-live secrets schemas mcp-tools sandbox-image sandbox-lock \
-	check check-ci run snapshot eval up worker-up down
+# Test selections (D-041). `test-fast` plus `test-containers` is exactly `test`: every non-live
+# test either carries a container marker (`sandbox` or `docker`) or does not. CI runs each
+# selection as parallel shards, split by path. In each family, `rest` ignores exactly the
+# directories its sibling shards name, so the shards cover every test once and a new test
+# directory lands in `rest` without editing this file (tests/unit/test_ci_shards.py checks this).
+# Each expression repeats "not live" because a command-line -m replaces the one in pyproject.toml.
+FAST_MARK := not live and not sandbox and not docker
+CONTAINER_MARK := (sandbox or docker) and not live
+SHARD ?= all
+FAST_SHARD_all := tests
+FAST_SHARD_agents := tests/controller tests/baseline
+FAST_SHARD_rest := tests --ignore=tests/controller --ignore=tests/baseline
+CONTAINER_SHARD_all := tests
+CONTAINER_SHARD_controller := tests/controller
+CONTAINER_SHARD_harness := tests/harness
+CONTAINER_SHARD_rest := tests --ignore=tests/controller --ignore=tests/harness
+PYTEST_ARGS ?=
+
+.PHONY: help setup lint typecheck test test-fast test-containers test-live secrets schemas mcp-tools \
+	sandbox-image sandbox-lock check check-fast check-ci run snapshot eval up worker-up down
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' Makefile | awk -F ':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -80,8 +98,18 @@ lint: ## Ruff lint and format check
 typecheck: ## mypy (strict on hypora/core/)
 	$(RUN) mypy
 
-test: ## pytest (live provider calls excluded)
-	$(RUN) pytest
+test: ## pytest, every non-live test (live provider calls excluded)
+	$(RUN) pytest $(PYTEST_ARGS)
+
+test-fast: ## Tests that start no container: [SHARD=all|agents|rest]; agents = scripted agent loops
+	@test -n "$(FAST_SHARD_$(SHARD))" \
+		|| { echo 'usage: make test-fast [SHARD=all|agents|rest]' >&2; exit 2; }
+	$(RUN) pytest -m "$(FAST_MARK)" $(FAST_SHARD_$(SHARD)) $(PYTEST_ARGS)
+
+test-containers: ## Tests that start containers: [SHARD=all|controller|harness|rest] (needs Docker)
+	@test -n "$(CONTAINER_SHARD_$(SHARD))" \
+		|| { echo 'usage: make test-containers [SHARD=all|controller|harness|rest]' >&2; exit 2; }
+	$(RUN) pytest -m "$(CONTAINER_MARK)" $(CONTAINER_SHARD_$(SHARD)) $(PYTEST_ARGS)
 
 test-live: ## Live LLM calls, free Gemini tier only (needs GEMINI_API_KEY in .env)
 	$(RUN) pytest -m 'live and not paid' tests/live
@@ -103,6 +131,11 @@ sandbox-lock: ## Re-lock the sandbox image's packages (hashes, all platforms) af
 		--python-version 3.12 --exclude-newer $(SANDBOX_EXCLUDE_NEWER) --no-header --quiet \
 		-o requirements-tabular.lock
 
-check: lint typecheck test secrets ## Full validation including explicit full-history secret scan
+# The in-process tests only: no containers, and not the scripted agent loops (SHARD=agents), which
+# start an MCP server process per test and take as long again. `make check-fast SHARD=all` adds them.
+check-fast: SHARD := rest
+check-fast: lint typecheck test-fast ## Before opening a PR: lint, types, in-process tests
 
-check-ci: lint typecheck test ## Full non-live regression suite; required gitleaks job scans PR/push secrets
+check: lint typecheck test secrets ## Full local validation plus a full-history secret scan (slow)
+
+check-ci: lint typecheck test ## Everything CI covers, in one serial run (CI runs it as parallel jobs)

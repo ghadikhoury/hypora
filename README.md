@@ -13,8 +13,8 @@ read-only research, usually first; C owns data and coding and alone may request 
 approvals, budgets, isolation, splits and scoring. A can justify independent B/C overlap. This is the
 implementation target; current single-agent runs remain the comparison system.
 
-Read [the spec](docs/PROJECT_SPEC.md) for behavior, [the plan](docs/PLAN.md) for current steps and
-dependencies, and [AGENTS.md](AGENTS.md) for repository contribution/review procedures. Component guides
+Read [the spec](docs/PROJECT_SPEC.md) for behavior, [the plan](docs/PLAN.md) for the remaining steps
+and their dependencies, and [AGENTS.md](AGENTS.md) for how the repository is worked on. Component guides
 live under `docs/notes/`; historical notes and results describe the version that produced them.
 
 ## Requirements
@@ -117,10 +117,10 @@ explains why this is a platform-only privilege.
 
 ## Development
 
-CI keeps full non-live regression tests on code PRs and code pushes to main. Genuine docs-only
-changes get a lightweight required status without Python setup, pytest or Docker; runtime prompts
-are code-facing changes. Required secret scanning runs separately on every PR. Local checks depend on your
-role and the change; follow [AGENTS.md](AGENTS.md), which also holds the workflow and model policy.
+Run `make check-fast` (lint, types, and the in-process tests) before opening a PR. CI runs every
+non-live test on code PRs and pushes to main, as parallel jobs behind one required `make check`
+status; secret scanning is a second required check. Docs-only changes skip the tests.
+[AGENTS.md](AGENTS.md) is the one place that describes the workflow, checks and review;
 `make help` lists every target.
 
 ## Troubleshooting

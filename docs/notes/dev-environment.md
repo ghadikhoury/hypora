@@ -2,9 +2,10 @@
 
 **Work from the WSL filesystem (`~/hypora`), never from `/mnt/c`.**
 
-Every working copy lives on WSL's own ext4 filesystem: `~/hypora` (Coding Agent A), a separate
-clone per other agent, and temporary clones for reviews. Run `make`, `git`, and tests there.
-Nothing Hypora runs should have its working directory on the Windows drive.
+Every working copy lives on WSL's own ext4 filesystem: `~/hypora`, plus one clone per agent
+working at the same time (`~/hypora-<step>`). Run `make`, `git`, and tests there. Nothing Hypora
+runs should have its working directory on the Windows drive. Delete a step's clone once its PR has
+merged; each one holds its own 700 MB environment.
 
 ## Why (measured 2026-10-25, Docker Desktop 29.8 on WSL2)
 
@@ -38,7 +39,7 @@ git config credential.https://github.com.helper ""
 git config --add credential.https://github.com.helper \
   '!"/mnt/c/Program Files/GitHub CLI/gh.exe" auth git-credential'
 make setup          # uv sync --locked + pre-commit hooks
-make check
+make check-fast     # lint, types, and the in-process tests (about 7 min on WSL)
 ```
 
 - **`.env` (API keys)** is per working copy and git-ignored. Copy it in yourself (never paste keys
