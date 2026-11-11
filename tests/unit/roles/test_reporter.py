@@ -84,7 +84,8 @@ def test_placeholders_are_filled_from_the_stored_metrics() -> None:
     filled = fill_placeholders(GOOD["summary"], report())
     assert "reached 0.9712 on the test split (0.9500 in validation)" in filled
     assert "log_loss was unavailable" in filled  # a stored null stays unavailable
-    assert fill_placeholders("{{test.roc_auc}}", report(final=None)) == "unavailable"
+    no_final = report(final=None, outcome="no_verified_model")
+    assert fill_placeholders("{{test.roc_auc}}", no_final) == "unavailable"
 
 
 def test_the_markdown_shows_stored_numbers_and_the_filled_narrative() -> None:
