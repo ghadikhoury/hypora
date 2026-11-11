@@ -12,6 +12,7 @@ from hypora.core.controller.contract import (
     build_plan,
 )
 from hypora.core.controller.controller import stage1_flag_notes
+from hypora.core.policy.approvals import plan_scope_hash, scope_hash
 from hypora.core.schemas import (
     AUTO_APPROVER,
     ApprovalPolicy,
@@ -113,3 +114,35 @@ def test_every_supported_metric_reaches_the_agent_report(task_type: TaskType) ->
     from hypora.evaluation.case import metrics_for
 
     assert set(METRIC_SETS[task_type]) == metrics_for(task_type)
+
+
+def test_a_plan_built_with_a_scope_is_bound_to_it() -> None:
+    from tests.policy.test_approvals import make_scope
+
+    task = spec()
+    data = build_data_contract(task, ["a", "b", "y"])
+    scope = make_scope()
+    plan = build_plan(
+        task, data, Budget(), version=2, policy=ApprovalPolicy.INTERACTIVE, scope=scope
+    )
+    assert plan_scope_hash(plan) == scope_hash(scope)
+    assert (plan.version, plan.approval_policy) == (2, ApprovalPolicy.INTERACTIVE)
+    assert plan.content_hash() != build_plan(task, data, Budget(), version=2).content_hash()
+    assert plan_scope_hash(build_plan(task, data, Budget())) is None  # no scope, no binding
+
+
+def test_policy_approval_with_bounds_refuses_a_plan_outside_them() -> None:
+    from tests.policy.test_approvals import BUDGET, make_bounds, make_scope
+
+    task = spec()
+    data = build_data_contract(task, ["a", "b", "y"])
+    scope = make_scope(requested_dependencies=("torch",))
+    plan = build_plan(task, data, BUDGET, scope=scope)
+    with pytest.raises(ContractError, match="new dependencies requested: torch"):
+        approve_by_policy(plan, scope=scope, bounds=make_bounds())
+    with pytest.raises(ContractError, match="needs the plan's approval scope"):
+        approve_by_policy(plan, bounds=make_bounds())
+    inside = make_scope()
+    plan = build_plan(task, data, BUDGET, scope=inside)
+    approval = approve_by_policy(plan, scope=inside, bounds=make_bounds())
+    assert approval.artifact_hash == plan.content_hash()

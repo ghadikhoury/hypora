@@ -676,10 +676,10 @@ async def test_b_controller_uses_cited_recorded_mcp_research(
             ).encode(), "application/json"
         return b"Model usage and limitations are documented.", "text/plain"
 
-    def transport(session_path, errlog):
-        if session_path.name != "research-session.json":
-            return real_transport(session_path, errlog)
-        session = open_session(session_path)
+    def transport(launch, errlog):
+        if launch.path.name != "research-session.json":
+            return real_transport(launch, errlog)
+        session = open_session(launch.path)
         opened.append(session)
         tools = HyporaTools(session)
         tools._research = ResearchService(

@@ -1,19 +1,24 @@
-"""Stage-1 data contract, plan, and approval (D-019 options 1a and 2a).
+"""Default data contract, the Phase B plan, and the experiment contract (D-019 options 1a and 2a).
 
-Placeholders for the Data Lead (S3.A2) and the interactive plan + budget gate (S3.D2), built by
-deterministic code from the TaskSpecification and the profile:
+Built by deterministic code from the TaskSpecification and the profile:
 
 - data contract: every column except the target and the user's forbidden columns (excluded, with
   the task spec as evidence); a stratified split for classification and a random one for
   regression; 20% test; 3-fold validation. Leakage candidates and ID-like columns stay in the
-  profile the agent reads: a candidate is not a verdict.
-- plan: train a task-specific tabular model; the measurements are a baseline and candidates.
-- approval: the plan's exact hash, approved by policy (`policy:auto_within_contract`).
+  profile the agent reads: a candidate is not a verdict. (The evidence-backed methodology of S3.3
+  replaces it in agent runs; the fixed baseline and tests still use it.)
+- plan: train a task-specific tabular model; the measurements are a baseline and candidates. Given
+  an `ApprovalScope`, the plan is bound to it (`scope_sha256=` notes line), so the plan hash the
+  user approves covers the budget, limits, tools, worker ceiling and dataset too (S3.5, D-044).
+- approval: the plan gate (`hypora.core.controller.approval_gate`) decides every plan version.
+  `approve_by_policy` remains for callers that approve a known-bounded plan by policy without the
+  gate's events (tests, fixtures); given a scope and bounds it refuses a plan outside them.
 """
 
 from datetime import UTC, datetime
 from typing import Final
 
+from hypora.core.policy.approvals import ApprovalBounds, ApprovalScope, bind_scope, within_bounds
 from hypora.core.roles.intake import (
     BINARY_ONLY_METRICS,
     CLASSIFICATION_METRICS,
@@ -48,9 +53,8 @@ from hypora.core.schemas.strategy import (
 TEST_FRACTION: Final = 0.2
 FOLDS: Final = 3
 SEED: Final = 1990
-STAGE1_NOTE: Final = (
-    "Stage-1 placeholder (D-019): contract built by code, plan approved by policy; "
-    "replaced by the Data Lead (S3.A2) and the plan gate (S3.D2)."
+DEFAULT_PLAN_NOTE: Final = (
+    "Default plan built by code (D-019): a baseline, then candidates, within the approved budget."
 )
 
 METRIC_SETS: Final = {
@@ -101,13 +105,24 @@ def build_data_contract(spec: TaskSpecification, columns: list[str]) -> DataCont
 
 
 def build_plan(
-    spec: TaskSpecification, data: DataContract, budget: Budget, *, note: str = STAGE1_NOTE
+    spec: TaskSpecification,
+    data: DataContract,
+    budget: Budget,
+    *,
+    note: str = DEFAULT_PLAN_NOTE,
+    version: int = 1,
+    policy: ApprovalPolicy = ApprovalPolicy.AUTO_WITHIN_CONTRACT,
+    scope: ApprovalScope | None = None,
 ) -> ApprovedPlan:
-    """The plan the policy approves: measure a baseline, then candidates, within `budget`."""
+    """The plan to approve: measure a baseline, then candidates, within `budget`.
+
+    With `scope`, the plan is bound to it (`approvals.bind_scope`): its notes end with the
+    scope's hash, so the plan's content hash, which the approval names, covers the scope too.
+    """
     per_trial = CostEstimate(compute_seconds=60.0, assumptions=("Stage-1 flat estimate",))
-    return ApprovedPlan(
+    plan = ApprovedPlan(
         run_id=spec.run_id,
-        version=1,
+        version=version,
         recommendation=Recommendation(
             kind=RecommendationKind.TRAIN_TASK_SPECIFIC,
             rationale="Tabular task with labels: compare a baseline and a task-specific candidate.",
@@ -132,12 +147,30 @@ def build_plan(
         data_contract_version=data.data_contract_version,
         data_contract_hash=data.content_hash(),
         budget=budget,
-        approval_policy=ApprovalPolicy.AUTO_WITHIN_CONTRACT,
+        approval_policy=policy,
     )
+    return plan if scope is None else bind_scope(plan, scope)
 
 
-def approve_by_policy(plan: ApprovedPlan, *, reason: str = STAGE1_NOTE) -> ApprovalRecord:
-    """Approve the plan's exact hash by the auto-within-contract policy (D-019 1a)."""
+def approve_by_policy(
+    plan: ApprovedPlan,
+    *,
+    reason: str = DEFAULT_PLAN_NOTE,
+    scope: ApprovalScope | None = None,
+    bounds: ApprovalBounds | None = None,
+) -> ApprovalRecord:
+    """Approve the plan's exact hash by the auto-within-contract policy (D-019 1a).
+
+    Given `bounds` (with the plan's `scope`), it refuses with ContractError a plan outside them,
+    exactly as the gate's `auto_within_contract` policy does (`approvals.within_bounds`). The
+    gate is the route that records requests and denials; this only builds the record.
+    """
+    if bounds is not None:
+        if scope is None:
+            raise ContractError("a bounds check needs the plan's approval scope")
+        outside = within_bounds(scope, plan, bounds)
+        if outside:
+            raise ContractError("outside the pre-approved contract: " + "; ".join(outside))
     return ApprovalRecord(
         approval_id=f"appr_{plan.run_id}_plan_v{plan.version}",
         run_id=plan.run_id,

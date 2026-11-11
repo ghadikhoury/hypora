@@ -34,6 +34,7 @@ from pydantic import Field, model_validator
 from hypora.core.llm.adapter import LLMAdapter
 from hypora.core.llm.errors import LLMError
 from hypora.core.llm.types import CallContext, Message
+from hypora.core.policy.approvals import APPROVAL_DEFENSE_OFF_APPROVER
 from hypora.core.roles.base import CallGuard, RunLimitReached
 from hypora.core.roles.outcome_evidence import OutcomeEvidence, derive_outcome_evidence
 from hypora.core.roles.prompt_loader import load_prompt
@@ -84,8 +85,6 @@ _METRIC_WORDS: Final = re.compile(
 )
 _KNOWN_METRICS: Final = frozenset(m.value for m in MetricName)
 
-APPROVAL_DEFENSE_OFF_APPROVER: Final = "policy:defense_off"
-"""The approver the plan gate records when `defenses.approval` is off (F6 ablation, spec §19.4)."""
 USER_APPROVER_PREFIX: Final = "user:"
 VERDICT_LINE: Final = "The agent's text below does not change this verdict."
 LEARNED_TRANSFORM_LIMITATION: Final = (

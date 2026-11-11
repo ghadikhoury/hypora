@@ -4,10 +4,18 @@ The trusted process that launches the server (the controller, or `hypora.mcp_ser
 Inspector) writes a `SessionConfig`; the server reads it at start. The role and run are fixed for
 the session's lifetime. No tool argument, client capability, or `_meta` field can change them, so
 a client cannot widen its tool allowlist or reach another run's trials or jobs.
+
+Local authentication (S3.5, D-044): the launcher creates a random secret per session, writes only
+its SHA-256 into the session file (mode 0600), and hands the secret to the server child process in
+its environment (`SESSION_SECRET_ENV`). `python -m hypora.mcp_server` refuses to serve without it
+(`authenticate`). No remote transport is exposed, so none is built.
 """
 
 import contextlib
 import hashlib
+import hmac
+import os
+import secrets
 import threading
 from pathlib import Path
 from typing import Final
@@ -25,7 +33,7 @@ from hypora.core.schemas import (
     StrictModel,
     ToolName,
 )
-from hypora.core.schemas.common import NonEmptyStr
+from hypora.core.schemas.common import NonEmptyStr, Sha256Hex
 from hypora.execution.harness.data import apply_contract
 from hypora.execution.harness.runner import load_tabular
 from hypora.storage.database import Database
@@ -38,11 +46,23 @@ MAX_STATUS_WAIT_SECONDS: Final = 45.0
 below the agent's own MCP read timeout and the 60 s default timeout of common MCP clients."""
 
 
+SESSION_SECRET_ENV: Final = "HYPORA_MCP_SESSION_SECRET"
+"""The environment variable that carries a session's secret to the server process (S3.5 design
+§2.6). Only the launcher and the server child know the secret; the session file holds its hash."""
+SESSION_SECRET_BYTES: Final = 32
+
+
 class DefenseSwitches(StrictModel):
-    """The two defenses this server enforces, from the run's `defenses.*` flags (spec §19.4)."""
+    """The run's `defenses.*` flags this session records (spec §19.4).
+
+    The server enforces `allowlist`, `firewall` and `injection_filter`; `approval` is enforced by
+    the controller's plan gate and is recorded here so the session states the run's defenses.
+    """
 
     allowlist: bool = True
     firewall: bool = True
+    approval: bool = True
+    injection_filter: bool = True
 
 
 class SessionConfig(Record):
@@ -68,6 +88,9 @@ class SessionConfig(Record):
     retrieval_mode: RetrievalMode = RetrievalMode.HYBRID
     permitted_tools: tuple[ToolName, ...] | None = Field(
         None, description="Optional trusted per-case restriction; can only narrow role permissions."
+    )
+    secret_sha256: Sha256Hex = Field(
+        description="SHA-256 hex of the session secret; the secret itself is never written."
     )
 
     @model_validator(mode="after")
@@ -161,5 +184,57 @@ class Session:
 
 
 def load_session(path: Path) -> Session:
-    """Read a session file written by the launcher."""
+    """Read a session file written by the launcher (in-process use by the trusted launcher; a
+    separate server process authenticates first with `authenticate`)."""
     return Session(SessionConfig.model_validate_json(path.read_bytes()))
+
+
+def write_session_file(path: Path, config: SessionConfig) -> None:
+    """Write a session file readable and writable by its owner only (mode 0600).
+
+    The content goes to a fresh 0600 temporary file first and replaces `path` atomically, so it is
+    never visible with wider permissions and a reader never sees half a file.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{secrets.token_hex(6)}.tmp")
+    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(config.model_dump_json(indent=2))
+        os.chmod(temporary, 0o600)  # whatever the umask was
+        os.replace(temporary, path)
+    except BaseException:
+        with contextlib.suppress(FileNotFoundError):
+            temporary.unlink()
+        raise
+
+
+class SessionAuthError(PermissionError):
+    """The server process was started without the session's secret. The message never contains
+    the secret or anything derived from it."""
+
+
+def new_session_secret() -> str:
+    """A fresh random session secret (32 bytes, hex)."""
+    return secrets.token_hex(SESSION_SECRET_BYTES)
+
+
+def secret_sha256(secret: str) -> str:
+    """The SHA-256 hex of a session secret, as stored in `SessionConfig.secret_sha256`."""
+    return hashlib.sha256(secret.encode("utf-8")).hexdigest()
+
+
+def authenticate(config: SessionConfig, secret: str | None) -> None:
+    """Refuse a server process that does not hold the session's secret (S3.5 design §2.6).
+
+    Raises SessionAuthError with an actionable message; compares in constant time.
+    """
+    recovery = (
+        "Start the server through its launcher (the controller, or `python -m "
+        "hypora.mcp_server.dev` for the Inspector), which passes the secret in "
+        f"{SESSION_SECRET_ENV}."
+    )
+    if not secret:
+        raise SessionAuthError(f"session {config.session_id}: no session secret. {recovery}")
+    if not hmac.compare_digest(secret_sha256(secret), config.secret_sha256):
+        raise SessionAuthError(f"session {config.session_id}: wrong session secret. {recovery}")

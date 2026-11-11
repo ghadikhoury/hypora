@@ -9,6 +9,8 @@ Every `tools/call` goes through one boundary, `HyporaMCPServer.call_tool`:
     -> role allowlist (server-side; policy_decision)           denied: TOOL_NOT_ALLOWED
     -> the tool (arguments validated against its input schema)
     -> any failure becomes a structured ToolError result (spec §12 error contract)
+    -> injection screen on results of tools that return untrusted text (S3.5; policy_decision
+       decided_by=injection_filter, counts only; `defenses.injection_filter`)
     -> data firewall over everything about to be returned       blocked: FIREWALL_BLOCKED
        (policy_decision names the rule that fired)
     -> tool_result event
@@ -38,6 +40,11 @@ from pydantic import JsonValue, TypeAdapter, ValidationError
 
 from hypora.core.policy.allowlists import TOOL_TIERS, allowed_tools
 from hypora.core.policy.firewall import Verdict
+from hypora.core.policy.injection import (
+    injection_policy_decision,
+    screen_tool_result,
+    screen_value,
+)
 from hypora.core.schemas import (
     ActorRole,
     ErrorClass,
@@ -275,9 +282,18 @@ class HyporaMCPServer(MCPServer):
         result: CallToolResult | None = None,
         error: ToolError | None = None,
     ) -> CallToolResult:
-        """The one exit: every result, errors and refusals included, passes the data firewall."""
+        """The one exit: every result, errors and refusals included, passes the data firewall.
+        A successful result of a tool that returns untrusted text first passes the injection
+        screen (S3.5)."""
         outgoing = errors.error_result(error) if error is not None else result
         assert outgoing is not None
+        if error is None:
+            screened = await self._screen_injection(call_id, tool, tier, outgoing)
+            if isinstance(screened, ToolError):
+                return await self._finish(
+                    call_id, tool, started, error=screened, status_denied=True
+                )
+            outgoing = screened
         blocked = await self._firewall(call_id, tool, tier, outgoing)
         if blocked is not None:
             return await self._finish(call_id, tool, started, error=blocked, status_denied=True)
@@ -358,6 +374,58 @@ class HyporaMCPServer(MCPServer):
             suggested_recovery="Ask for aggregates instead (inspect_dataset, "
             "get_experiment_metrics); never print data from pipeline.py.",
         )
+
+    async def _screen_injection(
+        self, call_id: str, tool: str, tier: ToolTier | None, outgoing: CallToolResult
+    ) -> CallToolResult | ToolError:
+        """Injection screen (S3.5 design §2.5; `hypora.core.policy.injection`).
+
+        For the tools that return text written outside the platform, instruction-like lines are
+        replaced by a marker and the call records a `policy_decision` (counts only). With
+        `defenses.injection_filter` off the result passes unchanged and the decision says the
+        filter was off. Other tools pass untouched with no record. Fails closed: a result the
+        screen cannot walk is withheld.
+        """
+        enabled = self.session.config.defenses.injection_filter
+        try:
+            structured, decision = screen_tool_result(
+                tool, outgoing.structured_content, enabled=enabled, call_id=call_id, tier=tier
+            )
+            if decision is None:
+                return outgoing
+            if not enabled:
+                await self._emit(EventType.POLICY_DECISION, ActorRole.POLICY_ENGINE, decision)
+                return outgoing
+            content, extra = _screen_blocks(
+                outgoing, structured, call_id=call_id, tool=tool, tier=tier
+            )
+        except ValueError:
+            log.exception("injection screen unavailable for %s (%s)", tool, call_id)
+            await self._policy(
+                call_id,
+                tool,
+                tier,
+                PolicyOutcome.DENY,
+                PolicyRule.INJECTION_FILTER,
+                ["unavailable"],
+            )
+            return ToolError(
+                code="INJECTION_SCREEN_FAILED",
+                error_class=ErrorClass.POLICY_QUOTA,
+                message="This result was withheld: the injection screen could not check it.",
+                retryable=False,
+                suggested_recovery="Continue without this result, or ask for a narrower one.",
+            )
+        for record in (decision, *extra):
+            if record.decision is PolicyOutcome.DENY:
+                log.warning(
+                    "INJECTION_FILTERED %s (%s): %s", tool, call_id, " ".join(record.reasons)
+                )
+            await self._emit(EventType.POLICY_DECISION, ActorRole.POLICY_ENGINE, record)
+        if structured == outgoing.structured_content and content == outgoing.content:
+            return outgoing
+        screened = structured if isinstance(structured, dict) else outgoing.structured_content
+        return outgoing.model_copy(update={"structured_content": screened, "content": content})
 
     # --- events -----------------------------------------------------------------------------------
 
@@ -446,6 +514,51 @@ def _check(session: Session, outgoing: CallToolResult) -> Verdict:
         if verdict.blocked:
             return verdict
     return verdict
+
+
+def _screen_blocks(
+    outgoing: CallToolResult,
+    structured: JsonValue,
+    *,
+    call_id: str,
+    tool: str,
+    tier: ToolTier | None,
+) -> tuple[list[Any], list[PolicyDecisionPayload]]:
+    """The result's content blocks after the injection screen, plus a deny decision for every
+    text block that is not just the JSON of the structured result and had lines withheld. (A
+    block that is that JSON is replaced by the screened structured result, which the caller's
+    decision already covers.)"""
+    blocks: list[Any] = []
+    extra: list[PolicyDecisionPayload] = []
+    changed = structured != outgoing.structured_content
+    for block in outgoing.content:
+        if not isinstance(block, TextContent):
+            blocks.append(block)
+            continue
+        try:
+            parsed: JsonValue = json.loads(block.text)
+            is_json = True
+        except ValueError:
+            parsed, is_json = block.text, False
+        if is_json and parsed == outgoing.structured_content:
+            if changed:
+                text = json.dumps(structured, indent=2, ensure_ascii=False)
+                block = block.model_copy(update={"text": text})
+            blocks.append(block)
+            continue
+        result = screen_value(parsed)
+        if result.withheld:
+            extra.append(
+                injection_policy_decision(
+                    tool, call_id=call_id, tier=tier, enabled=True, result=result
+                )
+            )
+            value = result.value
+            if is_json or not isinstance(value, str):
+                value = json.dumps(value, indent=2, ensure_ascii=False)
+            block = block.model_copy(update={"text": value})
+        blocks.append(block)
+    return blocks, extra
 
 
 def _to_tool_error(exc: Exception, tool: str) -> tuple[ToolError, errors.ToolFailure | None]:
