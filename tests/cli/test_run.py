@@ -36,7 +36,8 @@ from hypora.core.controller.controller import RunResult
 from hypora.core.controller.states import DONE, FAILED
 from hypora.core.hashing import sha256_hex
 from hypora.core.llm import LLMAdapter, ProviderAdmission, load_credentials, load_price_table
-from hypora.core.schemas import ApprovalPolicy, Provider
+from hypora.core.schemas import AUTO_APPROVER, ApprovalPolicy, Provider
+from hypora.core.schemas.events import ApprovalGrantedEvent
 from hypora.storage.database import Database
 from hypora.storage.events import EventLog
 from hypora.storage.records import list_runs
@@ -302,7 +303,14 @@ def test_a_cli_run_on_a_snapshot_ends_verified_and_is_inspectable(
             adapter_factory=scripted(run_id),
             run_config=run_config.model_copy(
                 update={
-                    "flags": run_config.flags.model_copy(update={"agent_mode": AgentMode.SINGLE})
+                    # This unattended execution test explicitly pre-approves its bounded plan.
+                    # The CLI's interactive default is exercised by the approval tests.
+                    "flags": run_config.flags.model_copy(
+                        update={
+                            "agent_mode": AgentMode.SINGLE,
+                            "approval_policy": ApprovalPolicy.AUTO_WITHIN_CONTRACT,
+                        }
+                    )
                 }
             ),
             poll_seconds=0.2,
@@ -313,6 +321,16 @@ def test_a_cli_run_on_a_snapshot_ends_verified_and_is_inspectable(
     assert any("-> PHASE_B/PHASE_B" in line for line in printed)  # live progress
     assert any("submit_experiment(" in line for line in printed)
     assert any("-> DONE" in line for line in printed)
+    assert not any("hypora approve" in line for line in printed)  # no person was asked
+    database = Database(opts.db)
+    try:
+        events = EventLog(database).read(run_id)
+    finally:
+        database.close()
+    granted = [e for e in events if isinstance(e, ApprovalGrantedEvent)]
+    assert [(e.payload.policy, e.payload.approver) for e in granted] == [
+        (ApprovalPolicy.AUTO_WITHIN_CONTRACT, AUTO_APPROVER)
+    ]
 
     db, root = str(opts.db), str(opts.runs_root)
     status = runner.invoke(app, ["status", run_id, "--db", db, "--runs-root", root])
