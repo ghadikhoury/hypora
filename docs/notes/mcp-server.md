@@ -9,7 +9,7 @@ access), D-015 (real data). Packages: `hypora/mcp_server/` (server, tools, sessi
 `hypora/core/policy/` (allowlists, tiers, data firewall), `hypora/execution/protocol/experiments.py`
 (the job folder), `hypora/execution/worker/experiments.py` (the experiment worker).
 
-## The six tools
+## The tools
 
 | Tool | Tier | Does |
 |---|---|---|
@@ -19,6 +19,9 @@ access), D-015 (real data). Packages: `hypora/mcp_server/` (server, tools, sessi
 | `get_experiment_status` | read | Job state, platform-written error, firewalled log tail, artifact IDs; waits briefly for an unfinished job to change (D-030) |
 | `get_experiment_metrics` | read | Platform-computed validation scores (S1.3 `metrics.json`), bounded |
 | `get_experiment_logs` | read | Paginated sandbox stdout/stderr, every line firewalled |
+
+S3.2 adds B's three read-only research tools (research.md); S3.3 adds `run_diagnostic` (C and
+single only, D-040).
 
 The contract (names, descriptions, input and output JSON Schemas, tiers, hints) is frozen in
 `docs/mcp/tools.json`. `tests/mcp_contracts/test_tool_contract.py` diffs it against what the server

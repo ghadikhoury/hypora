@@ -8,7 +8,8 @@ between the two is caught, not repeated.
 
 Checks: the five core checks that a passing `VerificationResult` requires (metric recomputation,
 finite outputs, output shape, artifact loads, test labels not accessed), plus allowed features,
-split respected, and resource limits. The learned-transform leakage check is skipped (S3.C4).
+split respected, and resource limits. The learned-transform leakage check is skipped: it is not
+implemented (D-044 8.4; a mandatory report limitation).
 """
 
 import math
@@ -477,7 +478,8 @@ def verify_final(evidence: FinalEvidence) -> VerificationResult:
         CheckResult(
             check=VerificationCheck.LEARNED_TRANSFORM_LEAKAGE,
             status=CheckStatus.SKIPPED,
-            message="static analysis of fit/predict arrives with verifier v2 (S3.C4)",
+            message="static analysis of fit/predict is not implemented (D-044 8.4; a mandatory "
+            "report limitation)",
         )
     )
     passed = all(r.status in (CheckStatus.PASSED, CheckStatus.SKIPPED) for r in results)

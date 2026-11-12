@@ -83,8 +83,8 @@ Completed and merged (each step's full text is in `docs/archive/PLAN-completed-s
 | 3 — A/B/C workflow | S3.1 (#35), S3.2 (#36), S3.3 (#37), S3.4 (#40), S3.5 (#41) |
 
 The S2.6 recorded development results are agent 3/6 versus fixed baseline 2/6 on each profile,
-inconclusive. The leakage, group and time-order failures are inputs to Stage 3, not reasons to
-rebuild the evaluation framework.
+inconclusive. Those S2.6 failures (leakage, group and time order) informed Stage 3; S4.2
+re-measures them on the A/B/C graph.
 
 Remaining, in order (`gh pr list` shows what is in review):
 

@@ -141,8 +141,8 @@ def run(
         raise _fail(str(exc), 2) from None
     except KeyboardInterrupt:
         typer.echo(
-            "\nInterrupted. The run stopped without its report and keeps its last status until "
-            "durable recovery (S3.E3). For a clean stop that still writes the report, use "
+            "\nInterrupted. The run stopped without its report and keeps its last status "
+            "(durable recovery is Later work). For a clean stop that still writes the report, use "
             "`hypora cancel <run_id>` from another terminal.",
             err=True,
         )

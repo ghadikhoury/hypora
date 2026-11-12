@@ -1020,7 +1020,7 @@ No recorded result, grader, sandbox policy, tool contract or course minimum is c
     cancelled or missing job.
   - No test, required check, review rule, secret scan, schema, tool, event, case or grading rule
     is removed or changed. Triggers 1–9 are unchanged; trigger 10 is added.
-## D-040 ? S3.3 diagnostic data isolation and case permissions
+## D-040 — S3.3 diagnostic data isolation and case permissions
 
 - Ghadi approved S3.3's bounded `run_diagnostic` MCP tool for feature predictiveness,
   group overlap and timestamp order. Only C and the legacy single agent may call it, with
@@ -1039,7 +1039,7 @@ No recorded result, grader, sandbox policy, tool contract or course minimum is c
   original identity and are not relabeled or overwritten.
 
 
-### D-043 ? S3.3 review fixes and capability-proof compatibility (2026-11-10)
+### D-043 — S3.3 review fixes and capability-proof compatibility (2026-11-10)
 Ghadi approved the narrow change to the merged infeasibility grader in this session: distinguish
 completed, explicitly marked, diagnostic-only methodology invocations from the one experiment
 capability record. Multiple experiment sessions still fail closed, and tool, job, plan, case and

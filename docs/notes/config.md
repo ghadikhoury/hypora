@@ -26,6 +26,10 @@ Sources are merged field by field: overriding `flags.defenses.firewall` keeps ev
 | `budgets.yaml` | `budgets` | default run `Budget` and per-job `JobLimits` (S0.2 schema types) |
 | `eval/<name>.yaml` | — | `name`, `model_profile`, partial `flags` |
 
+Inactive flags (accepted and recorded, but not read by any code): `durable_mode`, `breadth_mode`,
+`max_research_workers`, `max_diagnostic_workers`, `max_parallel_trials` (spec §19.4: an inactive
+flag is not implementation evidence).
+
 Env names: `HYPORA_` + path joined by `__`, e.g. `HYPORA_FLAGS__AGENT_MODE=single`,
 `HYPORA_MODEL_PROFILE=eval`, `HYPORA_CONFIG_DIR=/path/to/configs`.
 Config-directory variable spellings follow the same case-insensitive lookup as the settings

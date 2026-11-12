@@ -1,9 +1,10 @@
 """Model profiles (PLAN.md §1, spec §17): which provider/model serves each tier, and fallback.
 
 `dev` uses Gemini for every tier. It may fall back to the `eval` tier mapping on rate limits, quota,
-or 5xx, but that stays disabled until S2.6 (D-007). `eval` is pinned at S2.6 (`🧑 DECIDE`) and never
-falls back; `placeholder_tiers()` lists the IDs still unset. The same file holds the self-imposed
-rate limits (`rate_limits`) and the retry/backoff policy (`retry`) the LLM adapter enforces (S0.5).
+or 5xx, but fallback is disabled (D-033). `eval` is pinned to `gpt-6-luna` (D-033, temporary;
+reselected at S4.2) and never falls back; `placeholder_tiers()` lists the IDs still unset. The
+same file holds the self-imposed rate limits (`rate_limits`) and the retry/backoff policy
+(`retry`) the LLM adapter enforces (S0.5).
 """
 
 from datetime import date

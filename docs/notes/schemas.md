@@ -40,7 +40,7 @@ Every number in a report comes from platform-computed results (spec principle 3,
 **Choices worth knowing**
 
 - `ToolError` adds a required `error_class` to the §12 example (the spec lists the classes; S4.1 maps
-  them to retry/replan/ask). Spec §12 updated.
+  them to retry, replan, clarify or stop (`hypora/core/roles/recovery.py`, hardening.md)). Spec §12 updated.
 - Event `tool` fields are validated identifier strings, not `ToolName`: the log must be able to record
   an attempted call to a tool that does not exist.
 - `PinnedModelRef` (`name@revision`) is required wherever weights are run or downloaded; a user-named

@@ -45,8 +45,8 @@ Going through MCP rather than calling the tool class means the trial and job pas
 and every step has `tool_call`, `policy_decision`, and `tool_result` events that S2.2's policy checks
 read the same way for both systems.
 
-**What the log looks like.** The MCP session's role is `single_agent`, the only role with an allowlist
-(changing that is trigger 3). A baseline run is told apart by what's missing: no `model_call`, no
+**What the log looks like.** The MCP session's role is `single_agent` (the
+baseline reuses the single-agent allowlist; changing it is trigger 3). A baseline run is told apart by what's missing: no `model_call`, no
 `role_started`, no agent handoff. "No LLM" holds by construction: the controller has no adapter, and
 the run replaces every step that would use one. This also means an `eval` profile with unset model IDs
 can't stop the baseline.

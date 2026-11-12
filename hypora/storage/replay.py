@@ -1,4 +1,4 @@
-"""Pure, table-driven replay. S3.E3 can extend handlers without changing the fold."""
+"""Pure, table-driven replay. Later durable replay can extend handlers without changing the fold."""
 
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field, replace

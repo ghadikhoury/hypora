@@ -585,7 +585,7 @@ def test_a_failed_attempt_of_a_job_that_completed_did_not_cause_the_stop(tmp_pat
     assert check_of(grade(world), OOM_FAULT).status is CheckStatus.FAILED
 
 
-# --- Malformed data has no grader yet (D-032; S3.H3) ----------------------------------------------
+# --- Malformed data earns credit only from the platform integrity stop (S4.1) ---------------------
 
 
 def _malformed(world: World, expected: str) -> None:

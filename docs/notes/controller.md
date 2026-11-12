@@ -11,13 +11,12 @@ reporter, versioned prompts), `hypora/core/verification/` (verifier v1), plus th
 `hypora/execution/worker/experiments.py`.
 
 ```
-uv run --locked python -m hypora.core.controller --data data.csv --goal "..." [--target y]
+uv run hypora run --data data.csv --goal "..." [--target y]
 ```
 
-runs one dataset and goal end to end on the active model profile and prints the run's state,
-final trial, limits that fired, and the report path. It needs Docker and the provider key in
-`.env`. The user-facing CLI, `hypora run` (S1.6, docs/notes/cli.md), runs the same controller with
-preflight checks and live progress.
+runs one dataset and goal end to end through this controller on the active model profile, with
+preflight checks and live progress (docs/notes/cli.md). It needs Docker and the provider key in
+`.env`.
 
 ## The run
 
@@ -36,6 +35,9 @@ user's objective.
 | `PHASE_B/PHASE_B` | The approval is re-checked; worker subprocess starts; the agent runs trials through the MCP server; unfinished jobs are drained; the final trial is chosen; its `final` job runs | agent experiments, code chooses |
 | `REPORT/REPORTING` | `report.json` and `report.md` from stored records, plus the Reporter's narrative | code; LLM narrates |
 | `DONE` / `FAILED` / `CANCELLED` | DONE only with a verified final model | code |
+
+In multi mode, A's research decision, B's research and C's methodology run after `PROFILE`, while
+the recorded state is already `CONTRACT/WAITING_APPROVAL`.
 
 The state machine is the explicit table `states.TRANSITIONS: (state, event) -> state`; a pair
 not in the table is refused. Each applied row updates `runs.status` and appends its
@@ -108,7 +110,7 @@ partially failed worker start, so queued work cannot escape a failed run.
   (`RUN_CANCELLED`, recorded once); the run reports and ends `CANCELLED`. `hypora cancel <run_id>`
   (S1.6) writes it.
 
-## The single agent over MCP (spec §6.9)
+## The single agent over MCP (single mode; spec §6.9)
 
 The controller writes `runs/<run>/mcp/session.json` (role `single_agent`, this run, the one
 authorized dataset, the run's defense flags) and starts `python -m hypora.mcp_server --session
@@ -116,6 +118,10 @@ authorized dataset, the run's defense flags) and starts `python -m hypora.mcp_se
 every call goes through the server's single boundary (allowlist, firewall, events). There is no
 in-process shortcut: the MCP path is what gets evaluated. Server logs go to
 `runs/<run>/logs/mcp-server.log`; the worker's to `runs/<run>/logs/worker.log`.
+
+In multi mode `mcp/session.json` carries role `agent_c` for C's experiment loop, and B
+(`mcp/research-session.json`), C's methodology call (`mcp/methodology-session.json`) and each
+worker get their own session file (research.md, workers.md).
 
 The loop (`roles/single_agent.py`): system prompt + the run's context (task, contract, aggregate
 profile, limits, the linear template as a working example) -> model turn -> each tool call ->

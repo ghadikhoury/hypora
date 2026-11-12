@@ -1,5 +1,7 @@
 # Stage 2 check-in material
 
+Snapshot for the Nov 4 check-in (S2.6); superseded by later stages.
+
 > Stage 1/2 evidence and procedures. Preserve original model/config identities and results.
 > Current implementation priorities and future evaluation runs are defined in PLAN (D-036).
 

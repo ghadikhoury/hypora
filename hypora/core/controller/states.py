@@ -8,8 +8,8 @@ A state is a stage of the run graph plus the spec §15.1 run status recorded alo
                                    or   --reported_cancelled--> CANCELLED (spec §6.8 user cancel)
 
 Any non-terminal stage before REPORT can `fail` into REPORT/REPORTING (a failed run still gets a
-report saying why); a failure while reporting goes straight to FAILED. S4.1 adds Phase A, the
-join, the plan gate, and the Supervisor's escalations as new rows; nothing here is rewritten.
+report saying why); a failure while reporting goes straight to FAILED. Phase A work (multi mode)
+and the plan gate (S3.5) run inside CONTRACT/WAITING_APPROVAL; there is no Supervisor (D-036).
 Every applied transition is a `stage_transition` event and an update of the `runs` row.
 """
 

@@ -53,5 +53,5 @@ def test_health_reports_the_placeholder_and_the_state_database(
 def test_everything_else_is_not_implemented_yet(base_url: str) -> None:
     status, body = get(f"{base_url}/runs")
     assert status == 501 and body["error"] == "not_implemented"
-    assert "S3.G1" in body["message"]
+    assert "Later work" in body["message"] and "hypora run" in body["message"]
     assert get(f"{base_url}/runs", method="POST")[0] == 405
