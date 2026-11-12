@@ -2,8 +2,8 @@
 
 Spec: §21 (CLI), principle 11 (interface independence), §16 (traces). Code: `hypora/cli/` (Typer;
 console script `hypora`, also `python -m hypora.cli`). The CLI is one client of the runtime: it
-builds a `RunRequest` for the controller (`hypora/core/controller/`) and reads state only from the event log, the stored
-records, and the run folders. `hypora/core` does not import it.
+builds a `RunRequest` for the controller (`hypora/core/controller/`) and reads state only from the
+event log, the stored records, and the run folders. `hypora/core` does not import it.
 
 | Command | Does |
 |---|---|
