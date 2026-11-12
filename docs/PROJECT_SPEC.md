@@ -184,8 +184,8 @@ additional agents. The runtime creates sessions after validating their briefs an
 | Report | A + code | A explains; code supplies authoritative numbers and required limitations |
 
 Phase A and Phase B remain names for planning and execution, not fixed parallel branches.
-Existing Stage 1 intake/single-agent/reporter roles remain the comparison implementation until
-the new graph is built. Describing A/B/C here does not claim they already run.
+The single-agent configuration (§6.9) remains the comparison implementation. A/B/C is the default
+runtime since S3.1.
 
 #### DatasetProfile tabular schema (S1.1)
 
@@ -304,8 +304,8 @@ return to A. The existing single-agent comparison remains runnable.
 ### 6.4 Delegation briefs
 
 Only C delegates to workers. Each request contains an objective, relevant context/evidence,
-output contract, minimum allowed tools, end condition and budget. The following target example
-requires the S3.1 compatibility migration before it is a valid runtime role identifier:
+output contract, minimum allowed tools, end condition and budget. The following example uses the
+runtime role identifiers added in S3.1 (D-038):
 
 ```json
 {
@@ -565,7 +565,7 @@ LLM and external API calls use exponential backoff with jitter on 429/5xx, bound
 
 ### 9.5 Config switches
 
-`parallel_mode ∈ {on, off}` controls execution concurrency. The target orchestration default is research-first, with A recording any justified overlap. Worker session limits and concurrent experiment-job limits are separate. Existing `phase_a_mode`, `max_research_workers` and `max_diagnostic_workers` are legacy configuration names pending the S3.1 compatibility migration; they do not authorize B to spawn. C alone may request at most the configured worker ceiling.
+`parallel_mode ∈ {on, off}` controls execution concurrency. The target orchestration default is research-first, with A recording any justified overlap. Worker session limits and concurrent experiment-job limits are separate. `phase_a_mode` with `parallel_mode` permits A-justified B/C overlap; `max_c_workers` is C's worker ceiling (D-042). `max_research_workers`, `max_diagnostic_workers` and `max_parallel_trials` are inactive legacy names; they do not authorize B to spawn. C alone may request at most the configured worker ceiling.
 
 ---
 
@@ -900,7 +900,7 @@ A case = request + a real public dataset (a documented OpenML or UCI snapshot wi
 
 ### 19.4 Feature flags (one comparison runner)
 
-All claimed comparisons use the same runner. Flags are target comparison controls; an existing inactive flag is not implementation evidence. Configuration migration is required for A/B/C ordering and C-only worker limits. Existing comparison flags: `agent_mode ∈ {single, multi}`, `planning ∈ {on, off}`, `retrieval_mode`, `defenses.{allowlist, sandbox_network, firewall, approval, injection_filter}`, `durable_mode`, `breadth_mode`, `parallel_mode`, `phase_a_mode`, `model_config`.
+All claimed comparisons use the same runner. Flags are target comparison controls; an existing inactive flag is not implementation evidence. A/B/C ordering and the C-only worker limit are configured by `parallel_mode`, `phase_a_mode` and `max_c_workers` (S3.4). Existing comparison flags: `agent_mode ∈ {single, multi}`, `planning ∈ {on, off}`, `retrieval_mode`, `defenses.{allowlist, sandbox_network, firewall, approval, injection_filter}`, `durable_mode`, `breadth_mode`, `parallel_mode`, `phase_a_mode`, `model_config`.
 
 ### 19.5 Protocol (per handout)
 One primary run per case per system; ≥ 5 representative cases × 3 runs reported separately; model/version/temperature/tool/data versions/retry policy recorded; 95% Wilson intervals; paired outcome table (both-pass / agent-only / baseline-only / both-fail); 95% paired-bootstrap CI (≥ 1,000 resamples) on pass-rate differences, "inconclusive" if it includes 0; per-case evidence committed (inputs/refs, outputs, scores, timings, tokens, config, case IDs); failure categories; mean and p95 latency with method; actual spend and list-price cost per task with price date and provider.

@@ -2,12 +2,12 @@
 
 Spec: §21 (CLI), principle 11 (interface independence), §16 (traces). Code: `hypora/cli/` (Typer;
 console script `hypora`, also `python -m hypora.cli`). The CLI is one client of the runtime: it
-builds a `RunRequest` for the S1.5 controller and reads state only from the event log, the stored
+builds a `RunRequest` for the controller (`hypora/core/controller/`) and reads state only from the event log, the stored
 records, and the run folders. `hypora/core` does not import it.
 
 | Command | Does |
 |---|---|
-| `hypora run --data F --goal "..." [--target C] [--task-type T] [--metric M] [--forbid C]... [--budget-usd X] [--max-trials N] [--max-wall-clock S] [--approve interactive\|auto_within_contract] [--run-id ID] [--worker host\|compose] [--quiet]` | preflight, then one run to a terminal state with live progress |
+| `hypora run --data F --goal "..." [--target C] [--task-type T] [--metric M] [--forbid C]... [--budget-usd X] [--max-trials N] [--max-wall-clock S] [--approve interactive\|auto_within_contract] [--run-id ID] [--worker host\|compose] [--advice-only] [--quiet]` | preflight, then one run to a terminal state with live progress |
 | `hypora status [RUN_ID] [--limit N]` | one run's status, spend, trials, jobs, pending approval, final model, report; or the recent runs |
 | `hypora trace RUN_ID [-f key=value[,value]]... [--wide]` | the event log as a timeline |
 | `hypora cancel RUN_ID` | asks a running run to stop |
@@ -41,6 +41,10 @@ later); otherwise it prints the `hypora approve` command to run from another ter
 counts toward the run's wall-clock limit and spends nothing. Unattended runs pass
 `--approve auto_within_contract`, which grants a plan only inside the case's pre-approved bounds
 and denies anything else (new dependencies, downloads, network, exports, larger budgets or limits).
+
+`--advice-only` asks for research and advice only; nothing runs on the data. In multi mode B
+researches and the run reports with no C session, approval or job; it ends FAILED
+(`reported_unverified`), because DONE means a verified model (hardening.md).
 
 Ctrl-C aborts the CLI: the run stops without its report and keeps its last status until durable
 recovery (Later durability). `hypora cancel` from another terminal is the clean stop.

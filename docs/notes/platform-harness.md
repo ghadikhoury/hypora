@@ -19,8 +19,9 @@ the trial's pipeline.py. Its methods deliberately separate validation from final
    repeats by another worker object or after a restart. A failed attempt consumes the score:
    recovery must not quietly turn the test set into a tuning loop.
 
-The controller/gates, budgets across jobs, model selection, durable orchestration recovery, and
-Verifier v2 are later steps. This harness does not claim to provide them.
+The controller, plan gate, run budgets and final-model selection live in `hypora/core/controller/`
+(controller.md). Durable orchestration recovery is Later, and the learned-transform check is not
+built (D-044 8.4). This harness does not claim to provide them.
 
 HarnessPlanner implements S1.2's JobPlanner: register a HarnessTask for each queued job, then pass
 the planner to ExecutionWorker. The worker owns leases, heartbeats, limits, sandbox launching, and

@@ -3,8 +3,9 @@
 The LLM reads the user's goal and the dataset's column names and types (never rows) and drafts
 the task. Code then decides everything it can check: structured form fields win over the draft
 (spec §5.2: hard constraints come from structured fields), the target must be a real column,
-the task type is corrected from the target's values, and the metric must suit the task. The full
-Intake role, with clarifying questions, is S4.1.
+the task type is corrected from the target's values, and the metric must suit the task. In multi
+mode Agent A runs this call (prompt `agent_a_intake`); interactive clarification is not
+implemented, and a missing target or an ambiguous task type stops intake.
 """
 
 from collections.abc import Sequence

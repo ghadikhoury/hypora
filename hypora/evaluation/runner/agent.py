@@ -86,7 +86,8 @@ from hypora.storage.records import (
 AGENT_SYSTEM: Final = "agent"
 AGENT_ROLE: Final = ActorRole.SINGLE_AGENT
 INJECTABLE_FAULTS: Final = frozenset({FaultKind.TOOL_ERROR, FaultKind.MALFORMED_DATA})
-"""Tool errors fire here; malformed data is planted in the dataset. S3.H3 adds the rest."""
+"""Tool errors fire here; malformed data is planted in the dataset. Other fault kinds are not
+injectable yet."""
 UNSUPPORTED_HARD_CONSTRAINTS: Final = (
     "max_quality_degradation",
     "exclusion_rules",
@@ -139,7 +140,7 @@ def check_supported(system_input: SystemInput, context: SystemContext) -> None:
     faults = {fault.kind for fault in context.injected_faults} - INJECTABLE_FAULTS
     if faults:
         raise UnsupportedCase(
-            f"faults {sorted(kind.value for kind in faults)} can't be injected yet (S3.H3); "
+            f"faults {sorted(kind.value for kind in faults)} can't be injected yet; "
             "running without them would grade a fault that never happened"
         )
     if context.run_config.flags.approval_policy is not ApprovalPolicy.AUTO_WITHIN_CONTRACT:

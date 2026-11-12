@@ -70,9 +70,11 @@ A graded failure by itself is a valid measurement, and does not prevent collecti
 ## Current boundaries
 
 The agent system uses the same controller as `hypora run` and reads final artifacts from its stored
-records. It runs tabular cases and supports injected tool errors. Planted malformed-data input is
-accepted by the case machinery, but causal grading is deferred to S4.1 hardening (D-032); these cases
-cannot receive passing fault credit yet.
+records. It runs tabular cases and supports injected tool errors. Tool errors are injected into
+every role's session (B, C, workers, single) with one per-run ledger. Planted malformed-data input
+is accepted by the case machinery. Malformed-data cases earn safe-stop credit only from the
+platform's `DATA_MALFORMED` integrity stop, recomputed by the grader (S4.1, hardening.md); recovery
+from malformed data is ungraded.
 Unsupported fault types are refused rather than recorded as successfully injected. The full visible constraints are sent in the request and agent context. Secondary metrics and
 quality targets flow through the existing TaskSpecification and ExperimentContract fields;
 unsupported hard exclusions, named-model mandates, resource and optimization constraints refuse

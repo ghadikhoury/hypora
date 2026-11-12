@@ -18,8 +18,8 @@ IMMEDIATE; the `status = 'QUEUED'` guard keeps the statement safe on PostgreSQL 
 Delivery is at-least-once: a lease that is not extended by heartbeats expires, and the job returns
 to QUEUED for another worker, until `max_attempts` leases have been used (then FAILED_TERMINAL, so
 a job that keeps killing its worker cannot cycle forever). Bounded retries with per-error-class
-backoff, idempotent completion, and crash detection are S3.E2; here a retryable failure is
-requeued at once while attempts remain.
+backoff, idempotent completion, and crash detection are Later durability work; here a retryable
+failure is requeued at once while attempts remain.
 """
 
 import secrets
@@ -345,7 +345,7 @@ class JobQueue:
                 S.RETRY_WAIT,
                 worker_id,
                 actor,
-                f"retry {record.attempts + 1}/{self.max_attempts} (backoff policy: S3.E2)",
+                f"retry {record.attempts + 1}/{self.max_attempts} (no backoff: Later durability)",
             )
             return self._transition(
                 connection, record, S.QUEUED, worker_id, actor, "requeued for retry"

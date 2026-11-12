@@ -1,1 +1,1 @@
-"""Ingestion, chunking, indexes, hybrid retrieval, and reranking (spec §13)."""
+"""Ingestion, chunking, indexes, and hybrid retrieval; reranking is deferred (spec §13)."""

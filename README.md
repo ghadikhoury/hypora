@@ -4,14 +4,16 @@ An agent-powered ML engineering platform for research datasets (CIS 1990 final p
 Provide a dataset, objective and constraints; Hypora runs bounded experiments and returns measured
 results with reproducible artifacts and limitations.
 
-**Implemented:** the tabular single-agent pipeline and Stage 2 evaluation harness through PR #32.
-The recorded six-case dev comparison passed 3/6 agent cases versus 2/6 fixed-baseline cases on each
-profile; the comparison is inconclusive. Grouping, leakage and temporal methodology remain known gaps.
+**Implemented through PR #42:** the A/B/C workflow (A leads, B researches read-only, C does data
+methodology and code with up to two workers), plan approval, sandboxed tabular experiments, and the
+evaluation harness. The single-agent configuration remains the F3 comparison. The recorded S2.6 dev
+results (agent 3/6 vs fixed baseline 2/6 on each profile, inconclusive) predate Stage 3; S4.2
+records the next readiness run.
 
-**Next product architecture (D-036):** A leads planning, delegation, review and reporting; B performs
+**Architecture (D-036):** A leads planning, delegation, review and reporting; B performs
 read-only research, usually first; C owns data and coding and alone may request workers. Code enforces
-approvals, budgets, isolation, splits and scoring. A can justify independent B/C overlap. This is the
-implementation target; current single-agent runs remain the comparison system.
+approvals, budgets, isolation, splits and scoring. A can justify independent B/C overlap. The
+single-agent configuration (`CONFIG=single_agent`) remains the comparison system.
 
 Read [the spec](docs/PROJECT_SPEC.md) for behavior, [the plan](docs/PLAN.md) for the remaining steps
 and their dependencies, and [AGENTS.md](AGENTS.md) for how the repository is worked on. Component guides
@@ -53,6 +55,11 @@ The first time, this downloads the demo dataset (OpenML 46918, credit-g, CC BY 4
 status, the final trial, and the path of its report (`runs/<run_id>/report.md`). The exit code is
 0 when the final model was verified, 1 otherwise. A run takes a few minutes.
 
+The run pauses at the plan gate and asks you to approve its plan and budget (or use
+`uv run hypora approve <run_id>` from another terminal). For unattended runs add
+`ARGS='--approve auto_within_contract'` to `make run` (or pass `--approve auto_within_contract` to
+`hypora run`). `--advice-only` asks for research and advice only; nothing runs on the data.
+
 Your own data (a CSV or Parquet file):
 
 ```bash
@@ -66,7 +73,7 @@ Inspect and control runs (state lives in `runs/`, which is git-ignored):
 uv run hypora status                         # recent runs
 uv run hypora status <run_id>                # status, spend, trials, jobs, final model, report
 uv run hypora trace <run_id>                 # every event: role, type, duration, tokens
-uv run hypora trace <run_id> -f type=model_call,tool_call -f role=single_agent
+uv run hypora trace <run_id> -f type=model_call,tool_call -f role=agent_c
 uv run hypora cancel <run_id>                # clean stop: cancels jobs, writes the report
 uv run hypora --help
 ```
@@ -99,7 +106,7 @@ and newly failing cases compared with the nearest parent results for the same co
 configs live in `configs/eval/`; `PROFILE` overrides their model profile. `CASES` also accepts a
 case directory. The tree must be clean for recorded results. See
 [the runner guide](docs/notes/eval-runner.md) for bounded parallelism, resume, and repeat samples.
-The first dev cases are added in S2.5; an empty case set is refused before calls.
+Six dev cases live in `hypora/evaluation/cases/dev/`; an empty case set is refused before any call.
 
 ## The Docker Compose stack (Mode 1)
 

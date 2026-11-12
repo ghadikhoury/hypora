@@ -1,4 +1,4 @@
-"""`python -m hypora.api`: the HTTP API placeholder (PLAN.md S1.6) until S3.G1."""
+"""`python -m hypora.api`: the HTTP API placeholder (PLAN.md S1.6); the HTTP API is Later work."""
 
 from hypora.api.placeholder import main
 

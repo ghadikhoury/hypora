@@ -150,7 +150,7 @@ def test_honest_evidence_passes_every_check(task: TaskType, metric: MetricName) 
     result = verify_final(evidence(task, metric))
     assert result.passed, [c for c in result.checks if c.status is not CheckStatus.PASSED]
     found = statuses(evidence(task, metric))
-    assert found.pop(V.LEARNED_TRANSFORM_LEAKAGE) is CheckStatus.SKIPPED  # verifier v2 (S3.C4)
+    assert found.pop(V.LEARNED_TRANSFORM_LEAKAGE) is CheckStatus.SKIPPED  # not built (D-044)
     assert set(found.values()) == {CheckStatus.PASSED} and len(found) == 8
 
 

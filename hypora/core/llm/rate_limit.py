@@ -239,10 +239,6 @@ class ProviderAdmission:
             for provider in Provider
         }
 
-    def limiter_for(self, provider: Provider, model_id: str) -> ModelLimiter | None:
-        """The shared limiter for one model, or None if no limits are configured for it."""
-        return self._limiter.for_model(provider, model_id)
-
     @asynccontextmanager
     async def dispatch(
         self, provider: Provider, model_id: str, estimated_tokens: int

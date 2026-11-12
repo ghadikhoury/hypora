@@ -11,13 +11,13 @@ flags:
     firewall: true
     approval: true
     injection_filter: true
-  durable_mode: "on"           # on | off                             (F10)
-  breadth_mode: adaptive       # adaptive | fixed_k
+  durable_mode: "on"           # on | off  (F10); inactive until Later durability (D-028)
+  breadth_mode: adaptive       # adaptive | fixed_k; inactive (no adaptive-breadth code)
   parallel_mode: "on"          # on | off
-  phase_a_mode: parallel       # parallel | research_first
+  phase_a_mode: parallel       # parallel = A may justify B/C overlap; research_first = never (§5.4)
   approval_policy: interactive # interactive | auto_within_contract
   # Parallelism limits (spec §9.5); provisional until S4.2 (DECIDE).
-  max_research_workers: 4
-  max_diagnostic_workers: 4
-  max_parallel_trials: 3
+  max_research_workers: 4      # inactive legacy name
+  max_diagnostic_workers: 4    # inactive legacy name
+  max_parallel_trials: 3       # inactive legacy name
   max_c_workers: 2

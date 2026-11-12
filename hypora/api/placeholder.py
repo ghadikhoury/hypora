@@ -1,7 +1,8 @@
 """The HTTP API placeholder of the Mode 1 compose stack (PLAN.md S1.6; spec §4.1, §21).
 
-S3.G1 builds the real API (FastAPI, spec §21 endpoints, SSE). Until then this placeholder holds the
-API's place in docker-compose.yml so the stack has its shape: it answers `GET /health` with its
+The HTTP API (FastAPI, spec §21 endpoints, SSE) is Later work (PLAN "Later track"). Until then
+this placeholder holds the API's place in docker-compose.yml so the stack has its shape: it
+answers `GET /health` with its
 status and whether the state database is visible on the state volume, and every other request
 with 501 and a pointer to the `hypora` CLI. Standard library only; it reads no data and writes
 nothing.
@@ -16,7 +17,8 @@ from typing import Any, ClassVar, Final
 
 STATE_DB: Final = "hypora.sqlite"
 NOT_YET: Final = (
-    "The HTTP API arrives in S3.G1. Until then use the hypora CLI: hypora run | status | trace."
+    "The HTTP API is Later work (PLAN 'Later track'). Until then use the hypora CLI: "
+    "hypora run | status | trace."
 )
 
 
