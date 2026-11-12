@@ -24,11 +24,12 @@ requeued at once while attempts remain.
 
 import secrets
 import time
+import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import StrEnum
-from typing import Any
+from typing import Any, Final
 
 from sqlalchemy import and_, func, insert, select, update
 from sqlalchemy.engine import Connection
@@ -123,6 +124,30 @@ Clock = Callable[[], datetime]
 def new_job_id() -> str:
     """Time-ordered job ID: leasing takes the lowest ID first, i.e. the oldest job."""
     return f"job_{time.time_ns():019d}_{secrets.token_hex(3)}"
+
+
+RESERVED_KEY_PREFIX: Final = "final_"
+"""Start of the call-ID part of the idempotency keys the controller generates itself (the final
+job, `final_job_key`). Keys a role supplies over MCP may not use it (`is_reserved_key`), so a role
+can never claim the controller's key before the controller does."""
+
+
+def final_job_key(run_id: str, trial_id: str) -> str:
+    """The controller's idempotency key for the FINAL job of `trial_id` (D-019)."""
+    return f"{run_id}:{RESERVED_KEY_PREFIX}{trial_id}"
+
+
+def is_reserved_key(run_id: str, key: str) -> bool:
+    """Whether `key` falls in the controller's reserved namespace of run `run_id`.
+
+    Compared after Unicode compatibility folding and case folding, so look-alike or differently
+    cased spellings are reserved too (stricter than the exact-match job lookup needs).
+    """
+    prefix = f"{run_id}:"
+    if not key.startswith(prefix):
+        return False
+    call_id = unicodedata.normalize("NFKC", key[len(prefix) :]).strip().casefold()
+    return call_id.startswith(RESERVED_KEY_PREFIX)
 
 
 class JobQueue:
@@ -532,6 +557,7 @@ def _record(row: Any) -> JobRecord:
 __all__ = [
     "ALLOWED_TRANSITIONS",
     "HELD_STATES",
+    "RESERVED_KEY_PREFIX",
     "TERMINAL_STATES",
     "HeartbeatStatus",
     "InvalidJobTransition",
@@ -540,5 +566,7 @@ __all__ = [
     "JobRecord",
     "StaleJobState",
     "WorkerCapacity",
+    "final_job_key",
+    "is_reserved_key",
     "new_job_id",
 ]

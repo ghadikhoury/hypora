@@ -169,6 +169,7 @@ from hypora.storage.jobs import (
     InvalidJobTransition,
     JobQueue,
     StaleJobState,
+    final_job_key,
     new_job_id,
 )
 from hypora.storage.records import (
@@ -304,14 +305,15 @@ def queue_final_job(
     queue: JobQueue, runs_root: Path, run_id: str, trial_id: str, source_job_id: str
 ) -> str:
     """Queue the FINAL job of `trial_id`: the validated job's exact snapshot, re-run by the
-    experiment worker with `phase=final` (D-019). Returns the new job ID."""
+    experiment worker with `phase=final` (D-019). Returns the job ID; raises FinalJobConflict
+    if the reserved key already names a job that is not this trial's FINAL job."""
     source = protocol.job_dir(runs_root, run_id, source_job_id)
     original = protocol.read_request(source)
     snapshot = {
         name: (source / protocol.TRIAL_SNAPSHOT_DIR / name).read_bytes()
         for name in original.trial_files
     }
-    key = f"{run_id}:final_{trial_id}"
+    key = final_job_key(run_id, trial_id)
     request = SubmitExperimentRequest.model_validate(
         {**original.request.model_dump(mode="json"), "idempotency_key": key}
     )
@@ -329,15 +331,48 @@ def queue_final_job(
         ),
         snapshot,
     )
-    return queue.enqueue(
-        trial_id=trial_id,
-        operation=Operation.FIT,
-        limits=request.limits,
-        idempotency_key=key,
-        approval_ref=request.approval_ref,
-        initiator="controller",
-        actor_role=ActorRole.CONTROLLER,
-        job_id=job_id,
+    try:
+        queued = queue.enqueue(
+            trial_id=trial_id,
+            operation=Operation.FIT,
+            limits=request.limits,
+            idempotency_key=key,
+            approval_ref=request.approval_ref,
+            initiator="controller",
+            actor_role=ActorRole.CONTROLLER,
+            job_id=job_id,
+        )
+    except ValueError:  # the key names a job of another trial or with other limits
+        raise FinalJobConflict(trial_id) from None
+    # The key may already name a job: the controller's own FINAL job of this trial (an
+    # idempotent re-entry) is returned; anything else is refused rather than awaited.
+    if queued != job_id and not _is_final_job(runs_root, run_id, queued, key, trial_id):
+        raise FinalJobConflict(trial_id)
+    return queued
+
+
+class FinalJobConflict(RuntimeError):
+    """The final job's reserved idempotency key already names a job that is not this trial's
+    FINAL job. The run fails closed: the test split is not scored and no foreign job is
+    awaited as the final evaluation."""
+
+    def __init__(self, trial_id: str) -> None:
+        super().__init__(
+            f"the final-job key of trial {trial_id} names a job that is not its FINAL job"
+        )
+
+
+def _is_final_job(runs_root: Path, run_id: str, job_id: str, key: str, trial_id: str) -> bool:
+    """Whether `job_id`'s published request is the FINAL job of `trial_id` under `key`."""
+    try:
+        published = protocol.read_request(protocol.job_dir(runs_root, run_id, job_id))
+    except (OSError, ValueError):  # missing or unreadable: not provably the final job
+        return False
+    return (
+        published.phase is protocol.ExperimentPhase.FINAL
+        and published.request.idempotency_key == key
+        and published.request.trial_id == trial_id
+        and published.source_job_id is not None
     )
 
 
@@ -2422,6 +2457,7 @@ def _describe(outcome: AgentOutcome) -> str:
 
 
 __all__ = [
+    "FinalJobConflict",
     "RunController",
     "RunRequest",
     "RunResult",

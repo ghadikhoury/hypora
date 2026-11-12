@@ -13,8 +13,10 @@ import pytest
 from mcp import Client
 from mcp_types import CallToolResult, TextContent
 
-from hypora.core.policy.injection import INJECTION_MARKER, OFF_REASON
+from hypora.core.policy.injection import INJECTION_MARKER, OFF_REASON, SHORT_INJECTION_MARKER
 from hypora.core.schemas import ActorRole
+from hypora.core.schemas.task import ValueCount
+from hypora.mcp_server import tools as tools_module
 from hypora.mcp_server.server import HyporaMCPServer, _screen_blocks
 from hypora.mcp_server.tools import HyporaTools
 from hypora.research.catalogs.hub import HubCatalog
@@ -125,9 +127,102 @@ async def test_benign_results_pass_unchanged(client, session):
     assert not error and [line["text"] for line in logs["lines"]] == ["epoch 0", BENIGN]
     (decision,) = injection_decisions(session, "get_experiment_logs")
     assert decision.decision.value == "allow" and decision.reasons == ["passed"]
+    # A real dataset profile passes byte-identical (its names are screened and pass).
+    error, profile = await call(client, "inspect_dataset")
+    assert not error and INJECTION_MARKER not in json.dumps(profile)
+    (decision,) = injection_decisions(session, "inspect_dataset")
+    assert decision.decision.value == "allow" and decision.reasons == ["passed"]
     # A tool that returns no outside text is not screened and records nothing.
-    error, _ = await call(client, "inspect_dataset")
-    assert not error and not injection_decisions(session, "inspect_dataset")
+    error, _ = await call(client, "write_trial_files", {"idempotency_key": "x"})
+    assert error and not injection_decisions(session, "write_trial_files")
+
+
+async def test_a_poisoned_column_name_and_category_value_are_screened(client, session, monkeypatch):
+    real = tools_module.profile_tabular
+
+    def poisoned(*args: Any, **kwargs: Any) -> Any:
+        profile = real(*args, **kwargs)
+        assert profile.tabular is not None
+        columns = list(profile.tabular.columns)
+        columns[0] = columns[0].model_copy(update={"name": POISON[1]})
+        columns[1] = columns[1].model_copy(
+            update={
+                "top_values": [ValueCount(value=POISON[0], count=5), ValueCount(value="B", count=2)]
+            }
+        )
+        # model_copy: the planted name is not re-checked against the profile's references.
+        return profile.model_copy(
+            update={"tabular": profile.tabular.model_copy(update={"columns": columns})}
+        )
+
+    monkeypatch.setattr(tools_module, "profile_tabular", poisoned)
+    error, profile = await call(client, "inspect_dataset")
+    assert not error, profile
+    columns = profile["tabular"]["columns"]
+    assert columns[0]["name"] == INJECTION_MARKER
+    assert columns[1]["top_values"] == [
+        {"value": INJECTION_MARKER, "count": 5},
+        {"value": "B", "count": 2},
+    ]
+    assert "Ignore all previous instructions" not in json.dumps(profile)
+    (decision,) = injection_decisions(session, "inspect_dataset")
+    assert decision.decision.value == "deny" and decision.call_id is not None
+    assert "Ignore all previous instructions" not in str(events(session))
+
+
+async def test_a_poisoned_class_label_is_screened_and_the_result_fits_its_schema(client, session):
+    trial_id = await new_trial(client)
+    _, submitted = await submit(client, trial_id)
+    finish_job(session, submitted["job_id"], scores=two_classes(POISON[1][:40], "benign"))
+    # The MCP client validates the result against the tool's output schema (labels <= 40).
+    error, metrics = await call(client, "get_experiment_metrics", {"job_id": submitted["job_id"]})
+    assert not error, metrics
+    assert metrics["class_labels"] == [SHORT_INJECTION_MARKER, "benign"]
+    assert [entry["label"] for entry in metrics["per_class"]] == metrics["class_labels"]
+    assert metrics["per_class"][0]["precision"] == 0.82  # the numbers are untouched
+    (decision,) = injection_decisions(session, "get_experiment_metrics")
+    assert decision.decision.value == "deny"
+
+
+async def test_benign_class_labels_pass_unchanged(client, session):
+    trial_id = await new_trial(client)
+    _, submitted = await submit(client, trial_id)
+    finish_job(session, submitted["job_id"], scores=two_classes("good", "bad"))
+    error, metrics = await call(client, "get_experiment_metrics", {"job_id": submitted["job_id"]})
+    assert not error and metrics["class_labels"] == ["good", "bad"]
+    (decision,) = injection_decisions(session, "get_experiment_metrics")
+    assert decision.decision.value == "allow" and decision.reasons == ["passed"]
+
+
+def two_classes(first: str, second: str) -> dict[str, Any]:
+    """One scored fold with two classes (the per-class shape the harness writes)."""
+    return {
+        "folds": [
+            {
+                "rows": 300,
+                "metrics": {
+                    "roc_auc": 0.9,
+                    "per_class": [
+                        {
+                            "label": first,
+                            "precision": 0.82,
+                            "recall": 0.9,
+                            "f1": 0.86,
+                            "support": 100,
+                        },
+                        {
+                            "label": second,
+                            "precision": 0.95,
+                            "recall": 0.9,
+                            "f1": 0.92,
+                            "support": 200,
+                        },
+                    ],
+                },
+                "unavailable": {},
+            }
+        ]
+    }
 
 
 async def test_with_the_switch_off_results_pass_unchanged_and_it_is_recorded(session_file):

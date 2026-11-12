@@ -2,8 +2,8 @@
 
 An MCP session's role is fixed by the trusted process that launches the server; nothing a client
 sends can change it, so nothing a client sends can widen its allowlist (D-018). A role without an
-entry here may call no tools. S1.4 serves one role, `single_agent` (PLAN.md S1.4); S3.D1 adds the
-multi-agent roles of spec §6.3 and the full policy engine.
+entry here may call no tools. Roles: `single_agent`, `agent_b`, `agent_c`, `trial_worker`
+(S3.1-S3.4; D-038, D-039, D-042); Agent A has no tools.
 """
 
 from collections.abc import Mapping
@@ -27,7 +27,7 @@ TOOL_TIERS: Mapping[ToolName, ToolTier] = MappingProxyType(
         T.GET_EXPERIMENT_LOGS: ToolTier.READ,
     }
 )
-"""Tier of every tool the MCP server serves (spec §11, §12). S3.D1 extends it to every tool."""
+"""Tier of every tool the MCP server serves (spec §11, §12)."""
 
 ROLE_ALLOWLISTS: Mapping[ActorRole, frozenset[ToolName]] = MappingProxyType(
     {
