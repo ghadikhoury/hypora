@@ -183,22 +183,40 @@ def _filter_research_messages(payload: dict[str, JsonValue], queries: tuple[str,
             message["content"] = redact(message["content"], queries)
 
 
-OPAQUE_REPLAY_KEYS: Final = frozenset(
-    {"encrypted_content", "thought_signature", "thoughtSignature"}
-)
-"""Replay fields that are provider-made opaque tokens (OpenAI encrypted reasoning, Gemini thought
-signatures): sent back verbatim at any depth, never rewritten (D-047)."""
+OPENAI_OPAQUE_KEY: Final = "encrypted_content"
+GEMINI_OPAQUE_KEYS: Final = frozenset({"thought_signature", "thoughtSignature"})
+"""Provider-issued opaque tokens, exempt from redaction only at the position the provider sets
+them (D-047): `encrypted_content` at the top of an OpenAI `reasoning` item, and a thought
+signature directly on a Gemini part. The same key name anywhere else (for example inside model-
+written `function_call.args`) is ordinary text and is redacted."""
 
 
-def _redact_replay_item(item: JsonValue, secrets: Sequence[str]) -> JsonValue:
-    """One replayed provider item with its readable fields redacted and its opaque tokens intact."""
-    if isinstance(item, dict):
-        return {
-            key: value if key in OPAQUE_REPLAY_KEYS else _redact_replay_item(value, secrets)
-            for key, value in item.items()
-        }
-    if isinstance(item, list):
-        return [_redact_replay_item(value, secrets) for value in item]
+def _keep_keys(
+    item: dict[str, JsonValue], keep: frozenset[str], secrets: Sequence[str]
+) -> JsonValue:
+    """`item` redacted, except the values of `keep` (top-level keys only), which stay verbatim."""
+    rest = redact({k: v for k, v in item.items() if k not in keep}, secrets)
+    assert isinstance(rest, dict)
+    return {key: item[key] if key in keep else rest[key] for key in item}
+
+
+def _redact_replay_item(item: JsonValue, provider: object, secrets: Sequence[str]) -> JsonValue:
+    """One replayed provider item with its readable fields redacted and its opaque token intact."""
+    if not isinstance(item, dict):
+        return redact(item, secrets)
+    if provider == Provider.OPENAI.value and item.get("type") == "reasoning":
+        return _keep_keys(item, frozenset({OPENAI_OPAQUE_KEY}), secrets)
+    parts = item.get("parts")
+    if provider == Provider.GEMINI.value and isinstance(parts, list):
+        rest = redact({k: v for k, v in item.items() if k != "parts"}, secrets)
+        assert isinstance(rest, dict)
+        rest["parts"] = [
+            _keep_keys(part, GEMINI_OPAQUE_KEYS, secrets)
+            if isinstance(part, dict)
+            else redact(part, secrets)
+            for part in parts
+        ]
+        return {key: rest[key] for key in item}
     return redact(item, secrets)
 
 
@@ -741,9 +759,13 @@ class LLMAdapter:
         assert isinstance(cleaned, dict)
         if isinstance(replay, dict):
             items = replay.get("items")
+            provider = replay.get("provider")
             replay = redact({k: v for k, v in replay.items() if k != "items"}, self._secrets)
             assert isinstance(replay, dict)
-            replay["items"] = [_redact_replay_item(item, self._secrets) for item in items or []]
+            replay["items"] = [
+                _redact_replay_item(item, provider, self._secrets)
+                for item in (items if isinstance(items, list) else [])
+            ]
             cleaned["replay"] = replay
         return Message.model_validate(cleaned)
 

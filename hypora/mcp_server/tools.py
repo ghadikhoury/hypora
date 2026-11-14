@@ -28,6 +28,7 @@ import yaml  # type: ignore[import-untyped]
 from pydantic import Field, JsonValue, ValidationError
 from sqlalchemy.engine import Connection
 
+from hypora.core.bounded_text import shorten
 from hypora.core.config.flags import RetrievalMode
 from hypora.core.hashing import canonical_hash
 from hypora.core.policy.approvals import approval_problem
@@ -1342,7 +1343,9 @@ class HyporaTools:
         error = None
         if outcome is not None and not outcome.succeeded:
             error = ExperimentError(
-                code=outcome.error_code or "FAILED", message=(outcome.error_message or "")[:400]
+                # Bounded by the 400-character field; marked, never cut silently (D-047).
+                code=outcome.error_code or "FAILED",
+                message=shorten(outcome.error_message or "", 400),
             )
         succeeded = (job.status is JobState.COMPLETED) if finished else None
         return ExperimentStatus(

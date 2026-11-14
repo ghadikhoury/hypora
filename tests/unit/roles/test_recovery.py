@@ -203,6 +203,23 @@ def test_identical_failures_in_one_turn_share_one_replan() -> None:
     assert "replan=unavailable" in recorder.decisions[-1]
 
 
+def test_a_shared_replan_that_produced_nothing_is_not_recorded_as_pending() -> None:
+    decisions: list[list[str]] = []
+
+    async def no_plan(_reason: str) -> str | None:
+        return None
+
+    session = RecoverySession(
+        decide=lambda recovery, extra: decisions.append(extra), escalate=lambda _: None
+    )
+    session.replan = no_plan
+    bad = error("INVALID_ARGUMENTS", "invalid_arguments")
+    invoke, _ = _attempts()
+    for _ in range(2):
+        anyio.run(session.handle, "run_diagnostic", {}, bad, invoke)
+    assert decisions == [["replan=1"], ["replan=no_revision"]]
+
+
 def test_clarify_never_repeats_and_a_repeated_refusal_stops_the_loop() -> None:
     recorder = Recorder()
     session = recorder.session()

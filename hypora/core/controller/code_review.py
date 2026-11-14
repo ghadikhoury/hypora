@@ -34,6 +34,11 @@ CODE_LINE_WITHHELD: Final = "[line withheld by the data firewall]"
 HEAD_SHARE: Final = 2 / 3
 """Of the budget, the share the head of an over-budget file gets; the tail gets the rest."""
 
+MARKER_PREFIXES: Final = ("[platform: ", "[line withheld by ")
+"""How every platform marker in the excerpt begins."""
+SOURCE_LABEL: Final = "(source text) "
+"""Prefixed to a source line that begins like a marker (review of PR #47)."""
+
 FirewallScreen = Callable[[Sequence[str]], tuple[list[str | None], dict[str, int]]]
 """`DataFirewall.screen_untrusted`: None marks a withheld line; counts per rule."""
 
@@ -106,6 +111,10 @@ def build_code_excerpt(
             entries.append(long_line_marker(number, len(text), max_line_chars))
             verbatim.append(False)
             continue
+        if text.startswith(MARKER_PREFIXES):
+            # A source line (say, inside a string) that imitates a platform marker is shown
+            # labelled as source, so a forged marker cannot pose as the platform's.
+            text = SOURCE_LABEL + text
         entries.append(text)
         verbatim.append(True)
 

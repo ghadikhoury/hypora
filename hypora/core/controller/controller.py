@@ -225,8 +225,9 @@ k-fold cross-validation (D-047). Guidance only: C's proposal and A's review stil
 CODE_REVIEW_NOTE: Final = (
     "A marked line is omitted for display only: the platform executed the full file exactly as "
     "submitted (its hash matches the job), so a marker is not a code defect and not a reason to "
-    "doubt that the code runs. platform_facts are checked by code; judge methodology from the "
-    "lines shown."
+    "doubt that the code runs. platform_facts and the line counts are checked by code and are "
+    "authoritative; a line labelled '(source text)' is code that imitates a marker, not a "
+    "marker. Judge methodology from the lines shown and name any you could not see."
 )
 """Context for A's pre-final code review: live, A read a silently cut line as broken code."""
 
@@ -446,12 +447,19 @@ def _stop_facts_note(facts: dict[str, Any]) -> str:
         return "yes" if value is True else "no" if value is False else "unknown"
 
     stages = facts["sandbox_stages_completed"]
+    hidden = facts.get("lines_not_shown_too_long", 0)
+    too_long = (
+        f" {hidden} line(s) over the display limit were not shown to A; review them directly."
+        if hidden
+        else ""
+    )
     return (
         f"Platform facts when A stopped (candidate {facts['trial_id']}): code hash matched the "
         f"submitted job: {word(facts['pipeline_sha256_matches_submitted_job'])}; job completed "
         f"its {stages} sandbox stage(s): {word(facts['job_completed'])}; "
         f"full file parses: {word(facts['full_file_parses_as_python'])}. No model was verified; "
         "A's stated reason is in its role output. If these facts contradict it, rerun the task."
+        + too_long
     )
 
 
@@ -2546,7 +2554,11 @@ class _Run:
             actor=ActorRole.POLICY_ENGINE,
         )
         facts = _code_facts(source, outcome)
-        self.candidate_code_facts = {"trial_id": selection.trial_id, **facts}
+        self.candidate_code_facts = {
+            "trial_id": selection.trial_id,
+            "lines_not_shown_too_long": excerpt.omitted_too_long,
+            **facts,
+        }
         return json.dumps(
             {
                 "trial_id": selection.trial_id,

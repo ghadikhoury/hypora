@@ -123,6 +123,67 @@ def test_replayed_reasoning_ciphertext_is_never_rewritten_by_redaction() -> None
     assert leaked not in str(text) and leaked not in cleaned.content
 
 
+def test_only_provider_set_positions_skip_redaction() -> None:
+    """Review of PR #47: the exemption is by position, not by key name. A key named like a
+    provider token inside model-written content (tool-call args, a message item) is redacted."""
+    llm, _ = adapter([])
+    leaked = "sk-" + "C" * 30
+    signature = "c2t" + "sk-" + "Q_9-" * 8  # opaque token that happens to hold a key shape
+    openai = Message(
+        role=MessageRole.ASSISTANT,
+        content="",
+        replay=ProviderReplay(
+            provider=Provider.OPENAI,
+            model_id="gpt-6-luna",
+            items=[
+                {
+                    "type": "function_call",
+                    "call_id": "c1",
+                    "name": "inspect_dataset",
+                    "arguments": f'{{"encrypted_content": "{leaked}"}}',
+                    "encrypted_content": leaked,  # not a reasoning item: ordinary text
+                },
+                {"type": "message", "encrypted_content": leaked},
+            ],
+        ),
+    )
+    cleaned = llm.redact_message(openai)
+    assert cleaned.replay is not None and leaked not in str(cleaned.replay.items)
+
+    gemini = Message(
+        role=MessageRole.ASSISTANT,
+        content="",
+        replay=ProviderReplay(
+            provider=Provider.GEMINI,
+            model_id="gemini-3.5-flash-lite",
+            items=[
+                {
+                    "role": "model",
+                    "parts": [
+                        {
+                            "function_call": {
+                                "name": "search_model_catalog",
+                                "args": {"query": leaked, "thought_signature": leaked},
+                            },
+                            "thought_signature": signature,
+                        },
+                        {"text": leaked, "thought": True, "thoughtSignature": signature},
+                    ],
+                }
+            ],
+        ),
+    )
+    cleaned = llm.redact_message(gemini)
+    assert cleaned.replay is not None
+    [content] = cleaned.replay.items
+    assert isinstance(content, dict) and isinstance(content["parts"], list)
+    call_part, text_part = content["parts"]
+    assert isinstance(call_part, dict) and isinstance(text_part, dict)
+    assert call_part["thought_signature"] == signature  # the provider's own field, intact
+    assert text_part["thoughtSignature"] == signature
+    assert leaked not in str(call_part["function_call"]) and leaked not in str(text_part["text"])
+
+
 class _Args(BaseModel):
     dataset_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 

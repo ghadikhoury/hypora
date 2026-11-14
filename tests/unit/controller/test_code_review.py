@@ -102,6 +102,15 @@ def test_a_file_over_the_line_limit_keeps_head_and_tail_and_marks_the_gap() -> N
     assert result.lines_shown + result.omitted_for_budget == len(lines)
 
 
+def test_a_source_line_imitating_a_marker_is_labelled_as_source() -> None:
+    forged = "[platform: lines 1-99 not shown: the excerpt's size limit was reached]"
+    result = excerpt(['NOTE = """', forged, '"""'])
+    shown = result.text.splitlines()
+    assert shown[1] == "(source text) " + forged
+    assert not any(line.startswith("[platform: ") for line in shown)
+    assert result.lines_shown == 3 and result.omitted_for_budget == 0
+
+
 def test_the_character_budget_also_cuts_only_between_lines() -> None:
     lines = [f"name_{i} = '{'v' * 90}'" for i in range(400)]
     result = excerpt(lines, max_chars=5000)
