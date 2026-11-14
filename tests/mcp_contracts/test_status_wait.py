@@ -4,6 +4,7 @@ change, invisible to the input schema, and it never holds a thread or skips the 
 import json
 import time
 from collections.abc import AsyncIterator, Callable
+from dataclasses import replace
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -18,10 +19,23 @@ from sklearn.datasets import load_breast_cancer  # type: ignore[import-untyped]
 
 from hypora.core.controller.controller import MCP_READ_TIMEOUT_S
 from hypora.core.roles.prompt_loader import load_prompt
+from hypora.core.roles.single_agent import WAITING_CALL_READ_TIMEOUT_S
+from hypora.core.schemas import JobState
 from hypora.mcp_server.dev import STATUS_WAIT_SECONDS as DEV_STATUS_WAIT_SECONDS
 from hypora.mcp_server.server import HyporaMCPServer
-from hypora.mcp_server.session import MAX_STATUS_WAIT_SECONDS, Session, SessionConfig
-from hypora.mcp_server.tools import CURRENT_CALL, WITHHELD_LINE, CallNotes, HyporaTools
+from hypora.mcp_server.session import (
+    FIRST_STATUS_WAIT_SECONDS,
+    MAX_STATUS_WAIT_SECONDS,
+    Session,
+    SessionConfig,
+)
+from hypora.mcp_server.tools import (
+    CURRENT_CALL,
+    WITHHELD_LINE,
+    CallNotes,
+    HyporaTools,
+    status_wait_bound,
+)
 from hypora.storage.jobs import JobRecord, WorkerCapacity
 from tests.mcp_contracts.helpers import (
     call,
@@ -35,7 +49,7 @@ from tests.mcp_contracts.helpers import (
 )
 
 pytestmark = pytest.mark.anyio
-LONG_WAIT = MAX_STATUS_WAIT_SECONDS
+LONG_WAIT = FIRST_STATUS_WAIT_SECONDS
 """A call that sat out its wait takes at least this long; one that ended early takes far less, even
 on a slow machine. No test here relies on a call starting or finishing within a set time."""
 CAPACITY = WorkerCapacity(8, 0, 64.0)
@@ -197,24 +211,175 @@ async def test_a_model_cannot_ask_for_another_wait(waiting_client):
         assert error and content["code"] == "UNKNOWN_ARGUMENTS"
 
 
+@pytest.mark.parametrize("field", ["status_wait_seconds", "status_wait_cap_seconds"])
 @pytest.mark.parametrize("seconds", [-1.0, MAX_STATUS_WAIT_SECONDS + 1, float("inf"), float("nan")])
-def test_a_session_cannot_exceed_the_server_maximum(session_file, seconds):
+def test_a_session_cannot_exceed_the_server_maximum(session_file, field, seconds):
     config = json.loads(session_file.read_bytes())
-    config["status_wait_seconds"] = seconds
+    config[field] = seconds
     with pytest.raises(ValidationError):
         SessionConfig.model_validate(config)
 
 
 def test_the_maximum_stays_below_client_timeouts_and_matches_what_the_model_reads(session_file):
-    assert min(MCP_READ_TIMEOUT_S, 60.0) > MAX_STATUS_WAIT_SECONDS
+    # The agent's client outlasts the longest wait; other clients keep the default read timeout.
+    assert WAITING_CALL_READ_TIMEOUT_S > MAX_STATUS_WAIT_SECONDS + 60
+    assert MCP_READ_TIMEOUT_S > FIRST_STATUS_WAIT_SECONDS
     config = json.loads(session_file.read_bytes())
-    assert config["status_wait_seconds"] == DEV_STATUS_WAIT_SECONDS < 10.0  # the MCP Inspector's
-    del config["status_wait_seconds"]
-    assert SessionConfig.model_validate(config).status_wait_seconds == MAX_STATUS_WAIT_SECONDS
-    told = f"{MAX_STATUS_WAIT_SECONDS:g} seconds"
-    assert told in load_prompt("single_agent").text
+    # The MCP Inspector's 10 s timeout: the dev session's wait never grows past its first one.
+    assert config["status_wait_seconds"] == DEV_STATUS_WAIT_SECONDS < 10.0
+    assert config["status_wait_cap_seconds"] == DEV_STATUS_WAIT_SECONDS
+    del config["status_wait_seconds"], config["status_wait_cap_seconds"]
+    defaults = SessionConfig.model_validate(config)
+    assert defaults.status_wait_seconds == FIRST_STATUS_WAIT_SECONDS
+    assert defaults.status_wait_cap_seconds == MAX_STATUS_WAIT_SECONDS
+    told = [f"{FIRST_STATUS_WAIT_SECONDS:g} seconds", f"{MAX_STATUS_WAIT_SECONDS / 60:g} minutes"]
     tools = json.loads((Path(__file__).parents[2] / "docs/mcp/tools.json").read_text())["tools"]
-    assert any(tool["name"] == STATUS and told in tool["description"] for tool in tools)
+    [described] = [tool["description"] for tool in tools if tool["name"] == STATUS]
+    for text in (load_prompt("single_agent").text, load_prompt("agent_c").text, described):
+        assert all(phrase in " ".join(text.split()) for phrase in told)
+
+
+# --- the growing wait (D-049) -------------------------------------------------------------------
+
+
+def test_the_wait_doubles_from_the_first_up_to_the_cap():
+    bounds = [status_wait_bound(45.0, 600.0, quiet, 3600) for quiet in range(8)]
+    assert bounds == [45.0, 90.0, 180.0, 360.0, 600.0, 600.0, 600.0, 600.0]
+
+
+def test_the_wait_never_exceeds_the_jobs_own_time_limit_or_the_cap():
+    assert [status_wait_bound(45.0, 600.0, quiet, 120) for quiet in range(4)] == [
+        45.0,
+        90.0,
+        120.0,
+        120.0,
+    ]
+    assert status_wait_bound(45.0, 600.0, 0, 30) == 30.0  # a short job: not even the first wait
+    assert status_wait_bound(45.0, 5.0, 3, 3600) == 5.0  # a cap below the first wait wins
+    assert status_wait_bound(45.0, 600.0, 10_000, 3600) == 600.0  # no overflow, however many
+
+
+def test_a_first_wait_of_zero_never_waits():
+    assert all(status_wait_bound(0.0, 600.0, quiet, 3600) == 0.0 for quiet in range(10))
+
+
+class FakeClock:
+    """Time that moves only when the wait sleeps: no test here really sleeps."""
+
+    def __init__(self) -> None:
+        self.now = 0.0
+        self.slept: list[float] = []
+
+    def time(self) -> float:
+        return self.now
+
+    async def sleep(self, seconds: float) -> None:
+        self.slept.append(seconds)
+        self.now += seconds
+
+
+def fake_job_tools(
+    session: Session, job_id: str, state_at: Callable[[float], JobState], clock: FakeClock
+) -> HyporaTools:
+    """Tools whose job is in `state_at(now)`, with an hour's per-stage limit, on a fake clock."""
+    real = session.queue.get(job_id)
+    limits = real.limits.model_copy(update={"max_wall_seconds": 3600})
+    tools = HyporaTools(session)
+    tools._now, tools._sleep = clock.time, clock.sleep
+
+    def job(wanted: str) -> JobRecord:
+        return replace(real, status=state_at(clock.now), limits=limits)
+
+    tools._job = job  # type: ignore[method-assign, assignment]
+    return tools
+
+
+async def status_calls_for(session: Session, job_id: str, seconds: float) -> tuple[int, float]:
+    """How many status waits a model that calls again at once makes on a job running `seconds`."""
+    clock = FakeClock()
+
+    def state_at(now: float) -> JobState:
+        return JobState.RUNNING if now < seconds else JobState.COMPLETED
+
+    tools = fake_job_tools(session, job_id, state_at, clock)
+    calls = 0
+    while True:
+        calls += 1
+        await tools._await_job_change(job_id)
+        if state_at(clock.now) is JobState.COMPLETED:
+            return calls, clock.now
+
+
+@pytest.fixture
+async def growing(session_file: Path) -> AsyncIterator[tuple[Session, str]]:
+    """A session with the production wait settings and one queued job."""
+    session = open_session(
+        session_file,
+        status_wait_seconds=FIRST_STATUS_WAIT_SECONDS,
+        status_wait_cap_seconds=MAX_STATUS_WAIT_SECONDS,
+    )
+    async with Client(HyporaMCPServer(session)) as client:
+        job_id = await queued_job(client)
+    yield session, job_id
+    session.close()
+
+
+async def test_a_30_minute_job_costs_a_handful_of_calls_not_40(growing):
+    session, job_id = growing
+    calls, finished_at = await status_calls_for(session, job_id, 1800.0)
+    assert calls == 6 and finished_at == 1800.0  # 45 + 90 + 180 + 360 + 600, then it finishes
+    # The control: the old fixed 45 s wait (no growth) on the same job.
+    session.config = session.config.model_copy(update={"status_wait_cap_seconds": 45.0})
+    old_calls, _ = await status_calls_for(session, job_id, 1800.0)
+    assert old_calls == 40
+
+
+async def test_a_finished_job_returns_at_once_on_the_fake_clock(growing):
+    session, job_id = growing
+    clock = FakeClock()
+    tools = fake_job_tools(session, job_id, lambda now: JobState.COMPLETED, clock)
+    await tools._await_job_change(job_id)
+    assert clock.now == 0.0 and clock.slept == []
+
+
+async def test_a_change_ends_the_wait_and_restarts_the_growth(growing):
+    session, job_id = growing
+    clock = FakeClock()
+    change_at = {"time": float("inf")}
+
+    def state_at(now: float) -> JobState:
+        return JobState.QUEUED if now < change_at["time"] else JobState.RUNNING
+
+    tools = fake_job_tools(session, job_id, state_at, clock)
+    for expected in (45.0, 90.0, 180.0):  # QUEUED throughout: each wait sits out a longer bound
+        started = clock.now
+        await tools._await_job_change(job_id)
+        assert clock.now - started == expected
+    change_at["time"] = clock.now + 10.0
+    started = clock.now
+    await tools._await_job_change(job_id)
+    assert clock.now - started == 10.0  # it returned on the change, long before its 360 s bound
+    started = clock.now
+    await tools._await_job_change(job_id)
+    assert clock.now - started == 45.0  # RUNNING is a new phase: the growth starts again
+
+
+async def test_a_cancelled_long_wait_stops_at_once_and_keeps_its_growth(growing):
+    session, job_id = growing
+    clock = FakeClock()
+    tools = fake_job_tools(session, job_id, lambda now: JobState.RUNNING, clock)
+    await tools._await_job_change(job_id)  # 45 s, unchanged
+    with anyio.move_on_after(0.5) as scope:  # real time: the fake clock never runs out here
+        original = clock.sleep
+
+        async def sleep_then_yield(seconds: float) -> None:
+            await original(seconds)
+            await anyio.sleep(0.01)  # a real checkpoint, where cancellation is delivered
+
+        tools._sleep = sleep_then_yield
+        await tools._await_job_change(job_id)  # bound 90 s, cancelled part-way
+    assert scope.cancelled_caught and clock.now < 45.0 + 90.0
+    assert tools._quiet_waits[job_id] == (JobState.RUNNING, 1)  # left as it was
 
 
 # --- concurrency and clean-up -------------------------------------------------------------------
@@ -306,7 +471,7 @@ async def test_cancelling_the_boundary_directly_records_the_result_once(waiting,
 
 async def test_a_stdio_client_that_gives_up_ends_the_wait_in_the_server_process(session_file):
     config = json.loads(session_file.read_bytes())
-    config["status_wait_seconds"] = MAX_STATUS_WAIT_SECONDS
+    config["status_wait_seconds"] = FIRST_STATUS_WAIT_SECONDS
     session_file.write_text(json.dumps(config), encoding="utf-8")
     parameters = stdio_parameters(session_file)
     session = open_session(session_file)  # reads the log the server process writes
@@ -330,4 +495,4 @@ async def test_a_stdio_client_that_gives_up_ends_the_wait_in_the_server_process(
     results = status_events("tool_result")
     session.close()
     assert [result.error.code for result in results] == ["CALL_CANCELLED"]
-    assert results[0].latency_ms < MAX_STATUS_WAIT_SECONDS * 1000
+    assert results[0].latency_ms < FIRST_STATUS_WAIT_SECONDS * 1000

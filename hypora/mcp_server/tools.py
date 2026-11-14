@@ -17,7 +17,7 @@ import re
 import secrets
 import statistics
 import threading
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated, Any, Final, Literal
@@ -111,6 +111,8 @@ TRIAL_FILES: Final = ("trial.yaml", "pipeline.py", "requirements.lock")
 WITHHELD_LINE: Final = "[line withheld by the data firewall: it showed dataset values]"
 STATUS_CHECK_SECONDS: Final = 1.0
 """How often a waiting get_experiment_status looks at its job."""
+STATUS_WAIT_GROWTH: Final = 2.0
+"""Each status wait that ends with the job unchanged makes the next wait this many times longer."""
 _STATUS_ARTIFACT_KINDS: Final = frozenset({"metrics", "predictions", "manifest"})
 _SANDBOX_LOCK: Final = Path(__file__).parents[1] / "execution/sandbox/requirements-tabular.lock"
 _REQUIREMENT = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*==\s*([A-Za-z0-9._+!-]+)\s*$")
@@ -159,6 +161,11 @@ class HyporaTools:
         self._profiles: dict[tuple[str, str, str], DatasetProfile] = {}
         self._packages = _sandbox_packages()
         self._research: ResearchService | None = None
+        # Per job: the phase its last status wait saw, and how many waits in a row ended at their
+        # bound with that phase unchanged (D-049). Only touched on the event loop.
+        self._quiet_waits: dict[str, tuple[JobState, int]] = {}
+        self._now: Callable[[], float] = anyio.current_time  # replaceable by a test's fake clock
+        self._sleep: Callable[[float], Awaitable[None]] = anyio.sleep
 
     @property
     def session(self) -> Session:
@@ -1294,11 +1301,13 @@ class HyporaTools:
             Field(description="From submit_experiment, e.g. 'job_1761400000000000000_a1b2c3'."),
         ],
     ) -> ExperimentStatus:
-        """Report where a submitted experiment is, waiting briefly while it is in progress.
+        """Report where a submitted experiment is, waiting on the server while it is in progress.
 
         The call waits on the server: it returns as soon as the job's state changes or the job
-        finishes, and after 45 seconds at most. A finished job returns at once. The platform
-        sets this wait; no argument changes it.
+        finishes. A finished job returns at once. While the job stays unchanged, each call waits
+        longer than the last: 45 seconds at first, then twice as long each time, up to 10
+        minutes (never longer than the job's own time limit). So even a long job needs only a
+        few calls. The platform sets this wait; no argument changes it.
 
         Use it after submit_experiment. If `finished` is false, call it again right away, with
         no pause of your own. Once `finished` is true, call get_experiment_metrics (if
@@ -1316,22 +1325,39 @@ class HyporaTools:
         return await anyio.to_thread.run_sync(self._status, job_id)
 
     async def _await_job_change(self, job_id: str) -> None:
-        """Wait until the job leaves its current phase, or until the session's bounded wait ends.
+        """Wait until the job leaves its current phase, or until this call's bounded wait ends.
 
         The tool is async so that a wait holds no worker thread and can be cancelled at any sleep:
         other MCP calls keep running, and a client that gives up ends the wait. Only the job's
         state is read here; everything returned to the caller is read afterwards, by `_status`.
+
+        The bound grows while the job stays in one phase (D-049, `status_wait_bound`): a long job
+        costs a few model turns, not one every 45 seconds. A wait that ends early, on a change,
+        resets the growth; a cancelled wait leaves it as it was.
         """
         job = await anyio.to_thread.run_sync(self._job, job_id)  # an unknown job fails at once
         if job.status in TERMINAL_STATES:
+            self._quiet_waits.pop(job_id, None)
             return
         phase = _wait_phase(job.status)
-        deadline = anyio.current_time() + self.session.config.status_wait_seconds
-        while (left := deadline - anyio.current_time()) > 0:
-            await anyio.sleep(min(STATUS_CHECK_SECONDS, left))
+        seen, quiet = self._quiet_waits.get(job_id, (phase, 0))
+        if seen is not phase:  # it changed between calls
+            quiet = 0
+        config = self.session.config
+        bound = status_wait_bound(
+            config.status_wait_seconds,
+            config.status_wait_cap_seconds,
+            quiet,
+            job.limits.max_wall_seconds,
+        )
+        deadline = self._now() + bound
+        while (left := deadline - self._now()) > 0:
+            await self._sleep(min(STATUS_CHECK_SECONDS, left))
             job = await anyio.to_thread.run_sync(self._job, job_id)
             if _wait_phase(job.status) is not phase:
+                self._quiet_waits.pop(job_id, None)
                 return
+        self._quiet_waits[job_id] = (phase, quiet + 1)
 
     def _status(self, job_id: str) -> ExperimentStatus:
         job = self._job(job_id)
@@ -1474,6 +1500,20 @@ def _wait_phase(state: JobState) -> JobState:
     """What a status wait compares. LEASED is the instant before RUNNING, so ending a wait on
     LEASED -> RUNNING would spend a model turn on a change nobody can act on."""
     return JobState.RUNNING if state is JobState.LEASED else state
+
+
+def status_wait_bound(first: float, cap: float, quiet_waits: int, job_limit_s: float) -> float:
+    """The longest one status call waits, in seconds, given how many waits in a row before it
+    ended with the job unchanged (D-049).
+
+    `first`, then doubling, never above `cap` nor the job's own per-stage wall-clock limit (a
+    wait longer than that would hide a stage that should already have ended). A `first` of 0
+    means no wait at all, whatever the other values.
+    """
+    if first <= 0:
+        return 0.0
+    grown = first * STATUS_WAIT_GROWTH ** min(quiet_waits, 64)  # no float overflow
+    return max(0.0, min(grown, cap, job_limit_s))
 
 
 def _next_step(job: JobRecord, finished: bool, succeeded: bool | None) -> str:

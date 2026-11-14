@@ -5,6 +5,7 @@ from collections.abc import Mapping
 
 import anyio
 import pytest
+from mcp_types import CallToolResult
 from pydantic import JsonValue
 
 from hypora.core.llm.errors import ProviderError, ProviderErrorKind
@@ -12,6 +13,7 @@ from hypora.core.llm.providers.fake import json_result, text_result, tool_call_r
 from hypora.core.llm.types import MessageRole, ToolCall, ToolSpec
 from hypora.core.roles import single_agent
 from hypora.core.roles.single_agent import run_single_agent
+from hypora.mcp_server.session import MAX_STATUS_WAIT_SECONDS
 from tests.unit.roles.helpers import RecordingGuard, adapter
 
 pytestmark = pytest.mark.anyio
@@ -200,3 +202,22 @@ async def test_a_lost_transport_during_a_wait_raises_as_itself(fast_limit_checks
         )
     assert raised.value is lost
     assert guard.log[-1] == f"tool!{STATUS}"
+
+
+async def test_only_a_waiting_tool_gets_the_long_read_timeout() -> None:
+    """The MCP client must outlast the longest server-side status wait (D-049); every other tool
+    keeps the client's default read timeout, so a stuck call is still noticed in time."""
+    seen: dict[str, float | None] = {}
+
+    class Client:
+        async def call_tool(
+            self, name: str, arguments: dict[str, object], read_timeout_seconds: float | None
+        ) -> CallToolResult:
+            seen[name] = read_timeout_seconds
+            return CallToolResult.model_validate({"content": [], "structuredContent": {"ok": True}})
+
+    channel = single_agent.McpToolChannel(Client())  # type: ignore[arg-type]
+    for name in (STATUS, "inspect_dataset"):
+        assert await channel.call(name, {}) == (False, json.dumps({"ok": True}))
+    assert seen == {STATUS: single_agent.WAITING_CALL_READ_TIMEOUT_S, "inspect_dataset": None}
+    assert single_agent.WAITING_CALL_READ_TIMEOUT_S > MAX_STATUS_WAIT_SECONDS

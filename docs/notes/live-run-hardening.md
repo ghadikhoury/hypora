@@ -79,8 +79,9 @@ Earlier failures in the saved runs (role-text refusals, Gemini `maxItems`, schem
   the 45 s is in the frozen tool description). A 30-minute training job would need about 40 turns
   and resend the whole context each time, against a 60-turn cap and a 1M-token budget. Long
   training needs a platform-side wait that does not spend model turns: a design change for a
-  later step.
+  later step. (Addressed by D-049: the wait grows to 10 minutes; a 30-minute job costs 6 calls.)
 - The provider request timeout is 120 s; the slowest saved call took 73 s. Larger reviews may get
-  closer; the retry policy lives beside the `eval` profile, so it was left for Ghadi.
+  closer; the retry policy lives beside the `eval` profile, so it was left for Ghadi. (Addressed
+  by D-049: 240 s.)
 - Sandbox log tails stay bounded by the launcher's own tail limit; a long training log keeps only
   its end.

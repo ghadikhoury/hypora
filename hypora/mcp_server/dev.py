@@ -58,7 +58,8 @@ Inspector and hand-run servers can authenticate."""
 RUN_ID = "run_mcp_dev"
 APPROVAL_ID = "appr_mcp_dev_plan"
 STATUS_WAIT_SECONDS = 5.0
-"""Short enough for the MCP Inspector's default 10 s request timeout."""
+"""Short enough for the MCP Inspector's default 10 s request timeout. It is also the dev session's
+wait cap, so the wait never grows past it (D-049)."""
 
 
 def dev_contract(run_id: str, features: list[str], approved_plan_hash: str) -> ExperimentContract:
@@ -158,6 +159,7 @@ def create_dev_workspace(root: Path = DEV_ROOT, *, force: bool = False) -> Path:
             injection_filter=defenses.injection_filter,
         ),
         status_wait_seconds=STATUS_WAIT_SECONDS,
+        status_wait_cap_seconds=STATUS_WAIT_SECONDS,
         secret_sha256=secret_sha256(secret),
     )
     session_file = root / "session.json"

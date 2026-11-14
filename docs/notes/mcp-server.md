@@ -106,15 +106,16 @@ conversation (`cost-estimate.md`). So `get_experiment_status` waits on the serve
 | has finished | at once |
 | does not exist, or belongs to another run | at once, `EXPERIMENT_NOT_FOUND` |
 | changes state during the wait | within a second of the change (`STATUS_CHECK_SECONDS`) |
-| does not change | after `SessionConfig.status_wait_seconds`, 45 s by default and at most |
+| does not change | after its bound: `SessionConfig.status_wait_seconds` (45 s) at first, doubling on each unchanged call up to `status_wait_cap_seconds` (600 s) and the job's stage limit (D-049) |
 
 - **No argument.** The input schema is still just `job_id`, and any other argument is refused. A
   model cannot ask for a longer wait, and cannot opt out into busy polling again. The session's
-  value comes from the trusted launcher, and `MAX_STATUS_WAIT_SECONDS` bounds it in validation.
-- **Why 45 s.** Fit jobs took 28–33 s in the S2.0b live run, so each cost one status call
-  (`cost-estimate.md`); a job of a few minutes costs a call every 45 s. The bound stays below the
-  agent's 300 s `MCP_READ_TIMEOUT_S` and the 60 s default of common MCP clients, firewall time
-  included. The dev workspace uses 5 s, for the MCP Inspector's 10 s default.
+  values come from the trusted launcher, and `MAX_STATUS_WAIT_SECONDS` bounds them in validation.
+- **Why 45 s first.** Fit jobs took 28–33 s in the S2.0b live run, so each cost one status call
+  (`cost-estimate.md`). Longer jobs used to cost a call every 45 s; since D-049 the wait grows, so
+  a 30-minute job costs 6 calls (`long-job-wait.md`). The agent's client gives waiting calls a
+  720 s read timeout (`WAITING_CALL_READ_TIMEOUT_S`). The dev workspace uses a fixed 5 s, for the
+  MCP Inspector's 10 s default.
 - **`LEASED` and `RUNNING` count as one state.** A lease is the instant before the start, so
   waking the model between them would spend a turn on a change it cannot act on. Every other change
   ends the wait, including `CANCEL_REQUESTED` and a return to `QUEUED`.

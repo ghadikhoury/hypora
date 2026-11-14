@@ -1196,3 +1196,28 @@ and shown (trigger 3). Evidence and the full failure list: `docs/notes/live-run-
   provider retries`) instead of a bare exception type.
 - No frozen schema, event type, MCP tool signature or description, fit/predict interface,
   dependency, eval case, grader, hidden split or `eval` profile change.
+
+## D-049 — Waiting on a long job costs a few model turns; a longer model-call timeout (2026-11-14)
+
+Ghadi approved both changes on 2026-11-14 ("Yes, go implement all of these"), which covers
+trigger 1 (the `get_experiment_status` description) and trigger 5 (`request_timeout_s` sits in
+`configs/models.yaml`, beside the `eval` profile) for exactly this scope. Why: PyTorch training
+is planned, and a job of 30 minutes or more must not exhaust a role's turns or token budget just
+by waiting. Design note: `docs/notes/long-job-wait.md`.
+
+- `get_experiment_status` keeps its signature (`job_id` only). While a job stays in one state, each
+  call waits longer than the last: 45 s first, doubling, capped at 10 minutes and at the job's own
+  per-stage wall-clock limit. A finished job returns at once and a state change ends a wait within
+  a second, as before (D-030). A 30-minute job now costs 6 status calls instead of 40.
+- Both values are trusted launcher settings (`SessionConfig.status_wait_seconds`, new
+  `status_wait_cap_seconds`), validated against `MAX_STATUS_WAIT_SECONDS` (600 s). The MCP
+  Inspector's dev session keeps a fixed 5 s wait.
+- The agent's MCP client gives waiting calls a 720 s read timeout
+  (`WAITING_CALL_READ_TIMEOUT_S`); every other tool keeps 300 s. User cancel and every run limit
+  still end a wait within a second (the existing guard watcher), so no wait outlives the run.
+- Prompts `single_agent@v3` and `agent_c@v5` describe the growing wait; the frozen tool contract
+  `docs/mcp/tools.json` was regenerated for the new description.
+- `retry.request_timeout_s` is 240 s (was 120 s; the slowest real call took 73 s). No model ID,
+  budget, or other profile field changed. Worst case for one logical model call: 4 attempts of
+  240 s plus about 42 s of backoff.
+- No schema, event type, tool signature, dependency, eval case or grading change.

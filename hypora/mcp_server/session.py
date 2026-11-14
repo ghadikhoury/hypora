@@ -41,9 +41,14 @@ from hypora.storage.events import EventLog
 from hypora.storage.jobs import JobQueue
 from hypora.storage.records import RecordNotFound, load_experiment_contract
 
-MAX_STATUS_WAIT_SECONDS: Final = 45.0
-"""The longest one `get_experiment_status` call may wait for its job to change (D-030). It stays
-below the agent's own MCP read timeout and the 60 s default timeout of common MCP clients."""
+FIRST_STATUS_WAIT_SECONDS: Final = 45.0
+"""How long the first `get_experiment_status` call on a job in one state may wait for it to change
+(D-030). Each later call that finds the job unchanged waits twice as long as the one before, up to
+`status_wait_cap_seconds` (D-049)."""
+MAX_STATUS_WAIT_SECONDS: Final = 600.0
+"""The longest one `get_experiment_status` call may ever wait (D-049): the ceiling of both session
+wait settings. The agent's MCP client gives waiting calls a longer read timeout than this
+(`WAITING_CALL_READ_TIMEOUT_S`); a run limit or user cancel still ends a wait within a second."""
 
 
 SESSION_SECRET_ENV: Final = "HYPORA_MCP_SESSION_SECRET"
@@ -80,10 +85,16 @@ class SessionConfig(Record):
     experiment_dataset: Identifier = Field(description="The dataset the run's contract governs.")
     defenses: DefenseSwitches = Field(default_factory=DefenseSwitches)
     status_wait_seconds: float = Field(
+        FIRST_STATUS_WAIT_SECONDS,
+        ge=0,
+        le=MAX_STATUS_WAIT_SECONDS,
+        description="How long the first get_experiment_status call on an unchanged job may wait.",
+    )
+    status_wait_cap_seconds: float = Field(
         MAX_STATUS_WAIT_SECONDS,
         ge=0,
         le=MAX_STATUS_WAIT_SECONDS,
-        description="How long one get_experiment_status call may wait for its job to change.",
+        description="The longest a get_experiment_status wait grows to while the job is unchanged.",
     )
     retrieval_mode: RetrievalMode = RetrievalMode.HYBRID
     permitted_tools: tuple[ToolName, ...] | None = Field(
