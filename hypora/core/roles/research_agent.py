@@ -22,6 +22,23 @@ from hypora.core.roles.single_agent import (
 from hypora.core.schemas import ActorRole, ModelTier
 from hypora.core.schemas.strategy import Assessment, PriceEstimate, PriceStatus, StrategyPath
 
+_TRADEOFF_FIELDS = (
+    "task_fit",
+    "evidence_quality",
+    "privacy",
+    "license",
+    "hardware_feasibility",
+    "setup_cost",
+    "expected_inference_cost",
+    "latency_uncertainty",
+    "evaluation_risk",
+)
+NO_SOURCE_SUMMARY = "No returned source covers this path; it was not assessed."
+"""Platform text for an option B listed without evidence (every rating unknown)."""
+
+MAX_REPORT_ATTEMPTS = 2
+"""B may correct a refused strategy report once; the refusal names the rule, not the content."""
+
 
 @dataclass(frozen=True)
 class ResearchOutcome:
@@ -72,9 +89,14 @@ def _validate_observation(
         declared.add(citation.ref)
     used = {ref for option in report.options for ref in option.evidence_refs}
     for option in report.options:
-        if not option.evidence_refs:
-            raise ValueError("strategy option summary lacks source evidence")
         row = option.tradeoffs
+        if not option.evidence_refs and any(
+            getattr(row, field).rating is not Assessment.UNKNOWN for field in _TRADEOFF_FIELDS
+        ):
+            # A path no returned source covers may be listed, but only as unassessed: every
+            # rating unknown. `_mark_unverified` then replaces its summary with platform text,
+            # so no uncited claim about it survives.
+            raise ValueError("strategy option summary lacks source evidence")
         if row.price is not None and row.price.source_ref is not None:
             used.add(row.price.source_ref)
         for field in (
@@ -107,7 +129,10 @@ def _mark_unverified(result: ResearchObservation) -> ResearchObservation:
         update={"rationale": "[Unverified recommendation] " + report.recommendation.rationale}
     )
     for option in report.options:
-        option.summary = "[Unverified interpretation] " + option.summary
+        if option.evidence_refs:
+            option.summary = "[Unverified interpretation] " + option.summary
+        else:
+            option.summary = NO_SOURCE_SUMMARY
         row = option.tradeoffs
         # Public model cards are not verified price sources.
         if row.price is not None:
@@ -194,27 +219,48 @@ async def run_research_agent(
                 messages.append(revised)
             if recovery is not None and recovery.stopped:
                 break
-        guard.before_model_call()
-        response = await adapter.complete(
-            [
-                *messages,
-                Message.user(
-                    "Return a ResearchObservation with a complete StrategyReport for run "
-                    + run_id
-                    + ". Compare all four paths, explicitly state unknowns, and cite only returned "
-                    "source references, URLs, and exact revisions."
-                ),
-            ],
-            tier=ModelTier.LEAD,
-            context=call_context,
-            output_schema=ResearchObservation,
-        )
-        guard.after_model_call(response)
-        result = response.parsed
-        if response.tool_calls or not isinstance(result, ResearchObservation):
-            raise ValueError("invalid final research response")
-        _validate_observation(result, run_id, references)
-        return ResearchOutcome(_mark_unverified(result))
+        final_messages = [
+            *messages,
+            Message.user(
+                "Return a ResearchObservation with a complete StrategyReport for run "
+                + run_id
+                + ". Compare all four paths, explicitly state unknowns, and cite only returned "
+                "source references, URLs, and exact revisions."
+            ),
+        ]
+        for attempt in range(1, MAX_REPORT_ATTEMPTS + 1):
+            guard.before_model_call()
+            response = await adapter.complete(
+                final_messages,
+                tier=ModelTier.LEAD,
+                context=call_context,
+                output_schema=ResearchObservation,
+            )
+            guard.after_model_call(response)
+            result = response.parsed
+            if response.tool_calls or not isinstance(result, ResearchObservation):
+                raise ValueError("invalid final research response")
+            try:
+                _validate_observation(result, run_id, references)
+            except ValueError as refused:
+                if attempt == MAX_REPORT_ATTEMPTS:
+                    raise
+                # The reason is fixed platform text naming the rule, never report content.
+                final_messages = [
+                    *final_messages,
+                    response.message,
+                    Message.user(
+                        f"That report was not accepted: {refused}. Return the corrected "
+                        "ResearchObservation. Every citation must copy the ref, source_url and "
+                        "revision of a tool result exactly; an option's evidence_refs must be "
+                        "declared citations; rate a tradeoff unknown when no returned source "
+                        "supports it, and rate every tradeoff of an option unknown when no "
+                        "returned source covers that path."
+                    ),
+                ]
+                continue
+            return ResearchOutcome(_mark_unverified(result))
+        raise ValueError("invalid final research response")  # unreachable: the loop returns
     except RunLimitReached as exc:
         return ResearchOutcome(None, f"Research stopped at a run limit: {exc}")
     except LLMError as exc:

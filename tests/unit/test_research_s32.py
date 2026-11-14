@@ -287,6 +287,47 @@ def test_uncited_factual_tradeoff_is_rejected(rating):
         _validate_observation(observation, "run_1", references)
 
 
+def test_a_path_no_source_covers_may_be_listed_only_unassessed():
+    """D-045: B may list a path no returned source covers (live models did so for the hosted
+    API path in most runs) if every rating is unknown; its summary becomes platform text."""
+    from hypora.core.roles.multi import ResearchObservation
+    from hypora.core.roles.research_agent import (
+        NO_SOURCE_SUMMARY,
+        _mark_unverified,
+        _validate_observation,
+    )
+    from tests.controller.test_multi_loop import strategy_fixture
+
+    ref = "catalog:catalog_123"
+    references = {ref: ("https://example.org/model", "abc", "2026-11-10")}
+    report = strategy_fixture("run_1")
+    report["citations"] = [
+        {"ref": ref, "source_url": "https://example.org/model", "revision": "abc"}
+    ]
+    for option in report["options"][1:]:
+        option["evidence_refs"] = [ref]
+    report["options"][0]["evidence_refs"] = []
+    report["options"][0]["summary"] = "The hosted API is cheap, private and accurate."
+    observation = ResearchObservation.model_validate(
+        {"summary": "Compare.", "strategy_report": report}
+    )
+    _validate_observation(observation, "run_1", references)  # every rating unknown: accepted
+    marked = _mark_unverified(observation)
+    assert marked.strategy_report is not None
+    assert marked.strategy_report.options[0].summary == NO_SOURCE_SUMMARY
+
+    report["options"][0]["tradeoffs"]["privacy"] = {
+        "rating": "good",
+        "note": "Private",
+        "evidence_refs": [ref],
+    }
+    observation = ResearchObservation.model_validate(
+        {"summary": "Compare.", "strategy_report": report}
+    )
+    with pytest.raises(ValueError, match="option summary lacks source evidence"):
+        _validate_observation(observation, "run_1", references)
+
+
 def test_uncited_recommendation_is_rejected_and_cited_interpretations_marked_unverified():
     from hypora.core.roles.multi import ResearchObservation
     from hypora.core.roles.research_agent import _mark_unverified, _validate_observation

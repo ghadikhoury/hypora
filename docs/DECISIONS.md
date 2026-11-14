@@ -1101,3 +1101,31 @@ migration, grader or merged eval case changes.
   unscreened (`PLATFORM_KEYS`). `get_experiment_status` puts guidance such as "call
   get_experiment_status again now" there; screening it would withhold the platform's instructions
   as a tool-call injection. Every other string in a screened result is screened.
+
+## D-045 — Live-run hardening of the A/B/C workflow (2026-11-14)
+
+Ghadi approved changing the role-text filter (trigger 3) and asked for the multi-agent workflow to
+complete real runs before the check-in. Until 2026-11-14 the A/B/C workflow (PRs #35–#43) had
+been tested only with scripted models; its first live runs all failed. Evidence and the full list
+of failures: `docs/notes/live-run-hardening.md`.
+
+- Role-text boundary (`_Run._validate_assignment`): ordinary prose passes whatever its punctuation,
+  numbers or wording. Refused: credential-shaped text, code syntax (fenced blocks, `def name(`,
+  `import` statements, `class Name:` lines), and any line the data firewall's untrusted-text rule
+  withholds (a dataset row, a run of one column, a distinctive text cell). Frequent category labels
+  are no longer refused: the profile already discloses them (D-009) and they are ordinary words.
+- Bounded correction: a refused A decision, B strategy report or C data contract is returned to
+  its author once, with the refusal reason. Every reason is fixed platform text that names the
+  rule, never the refused content, so a correction cannot carry data or a credential forward.
+- Gemini structured output: `maxItems` is removed from the schema sent to Gemini, which refuses it
+  (HTTP 400). The adapter still validates every reply against the full schema.
+- B may list a strategy path no returned source covers only with every rating `unknown`; its
+  summary is replaced by platform text, so no uncited claim survives.
+- Provider retries: 5 instead of 3 (about a minute of backoff), after a brief Gemini overload ended
+  a run on its first decision.
+- Context, not authority: A's methodology reviews and C's proposal state the platform's
+  guarantees (target statistics withheld before the lock; labels, positive class, stratification
+  and metrics owned by code); A's assignment request and C's prompt say the approved contract
+  fixes the split, validation, metric and limits. Unavailable research is labelled advisory.
+- No frozen schema, event type, MCP tool signature, fit/predict interface, dependency, sandbox,
+  grader, eval case or `eval` profile change.

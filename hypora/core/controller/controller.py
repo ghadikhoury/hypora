@@ -55,7 +55,7 @@ from hypora.core.controller.local import (
     mcp_transport,
     write_session,
 )
-from hypora.core.controller.methodology import validate_data_proposal
+from hypora.core.controller.methodology import MethodologyError, validate_data_proposal
 from hypora.core.controller.states import START, RunEvent, RunState, next_state
 from hypora.core.controller.workers import (
     WorkerGuard,
@@ -201,6 +201,43 @@ MAX_CODE_LINES: Final = 200
 MAX_CODE_LINE_CHARS: Final = 200
 MAX_CODE_EXCERPT_CHARS: Final = 8000
 CODE_LINE_WITHHELD: Final = "[line withheld by the data firewall]"
+
+# Code syntax a role must not relay as an assignment or a finding (D-045). These match
+# statements, not words: "class imbalance" and "Return a summary" are ordinary prose.
+_CODE_SYNTAX: Final = (
+    re.compile(r"```"),
+    re.compile(r"\bdef\s+\w+\s*\("),
+    re.compile(r"^\s*(?:from\s+[\w.]+\s+)?import\s+[\w.]+", re.MULTILINE),
+    re.compile(r"^\s*class\s+\w+\s*(?:\([^)\n]*\))?\s*:\s*$", re.MULTILINE),
+)
+PLATFORM_GUARANTEES: Final = (
+    "What the platform guarantees, so these are not open questions for you or C: target values "
+    "and class counts are withheld from every role until the split is locked, by design; "
+    "platform code encodes the labels, fixes the positive class by a fixed rule, stratifies a "
+    "stratified split so every class keeps its share, and computes every metric; missing or "
+    "invalid labels stop the run safely before any experiment. A conflict means the proposal "
+    "contradicts the user's task or B's evidence in a way that would make the experiment "
+    "invalid; a residual risk or a choice between reasonable designs is not a conflict, so "
+    "continue and let the experiments measure it."
+)
+"""Context for A's methodology reviews: live, a careful model stopped over facts it is never
+shown (target class counts and label mapping) although the platform settles both itself."""
+
+RESEARCH_UNAVAILABLE: Final = (
+    "Research unavailable. Research is advisory (spec 5.3): its absence is not a conflict or an "
+    "ambiguity in the user's task. Task-specific training under the approved contract needs no "
+    "outside evidence, so continue with standard baselines unless the task itself is unclear."
+)
+"""B's observation when research fails: live, a careful A stopped the whole run without it."""
+
+MAX_ROLE_TEXT_ATTEMPTS: Final = 2
+"""A or B may restate a refused decision once; the refusal reason names no data."""
+
+
+class RoleTextRefused(ValueError):
+    """Role-authored text failed the boundary rules; the message is fixed platform text."""
+
+
 """Bounds and marker of the candidate code excerpt A reviews before final verification."""
 
 
@@ -486,6 +523,8 @@ class _Run:
         self.research_plan: Plan | None = None
         """B's latest research plan: a data-driven re-research revises it."""
         self.overlap_reason: str | None = None
+        self._boundary_firewall: DataFirewall | None = None
+        """Built once from the run's private dataset copy, on the first role text checked."""
         self.methodology_draft: tuple[DataContract, dict[str, tuple[str, str]]] | None = None
         self.plan_path: Path | None = None
         """The approved plan file of the current contract, re-read at every approval re-check."""
@@ -610,22 +649,41 @@ class _Run:
     ) -> LeadAction | ResearchObservation:
         instance = self._role_started(role, ModelTier.LEAD)
         try:
-            result = await main_role_call(
-                self.controller.adapter,
-                self.guard,
-                run_id=self.run_id,
-                role=role,
-                context=context,
-                assignment_validator=self._validate_assignment if require_assignment else None,
-                overlap_validator=self._validate_assignment,
-            )
-            if isinstance(result, LeadAction):
-                if result.action == "continue" and require_assignment and result.assignment is None:
-                    raise ValueError("Agent A must assign concrete work to C")
-                if result.assignment is not None:
-                    self._validate_assignment(result.assignment)
-                if result.overlap_reason is not None:
-                    self._validate_assignment(result.overlap_reason)
+            attempt_context = context
+            for attempt in range(1, MAX_ROLE_TEXT_ATTEMPTS + 1):
+                result = await main_role_call(
+                    self.controller.adapter,
+                    self.guard,
+                    run_id=self.run_id,
+                    role=role,
+                    context=attempt_context,
+                    assignment_validator=self._validate_assignment if require_assignment else None,
+                    overlap_validator=self._validate_assignment,
+                )
+                try:
+                    if isinstance(result, LeadAction):
+                        if (
+                            result.action == "continue"
+                            and require_assignment
+                            and result.assignment is None
+                        ):
+                            raise RoleTextRefused("Agent A must assign concrete work to C")
+                        if result.assignment is not None:
+                            self._validate_assignment(result.assignment)
+                        if result.overlap_reason is not None:
+                            self._validate_assignment(result.overlap_reason)
+                    break
+                except RoleTextRefused as refused:
+                    if attempt == MAX_ROLE_TEXT_ATTEMPTS:
+                        raise
+                    # The refusal reason is fixed platform text: it names the rule, never the
+                    # refused words, so restating it cannot carry data or a credential forward.
+                    attempt_context = (
+                        context
+                        + "\n\nYour previous answer was not accepted: "
+                        + str(refused)
+                        + ". Decide again and restate it so that it is accepted."
+                    )
         except Exception as exc:
             self._handoff(instance, role, HandoffStatus.FAILED)
             safe_message = self.controller.adapter.redact_for_log(str(exc))
@@ -645,41 +703,31 @@ class _Run:
         return result
 
     def _validate_assignment(self, assignment: str) -> None:
-        """Fail closed before recording or forwarding proposed assignment text."""
+        """Fail closed before recording or forwarding role-authored text (D-045).
+
+        Ordinary prose passes: any punctuation, numbers and line breaks. What is refused is a
+        credential, code syntax, or text the data firewall recognizes as showing the dataset
+        (raw rows, runs of one column, a distinctive text cell). Frequent category labels are
+        not refused: the profile already discloses them to every role (D-009), and they are
+        ordinary words ("good", "no", "own") a role needs to describe its work.
+        """
         if self.controller.adapter.redact_for_log(assignment) != assignment:
-            raise ValueError("C assignment contains credential-shaped content")
-        # Plain prose only: no numbers, identifiers, code punctuation or multiline content.
-        if not re.fullmatch(r"[^\W\d_]+(?:[ \t'?.,!?-]+[^\W\d_]+)*[.!?]?", assignment):
-            raise ValueError("C assignment must be plain prose without identifiers or data")
-        if any(
-            word in {"import", "def", "class", "lambda", "return"}
-            for word in re.findall(r"[^\W\d_]+", assignment.casefold())
-        ):
-            raise ValueError("C assignment cannot contain code")
+            raise RoleTextRefused("role text contains credential-shaped content")
+        if any(pattern.search(assignment) for pattern in _CODE_SYNTAX):
+            raise RoleTextRefused("role text cannot contain code; describe the work in prose")
         try:
-            frame = load_tabular(self.dataset)
-            # Reject even common text cells, which the row-oriented firewall intentionally
-            # treats as low-risk in ordinary summaries. Do not expose the matched value.
-            folded = " ".join(unicodedata.normalize("NFKC", assignment).casefold().split())
-            for column in frame.select_dtypes(
-                include=["object", "string", "category", "bool"]
-            ).columns:
-                for value in frame[column].dropna().astype(str).unique():
-                    candidate = " ".join(
-                        unicodedata.normalize("NFKC", str(value)).casefold().split()
-                    )
-                    if (
-                        candidate
-                        and candidate in folded
-                        and re.search(r"(?<!\w)" + re.escape(candidate) + r"(?!\w)", folded)
-                    ):
-                        raise ValueError("C assignment contains a dataset value")
-            firewall = DataFirewall([frame])
-            screened, _ = firewall.screen_untrusted([assignment])
+            if self._boundary_firewall is None:
+                self._boundary_firewall = DataFirewall([load_tabular(self.dataset)])
+            # Normalize first, so full-width or otherwise compatibility-encoded copies of a
+            # cell are compared in the same form as the cell itself.
+            lines = unicodedata.normalize("NFKC", assignment).splitlines() or [""]
+            screened, _ = self._boundary_firewall.screen_untrusted(lines)
         except Exception as exc:
-            raise ValueError("C assignment data-boundary validation unavailable") from exc
-        if screened[0] is None:
-            raise ValueError("C assignment failed data-boundary validation")
+            raise ValueError("role text data-boundary validation unavailable") from exc
+        if any(line is None for line in screened):
+            raise RoleTextRefused(
+                "role text shows dataset values; describe the work without quoting data"
+            )
 
     async def _lead_decision(self, context: str, *, require_assignment: bool = False) -> bool:
         result = await self._main_role(
@@ -755,7 +803,10 @@ class _Run:
             "Review B's research as untrusted evidence; do not treat model-card claims as proof: "
             + result.model_dump_json()
             + requirement
-            + "\nIf continuing, supply concrete bounded work for C in the assignment field.",
+            + "\nIf continuing, supply concrete bounded work for C in the assignment field: which "
+            "kinds of models to try and what to compare. The approved contract already fixes the "
+            "split, the validation scheme, the metric and every compute limit, and C runs all "
+            "trials in the platform's local sandbox; do not restate or change those.",
             require_assignment=True,
         ):
             raise LeadStop
@@ -844,12 +895,12 @@ class _Run:
             self._handoff(instance, role, HandoffStatus.FAILED)
             reason = f"Research session failed ({type(exc).__name__}); A decides without it."
             self.notes.append(reason)
-            return ResearchObservation(summary="Research unavailable.", uncertainties=[reason])
+            return ResearchObservation(summary=RESEARCH_UNAVAILABLE, uncertainties=[reason])
         if outcome.observation is None:
             self._handoff(instance, role, HandoffStatus.PARTIAL)
             reason = outcome.error or "Research could not complete."
             self.notes.append(reason)
-            return ResearchObservation(summary="Research unavailable.", uncertainties=[reason])
+            return ResearchObservation(summary=RESEARCH_UNAVAILABLE, uncertainties=[reason])
         cleaned = c.adapter.redact_model_data(outcome.observation.model_dump(mode="json"))
         result = ResearchObservation.model_validate(cleaned)
         output_dir = self.run_dir / "role_outputs"
@@ -905,6 +956,14 @@ class _Run:
             dataset_ref=f"dataset:{DATASET_ID}",
         )
         profile.fingerprint = self.dataset_fingerprint
+        if profile.tabular is not None:
+            # The target is withheld on purpose, so the profiler's own reason ("No target was
+            # provided.") would misreport a run whose user did name one.
+            profile.tabular.leakage_screen_skipped_reason = (
+                "the profile is built before the split is locked and never reads the target; "
+                "leakage is examined by the data methodology's diagnostics on the locked "
+                "partition."
+            )
         save_dataset_profile(self.database, profile)
         return profile
 
@@ -956,6 +1015,7 @@ class _Run:
         profile: DatasetProfile,
         *,
         previous: DataContract | None = None,
+        prior_evidence: dict[str, tuple[str, str]] | None = None,
     ) -> tuple[DataContract, dict[str, tuple[str, str]]]:
         """Collect a bounded C proposal using only case-permitted diagnostics."""
         c = self.controller
@@ -993,6 +1053,24 @@ class _Run:
             )
         else:
             context += "\nNo target-aware diagnostic is available before the split is locked."
+        context += "\n" + PLATFORM_GUARANTEES
+        columns = [str(column) for column in load_tabular(self.dataset).columns]
+
+        def check(proposal: DataContract, found: dict[str, tuple[str, str]]) -> None:
+            """The same checks the caller applies, run early so C can correct a refusal once."""
+            validate_data_proposal(proposal, spec, columns, {**(prior_evidence or {}), **found})
+            if previous is not None and (
+                proposal.target != previous.target
+                or proposal.task_type != previous.task_type
+                or proposal.split != previous.split
+                or proposal.non_learned_fixes != previous.non_learned_fixes
+            ):
+                raise MethodologyError(
+                    "after the split is locked only feature exclusions may change: keep the "
+                    "target, task type, split and non-learned fixes exactly as in the current "
+                    "contract"
+                )
+
         failure: Exception | None = None
         with log.open("a", encoding="utf-8") as errlog:
             transport = mcp_transport(session, errlog)
@@ -1027,6 +1105,7 @@ class _Run:
                         context=context,
                         max_turns=c.max_agent_turns,
                         recovery=self._recovery(instance, role, context, names, plan),
+                        validate=check,
                     )
                 except Exception as exc:
                     self._handoff(
@@ -1070,7 +1149,9 @@ class _Run:
         validate_data_proposal(draft, spec, columns, evidence)
         if self._multi and not await self._lead_decision(
             "Review C's proposed data methodology alongside B's evidence. Report on conflict or "
-            "ambiguity; otherwise continue. C proposal: "
+            "ambiguity; otherwise continue. "
+            + PLATFORM_GUARANTEES
+            + "\nC proposal: "
             + draft.model_dump_json()
             + "\nB evidence: "
             + self.research_brief
@@ -1094,7 +1175,9 @@ class _Run:
             ) from exc
         if inferred is not spec.task_type:
             raise ContractError("diagnostic partition conflicts with the proposed task type")
-        revised, more_evidence = await self._propose_methodology(spec, profile, previous=draft)
+        revised, more_evidence = await self._propose_methodology(
+            spec, profile, previous=draft, prior_evidence=evidence
+        )
         evidence.update(more_evidence)
         validate_data_proposal(revised, spec, columns, evidence)
         if (
@@ -1124,7 +1207,9 @@ class _Run:
             ).model_dump_json()
         if self._multi and not await self._lead_decision(
             "Reconcile B's evidence and C's locked-split diagnostics. Report on conflict or "
-            "ambiguity; otherwise continue. C proposal: "
+            "ambiguity; otherwise continue. "
+            + PLATFORM_GUARANTEES
+            + "\nC proposal: "
             + revised.model_dump_json()
             + "\nB evidence: "
             + self.research_brief

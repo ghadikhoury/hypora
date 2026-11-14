@@ -74,6 +74,15 @@ def test_the_narrative_may_not_write_numbers_of_its_own(text: str) -> None:
         ReportNarrative(summary=text)
 
 
+@pytest.mark.parametrize(
+    "text", ["Score {{final.test_metrics.mae}}.", "First trial got {{trials[1].validation.mean}}."]
+)
+def test_a_made_up_placeholder_is_refused_with_the_valid_forms(text: str) -> None:
+    """D-045: live, the generic "no digits" refusal produced the same invented path again."""
+    with pytest.raises(ValidationError, match=r"\{\{test\.<metric>\}\}"):
+        ReportNarrative(summary=text)
+
+
 def test_placeholders_and_metric_names_are_not_numbers() -> None:
     narrative = ReportNarrative.model_validate(GOOD)
     assert narrative.summary.startswith("The baseline")

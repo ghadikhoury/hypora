@@ -1,7 +1,7 @@
 """A bounded tool-enabled C data-methodology proposal."""
 
 import json
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from hypora.core.llm.adapter import LLMAdapter
 from hypora.core.llm.errors import LLMError
@@ -11,6 +11,12 @@ from hypora.core.roles.prompt_loader import load_prompt
 from hypora.core.roles.recovery import RecoverySession
 from hypora.core.roles.single_agent import ToolChannel, call_tool, revised_plan_message
 from hypora.core.schemas import ActorRole, DataContract, ModelTier
+
+MAX_PROPOSAL_ATTEMPTS = 2
+"""C may correct a refused DataContract once; the refusal names the rule, not the content."""
+
+ProposalValidator = Callable[[DataContract, dict[str, tuple[str, str]]], None]
+"""Raises ValueError (with fixed platform text) when a proposal must be refused."""
 
 
 async def propose_data_contract(
@@ -24,9 +30,11 @@ async def propose_data_contract(
     context: str,
     max_turns: int,
     recovery: RecoverySession | None = None,
+    validate: ProposalValidator | None = None,
 ) -> tuple[DataContract, dict[str, tuple[str, str]]]:
     """Collect tool evidence and a structured proposal; never persist raw model output. With
-    `recovery`, tool failures are retried, replanned, clarified or stopped."""
+    `recovery`, tool failures are retried, replanned, clarified or stopped. With `validate`, a
+    refused proposal is returned to C once with the refusal reason before the run stops."""
     prompt = load_prompt("agent_c_methodology")
     call_context = CallContext(
         run_id=run_id,
@@ -72,18 +80,43 @@ async def propose_data_contract(
             break
     else:
         raise ValueError("data methodology exceeded its bounded model turns")
-    guard.before_model_call()
-    try:
-        response = await adapter.complete(
-            [*messages, Message.user("Return the complete proposed DataContract now.")],
-            tier=ModelTier.LEAD,
-            context=call_context,
-            output_schema=DataContract,
-        )
-    except LLMError as exc:
-        guard.after_model_error(exc)
-        raise
-    guard.after_model_call(response)
-    if response.tool_calls or not isinstance(response.parsed, DataContract):
-        raise ValueError("data methodology returned no valid contract")
-    return response.parsed, evidence
+    final_messages = [*messages, Message.user("Return the complete proposed DataContract now.")]
+    for attempt in range(1, MAX_PROPOSAL_ATTEMPTS + 1):
+        guard.before_model_call()
+        try:
+            response = await adapter.complete(
+                final_messages,
+                tier=ModelTier.LEAD,
+                context=call_context,
+                output_schema=DataContract,
+            )
+        except LLMError as exc:
+            guard.after_model_error(exc)
+            raise
+        guard.after_model_call(response)
+        if response.tool_calls or not isinstance(response.parsed, DataContract):
+            raise ValueError("data methodology returned no valid contract")
+        if validate is None:
+            return response.parsed, evidence
+        try:
+            validate(response.parsed, evidence)
+        except ValueError as refused:
+            if attempt == MAX_PROPOSAL_ATTEMPTS:
+                raise
+            # The validator's messages are fixed platform text naming the rule that failed,
+            # never proposal content, so the correction request carries no data forward.
+            final_messages = [
+                *final_messages,
+                response.message,
+                Message.user(
+                    f"The platform refused that DataContract: {refused}. Return a corrected "
+                    "complete DataContract. Every exclusion must cite a diagnostic_id returned "
+                    "by a tool for that same column (otherwise allow the column); a split key "
+                    "needs a matching group or time diagnostic (otherwise use a random or "
+                    "stratified split); leave open_questions empty and record residual concerns "
+                    "in risks instead."
+                ),
+            ]
+            continue
+        return response.parsed, evidence
+    raise ValueError("data methodology returned no valid contract")  # unreachable

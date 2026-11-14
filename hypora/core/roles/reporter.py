@@ -126,6 +126,15 @@ class ReportNarrative(StrictModel):
                 if metric not in _KNOWN_METRICS:
                     raise ValueError(f"unknown metric in placeholder: {metric!r}")
             bare = _METRIC_WORDS.sub("", PLACEHOLDER.sub("", text))
+            if "{{" in bare or "}}" in bare:
+                # A model that writes a path into the facts ({{final.test_metrics.mae}},
+                # {{trials[1].validation.mean}}) needs to be told the form, not only "no digits":
+                # seen live, the generic message produced the same answer again.
+                raise ValueError(
+                    "unknown placeholder: the only placeholders are {{test.<metric>}} and "
+                    "{{validation.<metric>}}, the final model's scores (for example "
+                    "{{test.mae}}); describe every other trial in words, without its score"
+                )
             if re.search(r"\d", bare):
                 raise ValueError(
                     "the narrative must not contain digits: refer to scores only with "
