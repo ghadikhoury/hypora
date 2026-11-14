@@ -80,6 +80,7 @@ class FinalEvidence:
     stages: Sequence[StageRecord]
     model_sha256: str  # hash of the model artifact on disk
     frozen_model_sha256: str  # hash recorded when the candidate was frozen
+    withheld_columns: tuple[str, ...] = ()  # D-050: allowed features the platform removed
 
 
 def _classification(task: TaskType) -> bool:
@@ -179,19 +180,34 @@ class _Checks:
         )
 
     def allowed_features(self) -> CheckResult:
-        allowed = list(self.e.contract.data_contract.allowed_features)
+        withheld = set(self.e.withheld_columns)
+        contract_allowed = list(self.e.contract.data_contract.allowed_features)
+        # A D-050 comparison trial is the same code without the flagged columns: the platform
+        # removed them, so the trial must have received exactly the rest, in contract order.
+        allowed = [name for name in contract_allowed if name not in withheld]
         given = list(self.e.feature_columns)
         forbidden = {f.name for f in self.e.contract.data_contract.excluded_features}
         forbidden.add(self.e.contract.target)
+        forbidden |= withheld
         leaked = sorted(forbidden & set(given))
-        ok = given == allowed and not leaked
+        ok = given == allowed and not leaked and withheld <= set(contract_allowed)
+        details: dict[str, Any] = {
+            "features": len(given),
+            "allowed": len(allowed),
+            "forbidden_given": leaked,
+        }
+        if withheld:
+            details["withheld_by_platform"] = sorted(withheld)
         return _result(
             VerificationCheck.ALLOWED_FEATURES,
             ok,
-            "trial code received exactly the contract's allowed features"
+            (
+                "trial code received exactly the contract's allowed features"
+                + (" minus the platform-withheld columns" if withheld else "")
+            )
             if ok
             else "trial code received columns outside the contract",
-            {"features": len(given), "allowed": len(allowed), "forbidden_given": leaked},
+            details,
         )
 
     def split_respected(self) -> CheckResult:

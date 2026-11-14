@@ -58,6 +58,17 @@ class ExperimentPhase(StrEnum):
     VALIDATE = "validate"  # submit_experiment: fit and score every validation fold
     FINAL = "final"  # controller: validate, refit on development rows, score the test split
     # once, and run verifier v1
+    PERMUTATION = "permutation"  # controller (D-050): reuse the source job's fitted fold models,
+    # shuffle candidate columns in each fold's validation rows and rescore; no fit, no test rows
+
+
+class PermutationRequest(StrictModel):
+    """What a PERMUTATION job shuffles (D-050): column names and bounds, never values."""
+
+    columns: list[NonEmptyStr] = Field(min_length=1, max_length=3)
+    repeats: int = Field(3, ge=1, le=10)
+    max_rows: int = Field(10_000, ge=1)
+    seed: int = 0
 
 
 class ExperimentRequest(Record):
@@ -70,7 +81,21 @@ class ExperimentRequest(Record):
     trial_files: dict[str, Sha256Hex] = Field(description="Snapshot file name -> SHA-256.")
     phase: ExperimentPhase = ExperimentPhase.VALIDATE
     source_job_id: Identifier | None = Field(
-        None, description="FINAL: the validated job whose snapshot this job finalizes."
+        None,
+        description=(
+            "FINAL: the validated job whose snapshot this job finalizes. PERMUTATION: the "
+            "validated job whose fitted fold models it reuses."
+        ),
+    )
+    withheld_columns: list[NonEmptyStr] = Field(
+        default_factory=list,
+        description=(
+            "D-050 comparison trial: allowed features the platform removes before any stage, so "
+            "trial code never receives them. A FINAL job of that trial keeps the same list."
+        ),
+    )
+    permutation: PermutationRequest | None = Field(
+        None, description="PERMUTATION: the candidate columns to shuffle."
     )
 
 
@@ -114,6 +139,13 @@ class ExperimentOutcome(Record):
     )
     verification: VerificationResult | None = Field(
         None, description="FINAL: verifier v1's verdict on the frozen candidate."
+    )
+    permutation: dict[str, JsonValue] | None = Field(
+        None,
+        description=(
+            "PERMUTATION: platform-computed fold baselines and per-column shuffled scores of the "
+            "primary metric on validation rows (column names and numbers only)."
+        ),
     )
 
 

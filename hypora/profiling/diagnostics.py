@@ -4,10 +4,17 @@ Callers must select an authorized, locked training partition before invoking a s
 primitive. These functions do not grant data access or expose themselves as MCP tools.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd  # type: ignore[import-untyped]
+from sklearn.metrics import roc_auc_score  # type: ignore[import-untyped]
+from sklearn.model_selection import (  # type: ignore[import-untyped]
+    KFold,
+    StratifiedKFold,
+    train_test_split,
+)
 
 from hypora.core.schemas import TaskType
 from hypora.profiling.tabular import profile_tabular
@@ -74,6 +81,178 @@ def feature_predictiveness(
         association.method,
         None,
     )
+
+
+MISSING_CATEGORY = "\x00missing"
+"""A missing category value is its own category in the screen: missingness itself can leak."""
+CATEGORY_SMOOTHING = 10.0
+"""Out-of-fold category rates are shrunk toward the prior by this many pseudo-rows."""
+
+
+@dataclass(frozen=True)
+class ColumnScreenScore:
+    """One column's direction-free single-column association with the target (no model fitted).
+
+    `score` is a rank ROC-AUC (max(AUC, 1 - AUC), one-vs-rest averaged for multiclass) for a
+    classification target, or an absolute Spearman correlation for a regression target; `chance`
+    is what an unrelated column scores (0.5 or 0). Category columns are scored by out-of-fold
+    target rates, so a column with a different value in every row scores near chance.
+    """
+
+    column: str
+    score: float | None
+    chance: float
+    method: str
+
+    @property
+    def excess(self) -> float:
+        """How far the score stands above chance (0 when unavailable)."""
+        return 0.0 if self.score is None else max(0.0, self.score - self.chance)
+
+
+def _sample_rows(target: pd.Series, classification: bool, max_rows: int, seed: int) -> np.ndarray:
+    positions = np.arange(len(target))
+    if len(positions) <= max_rows:
+        return positions
+    stratify = None
+    if classification and target.value_counts().min() >= 2:
+        stratify = target.to_numpy()
+    sample, _ = train_test_split(
+        positions, train_size=max_rows, stratify=stratify, random_state=seed
+    )
+    return np.sort(np.asarray(sample))
+
+
+def _direction_free_auc(truth: np.ndarray, values: np.ndarray) -> float | None:
+    if truth.min() == truth.max():
+        return None
+    auc = float(roc_auc_score(truth, values))
+    return max(auc, 1.0 - auc)
+
+
+def _spearman_abs(values: np.ndarray, target: np.ndarray) -> float | None:
+    rho = pd.Series(values).rank().corr(pd.Series(target).rank())
+    return None if pd.isna(rho) else abs(float(rho))
+
+
+def _numeric_values(series: pd.Series) -> np.ndarray:
+    values = series.astype(float).to_numpy(copy=True)
+    missing = np.isnan(values)
+    if missing.all():
+        return np.zeros(len(values))
+    # Missing values rank together below every observed value, so missingness that follows the
+    # target is still seen by the rank score.
+    values[missing] = np.nanmin(values) - 1.0
+    return values
+
+
+def _out_of_fold_rates(
+    codes: np.ndarray, outcomes: np.ndarray, splits: Sequence[tuple[np.ndarray, np.ndarray]]
+) -> np.ndarray:
+    """Encode each row by its category's target mean computed on the other folds only."""
+    encoded = np.empty(len(codes), dtype=float)
+    for train, held in splits:
+        prior = float(outcomes[train].mean())
+        frame = pd.DataFrame({"code": codes[train], "y": outcomes[train]})
+        stats = frame.groupby("code")["y"].agg(["sum", "count"])
+        rates = (stats["sum"] + CATEGORY_SMOOTHING * prior) / (stats["count"] + CATEGORY_SMOOTHING)
+        encoded[held] = pd.Series(codes[held]).map(rates).fillna(prior).to_numpy()
+    return encoded
+
+
+def single_column_screen(
+    features: pd.DataFrame,
+    target: pd.Series,
+    task_type: TaskType,
+    *,
+    max_rows: int = 50_000,
+    folds: int = 5,
+    seed: int = 0,
+) -> list[ColumnScreenScore]:
+    """Score every column alone against the target on caller-supplied training rows.
+
+    No model is trained: number columns are ranked directly, category columns are encoded by
+    out-of-fold target rates. Rows beyond `max_rows` are left out by a stratified (classification)
+    or random (regression) sample. Not a leakage verdict: only aggregates are returned, never a
+    value. Callers pass the locked training (development) rows only, never the test split.
+    """
+    if len(features) != len(target):
+        raise ValueError("features and target must have the same rows")
+    keep = target.notna().to_numpy()
+    features = features.reset_index(drop=True).loc[keep].reset_index(drop=True)
+    target = target.reset_index(drop=True).loc[keep].reset_index(drop=True)
+    classification = task_type is not TaskType.REGRESSION
+    rows = _sample_rows(target, classification, max_rows, seed)
+    features, target = features.iloc[rows], target.iloc[rows]
+    truths: list[np.ndarray] = []
+    if classification:
+        labels, classes = pd.factorize(target, sort=True)
+        if len(classes) < 2:
+            raise ValueError("the screen needs at least two classes")
+        truths = [labels == 1] if len(classes) == 2 else [labels == k for k in range(len(classes))]
+        outcome_sets = [truth.astype(float) for truth in truths]
+        try:
+            splitter = StratifiedKFold(n_splits=folds, shuffle=True, random_state=seed)
+            splits = list(splitter.split(np.zeros(len(labels)), labels))
+        except ValueError:  # a class rarer than the fold count: plain folds still work
+            splits = list(KFold(folds, shuffle=True, random_state=seed).split(labels))
+        chance, numeric_method, category_method = 0.5, "rank_auc", "oof_target_rate_auc"
+    else:
+        y = target.astype(float).to_numpy()
+        outcome_sets = [y]
+        splits = list(KFold(folds, shuffle=True, random_state=seed).split(y))
+        chance, numeric_method, category_method = 0.0, "spearman_abs", "oof_mean_spearman_abs"
+    results = []
+    for column in features.columns:
+        series = features[column]
+        numeric = pd.api.types.is_numeric_dtype(series) and not pd.api.types.is_bool_dtype(series)
+        score: float | None
+        try:
+            if numeric:
+                values = _numeric_values(series)
+                encoded = [values] * len(outcome_sets)
+                method = numeric_method
+            else:
+                text = series.astype(object).where(series.notna(), MISSING_CATEGORY).astype(str)
+                codes = pd.factorize(text)[0]
+                encoded = [_out_of_fold_rates(codes, outcome, splits) for outcome in outcome_sets]
+                method = category_method
+            if classification:
+                aucs = [
+                    _direction_free_auc(truth, values)
+                    for truth, values in zip(truths, encoded, strict=True)
+                ]
+                usable = [auc for auc in aucs if auc is not None]
+                score = float(np.mean(usable)) if usable else None
+            else:
+                score = _spearman_abs(encoded[0], outcome_sets[0])
+        except (TypeError, ValueError):
+            score, method = None, "unavailable"  # never relay a value through an error
+        results.append(ColumnScreenScore(str(column), score, chance, method))
+    return results
+
+
+def screen_candidates(
+    scores: Sequence[ColumnScreenScore],
+    *,
+    min_excess: float,
+    gap_ratio: float,
+    max_candidates: int,
+) -> tuple[list[ColumnScreenScore], ColumnScreenScore | None]:
+    """The columns whose screen scores stand far above the rest, and the best remaining column.
+
+    Columns are ordered by their excess over chance. The candidates are the shortest leading run
+    (at most `max_candidates`) whose last column beats chance by `min_excess` and stands
+    `gap_ratio` times above the next column's excess. No such run: no candidate.
+    """
+    ordered = sorted(scores, key=lambda item: (-item.excess, item.column))
+    for count in range(1, min(max_candidates, len(ordered)) + 1):
+        last = ordered[count - 1].excess
+        following = ordered[count].excess if count < len(ordered) else 0.0
+        if last >= min_excess and last >= gap_ratio * following:
+            rest = ordered[count] if count < len(ordered) else None
+            return ordered[:count], rest
+    return [], ordered[0] if ordered else None
 
 
 def group_overlap(frame: pd.DataFrame, column: str) -> GroupOverlap:

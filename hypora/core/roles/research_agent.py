@@ -11,7 +11,7 @@ from hypora.core.llm.adapter import LLMAdapter
 from hypora.core.llm.errors import LLMError, describe_llm_error
 from hypora.core.llm.types import CallContext, Message, ToolSpec
 from hypora.core.roles.base import CallGuard, RunLimitReached
-from hypora.core.roles.multi import ResearchObservation
+from hypora.core.roles.multi import ResearchObservation, ResearchObservationWithRange
 from hypora.core.roles.prompt_loader import load_prompt
 from hypora.core.roles.recovery import RecoverySession
 from hypora.core.roles.single_agent import (
@@ -20,7 +20,8 @@ from hypora.core.roles.single_agent import (
     call_tool,
     revised_plan_message,
 )
-from hypora.core.schemas import ActorRole, ModelTier
+from hypora.core.schemas import ActorRole, MetricName, ModelTier
+from hypora.core.schemas.leakage import range_problem
 from hypora.core.schemas.strategy import Assessment, PriceEstimate, PriceStatus, StrategyPath
 
 _TRADEOFF_FIELDS = (
@@ -39,6 +40,17 @@ NO_SOURCE_SUMMARY = "No returned source covers this path; it was not assessed."
 
 MAX_REPORT_ATTEMPTS = 2
 """B may correct a refused strategy report once; the refusal names the rule, not the content."""
+TYPICAL_RANGE_REQUEST = (
+    " Also give typical_score_range: the typical {metric} range that a returned source reports "
+    "for similar problems (low, high, and the citation_ref of that source, which must be one of "
+    "your citations). Leave typical_score_range out when no returned source reports one; never "
+    "estimate it yourself."
+)
+"""B's extra instruction with the leakage_flag on (D-046 part 1); no extra model call."""
+RANGE_DROPPED = (
+    "[Platform] The typical score range was left out: {reason}. A records its own estimate or "
+    "an unknown range instead."
+)
 
 
 @dataclass(frozen=True)
@@ -126,6 +138,36 @@ def _validate_observation(
         raise ValueError("strategy contains unresolved evidence references")
 
 
+def checked_typical_range(
+    result: ResearchObservation, metric: MetricName | None
+) -> ResearchObservation:
+    """Keep B's typical score range only when it is usable; otherwise drop it and say so.
+
+    Usable means: the metric is the task's primary metric, the values form a range of that metric,
+    and its citation_ref is one of the report's (already validated) citations. Dropping a range is
+    recorded in B's uncertainties, never silent, and never refuses the rest of the research.
+    """
+    found = getattr(result, "typical_score_range", None)
+    if found is None:
+        return result
+    report = result.strategy_report
+    declared = {citation.ref for citation in report.citations} if report is not None else set()
+    if metric is None or found.metric is not metric:
+        reason = "it is not a range of the task's primary metric"
+    elif (problem := range_problem(metric, found.low, found.high)) is not None:
+        reason = problem
+    elif found.citation_ref not in declared:
+        reason = "its citation is not one of the returned sources B cited"
+    else:
+        return result
+    return result.model_copy(
+        update={
+            "typical_score_range": None,
+            "uncertainties": [*result.uncertainties, RANGE_DROPPED.format(reason=reason)][-10:],
+        }
+    )
+
+
 def _mark_unverified(result: ResearchObservation) -> ResearchObservation:
     """Label model interpretations and never present unsupported provider prices as facts."""
     result = result.model_copy(deep=True)
@@ -133,6 +175,10 @@ def _mark_unverified(result: ResearchObservation) -> ResearchObservation:
     # marker instead of silently dropping the summary's last sentence (D-047).
     result.summary = shorten("[Unverified research interpretation] " + result.summary, 2000)
     result.uncertainties = ["[Unverified] " + item for item in result.uncertainties]
+    found = getattr(result, "typical_score_range", None)
+    if found is not None and found.note is not None:
+        note = shorten("[Unverified interpretation] " + found.note, 300)
+        setattr(result, "typical_score_range", found.model_copy(update={"note": note}))  # noqa: B010
     report = result.strategy_report
     assert report is not None
     report.recommendation = report.recommendation.model_copy(
@@ -190,9 +236,17 @@ async def run_research_agent(
     context: str,
     max_turns: int,
     recovery: RecoverySession | None = None,
+    typical_range_metric: MetricName | None = None,
 ) -> ResearchOutcome:
     """Use session tools, report unavailable evidence and validate citations. With `recovery`,
-    tool failures are retried, replanned, clarified or stopped (`hypora.core.roles.recovery`)."""
+    tool failures are retried, replanned, clarified or stopped (`hypora.core.roles.recovery`).
+
+    With `typical_range_metric` (the leakage_flag on), B may also cite the typical range of that
+    metric for similar problems, in the same final answer (D-046 part 1).
+    """
+    schema: type[ResearchObservation] = (
+        ResearchObservation if typical_range_metric is None else ResearchObservationWithRange
+    )
     prompt = load_prompt("agent_b")
     call_context = CallContext(run_id=run_id, actor_role=ActorRole.AGENT_B, prompt_ref=prompt.ref)
     messages = [Message.system(prompt.text), Message.user(context)]
@@ -237,6 +291,11 @@ async def run_research_agent(
                 + run_id
                 + ". Compare all four paths, explicitly state unknowns, and cite only returned "
                 "source references, URLs, and exact revisions."
+                + (
+                    ""
+                    if typical_range_metric is None
+                    else TYPICAL_RANGE_REQUEST.format(metric=typical_range_metric.value)
+                )
             ),
         ]
         for attempt in range(1, MAX_REPORT_ATTEMPTS + 1):
@@ -245,11 +304,11 @@ async def run_research_agent(
                 final_messages,
                 tier=ModelTier.LEAD,
                 context=call_context,
-                output_schema=ResearchObservation,
+                output_schema=schema,
             )
             guard.after_model_call(response)
             result = response.parsed
-            if response.tool_calls or not isinstance(result, ResearchObservation):
+            if response.tool_calls or not isinstance(result, schema):
                 raise ValueError("invalid final research response")
             try:
                 _validate_observation(result, run_id, references)
@@ -274,7 +333,11 @@ async def run_research_agent(
                     ),
                 ]
                 continue
-            return ResearchOutcome(_mark_unverified(result))
+            # Labelled first, so the platform's note about a dropped range is the only unlabelled
+            # uncertainty and no model text can pose as it.
+            return ResearchOutcome(
+                checked_typical_range(_mark_unverified(result), typical_range_metric)
+            )
         raise ValueError("invalid final research response")  # unreachable: the loop returns
     except RunLimitReached as exc:
         return ResearchOutcome(None, f"Research stopped at a run limit: {exc}")

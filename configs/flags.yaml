@@ -21,3 +21,18 @@ flags:
   max_diagnostic_workers: 4    # inactive legacy name
   max_parallel_trials: 3       # inactive legacy name
   max_c_workers: 2
+  # Too-good-score investigation (S4.1b, D-046, D-050): off reproduces the earlier behavior.
+  leakage_flag: "on"           # on | off
+  leakage_check:               # thresholds; calibration in docs/notes/leakage-flag.md
+    score_margin: 0.08         # maximized metrics: above high end by more than noise + this
+    relative_margin: 0.35      # minimized metrics: below low end by noise + this share of it
+    screen_max_rows: 50000     # stratified sample cap of the single-column screen
+    screen_folds: 5            # out-of-fold parts for category target rates
+    screen_min_excess: 0.10    # a candidate beats chance by at least this
+    screen_gap_ratio: 1.5      # and stands this many times above the next column
+    max_candidates: 3
+    permutation_repeats: 3
+    permutation_max_rows: 10000
+    confirm_fraction: 0.5      # shuffling removes at least this share of the excess
+    dominance_ratio: 2.0       # and drops this many times more than other candidates
+    max_confirmed: 2

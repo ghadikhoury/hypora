@@ -31,6 +31,7 @@ from typing import Any, Final, Literal
 
 from pydantic import Field, model_validator
 
+from hypora.core.controller.leakage import UNEXPLAINED_LIMITATION, UNKNOWN_RANGE_LIMITATION
 from hypora.core.llm.adapter import LLMAdapter
 from hypora.core.llm.errors import LLMError
 from hypora.core.llm.types import CallContext, Message
@@ -60,10 +61,12 @@ from hypora.core.schemas.events import (
     ErrorEvent,
     HandoffEvent,
     JobTransitionEvent,
+    LeakageCheckEvent,
     ModelCallEvent,
     StageTransitionEvent,
     ToolCallEvent,
 )
+from hypora.core.schemas.leakage import LeakageOutcome, LeakageSection, LeakageStep
 from hypora.execution.protocol import experiments as protocol
 from hypora.profiling.tabular import leakage_screen_summary
 from hypora.storage.database import Database
@@ -260,6 +263,8 @@ class Report(StrictModel):
     limitations: list[str] = Field(default_factory=list)
     resources: ResourceUse | None = None
     approval: ReportApproval | None = None
+    leakage: LeakageSection | None = None
+    """D-050: present only when the too-good-score investigation confirmed a column."""
 
     @model_validator(mode="before")
     @classmethod
@@ -475,9 +480,42 @@ def _limitations(
                 f"Plan approval {event.payload.approval_id} was denied by "
                 f"{event.payload.approver}: {reason}."
             )
+    lines += _leakage_limitations(timeline)
     if verification_status != "not_run":
         lines.append(TEST_ONCE_LIMITATION)
     return lines
+
+
+def _leakage_events(timeline: _Timeline) -> list[LeakageCheckEvent]:
+    return [event for event in timeline.before if isinstance(event, LeakageCheckEvent)]
+
+
+def _leakage_limitations(timeline: _Timeline) -> list[str]:
+    """One line when the too-good check had no range, or fired but explained nothing (D-050)."""
+    events = _leakage_events(timeline)
+    trigger = next((e for e in events if e.payload.step is LeakageStep.TRIGGER), None)
+    if trigger is None:
+        return []
+    if trigger.payload.outcome is LeakageOutcome.UNKNOWN_RANGE:
+        return [UNKNOWN_RANGE_LIMITATION]
+    decided = any(e.payload.step is LeakageStep.DECISION for e in events)
+    p = trigger.payload
+    if p.outcome is LeakageOutcome.FIRED and not decided:
+        source = p.expected_source.value if p.expected_source else "unknown source"
+        return [
+            UNEXPLAINED_LIMITATION.format(low=p.expected_low, high=p.expected_high, source=source)
+        ]
+    return []
+
+
+def _leakage_section(timeline: _Timeline) -> LeakageSection | None:
+    """The report's leakage section: the investigation's recorded decision, if it made one."""
+    decisions = [
+        e.payload.section
+        for e in _leakage_events(timeline)
+        if e.payload.step is LeakageStep.DECISION and e.payload.section is not None
+    ]
+    return decisions[-1] if decisions else None
 
 
 def build_report(
@@ -583,6 +621,7 @@ def build_report(
         ),
         resources=None if runs_root is None else _resources(database, runs_root, run_id, timeline),
         approval=approval,
+        leakage=_leakage_section(timeline),
         objective=spec.objective,
         target=contract.target,
         task_type=contract.task_type,
@@ -692,6 +731,7 @@ def render_markdown(report: Report) -> str:
         ]
     elif report.narrative_note:
         lines += [f"_{report.narrative_note}_", ""]
+    lines += _render_leakage(report.leakage)
     lines += ["## Final model"]
     if report.final is None:
         lines += ["No final model: no trial completed validation and verification.", ""]
@@ -742,6 +782,77 @@ def render_markdown(report: Report) -> str:
         lines += ["## Run notes", *(f"- {note}" for note in report.notes), ""]
     lines += ["## Sources", *(f"- `{source}`" for source in report.sources), ""]
     return "\n".join(lines)
+
+
+def _render_leakage(section: LeakageSection | None) -> list[str]:
+    """The plain-language section on a flagged column (D-046 part 6), only once one is confirmed."""
+    if section is None:
+        return []
+    metric = section.metric.value
+    source = section.expected_source.value
+    cited = f": {section.expected_citation}" if section.expected_citation else ""
+    with_model = section.with_columns
+    names = ", ".join(f"`{c.column}`" for c in section.columns)
+    lines = [
+        "## A column may be recorded after the outcome",
+        f"The final candidate's validation {metric} was {_number(with_model.validation_mean)}, "
+        f"well above the expected range for this kind of problem, {section.expected_low:g} to "
+        f"{section.expected_high:g} ({source}{cited}). The platform checked which column explains "
+        "it, using the training and validation rows only.",
+        "",
+    ]
+    for column in section.columns:
+        detail = f"- `{column.column}`: alone it scores {_number(column.screen_score)}"
+        if section.next_best_column is not None:
+            detail += (
+                f", against {_number(section.next_best_score)} for the next best column, "
+                f"`{section.next_best_column}`"
+            )
+        detail += (
+            f". Shuffling it in the validation rows lowered the validation {metric} by "
+            f"{_number(column.permutation_drop)}."
+        )
+        if column.clues:
+            detail += " Clues: " + "; ".join(column.clues) + "."
+        lines.append(detail)
+    lines.append("")
+    without = section.without_columns
+    if without is not None:
+        lines.append(
+            f"If this value is known when you predict, the model with it scores "
+            f"{_number(with_model.validation_mean)} (trial `{with_model.trial_id}`). If it is "
+            f"recorded after the outcome, use the model without it: "
+            f"{_number(without.validation_mean)} (trial `{without.trial_id}`). Both are "
+            f"validation {metric} scores."
+        )
+    elif section.known_at_prediction:
+        lines.append(
+            f"You said {names} is known when you predict, so the model with it is the final model "
+            f"(validation {metric} {_number(with_model.validation_mean)}); no model without it "
+            "was trained."
+        )
+    else:
+        why = (
+            "the run's limits left no room for it"
+            if section.comparison is LeakageOutcome.BUDGET_EXHAUSTED
+            else "its trial did not complete"
+        )
+        lines.append(
+            f"No model without {names} could be trained ({why}). The final model below uses it: "
+            "if this value is recorded after the outcome, run the task again without it."
+        )
+    recommended = (
+        "the model without it"
+        if without is not None and section.recommended_trial_id == without.trial_id
+        else "the model with it"
+    )
+    lines += [
+        "",
+        f"Recommended final model: {recommended} (trial `{section.recommended_trial_id}`). The "
+        "test split was scored once, for the recommended model only. Both models are kept.",
+        "",
+    ]
+    return lines
 
 
 _STATUS_TEXT: Final = {

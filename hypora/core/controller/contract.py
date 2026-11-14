@@ -43,6 +43,7 @@ from hypora.core.schemas import (
     TrialKind,
 )
 from hypora.core.schemas.contracts import ExcludedFeature, SplitSpec, SplitStrategy
+from hypora.core.schemas.leakage import ExpectedScoreRange
 from hypora.core.schemas.strategy import (
     ProposedMeasurement,
     ProposedPhaseBPlan,
@@ -113,11 +114,13 @@ def build_plan(
     version: int = 1,
     policy: ApprovalPolicy = ApprovalPolicy.AUTO_WITHIN_CONTRACT,
     scope: ApprovalScope | None = None,
+    expected_score_range: ExpectedScoreRange | None = None,
 ) -> ApprovedPlan:
     """The plan to approve: measure a baseline, then candidates, within `budget`.
 
     With `scope`, the plan is bound to it (`approvals.bind_scope`): its notes end with the
     scope's hash, so the plan's content hash, which the approval names, covers the scope too.
+    `expected_score_range` (D-050, leakage_flag on) is shown at the gate and covered by the hash.
     """
     per_trial = CostEstimate(compute_seconds=60.0, assumptions=("Stage-1 flat estimate",))
     plan = ApprovedPlan(
@@ -148,6 +151,7 @@ def build_plan(
         data_contract_hash=data.content_hash(),
         budget=budget,
         approval_policy=policy,
+        expected_score_range=expected_score_range,
     )
     return plan if scope is None else bind_scope(plan, scope)
 

@@ -350,3 +350,17 @@ reviewer/reporter agent. Repository PR review remains independent.
 Done when: deterministic end-to-end tests cover approve/reject/stale approval, scope changes,
 injection attempts, failed verification, honest reporting and safe stop. Review actual tool/sandbox
 changes under the existing security trigger, without removing mandatory affected tests.
+
+## Stage 4 — completed steps
+
+### S4.1 — Targeted end-to-end hardening
+**PR:** `s4.1-hardening` · `→ SERIAL` · Depends on S3.5 · **Spec:** §§5–10, 19
+Run existing dev cases with scripted models first. Diagnose failures by trace, fix the responsible
+behavior, and rerun the affected case plus a control when live evidence is needed and authorized.
+Confirm A handles advice-only, reuse, explicit training, research failure and data-driven replanning.
+Map tool errors into safe idempotent retry/backoff, replanning, clarification or stop, with
+structured plan/replan records. Implement causal malformed-data safe-stop evidence with positive
+and negative grader tests before claiming bad-data recovery. Add focused fault/security cases
+where needed; do not weaken graders to make the new graph pass.
+Done when: all roles are wired through the CLI, failures have actionable categories, and affected
+tests pass. No separate Stage 3 paid gate or duplicate two-profile full dev run.

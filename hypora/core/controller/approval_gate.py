@@ -547,6 +547,7 @@ class ApprovalGate:
             f"worker ceiling {scope.max_c_workers}",
             f"network {scope.network}",
             f"scope {scope_hash(scope)[:12]}",
+            _range_text(plan),
             note,
         ]
         if not self.defense_on:
@@ -557,6 +558,19 @@ class ApprovalGate:
         self, type: EventType, payload: BaseModel, actor: ActorRole = ActorRole.CONTROLLER
     ) -> None:
         self.events.append(self.run_id, type, actor, payload.model_dump(mode="json"))
+
+
+def _range_text(plan: ApprovedPlan) -> str:
+    """The plan's expected score range as the gate shows it (D-050), or nothing when unset."""
+    expected = plan.expected_score_range
+    if expected is None:
+        return ""
+    if expected.low is None or expected.high is None:
+        return f"expected {expected.metric.value} range unknown (no too-good-score check)"
+    return (
+        f"expected {expected.metric.value} range {expected.low:g} to {expected.high:g} "
+        f"({expected.source.value})"
+    )
 
 
 __all__ = [

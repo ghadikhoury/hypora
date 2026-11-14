@@ -81,6 +81,7 @@ Completed and merged (each step's full text is in `docs/archive/PLAN-completed-s
 | 1 — Walking skeleton | S1.1 (#7), S1.2 (#8), S1.3 (#14), S1.4 (#15), S1.5 (#16), S1.6 (#17), S1.7 (#21) |
 | 2 — Evaluation harness | S2.0 (#24), S2.0b (#25), S2.1 (#23), S2.2 (#26), S2.3 (#27), S2.4 (#28), S2.5 (#29), S2.6 (#32) |
 | 3 — A/B/C workflow | S3.1 (#35), S3.2 (#36), S3.3 (#37), S3.4 (#40), S3.5 (#41) |
+| 4 — Integrated product | S4.1 (#42) |
 
 The S2.6 recorded development results are agent 3/6 versus fixed baseline 2/6 on each profile,
 inconclusive. Those S2.6 failures (leakage, group and time order) informed Stage 3; S4.2
@@ -102,18 +103,6 @@ Later: additional families, elaborate retrieval, durability, web UI and optional
   decision (spec §5.4); it says nothing about how many coding agents work on this repository.
 
 ## Stage 4 — Make the integrated product ready
-
-### S4.1 — Targeted end-to-end hardening
-**PR:** `s4.1-hardening` · `→ SERIAL` · Depends on S3.5 · **Spec:** §§5–10, 19
-Run existing dev cases with scripted models first. Diagnose failures by trace, fix the responsible
-behavior, and rerun the affected case plus a control when live evidence is needed and authorized.
-Confirm A handles advice-only, reuse, explicit training, research failure and data-driven replanning.
-Map tool errors into safe idempotent retry/backoff, replanning, clarification or stop, with
-structured plan/replan records. Implement causal malformed-data safe-stop evidence with positive
-and negative grader tests before claiming bad-data recovery. Add focused fault/security cases
-where needed; do not weaken graders to make the new graph pass.
-Done when: all roles are wired through the CLI, failures have actionable categories, and affected
-tests pass. No separate Stage 3 paid gate or duplicate two-profile full dev run.
 
 ### S4.1b — Investigate a too-good score and report both models (D-046)
 **PR:** `s4.1b-leakage-flag` · `→ SERIAL` · Depends on S4.1 · **Spec:** §§7.1–7.3, 8.6–8.7, 15.1, 19.4

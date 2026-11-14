@@ -1781,6 +1781,591 @@
       "type": "object"
     },
     "JsonValue": {},
+    "LeakageCheckEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_role": {
+          "$ref": "#/$defs/ActorRole"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "job_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Job Id"
+        },
+        "parent_span_id": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{16}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Span Id"
+        },
+        "payload": {
+          "$ref": "#/$defs/LeakageCheckPayload"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "seq": {
+          "description": "Monotonic per run, assigned by the event log.",
+          "exclusiveMinimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "span_id": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{16}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Span Id"
+        },
+        "trace_id": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{32}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trace Id"
+        },
+        "trial_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trial Id"
+        },
+        "type": {
+          "const": "leakage_check",
+          "default": "leakage_check",
+          "title": "Type",
+          "type": "string"
+        },
+        "workspace_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Workspace Id"
+        }
+      },
+      "required": [
+        "run_id",
+        "seq",
+        "actor_role",
+        "created_at",
+        "payload"
+      ],
+      "title": "LeakageCheckEvent",
+      "type": "object"
+    },
+    "LeakageCheckPayload": {
+      "additionalProperties": false,
+      "description": "One step of the too-good-score investigation (PLAN.md S4.1b, D-050).\n\nPlatform-written facts only: the expected range, summary scores, column names, trial and job\nreferences and a platform-written reason. No row or cell value is ever recorded here.\n`section` is set on the decision step and is exactly what the report shows.",
+      "properties": {
+        "columns": {
+          "items": {
+            "$ref": "#/$defs/LeakageColumnScore"
+          },
+          "title": "Columns",
+          "type": "array"
+        },
+        "expected_high": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected High"
+        },
+        "expected_low": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Low"
+        },
+        "expected_source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ScoreRangeSource"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "job_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Job Id"
+        },
+        "margin": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Margin"
+        },
+        "metric": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MetricName"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "outcome": {
+          "$ref": "#/$defs/LeakageOutcome"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "score_mean": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Score Mean"
+        },
+        "score_noise": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Score Noise"
+        },
+        "section": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LeakageSection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "step": {
+          "$ref": "#/$defs/LeakageStep"
+        },
+        "trial_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trial Id"
+        }
+      },
+      "required": [
+        "step",
+        "outcome"
+      ],
+      "title": "LeakageCheckPayload",
+      "type": "object"
+    },
+    "LeakageColumnScore": {
+      "additionalProperties": false,
+      "description": "One column's summary scores: its single-column screen score and, once confirmed or not,\nthe mean drop in the primary metric when it was shuffled in the validation rows.",
+      "properties": {
+        "clues": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "title": "Clues",
+          "type": "array"
+        },
+        "column": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Column",
+          "type": "string"
+        },
+        "confirmed": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confirmed"
+        },
+        "permutation_drop": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Permutation Drop"
+        },
+        "screen_method": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Screen Method"
+        },
+        "screen_score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Screen Score"
+        }
+      },
+      "required": [
+        "column"
+      ],
+      "title": "LeakageColumnScore",
+      "type": "object"
+    },
+    "LeakageModel": {
+      "additionalProperties": false,
+      "description": "One of the models the report compares, with its validation score (never a test score).",
+      "properties": {
+        "folds": {
+          "default": 0,
+          "title": "Folds",
+          "type": "integer"
+        },
+        "trial_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Trial Id",
+          "type": "string"
+        },
+        "validation_mean": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Validation Mean"
+        },
+        "validation_std": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Validation Std"
+        },
+        "without_columns": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Without Columns",
+          "type": "array"
+        }
+      },
+      "required": [
+        "trial_id"
+      ],
+      "title": "LeakageModel",
+      "type": "object"
+    },
+    "LeakageOutcome": {
+      "description": "What a step found.",
+      "enum": [
+        "fired",
+        "not_fired",
+        "unknown_range",
+        "candidates",
+        "no_candidates",
+        "confirmed",
+        "not_confirmed",
+        "unavailable",
+        "submitted",
+        "trained",
+        "failed",
+        "budget_exhausted",
+        "skipped_known_at_prediction",
+        "recommend_without",
+        "recommend_with"
+      ],
+      "title": "LeakageOutcome",
+      "type": "string"
+    },
+    "LeakageSection": {
+      "additionalProperties": false,
+      "description": "The report's section on a confirmed too-good column (D-046 part 6).\n\nPresent only when a column was confirmed. Every number comes from platform records: the plan's\nexpected range, the screen, the permutation check and the trials' stored validation scores.",
+      "properties": {
+        "columns": {
+          "items": {
+            "$ref": "#/$defs/LeakageColumnScore"
+          },
+          "maxItems": 2,
+          "minItems": 1,
+          "title": "Columns",
+          "type": "array"
+        },
+        "comparison": {
+          "$ref": "#/$defs/LeakageOutcome"
+        },
+        "expected_citation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Citation"
+        },
+        "expected_high": {
+          "title": "Expected High",
+          "type": "number"
+        },
+        "expected_low": {
+          "title": "Expected Low",
+          "type": "number"
+        },
+        "expected_source": {
+          "$ref": "#/$defs/ScoreRangeSource"
+        },
+        "known_at_prediction": {
+          "default": false,
+          "title": "Known At Prediction",
+          "type": "boolean"
+        },
+        "metric": {
+          "$ref": "#/$defs/MetricName"
+        },
+        "next_best_column": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Next Best Column"
+        },
+        "next_best_score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Next Best Score"
+        },
+        "recommended_trial_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+          "title": "Recommended Trial Id",
+          "type": "string"
+        },
+        "with_columns": {
+          "$ref": "#/$defs/LeakageModel"
+        },
+        "without_columns": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LeakageModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "metric",
+        "expected_low",
+        "expected_high",
+        "expected_source",
+        "columns",
+        "with_columns",
+        "comparison",
+        "recommended_trial_id"
+      ],
+      "title": "LeakageSection",
+      "type": "object"
+    },
+    "LeakageStep": {
+      "description": "The investigation's recorded steps; each is one `leakage_check` event (D-046 part 7).",
+      "enum": [
+        "trigger",
+        "screen",
+        "confirmation",
+        "comparison",
+        "decision"
+      ],
+      "title": "LeakageStep",
+      "type": "string"
+    },
+    "MetricName": {
+      "description": "Metrics computed by platform code (spec §18; PLAN.md S1.3).",
+      "enum": [
+        "accuracy",
+        "balanced_accuracy",
+        "precision",
+        "recall",
+        "f1",
+        "precision_macro",
+        "recall_macro",
+        "f1_macro",
+        "roc_auc",
+        "pr_auc",
+        "log_loss",
+        "brier_score",
+        "mae",
+        "rmse",
+        "r2"
+      ],
+      "title": "MetricName",
+      "type": "string"
+    },
     "ModelCallEvent": {
       "additionalProperties": false,
       "properties": {
@@ -2878,6 +3463,16 @@
       "title": "RunStatus",
       "type": "string"
     },
+    "ScoreRangeSource": {
+      "description": "Where an expected score range came from (D-046 part 1).",
+      "enum": [
+        "research",
+        "estimate",
+        "unknown"
+      ],
+      "title": "ScoreRangeSource",
+      "type": "string"
+    },
     "Stage": {
       "description": "Fine-grained run-graph stage (spec §5.1); recorded alongside RunStatus (D-005).",
       "enum": [
@@ -3562,6 +4157,7 @@
       "escalation": "#/$defs/EscalationEvent",
       "handoff": "#/$defs/HandoffEvent",
       "job_transition": "#/$defs/JobTransitionEvent",
+      "leakage_check": "#/$defs/LeakageCheckEvent",
       "model_call": "#/$defs/ModelCallEvent",
       "plan": "#/$defs/PlanEvent",
       "policy_decision": "#/$defs/PolicyDecisionEvent",
@@ -3617,6 +4213,9 @@
     },
     {
       "$ref": "#/$defs/HandoffEvent"
+    },
+    {
+      "$ref": "#/$defs/LeakageCheckEvent"
     }
   ],
   "title": "Event"
