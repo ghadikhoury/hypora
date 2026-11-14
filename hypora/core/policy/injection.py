@@ -127,6 +127,10 @@ def _normalize(line: str) -> str:
     return re.sub(r"\s+", " ", text)
 
 
+normalize_line = _normalize
+"""Public name for the screen's folding, for callers that match their own patterns (D-045)."""
+
+
 def classify_line(line: str) -> InjectionCategory | None:
     """The first category whose pattern matches `line`, or None for an ordinary line."""
     normalized = _normalize(line)
@@ -275,6 +279,7 @@ __all__ = [
     "ScreenResult",
     "classify_line",
     "injection_policy_decision",
+    "normalize_line",
     "screen_text",
     "screen_tool_result",
     "screen_value",

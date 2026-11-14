@@ -117,8 +117,38 @@ def build_config(request: ProviderRequest, system: str | None) -> types.Generate
         ]
     if request.output_json_schema is not None:
         config["response_mime_type"] = "application/json"
-        config["response_json_schema"] = request.output_json_schema
+        config["response_json_schema"] = without_max_items(request.output_json_schema)
     return types.GenerateContentConfig(**config)
+
+
+_SCHEMA_NAME_MAPS = frozenset({"properties", "$defs", "definitions", "patternProperties"})
+_SCHEMA_DATA_KEYS = frozenset({"default", "enum", "const", "examples"})
+"""Keywords whose values are data, not schema: copied unchanged."""
+
+
+def without_max_items(schema: Any) -> Any:
+    """The output schema without `maxItems`, which Gemini refuses on nested arrays.
+
+    Gemini answers HTTP 400 "Request contains an invalid argument" for a response schema whose
+    arrays of objects carry `maxItems` (seen live with `WorkerProposal`, 2026-11-14). The bound is
+    not lost: the adapter validates every structured reply against the full schema and asks
+    again when it does not fit. Property and definition names are kept whatever they are.
+    """
+    if isinstance(schema, list):
+        return [without_max_items(item) for item in schema]
+    if not isinstance(schema, dict):
+        return schema
+    cleaned: dict[str, Any] = {}
+    for key, value in schema.items():
+        if key == "maxItems":
+            continue
+        if key in _SCHEMA_DATA_KEYS:
+            cleaned[key] = value
+        elif key in _SCHEMA_NAME_MAPS and isinstance(value, dict):
+            cleaned[key] = {name: without_max_items(sub) for name, sub in value.items()}
+        else:
+            cleaned[key] = without_max_items(value)
+    return cleaned
 
 
 def encode_messages(messages: tuple[Message, ...]) -> tuple[str | None, list[types.Content]]:

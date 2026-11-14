@@ -60,6 +60,39 @@ def test_gemini_encodes_system_tools_schema_and_disables_sdk_function_calling() 
     assert config.automatic_function_calling.disable is True
 
 
+def test_gemini_output_schema_drops_max_items_but_keeps_names_and_other_bounds() -> None:
+    """D-045: Gemini answers HTTP 400 to `maxItems` on nested arrays (seen live with
+    `WorkerProposal`); the adapter still validates replies against the full schema."""
+    schema: dict[str, Any] = {
+        "type": "object",
+        "properties": {
+            "workers": {"type": "array", "maxItems": 4, "items": {"$ref": "#/$defs/W"}},
+            "maxItems": {"type": "string", "maxLength": 9},  # a property that has that name
+        },
+        "$defs": {
+            "W": {
+                "type": "object",
+                "properties": {"tools": {"type": "array", "minItems": 1, "maxItems": 6}},
+            }
+        },
+    }
+    config = gemini_client.build_config(
+        request(output_json_schema=schema, output_schema_name="A"), None
+    )
+    sent = config.response_json_schema
+    assert sent == {
+        "type": "object",
+        "properties": {
+            "workers": {"type": "array", "items": {"$ref": "#/$defs/W"}},
+            "maxItems": {"type": "string", "maxLength": 9},
+        },
+        "$defs": {
+            "W": {"type": "object", "properties": {"tools": {"type": "array", "minItems": 1}}}
+        },
+    }
+    assert schema["properties"]["workers"]["maxItems"] == 4  # the caller's schema is not mutated
+
+
 def test_gemini_temperature_not_configurable_is_omitted() -> None:
     config = gemini_client.build_config(request(temperature="not_configurable"), None)
     assert config.temperature is None

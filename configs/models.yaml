@@ -63,9 +63,11 @@ models:
         retrieved_on: 2026-10-24
 
   # Transient errors (429 rate limit, 5xx, timeouts) are retried with exponential backoff and
-  # jitter, at most max_retries times; a daily-quota error is never retried.
+  # jitter, at most max_retries times; a daily-quota error is never retried. A 6 s base waits
+  # roughly 6 + 12 + 24 s: a 2 s base gave up after ~12 s, which a brief provider overload (seen
+  # live on 2026-11-14) outlasted, ending a whole run on its first decision (D-045).
   retry:
     max_retries: 3
-    base_delay_s: 2.0
+    base_delay_s: 6.0
     max_delay_s: 60.0
     request_timeout_s: 120.0
