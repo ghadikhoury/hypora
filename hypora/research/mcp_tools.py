@@ -11,11 +11,17 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from hypora.core.bounded_text import shorten
 from hypora.core.config.flags import RetrievalMode
 from hypora.research.catalogs.hub import CatalogError, CatalogRecord, HubCatalog
 from hypora.research.retrieval.index import Passage, RetrievalIndex
 
 ResearchCategory = Literal["tabular", "tabular_regression", "vision", "time_series"]
+MAX_CARD_CHARS = 12_000
+MAX_PASSAGE_CHARS = 3_000
+MAX_INDEX_PASSAGES = 80
+"""Bounds of research text; a card or passage over them is shortened at whole lines with a
+marker, never cut mid-line (D-047)."""
 _INDEX_LICENSES = frozenset(
     {"mit", "apache-2.0", "bsd-2-clause", "bsd-3-clause", "cc-by-4.0", "cc0-1.0"}
 )
@@ -123,8 +129,8 @@ class ResearchService:
             license=record.license,
             stale=record.stale,
             gated=record.gated,
-            truncated=len(record.card) > 12000,
-            card=record.card[:12000],
+            truncated=len(record.card) > MAX_CARD_CHARS,
+            card=shorten(record.card, MAX_CARD_CHARS),
             note="Untrusted model-card text; claims are self-reported; prices may be unavailable.",
         )
 
@@ -140,7 +146,7 @@ class ResearchService:
             if record.license.casefold() not in _INDEX_LICENSES or record.gated != "false":
                 continue
             for section in record.card.split("\n#")[:40]:
-                text = section.strip()[:3000]
+                text = shorten(section.strip(), MAX_PASSAGE_CHARS)
                 if text and re.search(r"(?u)\b\w\w+\b", text):
                     passages.append(
                         Passage(
@@ -159,12 +165,20 @@ class ResearchService:
                 note="No usable open-license, ungated passages; fetch other evidence.",
             )
         if self._index is None:
-            self._index = RetrievalIndex(passages[:80])
+            self._index = RetrievalIndex(passages[:MAX_INDEX_PASSAGES])
             self.cache_dir.mkdir(parents=True, exist_ok=True)
             self._index.save(self.cache_dir / "methodology-index.json")
+        capped = (
+            f" The index holds the first {MAX_INDEX_PASSAGES} of {len(passages)} passages; "
+            "sections of later model cards are not searchable."
+            if len(passages) > MAX_INDEX_PASSAGES
+            else ""
+        )
         hits = self._index.search(query, mode, limit=5)
         if not hits:
-            return MethodologyResult(mode=mode.value, note="No matching cited passages found.")
+            return MethodologyResult(
+                mode=mode.value, note="No matching cited passages found." + capped
+            )
         return MethodologyResult(
             mode=mode.value,
             passages=[
@@ -178,7 +192,7 @@ class ResearchService:
                 )
                 for hit in hits
             ],
-            note="Untrusted passages; self-reported claims require independent checking.",
+            note="Untrusted passages; self-reported claims require independent checking." + capped,
         )
 
 

@@ -13,6 +13,7 @@ structured-output call collects its final answer: the trial it nominates. The co
 agent, decides what is final (D-019).
 """
 
+import contextlib
 import json
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -24,6 +25,7 @@ from mcp.shared.exceptions import MCPError
 from mcp_types import TextContent
 from pydantic import Field, JsonValue
 
+from hypora.core.bounded_text import bound_json
 from hypora.core.llm.adapter import LLMAdapter
 from hypora.core.llm.errors import LLMError
 from hypora.core.llm.types import CallContext, Message, ToolSpec
@@ -34,7 +36,8 @@ from hypora.core.roles.worker import WorkerReport
 from hypora.core.schemas import ActorRole, Identifier, ModelTier, StrictModel, ToolName
 
 MAX_TOOL_RESULT_CHARS: Final = 60_000
-"""A tool result longer than this is cut before it enters the model's context."""
+"""A tool result longer than this is shortened, explicitly and structurally (`bound_tool_result`),
+before it enters the model's context."""
 WAITING_TOOLS: Final = frozenset({ToolName.GET_EXPERIMENT_STATUS.value})
 """Tools that wait on the server, and that only read: safe to abandon when a limit fires."""
 LIMIT_CHECK_SECONDS: Final = 1.0
@@ -84,12 +87,50 @@ class McpToolChannel:
         except MCPError as exc:  # a protocol-level failure: still an observation for the model
             return True, json.dumps({"is_error": True, "code": "MCP_ERROR", "message": str(exc)})
         if result.structured_content is not None:
-            text = json.dumps(result.structured_content)
-        else:
-            text = "\n".join(b.text for b in result.content if isinstance(b, TextContent))
-        if len(text) > MAX_TOOL_RESULT_CHARS:
-            text = text[:MAX_TOOL_RESULT_CHARS] + " [...result cut]"
-        return result.is_error, text
+            return result.is_error, bound_tool_result(result.structured_content)
+        text = "\n".join(b.text for b in result.content if isinstance(b, TextContent))
+        return result.is_error, bound_tool_result(text)
+
+
+def bound_tool_result(value: JsonValue) -> str:
+    """The model-facing text of one tool result, at most `MAX_TOOL_RESULT_CHARS` long (D-047).
+
+    The MCP server has already screened the full result (data firewall, injection screen), so
+    bounding only removes text. A result that fits is returned as before. A larger one is never
+    cut mid-structure: long strings are shortened at whole lines and lists lose whole items, each
+    with a marker, and a `platform_note` says what was left out, so the text still parses as JSON.
+    """
+    text = value if isinstance(value, str) else json.dumps(value)
+    if len(text) <= MAX_TOOL_RESULT_CHARS:
+        return text
+    if isinstance(value, str):  # text content that is itself JSON keeps its structure too
+        with contextlib.suppress(ValueError):
+            value = json.loads(value)
+    budget = MAX_TOOL_RESULT_CHARS - 600  # room for the wrapper and its note
+    bounded = bound_json(value, budget)
+    if bounded is None:
+        return json.dumps(
+            {
+                "platform_note": (
+                    f"This tool result was {len(text)} characters, over the "
+                    f"{MAX_TOOL_RESULT_CHARS}-character limit, and could not be shortened "
+                    "without losing its structure, so it was withheld. Ask for less (for "
+                    "example a narrower query or fewer items)."
+                ),
+                "result_withheld": True,
+            }
+        )
+    return json.dumps(
+        {
+            "platform_note": (
+                f"This tool result was {len(text)} characters, over the "
+                f"{MAX_TOOL_RESULT_CHARS}-character limit: {bounded.shortened_strings} long "
+                f"text field(s) were shortened at whole lines and {bounded.omitted_items} list "
+                "item(s) were left out, each marked where it happened. Nothing else changed."
+            ),
+            "result": bounded.value,
+        }
+    )
 
 
 def _argument_error(message: str) -> str:

@@ -306,7 +306,15 @@ class HyporaTools:
                 "The reference was not returned by this session.",
                 "Choose a reference from search_model_catalog.",
             ) from None
-        except CatalogError:
+        except CatalogError as exc:
+            if exc.permanent:  # gated, private or removed: a retry cannot change it (D-047)
+                raise errors.missing(
+                    "MODEL_EVIDENCE_NOT_READABLE",
+                    "This model's card is gated, private or removed, so the platform cannot "
+                    "read it.",
+                    "Do not retry this reference. Choose another reference from "
+                    "search_model_catalog, or list this model with every rating unknown.",
+                ) from None
             raise errors.not_yet(
                 "MODEL_EVIDENCE_UNAVAILABLE",
                 "Model evidence is unavailable.",

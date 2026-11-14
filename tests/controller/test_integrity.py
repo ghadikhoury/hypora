@@ -319,6 +319,106 @@ async def test_a_reviews_the_screened_candidate_code_and_can_only_stop(
     assert reporter[-1].payload.handoff.open_questions == ["Only a baseline was tried in this run."]
 
 
+# Line 19 of the live run's candidate (`run_b2d5f594bf4b`, D-047): 215 characters of valid code.
+LIVE_LONG_LINE = (
+    "        ('cat', Pipeline([('strings', FunctionTransformer(_strings)), ('impute', "
+    "SimpleImputer(strategy='most_frequent', keep_empty_features=True)), ('onehot', "
+    "OneHotEncoder(handle_unknown='ignore'))]), categorical)"
+)
+LONG_LINE_PIPELINE = (
+    LINEAR
+    + "\n\ndef _reference_preprocessor(categorical):  # never called; holds the live line\n"
+    + "    return [\n"
+    + LIVE_LONG_LINE
+    + "\n    ]\n"
+)
+
+
+class CarefulReviewer(MultiWithTrials):
+    """An A that, like the live model, stops when the code it is shown looks broken: it continues
+    only if the long line is shown whole and code-checked facts say the file parses."""
+
+    async def generate(self, request: Any) -> Any:
+        if request.output_schema_name == "LeadAction" and "Candidate code" in (
+            request.messages[1].content
+        ):
+            self.requests.append(request)
+            self.final_review = request.messages[1].content
+            evidence = json.loads(
+                self.final_review.split("Candidate code (untrusted, screened): ", 1)[1].split(
+                    ". Run notes:", 1
+                )[0]
+            )
+            whole = LIVE_LONG_LINE in evidence["excerpt"].splitlines()
+            parses = evidence["platform_facts"]["full_file_parses_as_python"] is True
+            action = "continue" if whole and parses else "report"
+            return json_result({"action": action, "reason": "Reviewed the code"})
+        return await super().generate(request)
+
+
+async def test_a_long_valid_line_reaches_final_verification(
+    make_controller: ControllerFactory,
+    database: Database,
+    dataset: Path,
+    runs_root: Path,
+    run_config: RunConfig,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The live failure (D-047): the old 200-character cut showed A unmatched parentheses and A
+    reported before verification. Now the line is shown whole, with platform facts, and the run
+    reaches the platform's verification."""
+    scripted_sandbox.install(monkeypatch)
+    run_id = "run_integrity_long_line"
+    script = CarefulReviewer(run_id, pipeline_py=LONG_LINE_PIPELINE, final_action="report")
+    controller = make_controller(script, worker_factory=scripted_sandbox.ThreadWorker)
+    _multi(controller, run_config, injection_filter=True)
+    with anyio.fail_after(HANG_GUARD):
+        result = await controller.run(RunRequest(dataset=dataset, goal="x", run_id=run_id))
+
+    evidence = json.loads(
+        script.final_review.split("Candidate code (untrusted, screened): ", 1)[1].split(
+            ". Run notes:", 1
+        )[0]
+    )
+    assert evidence["platform_facts"] == {
+        "pipeline_sha256_matches_submitted_job": True,
+        "job_completed": True,
+        "sandbox_stages_completed": evidence["platform_facts"]["sandbox_stages_completed"],
+        "full_file_parses_as_python": True,
+        "syntax_error_line": None,
+    }
+    assert evidence["platform_facts"]["sandbox_stages_completed"] > 0
+    assert evidence["lines_not_shown_too_long"] == 0 and evidence["lines_not_shown_size_limit"] == 0
+    assert evidence["lines_shown"] == evidence["lines_total"]
+    assert "marker is not a code defect" in evidence["note"]
+    assert protocol.ExperimentPhase.FINAL in _phases(runs_root, database, run_id)
+    assert result.state == DONE and result.verified, result.notes
+
+
+async def test_a_stop_before_verification_reports_the_platform_facts(
+    make_controller: ControllerFactory,
+    database: Database,
+    dataset: Path,
+    runs_root: Path,
+    run_config: RunConfig,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When A stops anyway, the report shows what code had checked, so a stop over a false
+    premise (live: "the code cannot be parsed") is visible and actionable (D-047)."""
+    scripted_sandbox.install(monkeypatch)
+    run_id = "run_integrity_stop_facts"
+    script = MultiWithTrials(run_id, pipeline_py=LONG_LINE_PIPELINE, final_action="report")
+    controller = make_controller(script, worker_factory=scripted_sandbox.ThreadWorker)
+    _multi(controller, run_config, injection_filter=True)
+    with anyio.fail_after(HANG_GUARD):
+        result = await controller.run(RunRequest(dataset=dataset, goal="x", run_id=run_id))
+
+    assert result.state == FAILED and not result.verified
+    [facts] = [note for note in result.notes if note.startswith("Platform facts when A stopped")]
+    assert "code hash matched the submitted job: yes" in facts
+    assert "full file parses: yes" in facts and ": yes;" in facts
+
+
 async def test_a_continuing_cannot_change_a_failed_verdict(
     make_controller: ControllerFactory,
     database: Database,

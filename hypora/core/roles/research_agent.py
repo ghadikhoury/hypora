@@ -6,6 +6,7 @@ import json
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from hypora.core.bounded_text import shorten
 from hypora.core.llm.adapter import LLMAdapter
 from hypora.core.llm.errors import LLMError
 from hypora.core.llm.types import CallContext, Message, ToolSpec
@@ -128,7 +129,9 @@ def _validate_observation(
 def _mark_unverified(result: ResearchObservation) -> ResearchObservation:
     """Label model interpretations and never present unsupported provider prices as facts."""
     result = result.model_copy(deep=True)
-    result.summary = ("[Unverified research interpretation] " + result.summary)[:2000]
+    # The label can push a full-length summary over its 2000-character field: shorten it with a
+    # marker instead of silently dropping the summary's last sentence (D-047).
+    result.summary = shorten("[Unverified research interpretation] " + result.summary, 2000)
     result.uncertainties = ["[Unverified] " + item for item in result.uncertainties]
     report = result.strategy_report
     assert report is not None

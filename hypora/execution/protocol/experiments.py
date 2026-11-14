@@ -20,6 +20,7 @@ import errno
 import os
 import shutil
 import tempfile
+from collections.abc import Callable
 from enum import StrEnum
 from pathlib import Path
 from typing import Final
@@ -27,6 +28,7 @@ from uuid import uuid4
 
 from pydantic import Field, JsonValue, NonNegativeFloat, NonNegativeInt
 
+from hypora.core.bounded_text import shorten
 from hypora.core.schemas import (
     Identifier,
     JobLimits,
@@ -44,8 +46,10 @@ LOG_FILE: Final = "logs.jsonl"
 OUTCOME_FILE: Final = "outcome.json"
 HARNESS_DIR: Final = "harness"
 
-MAX_LOG_LINE_CHARS: Final = 500
-"""A log line longer than this is cut (and marked) before it is stored."""
+MAX_LOG_LINE_CHARS: Final = 1000
+"""A log line longer than this is shortened, with a marker that counts what was left out, before
+it is stored (`split_log_lines`)."""
+LONG_LINE_WITHHELD: Final = "[log line withheld by the data firewall: it showed dataset values]"
 
 
 class ExperimentPhase(StrEnum):
@@ -189,11 +193,26 @@ def read_stage_logs(folder: Path) -> list[StageLog]:
     return [StageLog.model_validate_json(line) for line in content.splitlines() if line.strip()]
 
 
-def split_log_lines(text: str) -> list[str]:
-    """Split a sandbox log tail into stored lines, cutting overlong lines."""
+def split_log_lines(
+    text: str,
+    *,
+    withhold: Callable[[str], bool] | None = None,
+    keep_whole: Callable[[str], bool] | None = None,
+) -> list[str]:
+    """Split a sandbox log tail into stored lines, shortening overlong lines explicitly (D-047).
+
+    A shortened line keeps a marked prefix, so only overlong lines are decided here, on their full
+    text: `withhold` (the data firewall) replaces one with `LONG_LINE_WITHHELD` before any cut
+    could hide a row from the readers' screen, and `keep_whole` (an instruction-like line) keeps
+    it whole so the injection screen at the MCP exit sees the complete line. Short lines are
+    stored as written; every reader screens them again.
+    """
     lines = []
     for line in text.splitlines():
         if len(line) > MAX_LOG_LINE_CHARS:
-            line = line[:MAX_LOG_LINE_CHARS] + " [...line cut]"
+            if withhold is not None and withhold(line):
+                line = LONG_LINE_WITHHELD
+            elif keep_whole is None or not keep_whole(line):
+                line = shorten(line, MAX_LOG_LINE_CHARS)
         lines.append(line)
     return lines

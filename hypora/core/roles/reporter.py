@@ -108,6 +108,15 @@ FAILED_JOB_STATES: Final = frozenset(
 )
 MAX_LISTED_JOBS: Final = 10
 MAX_REASON_CHARS: Final = 300
+FAULT_OUTCOME_TEXT: Final = {
+    "recovered": "recovered (a later success is linked to the final model)",
+    "stopped_safely": "stopped safely",
+    "unresolved": (
+        "unresolved (no later success of this call is linked to a verified final model; "
+        "the run may have continued without it)"
+    ),
+}
+"""How report.md words each fault outcome; report.json keeps the bare outcome code (D-047)."""
 
 VerificationStatus = Literal["passed", "failed", "not_run"]
 
@@ -807,9 +816,15 @@ def _render_evidence(evidence: OutcomeEvidence | None) -> list[str]:
         lines.append(f"- Decision: {decision.intended} ({decision.basis})")
     if evidence.stop is not None:
         lines.append(f"- Stop cause: {evidence.stop.cause}")
+    # Identical faults are listed once with a count (D-047): one model turn that fanned out the
+    # same bad call twenty times is one problem, not twenty lines. report.json keeps every fault.
+    grouped: dict[tuple[str, str, str], int] = {}
     for fault in evidence.faults:
-        where = fault.tool or fault.job_id or "controller"
-        lines.append(f"- Fault {fault.code} at {where}: {fault.outcome}")
+        key = (fault.code, fault.tool or fault.job_id or "controller", fault.outcome)
+        grouped[key] = grouped.get(key, 0) + 1
+    for (code, where, outcome), count in grouped.items():
+        times = f" ({count} times)" if count > 1 else ""
+        lines.append(f"- Fault {code} at {where}{times}: {FAULT_OUTCOME_TEXT[outcome]}")
     return [*lines, ""] if len(lines) > 1 else []
 
 

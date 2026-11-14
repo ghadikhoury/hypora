@@ -31,8 +31,10 @@ from typing import Any
 
 import pandas as pd  # type: ignore[import-untyped]
 
+from hypora.core.bounded_text import shorten
 from hypora.core.policy.approvals import approval_problem, limits_problems
 from hypora.core.policy.firewall import DataFirewall
+from hypora.core.policy.injection import classify_line
 from hypora.core.schemas import ExperimentContract, JobState, Operation, VerificationResult
 from hypora.core.verification.verifier import (
     FinalEvidence,
@@ -116,13 +118,20 @@ class _RecordingLauncher(SandboxLauncher):
     when the job must (lost lease, cancel). The harness sees an ordinary launcher."""
 
     def __init__(
-        self, inner: SandboxLauncher, folder: Path, attempt: int, abort: AbortCheck
+        self,
+        inner: SandboxLauncher,
+        folder: Path,
+        attempt: int,
+        abort: AbortCheck,
+        firewall: DataFirewall | None = None,
     ) -> None:
         super().__init__(
             inner.client,
             poll_seconds=inner.poll_seconds,
             output_check_seconds=inner.output_check_seconds,
         )
+        self.firewall = firewall
+        """Screens an overlong log line in full before it is shortened for storage (D-047)."""
         self.folder = folder
         self.attempt = attempt
         self.abort = abort
@@ -145,7 +154,9 @@ class _RecordingLauncher(SandboxLauncher):
                 action=action,
                 status=result.status.value,
                 duration_s=result.duration_s,
-                lines=split_log_lines(result.logs),
+                lines=split_log_lines(
+                    result.logs, withhold=self._shows_data, keep_whole=_instruction_like
+                ),
                 truncated=result.logs_truncated,
                 inputs=inputs,
             ),
@@ -155,6 +166,21 @@ class _RecordingLauncher(SandboxLauncher):
         if not result.ok:
             self.last_failure, self.last_action = result, action
         return result
+
+    def _shows_data(self, line: str) -> bool:
+        """Whether the data firewall withholds this full line (fails closed without one)."""
+        if self.firewall is None:
+            return True
+        try:
+            return self.firewall.screen_untrusted([line])[0][0] is None
+        except Exception:
+            return True
+
+
+def _instruction_like(line: str) -> bool:
+    """An overlong instruction-like line is stored whole, so the injection screen at the MCP exit
+    judges the complete line instead of a prefix whose trigger phrase a cut could split."""
+    return classify_line(line) is not None
 
 
 @dataclass
@@ -300,7 +326,9 @@ class ExperimentWorker:
         heartbeat = _Heartbeat(self.queue, job.id, self.worker_id, self.heartbeat_seconds)
         thread = threading.Thread(target=heartbeat.loop, name=f"heartbeat-{job.id}", daemon=True)
         thread.start()
-        launcher = _RecordingLauncher(self.launcher, folder, job.attempts, heartbeat.abort)
+        launcher = _RecordingLauncher(
+            self.launcher, folder, job.attempts, heartbeat.abort, firewall=firewall
+        )
         harness = TabularHarness(
             folder / HARNESS_DIR, self.image, launcher, worker_id=self.worker_id
         )
@@ -482,7 +510,7 @@ class ExperimentWorker:
         screened, _ = firewall.screen_untrusted(message.splitlines() or [""])
         if any(line is None for line in screened):
             return WITHHELD_MESSAGE
-        return message[:400]
+        return shorten(message, 400)  # screened in full above; shortened with a marker (D-047)
 
     def _store_artifacts(
         self, job: JobRecord, directory: Path, kinds: dict[str, tuple[str, int]]

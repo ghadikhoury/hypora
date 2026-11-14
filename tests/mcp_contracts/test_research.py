@@ -9,7 +9,7 @@ from mcp import Client
 from hypora.core.schemas import ActorRole
 from hypora.mcp_server.server import HyporaMCPServer
 from hypora.mcp_server.tools import HyporaTools
-from hypora.research.catalogs.hub import HubCatalog
+from hypora.research.catalogs.hub import CatalogError, HubCatalog
 from hypora.research.mcp_tools import ResearchService
 from tests.mcp_contracts.helpers import call, events, open_session
 
@@ -102,6 +102,39 @@ async def test_untrusted_card_does_not_grant_execution_or_delegation(session_fil
             ):
                 error, denied = await call(client, name)
                 assert error and denied["code"] == "TOOL_NOT_ALLOWED"
+    finally:
+        session.close()
+
+
+@pytest.mark.parametrize("permanent", [True, False])
+async def test_a_gated_card_is_not_reported_as_a_transient_outage(
+    session_file, tmp_path, permanent
+):
+    """Live (D-047): gated cards (HTTP 401) came back as a retryable outage, were retried, and
+    were listed as unresolved faults in every report. A refusal no retry can change says so."""
+    session = open_session(session_file, role=ActorRole.AGENT_B)
+    sha = "c" * 40
+
+    def recorded(url):
+        if "/api/models?" in url:
+            return json.dumps([{"id": "gated/model", "sha": sha}]).encode(), "application/json"
+        raise CatalogError("refused", permanent=permanent)
+
+    tools = HyporaTools(session)
+    tools._research = ResearchService(tmp_path, HubCatalog(tmp_path / "cards", recorded))
+    try:
+        async with Client(HyporaMCPServer(session, tools=tools)) as client:
+            _, results = await call(client, "search_model_catalog", {"category": "tabular"})
+            error, result = await call(
+                client, "get_model_evidence", {"ref": results["entries"][0]["ref"]}
+            )
+            assert error
+            if permanent:
+                assert result["code"] == "MODEL_EVIDENCE_NOT_READABLE"
+                assert result["error_class"] == "missing_data" and not result["retryable"]
+                assert "Do not retry" in result["suggested_recovery"]
+            else:
+                assert result["code"] == "MODEL_EVIDENCE_UNAVAILABLE" and result["retryable"]
     finally:
         session.close()
 

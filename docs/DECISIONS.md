@@ -1155,3 +1155,38 @@ drop such a column. New step S4.1b in `docs/PLAN.md`:
   one without the column unless the user said it is legitimate, and keeps the test-split rule (the
   test split is scored once, for the recommended model).
 - Behind a new flag `leakage_flag`; the `dev_target_leakage` grading rule is unchanged.
+
+## D-047 — Nothing shown to a model is cut silently; live-run robustness sweep (2026-11-14)
+
+Ghadi asked for a full robustness sweep after the Luna run `run_b2d5f594bf4b` ended with no
+verified model, and authorized the security-relevant changes to how candidate code is screened
+and shown (trigger 3). Evidence and the full failure list: `docs/notes/live-run-hardening.md`.
+
+- Model-facing text is never cut silently (`hypora/core/bounded_text.py`). Where a bound is
+  needed, multi-line text keeps whole lines, JSON keeps its structure (long strings shortened,
+  list items dropped whole), and a platform-written marker counts what was left out. This covers
+  A's candidate-code excerpt and trial facts, every MCP tool result a role reads, stored sandbox
+  log lines, trial error messages, B's model cards, passages and research summary.
+- A's pre-final code excerpt (`hypora/core/controller/code_review.py`): every full source line is
+  screened by the data firewall (always) and the injection screen (with
+  `defenses.injection_filter`) and redacted before anything is left out for size; a line is shown
+  whole or replaced by a counted marker, never cut. Limits sized for a few-hundred-line PyTorch
+  script: 1,000 lines, 1,000 characters per line, 60,000 characters in all (head and tail kept).
+  A also gets `platform_facts` checked by code (hash matches the job, the job completed its
+  stages, the full file parses), and `agent_a_decide@v4` says a marker is not a code defect. When
+  A still stops before verification, the report notes those facts.
+- An overlong sandbox log line is screened whole by the data firewall before it is shortened for
+  storage; an instruction-like one is stored whole so the injection screen sees all of it.
+- Tool failures: a bad `dataset_id` gets a repair hint; identical failures in one turn share one
+  replan; a gated or missing model card is `MODEL_EVIDENCE_NOT_READABLE` (missing data, not
+  retried) instead of a transient outage; report.md lists identical faults once with a count and
+  explains each outcome (report.json is unchanged).
+- Validation: below 10,000 rows C is advised to prefer 5-fold cross-validation
+  (`agent_c_methodology@v3` and platform context). Advice only: nothing is enforced and no eval
+  case or grading rule changes.
+- Longer jobs: the final job's timeout counts every validation fold (the fixed 10 stages was below
+  a 5-fold job's 13), and the post-agent drain waits up to the jobs' own limits, still bounded by
+  the run's wall clock. Stage failures name platform codes (for example `PROVIDER_TIMEOUT after 3
+  provider retries`) instead of a bare exception type.
+- No frozen schema, event type, MCP tool signature or description, fit/predict interface,
+  dependency, eval case, grader, hidden split or `eval` profile change.

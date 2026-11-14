@@ -170,14 +170,37 @@ def test_replans_are_bounded_and_unavailable_without_a_plan() -> None:
     session = recorder.session()
     bad = error("PIPELINE_SYNTAX_ERROR", "invalid_arguments")
     invoke, _ = _attempts()
-    for _ in range(4):
+    for _ in range(4):  # one failure per turn: the role saw each revised plan
         anyio.run(session.handle, "write_trial_files", KEYED, bad, invoke)
+        session.take_revised_plan()
     assert len(recorder.replans) == 2
     assert "replan=unavailable" in recorder.decisions[-1]
 
     recorder = Recorder()
     anyio.run(recorder.session(replan=False).handle, "write_trial_files", KEYED, bad, invoke)
     assert "replan=unavailable" in recorder.decisions[0] and not recorder.replans
+
+
+def test_identical_failures_in_one_turn_share_one_replan() -> None:
+    """Live (D-047): one turn fanned out twenty identical bad run_diagnostic calls, and each
+    asked A for a new plan. The first replans; the rest of that turn wait for its revision."""
+    recorder = Recorder()
+    session = recorder.session()
+    bad = error("INVALID_ARGUMENTS", "invalid_arguments")
+    invoke, calls = _attempts()
+    for _ in range(20):
+        is_error, content = anyio.run(session.handle, "run_diagnostic", {}, bad, invoke)
+        assert is_error and json.loads(content)["platform_recovery"]["action"] == "replan"
+    assert len(recorder.replans) == 1 and not calls
+    assert sum("replan=pending" in d for d in recorder.decisions) == 19
+    # A different failure in the same turn still gets its own revision.
+    other = error("PIPELINE_SYNTAX_ERROR", "invalid_arguments")
+    anyio.run(session.handle, "write_trial_files", KEYED, other, invoke)
+    assert len(recorder.replans) == 2
+    # The next turn starts afresh (here the per-session cap of two has been reached).
+    assert session.take_revised_plan() is not None
+    anyio.run(session.handle, "run_diagnostic", {}, bad, invoke)
+    assert "replan=unavailable" in recorder.decisions[-1]
 
 
 def test_clarify_never_repeats_and_a_repeated_refusal_stops_the_loop() -> None:

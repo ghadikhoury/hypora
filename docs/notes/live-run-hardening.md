@@ -41,3 +41,34 @@ and the hidden test split are unchanged.
 - The planted-leakage run kept the planted post-outcome column (test ROC-AUC 0.97 against about
   0.76 without it). The run completed correctly as software; catching the column is a methodology
   quality question for the evaluation (`dev_target_leakage`), not a crash.
+
+## Robustness sweep (D-047)
+
+Mining all 23 saved runs after PR #45 (traces, model calls, reports) found one run-ending bug and
+a set of platform-caused failures that live runs survived only by luck.
+
+| # | Where | Symptom | Cause | Fix |
+|---|---|---|---|---|
+| 11 | A's pre-final code review (Luna) | `run_b2d5f594bf4b` ended with no verified model: A said the code "cannot be parsed" | The excerpt cut every line at 200 characters without a mark; a 215-character line of valid, already-executed code lost its closing brackets. Every saved Luna candidate had such a line; Gemini's code never exceeded about 111 characters | Lines are shown whole or replaced by a counted marker; limits sized for long PyTorch scripts; full lines are screened before anything is left out; A gets code-checked `platform_facts` (hash, job, parse) and `agent_a_decide@v4` says a marker is not a defect |
+| 12 | C's locked-split diagnostics (Luna) | 20 of 74 tool results failed (`INVALID_ARGUMENTS at run_diagnostic`) in three runs; no diagnostic ever ran | C copied `dataset:ds_main` from the task specification into `dataset_id` in twenty parallel calls; the pattern error did not say what to send | The error's `suggested_recovery` says to omit `dataset_id`; `agent_c_methodology@v3` says so too; identical failures in one turn share one replan instead of two plan calls |
+| 13 | B's research | `MODEL_EVIDENCE_UNAVAILABLE` (18 times), retried and listed as unresolved | Gated Hugging Face cards answer HTTP 401; the platform called that a transient outage | `MODEL_EVIDENCE_NOT_READABLE` (missing data, not retried, choose another reference) |
+| 14 | report.md | Twenty identical "Fault ... unresolved" lines | One line per fault; "unresolved" unexplained | Grouped with a count; each outcome explained (report.json unchanged) |
+| 15 | Validation | Most runs compared models on one holdout fold of 1,000 rows (validation 0.87, test 0.756) | The methodology prompt listed holdout first and gave no size guidance | Below 10,000 rows C is advised to prefer 5-fold cross-validation |
+| 16 | Silent cuts elsewhere | Trial facts cut mid-JSON at 20,000 characters; tool results cut mid-JSON at 60,000; log lines, error messages, model cards, passages and B's summary cut without a count | Plain slicing | `hypora/core/bounded_text.py`: whole lines, whole items, counted markers, valid JSON |
+| 17 | Longer jobs | A 5-fold final job could be cancelled as timed out; jobs still running after C stopped were cancelled after 15 minutes | The final job's timeout assumed 10 stages; the drain had a fixed bound | Stages counted from the contract's folds; the drain waits up to the jobs' own limits, bounded by the run's wall clock |
+| 18 | Error reports | "CONTRACT: LLMError" | Non-platform exceptions were reduced to their type | Platform-written detail: the refusal rule or the LLM error code and retries |
+
+Earlier failures in the saved runs (role-text refusals, Gemini `maxItems`, schema refusals, the
+`ExceptionGroup` from worker proposals) predate PR #45 and are fixed there.
+
+### Found, not fixed here
+
+- Waiting on a job costs one model turn per `get_experiment_status` call (at most 45 s each, and
+  the 45 s is in the frozen tool description). A 30-minute training job would need about 40 turns
+  and resend the whole context each time, against a 60-turn cap and a 1M-token budget. Long
+  training needs a platform-side wait that does not spend model turns: a design change for a
+  later step.
+- The provider request timeout is 120 s; the slowest saved call took 73 s. Larger reviews may get
+  closer; the retry policy lives beside the `eval` profile, so it was left for Ghadi.
+- Sandbox log tails stay bounded by the launcher's own tail limit; a long training log keeps only
+  its end.

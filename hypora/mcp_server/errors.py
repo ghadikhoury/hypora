@@ -106,19 +106,37 @@ def not_yet(code: str, message: str, recovery: str, **details: JsonValue) -> Too
     )
 
 
+FIELD_HINTS: dict[str, str] = {
+    "dataset_id": (
+        "Omit dataset_id: every tool uses this run's dataset by default. A reference such as "
+        "'dataset:<id>' in the task specification is not an ID; if you pass one, pass only the "
+        "part after 'dataset:'."
+    ),
+}
+"""Platform-written repair hints for argument mistakes models made live (D-047). Live, a model
+copied the task specification's `dataset:` reference into `dataset_id` twenty times in one turn;
+the schema's pattern message alone did not tell it what to send instead."""
+
+
 def validation_failure(exc: ValidationError) -> ToolError:
     """Arguments that fail the input schema: field locations and messages, never the values."""
     problems = []
+    hints: list[str] = []
     for error in exc.errors(include_input=False, include_url=False)[:10]:
         location = ".".join(str(part) for part in error["loc"]) or "arguments"
         problems.append(f"{location}: {error['msg']}")
+        for part in error["loc"]:
+            hint = FIELD_HINTS.get(str(part))
+            if hint is not None and hint not in hints:
+                hints.append(hint)
+    recovery = "Fix the listed fields to match the tool's input schema and call again."
     return ToolError(
         code="INVALID_ARGUMENTS",
         error_class=ErrorClass.INVALID_ARGUMENTS,
         message="; ".join(problems) or "arguments do not match the tool's input schema",
         retryable=False,
         details={"errors": len(exc.errors())},
-        suggested_recovery="Fix the listed fields to match the tool's input schema and call again.",
+        suggested_recovery=" ".join([*hints, recovery]),
     )
 
 
