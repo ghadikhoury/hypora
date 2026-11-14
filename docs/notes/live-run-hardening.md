@@ -63,6 +63,16 @@ a set of platform-caused failures that live runs survived only by luck.
 Earlier failures in the saved runs (role-text refusals, Gemini `maxItems`, schema refusals, the
 `ExceptionGroup` from worker proposals) predate PR #45 and are fixed there.
 
+### Live evidence for the sweep (credit-g demo)
+
+- Luna `run_6e893a2f8062` (first commit): no verified model; surfaced failures 19 and 20. A
+  judged the shown code sound, so the code-review failure (11) did not recur.
+- Luna `run_6cd1967c79cf` (fixes 11–20): DONE with a verified model; `stratified_kfold_5`
+  (validation ROC-AUC 0.803, test 0.758; the holdout runs had 0.869 and 0.756); no argument
+  failures; gated cards not retried; final job 12 sandbox stages.
+- Gemini `run_9117c90a5261` (`dev`, same code): DONE with a verified model; `stratified_kfold_5`
+  (validation 0.803, test 0.756).
+
 ### Found, not fixed here
 
 - Waiting on a job costs one model turn per `get_experiment_status` call (at most 45 s each, and
