@@ -78,6 +78,14 @@ async def test_inspect_dataset_errors(client, arguments, expected):
     assert error and code(content) == expected
 
 
+async def test_a_dataset_reference_as_an_id_gets_a_repair_hint(client):
+    """Live (D-047): a model copied `dataset:ds_main` from the task specification into
+    dataset_id twenty times; the error now says what to send instead."""
+    error, content = await call(client, "inspect_dataset", {"dataset_id": "dataset:ds_main"})
+    assert error and code(content) == "INVALID_ARGUMENTS"
+    assert content["suggested_recovery"].startswith("Omit dataset_id")
+
+
 # --- write_trial_files ----------------------------------------------------------------------------
 
 

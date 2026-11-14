@@ -6,8 +6,9 @@ import json
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from hypora.core.bounded_text import shorten
 from hypora.core.llm.adapter import LLMAdapter
-from hypora.core.llm.errors import LLMError
+from hypora.core.llm.errors import LLMError, describe_llm_error
 from hypora.core.llm.types import CallContext, Message, ToolSpec
 from hypora.core.roles.base import CallGuard, RunLimitReached
 from hypora.core.roles.multi import ResearchObservation
@@ -128,7 +129,9 @@ def _validate_observation(
 def _mark_unverified(result: ResearchObservation) -> ResearchObservation:
     """Label model interpretations and never present unsupported provider prices as facts."""
     result = result.model_copy(deep=True)
-    result.summary = ("[Unverified research interpretation] " + result.summary)[:2000]
+    # The label can push a full-length summary over its 2000-character field: shorten it with a
+    # marker instead of silently dropping the summary's last sentence (D-047).
+    result.summary = shorten("[Unverified research interpretation] " + result.summary, 2000)
     result.uncertainties = ["[Unverified] " + item for item in result.uncertainties]
     report = result.strategy_report
     assert report is not None
@@ -255,10 +258,9 @@ async def run_research_agent(
                     raise
                 # The reason is fixed platform text naming the rule, never report content.
                 # B's own answer goes back to the provider with configured secrets redacted, as
-                # the adapter does for its schema-repair retries of A/B output.
-                previous = Message.model_validate(
-                    adapter.redact_model_data(response.message.model_dump(mode="json"))
-                )
+                # the adapter does for its schema-repair retries of A/B output; the provider's
+                # encrypted reasoning is replayed intact (D-047: rewriting it caused HTTP 400).
+                previous = adapter.redact_message(response.message)
                 final_messages = [
                     *final_messages,
                     previous,
@@ -278,6 +280,6 @@ async def run_research_agent(
         return ResearchOutcome(None, f"Research stopped at a run limit: {exc}")
     except LLMError as exc:
         guard.after_model_error(exc)
-        return ResearchOutcome(None, f"Research model failed: {type(exc).__name__}")
+        return ResearchOutcome(None, f"Research model failed: {describe_llm_error(exc)}")
     except ValueError:
         return ResearchOutcome(None, "Research returned invalid or unsupported citations.")

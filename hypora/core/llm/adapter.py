@@ -28,7 +28,7 @@ import time
 import uuid
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
-from typing import Any
+from typing import Any, Final
 
 from pydantic import BaseModel, JsonValue, ValidationError
 
@@ -181,6 +181,43 @@ def _filter_research_messages(payload: dict[str, JsonValue], queries: tuple[str,
                 message["content"] = redact(message["content"], queries)
         elif "content" in message:
             message["content"] = redact(message["content"], queries)
+
+
+OPENAI_OPAQUE_KEY: Final = "encrypted_content"
+GEMINI_OPAQUE_KEYS: Final = frozenset({"thought_signature", "thoughtSignature"})
+"""Provider-issued opaque tokens, exempt from redaction only at the position the provider sets
+them (D-047): `encrypted_content` at the top of an OpenAI `reasoning` item, and a thought
+signature directly on a Gemini part. The same key name anywhere else (for example inside model-
+written `function_call.args`) is ordinary text and is redacted."""
+
+
+def _keep_keys(
+    item: dict[str, JsonValue], keep: frozenset[str], secrets: Sequence[str]
+) -> JsonValue:
+    """`item` redacted, except the values of `keep` (top-level keys only), which stay verbatim."""
+    rest = redact({k: v for k, v in item.items() if k not in keep}, secrets)
+    assert isinstance(rest, dict)
+    return {key: item[key] if key in keep else rest[key] for key in item}
+
+
+def _redact_replay_item(item: JsonValue, provider: object, secrets: Sequence[str]) -> JsonValue:
+    """One replayed provider item with its readable fields redacted and its opaque token intact."""
+    if not isinstance(item, dict):
+        return redact(item, secrets)
+    if provider == Provider.OPENAI.value and item.get("type") == "reasoning":
+        return _keep_keys(item, frozenset({OPENAI_OPAQUE_KEY}), secrets)
+    parts = item.get("parts")
+    if provider == Provider.GEMINI.value and isinstance(parts, list):
+        rest = redact({k: v for k, v in item.items() if k != "parts"}, secrets)
+        assert isinstance(rest, dict)
+        rest["parts"] = [
+            _keep_keys(part, GEMINI_OPAQUE_KEYS, secrets)
+            if isinstance(part, dict)
+            else redact(part, secrets)
+            for part in parts
+        ]
+        return {key: rest[key] for key in item}
+    return redact(item, secrets)
 
 
 @dataclass(frozen=True)
@@ -375,8 +412,7 @@ class LLMAdapter:
         elif context.actor_role in (ActorRole.AGENT_A, ActorRole.AGENT_B):
             # A/B role output can contain a configured secret. Do not forward it even
             # when the provider must repair malformed structured output.
-            cleaned = redact(retry_response.model_dump(mode="json"), self._secrets)
-            retry_response = Message.model_validate(cleaned)
+            retry_response = self.redact_message(retry_response)
         retry_conversation = (
             *conversation,
             retry_response,
@@ -707,6 +743,31 @@ class LLMAdapter:
     def redact_model_data(self, payload: JsonValue) -> JsonValue:
         """Use the existing configured-secret redactor on structured role output."""
         return redact(payload, self._secrets)
+
+    def redact_message(self, message: Message) -> Message:
+        """`message` with configured secrets and credential shapes redacted, for sending back.
+
+        Every text the provider will read is redacted, including the replayed message items. The
+        opaque `encrypted_content` of replayed reasoning is left byte-for-byte: it is ciphertext
+        the provider itself produced, in URL-safe base64, where `sk-…` and `hf_…` shapes occur by
+        chance. Live (D-047), redacting it corrupted the blob and OpenAI refused B's correction
+        turn with HTTP 400 in two of two attempts.
+        """
+        data = message.model_dump(mode="json")
+        replay = data.pop("replay", None)
+        cleaned = redact(data, self._secrets)
+        assert isinstance(cleaned, dict)
+        if isinstance(replay, dict):
+            items = replay.get("items")
+            provider = replay.get("provider")
+            replay = redact({k: v for k, v in replay.items() if k != "items"}, self._secrets)
+            assert isinstance(replay, dict)
+            replay["items"] = [
+                _redact_replay_item(item, provider, self._secrets)
+                for item in (items if isinstance(items, list) else [])
+            ]
+            cleaned["replay"] = replay
+        return Message.model_validate(cleaned)
 
     def redact_for_log(self, text: str) -> str:
         """Apply the same credential redaction used for persisted model IO."""

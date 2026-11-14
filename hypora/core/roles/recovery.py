@@ -181,6 +181,9 @@ class RecoverySession:
     stopped: bool = False
     """Whether repeated refusals ended the tool loop."""
     _refusals: dict[tuple[str, str], int] = field(default_factory=dict)
+    _replanned_this_turn: dict[tuple[str, str], bool | None] = field(default_factory=dict)
+    """(tool, code) failures already replanned since the role last saw a revised plan (D-047):
+    live, one turn fanned out twenty identical bad calls and each one asked for a new plan."""
 
     async def handle(
         self, name: str, arguments: Mapping[str, JsonValue], content: str, invoke: Invoke
@@ -211,10 +214,20 @@ class RecoverySession:
     async def _after_failure(self, recovery: Recovery, retries: int) -> None:
         details = [f"retries={retries}"] if retries else []
         if recovery.action is RecoveryAction.REPLAN:
+            key = (recovery.tool, recovery.code)
+            if key in self._replanned_this_turn:
+                # The same failure in the same turn shares the first attempt's revision; the
+                # record says whether that attempt produced one (None while it is in flight).
+                produced = self._replanned_this_turn[key]
+                outcome = "pending" if produced is not False else "no_revision"
+                self.decide(recovery, [*details, f"replan={outcome}"])
+                return
             if self.replan is not None and self.replans < MAX_REPLANS:
+                self._replanned_this_turn[key] = None  # set before the await: concurrent calls
                 self.replans += 1
                 self.decide(recovery, [*details, f"replan={self.replans}"])
                 revised = await self.replan(recovery.reason(retries=retries))
+                self._replanned_this_turn[key] = revised is not None
                 if revised is not None:
                     self.revised_plan = revised
                 return
@@ -229,8 +242,10 @@ class RecoverySession:
                 self.escalate(recovery)
 
     def take_revised_plan(self) -> str | None:
-        """The plan revision to show the role now, once."""
+        """The plan revision to show the role now, once. The role's next turn starts afresh: a
+        repeat of an already-replanned failure may then be replanned again."""
         plan, self.revised_plan = self.revised_plan, None
+        self._replanned_this_turn.clear()
         return plan
 
 

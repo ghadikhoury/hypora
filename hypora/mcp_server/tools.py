@@ -28,6 +28,7 @@ import yaml  # type: ignore[import-untyped]
 from pydantic import Field, JsonValue, ValidationError
 from sqlalchemy.engine import Connection
 
+from hypora.core.bounded_text import shorten
 from hypora.core.config.flags import RetrievalMode
 from hypora.core.hashing import canonical_hash
 from hypora.core.policy.approvals import approval_problem
@@ -306,7 +307,15 @@ class HyporaTools:
                 "The reference was not returned by this session.",
                 "Choose a reference from search_model_catalog.",
             ) from None
-        except CatalogError:
+        except CatalogError as exc:
+            if exc.permanent:  # gated, private or removed: a retry cannot change it (D-047)
+                raise errors.missing(
+                    "MODEL_EVIDENCE_NOT_READABLE",
+                    "This model's card is gated, private or removed, so the platform cannot "
+                    "read it.",
+                    "Do not retry this reference. Choose another reference from "
+                    "search_model_catalog, or list this model with every rating unknown.",
+                ) from None
             raise errors.not_yet(
                 "MODEL_EVIDENCE_UNAVAILABLE",
                 "Model evidence is unavailable.",
@@ -1334,7 +1343,9 @@ class HyporaTools:
         error = None
         if outcome is not None and not outcome.succeeded:
             error = ExperimentError(
-                code=outcome.error_code or "FAILED", message=(outcome.error_message or "")[:400]
+                # Bounded by the 400-character field; marked, never cut silently (D-047).
+                code=outcome.error_code or "FAILED",
+                message=shorten(outcome.error_message or "", 400),
             )
         succeeded = (job.status is JobState.COMPLETED) if finished else None
         return ExperimentStatus(

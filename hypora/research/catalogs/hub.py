@@ -26,8 +26,20 @@ _QUERIES = {
 }
 
 
+_PERMANENT_HTTP = frozenset({401, 403, 404, 410})
+"""Answers that a repeat cannot change: a gated, private, missing or removed model (D-047)."""
+
+
 class CatalogError(Exception):
-    """A remote lookup failed or returned an invalid response."""
+    """A remote lookup failed or returned an invalid response.
+
+    `permanent` marks a refusal a retry cannot change (HTTP 401/403/404/410): live, gated model
+    cards were reported as transient, retried, and left "unresolved" in every report.
+    """
+
+    def __init__(self, message: str, *, permanent: bool = False) -> None:
+        super().__init__(message)
+        self.permanent = permanent
 
 
 class _NoRedirect(HTTPRedirectHandler):
@@ -43,7 +55,13 @@ def _fetch(url: str) -> tuple[bytes, str]:
             if len(payload) > _MAX_BYTES:
                 raise CatalogError("catalog response exceeded the size limit")
             return payload, response.headers.get_content_type()
-    except (HTTPError, URLError, TimeoutError, OSError) as exc:
+    except HTTPError as exc:
+        permanent = exc.code in _PERMANENT_HTTP
+        raise CatalogError(
+            "catalog entry not readable" if permanent else "catalog request unavailable",
+            permanent=permanent,
+        ) from exc
+    except (URLError, TimeoutError, OSError) as exc:
         raise CatalogError("catalog request unavailable") from exc
 
 
@@ -182,4 +200,7 @@ class HubCatalog:
                     raise ValueError("mismatched cached identity")
                 return CatalogRecord(**(asdict(record) | {"stale": True}))
             except (OSError, ValueError, TypeError):
-                raise CatalogError("catalog unavailable and no valid cached record") from exc
+                raise CatalogError(
+                    "catalog unavailable and no valid cached record",
+                    permanent=isinstance(exc, CatalogError) and exc.permanent,
+                ) from exc
