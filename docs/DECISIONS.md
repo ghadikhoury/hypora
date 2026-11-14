@@ -1181,6 +1181,12 @@ and shown (trigger 3). Evidence and the full failure list: `docs/notes/live-run-
   replan; a gated or missing model card is `MODEL_EVIDENCE_NOT_READABLE` (missing data, not
   retried) instead of a transient outage; report.md lists identical faults once with a count and
   explains each outcome (report.json is unchanged).
+- Replayed provider state: a role answer sent back for correction is still redacted, but opaque
+  provider tokens (OpenAI `encrypted_content`, Gemini thought signatures) are replayed intact.
+  Redacting credential shapes inside URL-safe base64 ciphertext corrupted it and OpenAI refused
+  B's correction turn (HTTP 400) in this PR's first live run.
+- A's pre-final review states that run notes are history and research is advisory; a note records
+  that A completed its reconciliation of revised research.
 - Validation: below 10,000 rows C is advised to prefer 5-fold cross-validation
   (`agent_c_methodology@v3` and platform context). Advice only: nothing is enforced and no eval
   case or grading rule changes.

@@ -75,13 +75,7 @@ from hypora.core.controller.workers import (
     worker_scope,
 )
 from hypora.core.llm.adapter import LLMAdapter, worker_first_call_bound
-from hypora.core.llm.errors import (
-    OUTPUT_SCHEMA_INVALID,
-    LLMCallError,
-    LLMError,
-    ProviderError,
-    StructuredOutputError,
-)
+from hypora.core.llm.errors import LLMError, describe_llm_error
 from hypora.core.llm.types import CallContext, Message, ToolSpec
 from hypora.core.policy.approvals import (
     ApprovalBounds,
@@ -278,6 +272,19 @@ RESEARCH_UNAVAILABLE: Final = (
 )
 """B's observation when research fails: live, a careful A stopped the whole run without it."""
 
+RECONCILED_NOTE: Final = (
+    "A reconciled B's evidence (or its absence: research is advisory) with C's locked-split "
+    "diagnostics and continued; that reconciliation is complete."
+)
+FINAL_REVIEW_CONTEXT: Final = (
+    "The run notes are history: steps they mention, including research revisions and their "
+    "reconciliation, already happened earlier in this run. Research is advisory (spec 5.3): "
+    "missing or failed research is not a reason to stop before verification. Judge the "
+    "candidate on its stored validation facts and its code."
+)
+"""Context for A's pre-final review (D-047): live, A stopped over a reconciliation it had
+already made, because a failed research revision was still in the notes."""
+
 MAX_ROLE_TEXT_ATTEMPTS: Final = 2
 """A or B may restate a refused decision once; the refusal reason names no data."""
 
@@ -423,14 +430,8 @@ def _failure_detail(exc: BaseException) -> str:
     name = type(exc).__name__
     if isinstance(exc, MethodologyError | RoleTextRefused):
         return f"{name}: {str(exc)[:300]}"
-    if isinstance(exc, LLMCallError):
-        return f"{name}: {exc.kind.error_code} after {exc.retries} provider retries"
-    if isinstance(exc, StructuredOutputError):
-        return f"{name}: {OUTPUT_SCHEMA_INVALID} (the model's answer failed its schema twice)"
-    if isinstance(exc, ProviderError):
-        return f"{name}: {exc.kind.error_code}"
     if isinstance(exc, LLMError):
-        return f"{name}: the model call failed"
+        return describe_llm_error(exc)
     return name
 
 
@@ -1390,6 +1391,10 @@ class _Run:
             + self.research_brief
         ):
             raise LeadStop
+        if self._multi:
+            # Live (D-047): at the pre-final review A read "A asked B to revise its research"
+            # in the notes, did not see that the reconciliation had already happened, and stopped.
+            self.notes.append(RECONCILED_NOTE)
         if revised == draft:
             return provisional
         # Only feature changes are allowed, so the locked rows remain valid. Approve a new
@@ -1558,6 +1563,7 @@ class _Run:
             "Review C's completed work and decide whether to continue to independent final "
             "verification, or report. The platform remains responsible for verification; "
             "report stops before it, so no model is verified. "
+            f"{FINAL_REVIEW_CONTEXT} "
             f"C output: {outcome.final.model_dump_json() if outcome.final else 'unavailable'}. "
             f"Platform evidence: {self._trial_evidence()}. "
             f"Candidate code (untrusted, screened): {self._code_evidence(contract, nominated)}. "

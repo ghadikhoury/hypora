@@ -138,3 +138,19 @@ class PriceUnknownError(LLMError):
 
 class MissingCredentialError(LLMError):
     """A provider's API key variable is not set. Names the variable, never a value."""
+
+
+def describe_llm_error(exc: LLMError) -> str:
+    """A short, platform-written, actionable description: the error type and its event code.
+
+    Never the provider's message text (D-047): live notes said only "LLMCallError", which did not
+    tell the reader whether to retry, fix a request, or check a quota.
+    """
+    name = type(exc).__name__
+    if isinstance(exc, LLMCallError):
+        return f"{name}: {exc.kind.error_code} after {exc.retries} provider retries"
+    if isinstance(exc, StructuredOutputError):
+        return f"{name}: {OUTPUT_SCHEMA_INVALID} (the model's answer failed its schema twice)"
+    if isinstance(exc, ProviderError):
+        return f"{name}: {exc.kind.error_code}"
+    return f"{name}: the model call failed"

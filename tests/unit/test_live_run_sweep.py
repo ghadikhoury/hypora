@@ -8,9 +8,11 @@ import pandas as pd  # type: ignore[import-untyped]
 import pytest
 from pydantic import BaseModel, Field, ValidationError
 
+from hypora.core.llm.types import Message, MessageRole, ProviderReplay
 from hypora.core.policy.firewall import DataFirewall
 from hypora.core.roles.outcome_evidence import FaultEvidence, OutcomeEvidence
 from hypora.core.roles.reporter import FAULT_OUTCOME_TEXT, _render_evidence
+from hypora.core.schemas.events import Provider
 from hypora.execution.protocol.experiments import (
     LONG_LINE_WITHHELD,
     MAX_LOG_LINE_CHARS,
@@ -20,6 +22,7 @@ from hypora.execution.worker.experiments import _instruction_like
 from hypora.mcp_server.errors import validation_failure
 from hypora.research.catalogs import hub
 from hypora.research.catalogs.hub import CatalogError, HubCatalog
+from tests.unit.roles.helpers import adapter
 
 
 def _fault(seq: int, code: str, tool: str, outcome: str = "unresolved") -> FaultEvidence:
@@ -93,6 +96,31 @@ def test_a_gated_card_without_a_cache_stays_permanent(tmp_path: Path) -> None:
     with pytest.raises(CatalogError) as raised:
         HubCatalog(tmp_path, gated).card("org/model", "a" * 40)
     assert raised.value.permanent
+
+
+def test_replayed_reasoning_ciphertext_is_never_rewritten_by_redaction() -> None:
+    """Live (D-047): OpenAI's encrypted reasoning is URL-safe base64, where `sk-…`/`hf_…` shapes
+    occur by chance; redacting them corrupted the blob and B's correction turn got HTTP 400."""
+    llm, _ = adapter([])
+    cipher = "gAAAA" + "x" * 40 + "sk-" + "Ab_9-" * 10 + "hf_" + "Z" * 30
+    leaked = "sk-" + "B" * 30
+    message = Message(
+        role=MessageRole.ASSISTANT,
+        content=f"answer {leaked}",
+        replay=ProviderReplay(
+            provider=Provider.OPENAI,
+            model_id="gpt-6-luna",
+            items=[
+                {"type": "reasoning", "id": "rs_1", "encrypted_content": cipher},
+                {"type": "message", "content": [{"type": "output_text", "text": leaked}]},
+            ],
+        ),
+    )
+    cleaned = llm.redact_message(message)
+    assert cleaned.replay is not None
+    reasoning, text = cleaned.replay.items
+    assert isinstance(reasoning, dict) and reasoning["encrypted_content"] == cipher
+    assert leaked not in str(text) and leaked not in cleaned.content
 
 
 class _Args(BaseModel):

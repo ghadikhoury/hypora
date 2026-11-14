@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 from hypora.core.bounded_text import shorten
 from hypora.core.llm.adapter import LLMAdapter
-from hypora.core.llm.errors import LLMError
+from hypora.core.llm.errors import LLMError, describe_llm_error
 from hypora.core.llm.types import CallContext, Message, ToolSpec
 from hypora.core.roles.base import CallGuard, RunLimitReached
 from hypora.core.roles.multi import ResearchObservation
@@ -258,10 +258,9 @@ async def run_research_agent(
                     raise
                 # The reason is fixed platform text naming the rule, never report content.
                 # B's own answer goes back to the provider with configured secrets redacted, as
-                # the adapter does for its schema-repair retries of A/B output.
-                previous = Message.model_validate(
-                    adapter.redact_model_data(response.message.model_dump(mode="json"))
-                )
+                # the adapter does for its schema-repair retries of A/B output; the provider's
+                # encrypted reasoning is replayed intact (D-047: rewriting it caused HTTP 400).
+                previous = adapter.redact_message(response.message)
                 final_messages = [
                     *final_messages,
                     previous,
@@ -281,6 +280,6 @@ async def run_research_agent(
         return ResearchOutcome(None, f"Research stopped at a run limit: {exc}")
     except LLMError as exc:
         guard.after_model_error(exc)
-        return ResearchOutcome(None, f"Research model failed: {type(exc).__name__}")
+        return ResearchOutcome(None, f"Research model failed: {describe_llm_error(exc)}")
     except ValueError:
         return ResearchOutcome(None, "Research returned invalid or unsupported citations.")

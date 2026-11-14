@@ -28,7 +28,7 @@ import time
 import uuid
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
-from typing import Any
+from typing import Any, Final
 
 from pydantic import BaseModel, JsonValue, ValidationError
 
@@ -181,6 +181,25 @@ def _filter_research_messages(payload: dict[str, JsonValue], queries: tuple[str,
                 message["content"] = redact(message["content"], queries)
         elif "content" in message:
             message["content"] = redact(message["content"], queries)
+
+
+OPAQUE_REPLAY_KEYS: Final = frozenset(
+    {"encrypted_content", "thought_signature", "thoughtSignature"}
+)
+"""Replay fields that are provider-made opaque tokens (OpenAI encrypted reasoning, Gemini thought
+signatures): sent back verbatim at any depth, never rewritten (D-047)."""
+
+
+def _redact_replay_item(item: JsonValue, secrets: Sequence[str]) -> JsonValue:
+    """One replayed provider item with its readable fields redacted and its opaque tokens intact."""
+    if isinstance(item, dict):
+        return {
+            key: value if key in OPAQUE_REPLAY_KEYS else _redact_replay_item(value, secrets)
+            for key, value in item.items()
+        }
+    if isinstance(item, list):
+        return [_redact_replay_item(value, secrets) for value in item]
+    return redact(item, secrets)
 
 
 @dataclass(frozen=True)
@@ -375,8 +394,7 @@ class LLMAdapter:
         elif context.actor_role in (ActorRole.AGENT_A, ActorRole.AGENT_B):
             # A/B role output can contain a configured secret. Do not forward it even
             # when the provider must repair malformed structured output.
-            cleaned = redact(retry_response.model_dump(mode="json"), self._secrets)
-            retry_response = Message.model_validate(cleaned)
+            retry_response = self.redact_message(retry_response)
         retry_conversation = (
             *conversation,
             retry_response,
@@ -707,6 +725,27 @@ class LLMAdapter:
     def redact_model_data(self, payload: JsonValue) -> JsonValue:
         """Use the existing configured-secret redactor on structured role output."""
         return redact(payload, self._secrets)
+
+    def redact_message(self, message: Message) -> Message:
+        """`message` with configured secrets and credential shapes redacted, for sending back.
+
+        Every text the provider will read is redacted, including the replayed message items. The
+        opaque `encrypted_content` of replayed reasoning is left byte-for-byte: it is ciphertext
+        the provider itself produced, in URL-safe base64, where `sk-…` and `hf_…` shapes occur by
+        chance. Live (D-047), redacting it corrupted the blob and OpenAI refused B's correction
+        turn with HTTP 400 in two of two attempts.
+        """
+        data = message.model_dump(mode="json")
+        replay = data.pop("replay", None)
+        cleaned = redact(data, self._secrets)
+        assert isinstance(cleaned, dict)
+        if isinstance(replay, dict):
+            items = replay.get("items")
+            replay = redact({k: v for k, v in replay.items() if k != "items"}, self._secrets)
+            assert isinstance(replay, dict)
+            replay["items"] = [_redact_replay_item(item, self._secrets) for item in items or []]
+            cleaned["replay"] = replay
+        return Message.model_validate(cleaned)
 
     def redact_for_log(self, text: str) -> str:
         """Apply the same credential redaction used for persisted model IO."""

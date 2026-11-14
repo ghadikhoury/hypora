@@ -43,6 +43,9 @@ class Adapter:
     def redact_model_data(self, payload):
         return payload
 
+    def redact_message(self, message):
+        return message
+
     async def complete(self, messages, **kwargs):
         self.requests.append(list(messages))
         if "output_schema" in kwargs:
