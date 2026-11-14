@@ -139,12 +139,14 @@ It fits into the existing graph, with no new stage or role:
    of the existing research step. When A writes the plan it records an expected range for the
    primary metric (low and high) and where that came from: B's cited range, or when research did
    not run or found nothing, A's own estimate from the task type and the profile, labelled as an
-   estimate. If no credible range exists, A records "unknown" rather than inventing one.
+   estimate. If no credible range exists, A records "unknown" rather than inventing one. Reuse an
+   existing plan or research-report field if one fits; a new field needs approval first (step 7).
 2. **Trigger check after the final candidate is chosen (platform code).** In A's existing lead
    decision (§8.7), the platform compares the final candidate's mean validation score with the
    recorded range. Only when the score is clearly above the high end, by more than the fold-to-fold
-   noise plus a config-defined margin, does the investigation below start. When the range is
-   "unknown", the only trigger is the backup in step 3. In every other case the step ends here.
+   noise plus a config-defined margin, does the investigation below start. Otherwise the step ends
+   here. When the range is "unknown" there is nothing to compare with, so there is no investigation;
+   the report's limitations say in one line that no expected range was available for this check.
 3. **Find the column responsible (platform code, seconds, no LLM call).** Two cheap checks, run only
    once the investigation has started:
    - **Single-column screen, no training.** On the training split only, score every allowed feature
@@ -162,8 +164,6 @@ It fits into the existing graph, with no new stage or role:
      candidate column in its validation rows, predict again with the same model and rescore,
      repeated a few times. A column is confirmed when shuffling it removes most of the gain over the
      baseline and its drop clearly exceeds every other candidate's drop and the fold noise.
-   Backup trigger when the range is "unknown": the run automatically screens only when the final
-   score is near the metric's ceiling, then needs a screen outlier and a permutation confirmation.
    Thresholds are config values, calibrated on dev cases and recorded in the design note.
 4. **Context, never a trigger alone.** C and A add name or description clues that a value is
    recorded after the outcome ("after", "12m", "status", "outcome", "refund", "collections",
