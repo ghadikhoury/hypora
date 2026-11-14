@@ -1146,7 +1146,8 @@ drop such a column. New step S4.1b in `docs/PLAN.md`:
 - Rare by design: A records an expected score range for the problem while planning (B's cited
   typical range when research ran, otherwise A's labelled estimate, or "unknown"). The investigation
   starts only when the final validation score is clearly above that range; a normal run is unchanged
-  and pays no extra model call or trial. No fixed score cutoff is used.
+  and pays no extra model call or trial. An "unknown" range means no investigation (the report
+  says so in its limitations). No fixed score cutoff is used.
 - Finding the column is cheap: a training-split single-column screen with no model training
   (out-of-fold for categories, so ID-like columns are not flagged), then permutation importance on
   the already-fitted final model (no retraining). Column-name clues and B's range are context only.
