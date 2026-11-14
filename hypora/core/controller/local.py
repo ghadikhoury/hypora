@@ -25,6 +25,7 @@ from mcp.client.stdio import stdio_client
 from hypora.core.config.flags import FeatureFlags
 from hypora.core.schemas import ActorRole, ToolName
 from hypora.mcp_server.session import (
+    FIRST_STATUS_WAIT_SECONDS,
     MAX_STATUS_WAIT_SECONDS,
     SESSION_SECRET_ENV,
     DefenseSwitches,
@@ -96,7 +97,8 @@ def write_session(
     runs_root: Path,
     dataset: Path,
     flags: FeatureFlags,
-    status_wait_seconds: float = MAX_STATUS_WAIT_SECONDS,
+    status_wait_seconds: float = FIRST_STATUS_WAIT_SECONDS,
+    status_wait_cap_seconds: float = MAX_STATUS_WAIT_SECONDS,
     permitted_tools: tuple[ToolName, ...] | None = None,
     brief_id: str | None = None,
 ) -> SessionLaunch:
@@ -116,6 +118,7 @@ def write_session(
         retrieval_mode=flags.retrieval_mode,
         defenses=session_defenses(flags),
         status_wait_seconds=status_wait_seconds,
+        status_wait_cap_seconds=status_wait_cap_seconds,
         secret_sha256=secret_sha256(secret),
     )
     write_session_file(path, config)

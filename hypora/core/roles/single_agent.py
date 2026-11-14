@@ -34,6 +34,7 @@ from hypora.core.roles.prompt_loader import load_prompt
 from hypora.core.roles.recovery import RecoverySession
 from hypora.core.roles.worker import WorkerReport
 from hypora.core.schemas import ActorRole, Identifier, ModelTier, StrictModel, ToolName
+from hypora.mcp_server.session import MAX_STATUS_WAIT_SECONDS
 
 MAX_TOOL_RESULT_CHARS: Final = 60_000
 """A tool result longer than this is shortened, explicitly and structurally (`bound_tool_result`),
@@ -42,6 +43,10 @@ WAITING_TOOLS: Final = frozenset({ToolName.GET_EXPERIMENT_STATUS.value})
 """Tools that wait on the server, and that only read: safe to abandon when a limit fires."""
 LIMIT_CHECK_SECONDS: Final = 1.0
 """How often run limits are checked while a waiting tool is in flight."""
+WAITING_CALL_READ_TIMEOUT_S: Final = MAX_STATUS_WAIT_SECONDS + 120.0
+"""The MCP read timeout of a waiting tool's call: longer than the longest server-side wait plus the
+status read after it, so the client never gives up on a wait the server is still serving (D-049).
+Run limits and user cancel do not depend on it: the guard watcher ends a wait within a second."""
 
 
 class FinalAnswer(StrictModel):
@@ -82,8 +87,11 @@ class McpToolChannel:
 
     async def call(self, name: str, arguments: Mapping[str, JsonValue]) -> tuple[bool, str]:
         """Call a tool and return a bounded observation, including errors."""
+        timeout = WAITING_CALL_READ_TIMEOUT_S if name in WAITING_TOOLS else None
         try:
-            result = await self.client.call_tool(name, dict(arguments))
+            result = await self.client.call_tool(
+                name, dict(arguments), read_timeout_seconds=timeout
+            )
         except MCPError as exc:  # a protocol-level failure: still an observation for the model
             return True, json.dumps({"is_error": True, "code": "MCP_ERROR", "message": str(exc)})
         if result.structured_content is not None:

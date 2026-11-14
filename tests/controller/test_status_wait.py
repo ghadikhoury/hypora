@@ -23,7 +23,7 @@ from hypora.core.controller.local import write_session
 from hypora.core.controller.states import CANCELLED, FAILED
 from hypora.core.schemas import Budget, JobState
 from hypora.execution.protocol import experiments as protocol
-from hypora.mcp_server.session import MAX_STATUS_WAIT_SECONDS
+from hypora.mcp_server.session import FIRST_STATUS_WAIT_SECONDS, MAX_STATUS_WAIT_SECONDS
 from hypora.storage.artifacts import ArtifactStore
 from hypora.storage.database import Database
 from hypora.storage.events import EventLog
@@ -159,8 +159,11 @@ def _status_events(database: Database, run_id: str, kind: str) -> list[Any]:
 
 
 def _short_waits(monkeypatch: pytest.MonkeyPatch, seconds: float) -> None:
+    """Every status wait lasts `seconds`: the growth (D-049) is capped at the first wait."""
     monkeypatch.setattr(
-        controller_module, "write_session", partial(write_session, status_wait_seconds=seconds)
+        controller_module,
+        "write_session",
+        partial(write_session, status_wait_seconds=seconds, status_wait_cap_seconds=seconds),
     )
 
 
@@ -322,7 +325,9 @@ async def test_a_limit_that_fires_during_a_wait_ends_the_wait_at_once(
     monkeypatch: pytest.MonkeyPatch,
     limit: str,
 ) -> None:
-    """The full 45 s wait is in force; the run ends long before it could, and says why."""
+    """The longest wait (10 minutes, D-049) is in force from the first call; the run ends long
+    before it could, and says why."""
+    _short_waits(monkeypatch, MAX_STATUS_WAIT_SECONDS)
     run_id = f"run_{limit}"
     over = threading.Event()
     elapsed = RunGuard.elapsed
@@ -364,5 +369,5 @@ async def test_a_limit_that_fires_during_a_wait_ends_the_wait_at_once(
     assert len(_status_events(database, run_id, "tool_call")) == 1
     [closed] = _status_events(database, run_id, "tool_result")
     assert closed.status.value == "error" and closed.error.code == "CALL_CANCELLED"
-    assert closed.latency_ms < MAX_STATUS_WAIT_SECONDS * 1000 / 2
+    assert closed.latency_ms < FIRST_STATUS_WAIT_SECONDS * 1000  # not even one old 45 s wait
     assert script.tool_calls[-1].name == STATUS
