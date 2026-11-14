@@ -207,7 +207,7 @@ async def test_a_data_finding_returns_through_a_for_revised_research(
 ):
     calls: list[DataContract | None] = []
 
-    async def propose(self, spec, profile, *, previous=None):
+    async def propose(self, spec, profile, *, previous=None, prior_evidence=None):
         calls.append(previous)
         columns = [c for c in pd.read_csv(dataset, nrows=1).columns]
         draft = build_data_contract(spec, columns)

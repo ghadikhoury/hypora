@@ -1110,10 +1110,15 @@ been tested only with scripted models; its first live runs all failed. Evidence 
 of failures: `docs/notes/live-run-hardening.md`.
 
 - Role-text boundary (`_Run._validate_assignment`): ordinary prose passes whatever its punctuation,
-  numbers or wording. Refused: credential-shaped text, code syntax (fenced blocks, `def name(`,
-  `import` statements, `class Name:` lines), and any line the data firewall's untrusted-text rule
-  withholds (a dataset row, a run of one column, a distinctive text cell). Frequent category labels
-  are no longer refused: the profile already discloses them (D-009) and they are ordinary words.
+  numbers or wording. Refused: credential-shaped text; code syntax (fenced blocks, `def name(`,
+  `import` statements, `class Name:` lines); instruction-like text (the injection screen's
+  `classify_line` categories plus overrides of the contract, plan, approval, policy, limits or
+  budget); platform record identifiers (`trl_…`, `job_…`, `brf_…`, `appr_…`, `run_…`); and any
+  line the data firewall's untrusted-text rule withholds (a dataset row, a run of one column, a
+  distinctive text cell). The old letters-only rule blocked injected instructions only as a side
+  effect; these rules block them on purpose and stay on regardless of `defenses.injection_filter`,
+  like the old validator. Frequent category labels are no longer refused: the profile already
+  discloses them (D-009) and they are ordinary words.
 - Bounded correction: a refused A decision, B strategy report or C data contract is returned to
   its author once, with the refusal reason. Every reason is fixed platform text that names the
   rule, never the refused content, so a correction cannot carry data or a credential forward.
@@ -1121,8 +1126,8 @@ of failures: `docs/notes/live-run-hardening.md`.
   (HTTP 400). The adapter still validates every reply against the full schema.
 - B may list a strategy path no returned source covers only with every rating `unknown`; its
   summary is replaced by platform text, so no uncited claim survives.
-- Provider retries: 5 instead of 3 (about a minute of backoff), after a brief Gemini overload ended
-  a run on its first decision.
+- Provider retries: still 3, with a 6 s base backoff instead of 2 s (about 20–40 s in total
+  instead of ~12 s), after a brief Gemini overload ended a run on its first decision.
 - Context, not authority: A's methodology reviews and C's proposal state the platform's
   guarantees (target statistics withheld before the lock; labels, positive class, stratification
   and metrics owned by code); A's assignment request and C's prompt say the approved contract

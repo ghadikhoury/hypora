@@ -120,8 +120,8 @@ async def test_transient_errors_are_retried_with_growing_backoff(
     assert response.text == "ok" and response.retries == 2
     backoffs = fake_time.sleeps
     assert len(backoffs) == 2
-    assert 1.0 <= backoffs[0] < 2.0  # base 2 s with equal jitter: [1, 2)
-    assert 2.0 <= backoffs[1] < 4.0
+    assert 3.0 <= backoffs[0] < 6.0  # base 6 s (configs/models.yaml) with equal jitter: [3, 6)
+    assert 6.0 <= backoffs[1] < 12.0
     [payload] = payloads(events)
     assert payload.retries == 2
     assert payload.rate_limit_wait_ms == pytest.approx(sum(backoffs) * 1000)

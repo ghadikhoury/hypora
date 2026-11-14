@@ -61,7 +61,11 @@ class Adapter:
                     "strategy_report": strategy,
                 }
             )
-            return SimpleNamespace(parsed=result, tool_calls=())
+            return SimpleNamespace(
+                parsed=result,
+                tool_calls=(),
+                message=Message(role=MessageRole.ASSISTANT, content=result.model_dump_json()),
+            )
         self.turn += 1
         if self.turn == 1:
             call = ToolCall(
@@ -102,7 +106,8 @@ async def test_b_tool_loop_accepts_only_evidence_it_received(forged):
         context="A bounded research brief",
         max_turns=4,
     )
-    assert guard.tools == 1 and guard.models == 3
+    # A forged report gets one correction (D-045), which repeats the forgery and is refused.
+    assert guard.tools == 1 and guard.models == (4 if forged else 3)
     assert (result.observation is None) is forged
     if not forged:
         assert result.observation is not None

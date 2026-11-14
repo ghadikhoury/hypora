@@ -75,7 +75,12 @@ from hypora.core.policy.approvals import (
     write_scope,
 )
 from hypora.core.policy.firewall import DataFirewall
-from hypora.core.policy.injection import ScreenResult, injection_policy_decision, screen_text
+from hypora.core.policy.injection import (
+    ScreenResult,
+    classify_line,
+    injection_policy_decision,
+    screen_text,
+)
 from hypora.core.roles.base import USER_CANCEL, RunLimitReached
 from hypora.core.roles.intake import IntakeError, IntakeForm, _task_type, run_intake
 from hypora.core.roles.methodology import propose_data_contract
@@ -210,6 +215,14 @@ _CODE_SYNTAX: Final = (
     re.compile(r"^\s*(?:from\s+[\w.]+\s+)?import\s+[\w.]+", re.MULTILINE),
     re.compile(r"^\s*class\s+\w+\s*(?:\([^)\n]*\))?\s*:\s*$", re.MULTILINE),
 )
+# An override of the platform's own rules, beyond `classify_line`'s "instructions/prompts/rules".
+_ROLE_OVERRIDE: Final = re.compile(
+    r"\b(ignore|disregard|override|bypass|circumvent)\b(\s+\w+){0,3}?\s+"
+    r"(contract|plan|approval|polic(y|ies)|assignment|limits?|budgets?|boundar(y|ies)|firewall)\b"
+)
+# Platform record identifiers (trials, jobs, briefs, approvals, runs, role instances, sessions).
+# A role refers to them in words; an ID in relayed text could steer a nomination or a job.
+_RECORD_ID: Final = re.compile(r"\b(trl|job|brf|appr|run|ri|sess|mc)_[A-Za-z0-9]")
 PLATFORM_GUARANTEES: Final = (
     "What the platform guarantees, so these are not open questions for you or C: target values "
     "and class counts are withheld from every role until the split is locked, by design; "
@@ -715,13 +728,31 @@ class _Run:
             raise RoleTextRefused("role text contains credential-shaped content")
         if any(pattern.search(assignment) for pattern in _CODE_SYNTAX):
             raise RoleTextRefused("role text cannot contain code; describe the work in prose")
+        lines = unicodedata.normalize("NFKC", assignment).splitlines() or [""]
+        # Instruction-like text is the shape an injection takes when a role relays it: an
+        # override ("ignore previous instructions", "ignore the contract"), a fake chat turn, an
+        # order to call a platform tool, or a claimed approval. A role describes work instead.
+        if any(
+            classify_line(line) is not None or _ROLE_OVERRIDE.search(line.casefold())
+            for line in lines
+        ):
+            raise RoleTextRefused(
+                "role text reads like an instruction to another agent (an override, a tool "
+                "call, a role marker or an approval claim); describe the work without naming "
+                "tools or overriding rules"
+            )
+        if _RECORD_ID.search(assignment):
+            raise RoleTextRefused(
+                "role text cannot name platform record identifiers; describe trials and jobs "
+                "in words"
+            )
         try:
-            if self._boundary_firewall is None:
-                self._boundary_firewall = DataFirewall([load_tabular(self.dataset)])
-            # Normalize first, so full-width or otherwise compatibility-encoded copies of a
-            # cell are compared in the same form as the cell itself.
-            lines = unicodedata.normalize("NFKC", assignment).splitlines() or [""]
-            screened, _ = self._boundary_firewall.screen_untrusted(lines)
+            firewall = getattr(self, "_boundary_firewall", None)
+            if firewall is None:
+                firewall = self._boundary_firewall = DataFirewall([load_tabular(self.dataset)])
+            # `lines` is NFKC-normalized, so full-width or otherwise compatibility-encoded copies
+            # of a cell are compared in the same form as the cell itself.
+            screened, _ = firewall.screen_untrusted(lines)
         except Exception as exc:
             raise ValueError("role text data-boundary validation unavailable") from exc
         if any(line is None for line in screened):
