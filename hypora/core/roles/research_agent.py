@@ -97,6 +97,13 @@ def _validate_observation(
             # rating unknown. `_mark_unverified` then replaces its summary with platform text,
             # so no uncited claim about it survives.
             raise ValueError("strategy option summary lacks source evidence")
+        if not option.evidence_refs:
+            selected = set(report.recommendation.option_ids)
+            if report.proposed_phase_b_plan is not None:
+                selected |= {m.option_id for m in report.proposed_phase_b_plan.measurements}
+            if option.option_id in selected:
+                # An unassessed path cannot be what B recommends or proposes to measure.
+                raise ValueError("research recommends or measures an option it did not assess")
         if row.price is not None and row.price.source_ref is not None:
             used.add(row.price.source_ref)
         for field in (
@@ -129,11 +136,12 @@ def _mark_unverified(result: ResearchObservation) -> ResearchObservation:
         update={"rationale": "[Unverified recommendation] " + report.recommendation.rationale}
     )
     for option in report.options:
+        row = option.tradeoffs
         if option.evidence_refs:
             option.summary = "[Unverified interpretation] " + option.summary
         else:
             option.summary = NO_SOURCE_SUMMARY
-        row = option.tradeoffs
+            row.license_id = None  # an uncited license claim is not kept either
         # Public model cards are not verified price sources.
         if row.price is not None:
             row.price = PriceEstimate(status=PriceStatus.UNAVAILABLE)
@@ -246,9 +254,14 @@ async def run_research_agent(
                 if attempt == MAX_REPORT_ATTEMPTS:
                     raise
                 # The reason is fixed platform text naming the rule, never report content.
+                # B's own answer goes back to the provider with configured secrets redacted, as
+                # the adapter does for its schema-repair retries of A/B output.
+                previous = Message.model_validate(
+                    adapter.redact_model_data(response.message.model_dump(mode="json"))
+                )
                 final_messages = [
                     *final_messages,
-                    response.message,
+                    previous,
                     Message.user(
                         f"That report was not accepted: {refused}. Return the corrected "
                         "ResearchObservation. Every citation must copy the ref, source_url and "

@@ -184,3 +184,91 @@ def test_a_fix_on_the_time_key_is_refused_except_the_split_s_own_parse():
         else:
             with pytest.raises(MethodologyError, match="must not change a split key"):
                 validate_data_proposal(contract, spec(), COLUMNS, evidence)
+
+
+# --- C's one bounded correction (D-045) -----------------------------------------------------
+
+
+class _Guard:
+    def __init__(self) -> None:
+        self.models = 0
+
+    def before_model_call(self) -> None:
+        pass
+
+    def after_model_call(self, response: Any) -> None:
+        self.models += 1
+
+
+class _ScriptedC:
+    """Answers each DataContract request with the next scripted proposal; no tool calls."""
+
+    def __init__(self, proposals: list[DataContract]) -> None:
+        self.proposals = proposals
+        self.requests: list[list[Any]] = []
+
+    async def complete(self, messages: Any, **kwargs: Any) -> Any:
+        from types import SimpleNamespace
+
+        from hypora.core.llm.types import Message, MessageRole
+
+        self.requests.append(list(messages))
+        if "output_schema" not in kwargs:  # the tool loop: C stops calling tools at once
+            return SimpleNamespace(
+                message=Message(role=MessageRole.ASSISTANT, content="Done."), tool_calls=()
+            )
+        proposal = self.proposals[min(len(self.requests) - 2, len(self.proposals) - 1)]
+        return SimpleNamespace(
+            parsed=proposal,
+            tool_calls=(),
+            message=Message(role=MessageRole.ASSISTANT, content=proposal.model_dump_json()),
+        )
+
+
+QUESTION = "Which label is positive? MARKER-7731"
+
+
+async def _propose(proposals: list[DataContract]) -> tuple[Any, _ScriptedC, _Guard]:
+    from typing import cast
+
+    from hypora.core.llm.adapter import LLMAdapter
+    from hypora.core.roles.base import CallGuard
+    from hypora.core.roles.methodology import propose_data_contract
+    from hypora.core.schemas import ActorRole
+
+    adapter, guard = _ScriptedC(proposals), _Guard()
+
+    def check(proposal: DataContract, found: dict[str, tuple[str, str]]) -> None:
+        validate_data_proposal(proposal, spec(), COLUMNS, {**LEAK_EVIDENCE, **found})
+
+    outcome = propose_data_contract(
+        cast(LLMAdapter, adapter),
+        cast(CallGuard, guard),
+        cast(Any, None),  # no tool is called
+        [],
+        run_id="run_unit",
+        role=ActorRole.AGENT_C,
+        context="Task and metadata",
+        max_turns=3,
+        validate=check,
+    )
+    return await outcome, adapter, guard
+
+
+@pytest.mark.anyio
+async def test_a_refused_contract_is_corrected_once_with_the_rule_only():
+    refused = proposed([], open_questions=[QUESTION])
+    (contract, _), adapter, guard = await _propose([refused, proposed([])])
+    assert contract.open_questions == ()
+    assert guard.models == 3  # the tool loop, the refused contract, the corrected one
+    correction = adapter.requests[-1][-1]
+    assert "unresolved methodology questions require escalation" in correction.content
+    assert "only when the user alone can answer it" in correction.content  # its own hint
+    assert "MARKER-7731" not in correction.content  # the reason names the rule, not the text
+
+
+@pytest.mark.anyio
+async def test_a_contract_refused_twice_stops_with_the_refusal():
+    refused = proposed([], open_questions=[QUESTION])
+    with pytest.raises(MethodologyError, match="require escalation"):
+        await _propose([refused, refused])

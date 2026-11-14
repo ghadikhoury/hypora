@@ -308,6 +308,7 @@ def test_a_path_no_source_covers_may_be_listed_only_unassessed():
         option["evidence_refs"] = [ref]
     report["options"][0]["evidence_refs"] = []
     report["options"][0]["summary"] = "The hosted API is cheap, private and accurate."
+    report["options"][0]["tradeoffs"] = {**report["options"][0]["tradeoffs"], "license_id": "MIT"}
     observation = ResearchObservation.model_validate(
         {"summary": "Compare.", "strategy_report": report}
     )
@@ -315,6 +316,15 @@ def test_a_path_no_source_covers_may_be_listed_only_unassessed():
     marked = _mark_unverified(observation)
     assert marked.strategy_report is not None
     assert marked.strategy_report.options[0].summary == NO_SOURCE_SUMMARY
+    assert marked.strategy_report.options[0].tradeoffs.license_id is None  # uncited: dropped
+
+    # The unassessed path cannot be what B recommends.
+    chosen = {**report, "recommendation": {**report["recommendation"], "option_ids": ["option_0"]}}
+    observation = ResearchObservation.model_validate(
+        {"summary": "Compare.", "strategy_report": chosen}
+    )
+    with pytest.raises(ValueError, match="did not assess"):
+        _validate_observation(observation, "run_1", references)
 
     report["options"][0]["tradeoffs"]["privacy"] = {
         "rating": "good",

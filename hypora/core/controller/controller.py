@@ -79,6 +79,7 @@ from hypora.core.policy.injection import (
     ScreenResult,
     classify_line,
     injection_policy_decision,
+    normalize_line,
     screen_text,
 )
 from hypora.core.roles.base import USER_CANCEL, RunLimitReached
@@ -216,13 +217,19 @@ _CODE_SYNTAX: Final = (
     re.compile(r"^\s*class\s+\w+\s*(?:\([^)\n]*\))?\s*:\s*$", re.MULTILINE),
 )
 # An override of the platform's own rules, beyond `classify_line`'s "instructions/prompts/rules".
+# Matched against `normalize_line` output (case-folded). Only an article may sit between the
+# verb and its object, so "ignore columns above the limits" stays ordinary prose.
 _ROLE_OVERRIDE: Final = re.compile(
-    r"\b(ignore|disregard|override|bypass|circumvent)\b(\s+\w+){0,3}?\s+"
+    r"\b(ignore|disregard|override|bypass|circumvent)\b(\s+(the|this|that|any|all|its|your))?\s+"
     r"(contract|plan|approval|polic(y|ies)|assignment|limits?|budgets?|boundar(y|ies)|firewall)\b"
 )
-# Platform record identifiers (trials, jobs, briefs, approvals, runs, role instances, sessions).
-# A role refers to them in words; an ID in relayed text could steer a nomination or a job.
-_RECORD_ID: Final = re.compile(r"\b(trl|job|brf|appr|run|ri|sess|mc)_[A-Za-z0-9]")
+# Platform record identifiers (`trl_963a63d2`, `job_1794633751569035908_d3904a`,
+# `run_7a28af0a0b62`). A role refers to records in words; an ID in relayed text could steer a
+# nomination or a job. Prefixes only the platform uses always count; `job_`, `run_` and `ri_`
+# count only with digits, so column names such as `job_title` or `run_length` stay ordinary text.
+_RECORD_ID: Final = re.compile(
+    r"\b(trl|brf|appr|sess|mc)_\w|\b(job|run|ri)_(?=\w*[0-9])\w{4,}\b", re.IGNORECASE
+)
 PLATFORM_GUARANTEES: Final = (
     "What the platform guarantees, so these are not open questions for you or C: target values "
     "and class counts are withheld from every role until the split is locked, by design; "
@@ -715,26 +722,34 @@ class _Run:
         self._handoff(instance, role, HandoffStatus.COMPLETE, output_ref=f"role_output:{instance}")
         return result
 
-    def _validate_assignment(self, assignment: str) -> None:
+    def _validate_assignment(self, assignment: str, *, instruction: bool = True) -> None:
         """Fail closed before recording or forwarding role-authored text (D-045).
 
         Ordinary prose passes: any punctuation, numbers and line breaks. What is refused is a
-        credential, code syntax, or text the data firewall recognizes as showing the dataset
-        (raw rows, runs of one column, a distinctive text cell). Frequent category labels are
-        not refused: the profile already discloses them to every role (D-009), and they are
-        ordinary words ("good", "no", "own") a role needs to describe its work.
+        credential, code syntax, a platform record identifier, or text the data firewall
+        recognizes as showing the dataset (raw rows, runs of one column, a distinctive text
+        cell). Frequent category labels are not refused: the profile already discloses them to
+        every role (D-009), and they are ordinary words ("good", "no", "own").
+
+        With `instruction` (the default), the text becomes another role's instructions (A's
+        assignment, C's worker brief), so instruction-like text is refused too. A worker's
+        narrative passes `instruction=False`: it reaches C only inside the labelled block of
+        untrusted worker reports, by design (S3.4), and never as C's instructions.
         """
         if self.controller.adapter.redact_for_log(assignment) != assignment:
             raise RoleTextRefused("role text contains credential-shaped content")
         if any(pattern.search(assignment) for pattern in _CODE_SYNTAX):
             raise RoleTextRefused("role text cannot contain code; describe the work in prose")
-        lines = unicodedata.normalize("NFKC", assignment).splitlines() or [""]
+        raw_lines = assignment.splitlines() or [""]
+        nfkc_lines = unicodedata.normalize("NFKC", assignment).splitlines() or [""]
         # Instruction-like text is the shape an injection takes when a role relays it: an
         # override ("ignore previous instructions", "ignore the contract"), a fake chat turn, an
         # order to call a platform tool, or a claimed approval. A role describes work instead.
-        if any(
-            classify_line(line) is not None or _ROLE_OVERRIDE.search(line.casefold())
-            for line in lines
+        # `normalize_line` is the injection screen's own folding (NFKC, zero-width characters
+        # removed, case-folded), so a hidden character cannot split a phrase.
+        if instruction and any(
+            classify_line(line) is not None or _ROLE_OVERRIDE.search(normalize_line(line))
+            for line in raw_lines
         ):
             raise RoleTextRefused(
                 "role text reads like an instruction to another agent (an override, a tool "
@@ -750,9 +765,13 @@ class _Run:
             firewall = getattr(self, "_boundary_firewall", None)
             if firewall is None:
                 firewall = self._boundary_firewall = DataFirewall([load_tabular(self.dataset)])
-            # `lines` is NFKC-normalized, so full-width or otherwise compatibility-encoded copies
-            # of a cell are compared in the same form as the cell itself.
-            screened, _ = firewall.screen_untrusted(lines)
+            # The firewall indexes cells case-folded but not NFKC-normalized, so screen both the
+            # text as written and its NFKC form: a verbatim copy of a full-width or decomposed
+            # cell matches the first, a compatibility-encoded copy of an ASCII cell the second.
+            screened = [
+                *firewall.screen_untrusted(raw_lines)[0],
+                *firewall.screen_untrusted(nfkc_lines)[0],
+            ]
         except Exception as exc:
             raise ValueError("role text data-boundary validation unavailable") from exc
         if any(line is None for line in screened):
@@ -992,8 +1011,7 @@ class _Run:
             # provided.") would misreport a run whose user did name one.
             profile.tabular.leakage_screen_skipped_reason = (
                 "the profile is built before the split is locked and never reads the target; "
-                "leakage is examined by the data methodology's diagnostics on the locked "
-                "partition."
+                "leakage may be examined by C's optional diagnostics on the locked partition."
             )
         save_dataset_profile(self.database, profile)
         return profile
@@ -1801,11 +1819,11 @@ class _Run:
                 candidate = outcome.worker_report
                 # Validate every worker-authored field before any of it is kept: rejected
                 # text must never reach the finding, C's context or disk.
-                self._validate_assignment(candidate.summary)
+                self._validate_assignment(candidate.summary, instruction=False)
                 for claim in candidate.claims:
-                    self._validate_assignment(claim.statement)
+                    self._validate_assignment(claim.statement, instruction=False)
                 for question in candidate.open_questions:
-                    self._validate_assignment(question)
+                    self._validate_assignment(question, instruction=False)
                 report = candidate
                 status = HandoffStatus.COMPLETE
                 code = ""

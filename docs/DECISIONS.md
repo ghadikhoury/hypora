@@ -1115,10 +1115,12 @@ of failures: `docs/notes/live-run-hardening.md`.
   `classify_line` categories plus overrides of the contract, plan, approval, policy, limits or
   budget); platform record identifiers (`trl_…`, `job_…`, `brf_…`, `appr_…`, `run_…`); and any
   line the data firewall's untrusted-text rule withholds (a dataset row, a run of one column, a
-  distinctive text cell). The old letters-only rule blocked injected instructions only as a side
-  effect; these rules block them on purpose and stay on regardless of `defenses.injection_filter`,
-  like the old validator. Frequent category labels are no longer refused: the profile already
-  discloses them (D-009) and they are ordinary words.
+  distinctive text cell), screened both as written and NFKC-normalized. The old letters-only rule
+  blocked injected instructions only as a side effect; these rules block them on purpose and stay
+  on regardless of `defenses.injection_filter`, like the old validator. The instruction-like rule
+  applies where text becomes another role's instructions (A's assignment, C's worker briefs); a
+  worker's narrative keeps reaching C only inside the labelled untrusted-reports block (S3.4).
+  Frequent category labels are no longer refused: the profile already discloses them (D-009).
 - Bounded correction: a refused A decision, B strategy report or C data contract is returned to
   its author once, with the refusal reason. Every reason is fixed platform text that names the
   rule, never the refused content, so a correction cannot carry data or a credential forward.

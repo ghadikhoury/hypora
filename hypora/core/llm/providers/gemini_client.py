@@ -122,6 +122,8 @@ def build_config(request: ProviderRequest, system: str | None) -> types.Generate
 
 
 _SCHEMA_NAME_MAPS = frozenset({"properties", "$defs", "definitions", "patternProperties"})
+_SCHEMA_DATA_KEYS = frozenset({"default", "enum", "const", "examples"})
+"""Keywords whose values are data, not schema: copied unchanged."""
 
 
 def without_max_items(schema: Any) -> Any:
@@ -140,7 +142,9 @@ def without_max_items(schema: Any) -> Any:
     for key, value in schema.items():
         if key == "maxItems":
             continue
-        if key in _SCHEMA_NAME_MAPS and isinstance(value, dict):
+        if key in _SCHEMA_DATA_KEYS:
+            cleaned[key] = value
+        elif key in _SCHEMA_NAME_MAPS and isinstance(value, dict):
             cleaned[key] = {name: without_max_items(sub) for name, sub in value.items()}
         else:
             cleaned[key] = without_max_items(value)

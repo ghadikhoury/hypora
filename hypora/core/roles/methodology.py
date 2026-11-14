@@ -15,6 +15,23 @@ from hypora.core.schemas import ActorRole, DataContract, ModelTier
 MAX_PROPOSAL_ATTEMPTS = 2
 """C may correct a refused DataContract once; the refusal names the rule, not the content."""
 
+_CORRECTION_HINTS = {
+    "unresolved methodology questions require escalation": (
+        "Remove questions the platform settles itself (see its guarantees) and record residual "
+        "risks in risks; keep a question only when the user alone can answer it, and the run "
+        "will stop for the user. "
+    ),
+    "a proposed exclusion lacks matching diagnostic evidence": (
+        "Every exclusion must cite a diagnostic_id a tool returned for that same column; "
+        "otherwise allow the column. "
+    ),
+    "the proposed split key lacks matching diagnostic evidence": (
+        "A split key needs a matching group or time diagnostic; otherwise use a random or "
+        "stratified split. "
+    ),
+}
+"""Guidance for the refusals models met live, keyed by the validator's fixed messages."""
+
 ProposalValidator = Callable[[DataContract, dict[str, tuple[str, str]]], None]
 """Raises ValueError (with fixed platform text) when a proposal must be refused."""
 
@@ -105,16 +122,13 @@ async def propose_data_contract(
                 raise
             # The validator's messages are fixed platform text naming the rule that failed,
             # never proposal content, so the correction request carries no data forward.
+            hint = _CORRECTION_HINTS.get(str(refused), "")
             final_messages = [
                 *final_messages,
                 response.message,
                 Message.user(
-                    f"The platform refused that DataContract: {refused}. Return a corrected "
-                    "complete DataContract. Every exclusion must cite a diagnostic_id returned "
-                    "by a tool for that same column (otherwise allow the column); a split key "
-                    "needs a matching group or time diagnostic (otherwise use a random or "
-                    "stratified split); leave open_questions empty and record residual concerns "
-                    "in risks instead."
+                    f"The platform refused that DataContract: {refused}. {hint}Return a "
+                    "corrected complete DataContract."
                 ),
             ]
             continue

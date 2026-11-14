@@ -38,8 +38,13 @@ class Adapter:
     def __init__(self, forged=False):
         self.turn = 0
         self.forged = forged
+        self.requests: list[list[Message]] = []
+
+    def redact_model_data(self, payload):
+        return payload
 
     async def complete(self, messages, **kwargs):
+        self.requests.append(list(messages))
         if "output_schema" in kwargs:
             strategy = strategy_fixture("run_test")
             ref = "catalog:catalog_123"
@@ -116,3 +121,31 @@ async def test_b_tool_loop_accepts_only_evidence_it_received(forged):
     else:
         assert result.error is not None
         assert "invalid or unsupported citations" in result.error
+
+
+class ForgesOnce(Adapter):
+    """Forges the first report's citation, then copies the tool result exactly (D-045)."""
+
+    async def complete(self, messages, **kwargs):
+        if "output_schema" in kwargs:
+            self.forged = not any("not accepted" in str(m.content) for m in messages)
+        return await super().complete(messages, **kwargs)
+
+
+async def test_a_refused_report_is_corrected_once_with_the_rule_only():
+    guard, adapter = Guard(), ForgesOnce()
+    result = await run_research_agent(
+        cast(LLMAdapter, adapter),
+        cast(CallGuard, guard),
+        Channel(),
+        [ToolSpec(name="get_model_evidence", description="Read model evidence.")],
+        run_id="run_test",
+        context="A bounded research brief",
+        max_turns=4,
+    )
+    assert result.observation is not None and result.error is None
+    assert guard.models == 4  # two tool-loop turns, the refused report, the corrected one
+    correction = adapter.requests[-1][-1]
+    assert correction.role is MessageRole.USER
+    assert "research cited evidence not returned by its tools" in correction.content
+    assert "forged.example" not in correction.content  # the reason names the rule only
