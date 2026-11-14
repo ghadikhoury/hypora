@@ -1136,3 +1136,22 @@ of failures: `docs/notes/live-run-hardening.md`.
   fixes the split, validation, metric and limits. Unavailable research is labelled advisory.
 - No frozen schema, event type, MCP tool signature, fit/predict interface, dependency, sandbox,
   grader, eval case or `eval` profile change.
+
+## D-046 — Investigate a too-good score instead of silently using or dropping a column (2026-11-14)
+
+Ghadi decided, after the planted-leakage live run (`run_07fa7fdc10f5`) kept a post-outcome column
+and reported test ROC-AUC 0.97 without comment, that Hypora must neither silently use nor silently
+drop such a column. New step S4.1b in `docs/PLAN.md`:
+
+- Rare by design: A records an expected score range for the problem while planning (B's cited
+  typical range when research ran, otherwise A's labelled estimate, or "unknown"). The investigation
+  starts only when the final validation score is clearly above that range; a normal run is unchanged
+  and pays no extra model call or trial. An "unknown" range means no investigation (the report
+  says so in its limitations). No fixed score cutoff is used.
+- Finding the column is cheap: a training-split single-column screen with no model training
+  (out-of-fold for categories, so ID-like columns are not flagged), then permutation importance on
+  the already-fitted final model (no retraining). Column-name clues and B's range are context only.
+- For a confirmed column, one extra trial without it; the report shows both models, recommends the
+  one without the column unless the user said it is legitimate, and keeps the test-split rule (the
+  test split is scored once, for the recommended model).
+- Behind a new flag `leakage_flag`; the `dev_target_leakage` grading rule is unchanged.
