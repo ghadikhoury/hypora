@@ -2,7 +2,7 @@
 
 import json
 import re
-from collections.abc import Collection, Iterable, Mapping
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Final
 
@@ -41,8 +41,9 @@ class MethodologyError(ValueError):
 class Assumption:
     """One open question turned into its conservative answer (S4.2c, D-052).
 
-    `columns` are the allowed features the question names; the platform excludes each of them,
-    cited by the matching entry of `refs`. `already` are named columns that were excluded before
+    `columns` are the allowed features the question names, after any column C excluded itself
+    without evidence because of it (F1); the platform excludes each of them, cited by the
+    matching entry of `refs`. `already` are named columns that were excluded before
     it. A question that names no column changes nothing and is reported as an open risk. The
     question text itself is screened before anything stores it.
     """
@@ -85,8 +86,30 @@ SHORT_NAME: Final = 2
 """Column names up to this length match a question only when quoted exactly."""
 
 
+def unsupported_exclusions(
+    proposal: DataContract, task: TaskSpecification, evidence: Mapping[str, tuple[str, str]]
+) -> list[str]:
+    """The excluded columns `validate_data_proposal` would refuse for lacking evidence.
+
+    The same rule as the validator: an exclusion that is not one of the user's forbidden columns
+    must cite a diagnostic returned for that same column. In proposal order.
+    """
+    forbidden = set(task.forbidden_columns)
+    return [
+        item.name
+        for item in proposal.excluded_features
+        if item.name not in forbidden
+        and (item.evidence not in evidence or evidence[item.evidence][1] != item.name)
+    ]
+
+
 def assume_conservatively(
-    proposal: DataContract, *, tag: str
+    proposal: DataContract,
+    *,
+    tag: str,
+    unsupported: Sequence[str] = (),
+    earlier: Sequence[str] = (),
+    answer: bool = True,
 ) -> tuple[DataContract, dict[str, tuple[str, str]], list[Assumption]]:
     """Turn each open question into its conservative answer; platform code, no model call.
 
@@ -95,29 +118,64 @@ def assume_conservatively(
     never kept. The contract comes back with no open questions, the new exclusions cite
     `assumption:<tag>_<n>` evidence (returned for the validator) and nothing else changes.
     Raises MethodologyError when no allowed feature would remain.
+
+    `unsupported` (no user present only, F1): columns C excluded itself without diagnostic
+    evidence. One a question names, from this proposal or from `earlier` (C's questions on its
+    previous attempt), is the same conservative answer, so its exclusion is recorded as a
+    platform assumption (`ASSUMPTION_REASON`, `assumption:` evidence) instead of being refused.
+    An unsupported exclusion no question names is left as it is, for the validator to refuse;
+    no column is ever allowed by this. An earlier question is reported only when it accounts
+    for such an exclusion. With `answer=False` only those exclusions are converted: the
+    proposal's own questions stay open and no allowed feature is excluded.
     """
     allowed = list(proposal.allowed_features)
     excluded = list(proposal.excluded_features)
+    pending = list(unsupported)  # excluded columns: the schema forbids allowing one too
     evidence: dict[str, tuple[str, str]] = {}
     assumptions = []
-    for question in proposal.open_questions:
-        named = columns_named(question, allowed)
-        already = columns_named(question, [item.name for item in excluded])
+    current = list(proposal.open_questions)
+    questions = current + [q for q in earlier if q not in current]
+
+    def assume(column: str) -> str:
+        ref = f"{ASSUMPTION_KIND}:{tag}_{len(evidence) + 1}"
+        evidence[ref] = (ASSUMPTION_KIND, column)
+        return ref
+
+    for index, question in enumerate(questions):
+        own = index < len(current)
+        adopted = columns_named(question, pending)
+        named = columns_named(question, allowed) if own and answer else []
+        if not own and not adopted:
+            continue
+        already = [
+            column
+            for column in columns_named(question, [item.name for item in excluded])
+            if column not in adopted
+        ]
         refs = []
+        for column in adopted:
+            ref = assume(column)
+            excluded = [
+                ExcludedFeature(name=column, reason=ASSUMPTION_REASON, evidence=ref)
+                if item.name == column
+                else item
+                for item in excluded
+            ]
+            pending.remove(column)
+            refs.append(ref)
         for column in named:
-            ref = f"{ASSUMPTION_KIND}:{tag}_{len(evidence) + 1}"
-            evidence[ref] = (ASSUMPTION_KIND, column)
+            ref = assume(column)
             excluded.append(ExcludedFeature(name=column, reason=ASSUMPTION_REASON, evidence=ref))
             allowed.remove(column)
             refs.append(ref)
-        assumptions.append(Assumption(question, tuple(named), tuple(refs), tuple(already)))
+        assumptions.append(Assumption(question, (*adopted, *named), tuple(refs), tuple(already)))
     if not allowed:
         raise MethodologyError(NO_FEATURE_LEFT)
     converted = proposal.model_copy(
         update={
             "allowed_features": tuple(allowed),
             "excluded_features": tuple(excluded),
-            "open_questions": (),
+            "open_questions": () if answer else proposal.open_questions,
         }
     )
     return converted, evidence, assumptions

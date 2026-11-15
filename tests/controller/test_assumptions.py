@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd  # type: ignore[import-untyped]
 import pytest
 
+from hypora.core.config.flags import AgentMode, Toggle
+from hypora.core.controller.controller import RunRequest
 from hypora.core.controller.methodology import (
     ASSUMPTION_PREFIX,
     ASSUMPTION_REASON,
@@ -19,14 +21,31 @@ from hypora.core.controller.methodology import (
     assume_conservatively,
     columns_named,
     keep_assumed_exclusions,
+    unsupported_exclusions,
 )
-from hypora.core.schemas import ApprovalPolicy, DataContract, TaskType
+from hypora.core.llm.providers.fake import json_result
+from hypora.core.schemas import (
+    ApprovalPolicy,
+    Budget,
+    DataContract,
+    MetricName,
+    RequestedAction,
+    TaskSpecification,
+    TaskType,
+)
 from hypora.core.schemas.common import EscalationType
 from hypora.core.schemas.contracts import ExcludedFeature, SplitSpec, SplitStrategy
 from hypora.core.schemas.events import EscalationEvent, EventType
 from hypora.storage.events import EventFilters, EventLog
 from hypora.storage.records import load_experiment_contract
-from tests.controller.test_open_questions import C_PROMPT, _not_c, _refusals, _run
+from tests.controller.conftest import NoWorker
+from tests.controller.test_open_questions import (
+    C_PROMPT,
+    QuestioningC,
+    _not_c,
+    _refusals,
+    _run,
+)
 
 pytestmark = pytest.mark.anyio
 
@@ -330,6 +349,231 @@ def test_assume_conservatively_excludes_only_named_allowed_columns():
 def test_assume_conservatively_refuses_when_no_feature_would_remain():
     with pytest.raises(MethodologyError, match="no allowed feature remains"):
         assume_conservatively(_contract(["foreign_worker"], questions=[POLICY]), tag="initial")
+
+
+# --- F1: C excludes a column itself because of its own question (S4.2f pattern) -------------
+
+SELF_EXCLUDED = "C excluded it because of its open question"
+
+
+class SelfExcludingC(QuestioningC):
+    """C's DataContract answers: (open questions, columns C excludes itself with no diagnostic).
+
+    Reproduces the S4.2f readiness pattern: after the no-user hint C's corrected proposal
+    excluded the columns its questions named, citing evidence no tool returned.
+    """
+
+    def __init__(self, run_id: str, answers: list[tuple[list[str], list[str]]]) -> None:
+        super().__init__(run_id, [questions for questions, _ in answers])
+        self.exclusions = [columns for _, columns in answers]
+
+    async def generate(self, request):
+        result = await super().generate(request)
+        if request.output_schema_name == "DataContract" and self.exclusions:
+            payload = json.loads(result.text)
+            for column in self.exclusions.pop(0):
+                payload["allowed_features"].remove(column)
+                payload["excluded_features"].append(
+                    {"name": column, "reason": SELF_EXCLUDED, "evidence": "diag_" + column}
+                )
+            return json_result(payload)
+        return result
+
+
+async def _run_self_excluding(make_controller, run_config, dataset, run_id, answers, policy=None):
+    script = SelfExcludingC(run_id, answers)
+    controller = make_controller(script, worker_factory=NoWorker)
+    update = {"agent_mode": AgentMode.MULTI, "planning": Toggle.OFF}
+    if policy is not None:
+        update["approval_policy"] = policy
+    flags = run_config.flags.model_copy(update=update)
+    controller.run_config = run_config.model_copy(update={"flags": flags})
+    result = await controller.run(RunRequest(dataset=dataset, goal="Predict target", run_id=run_id))
+    return script, result
+
+
+def _assumed(database, run_id, column) -> ExcludedFeature:
+    data = load_experiment_contract(database, run_id).data_contract
+    assert column not in data.allowed_features
+    (excluded,) = [f for f in data.excluded_features if f.name == column]
+    return excluded
+
+
+async def test_an_exclusion_for_the_previous_attempts_question_becomes_its_assumption(
+    make_controller, run_config, credit, database
+):
+    # S4.2f: C asked on its first attempt, then dropped the question and excluded the column.
+    script, result = await _run_self_excluding(
+        make_controller,
+        run_config,
+        credit,
+        "run_f1_previous",
+        [([TIMING], []), ([], ["collections_referrals_12m"])],
+    )
+    assert not any("CONTRACT stage failed" in note for note in result.notes)
+    excluded = _assumed(database, "run_f1_previous", "collections_referrals_12m")
+    assert excluded.reason == ASSUMPTION_REASON
+    assert excluded.evidence == "assumption:initial_1"
+    (event,) = _assumptions(database, "run_f1_previous")
+    assert TIMING in event.payload.summary
+    assert "collections_referrals_12m treated as not available" in event.payload.summary
+    assert event.payload.evidence_refs == ["assumption:initial_1"]
+    assert [e.payload.details["attempt"] for e in _refusals(database, "run_f1_previous")] == [1]
+    report = json.loads(result.report_json.read_text(encoding="utf-8"))
+    assert event.payload.summary in report["limitations"]
+    # C's own reason and made-up evidence are not what the contract records.
+    stored = json.dumps(
+        [e.model_dump(mode="json") for e in EventLog(database).read("run_f1_previous")]
+    )
+    assert "diag_collections_referrals_12m" not in stored
+    # The hint told C to keep the question rather than exclude the column itself.
+    (correction,) = _c_corrections(script)
+    assert "Do not exclude a column yourself because of a question" in correction
+
+
+async def test_an_exclusion_for_a_kept_question_is_one_assumption(
+    make_controller, run_config, credit, database
+):
+    await _run_self_excluding(
+        make_controller,
+        run_config,
+        credit,
+        "run_f1_kept",
+        [([TIMING, DRIFT], []), ([TIMING, DRIFT], ["collections_referrals_12m"])],
+    )
+    excluded = _assumed(database, "run_f1_kept", "collections_referrals_12m")
+    assert excluded.reason == ASSUMPTION_REASON and excluded.evidence == "assumption:initial_1"
+    events = _assumptions(database, "run_f1_kept")
+    assert len(events) == 2
+    assert events[0].payload.evidence_refs == ["assumption:initial_1"]
+    assert "collections_referrals_12m treated as not available" in events[0].payload.summary
+    assert events[1].payload.evidence_refs == []
+
+
+async def test_an_exclusion_no_question_names_is_still_refused(
+    make_controller, run_config, credit, database
+):
+    # duration_months is named by no question: the validator refuses it exactly as before.
+    _, result = await _run_self_excluding(
+        make_controller,
+        run_config,
+        credit,
+        "run_f1_unnamed",
+        [([TIMING], []), ([], ["duration_months"])],
+    )
+    assert any(
+        "CONTRACT stage failed: MethodologyError: a proposed exclusion lacks matching "
+        "diagnostic evidence" in note
+        for note in result.notes
+    )
+    assert _assumptions(database, "run_f1_unnamed") == []
+
+
+async def test_a_first_attempt_exclusion_for_its_own_question_gets_the_no_user_hint(
+    make_controller, run_config, credit, database
+):
+    # On the first attempt the exclusion is checked as its question's assumption, so C is
+    # refused for the open question (and told to keep it), not for the evidence.
+    script, result = await _run_self_excluding(
+        make_controller,
+        run_config,
+        credit,
+        "run_f1_first",
+        [([TIMING], ["collections_referrals_12m"]), ([], ["collections_referrals_12m"])],
+    )
+    (correction,) = _c_corrections(script)
+    assert OPEN_QUESTIONS_REFUSAL in correction and "Do not exclude a column" in correction
+    assert not any("CONTRACT stage failed" in note for note in result.notes)
+    excluded = _assumed(database, "run_f1_first", "collections_referrals_12m")
+    assert excluded.reason == ASSUMPTION_REASON
+    (event,) = _assumptions(database, "run_f1_first")
+    assert TIMING in event.payload.summary
+
+
+async def test_interactive_run_still_refuses_a_self_made_exclusion(
+    make_controller, run_config, credit, database
+):
+    script, result = await _run_self_excluding(
+        make_controller,
+        run_config,
+        credit,
+        "run_f1_interactive",
+        [([TIMING], []), ([], ["collections_referrals_12m"])],
+        policy=ApprovalPolicy.INTERACTIVE,
+    )
+    assert any(
+        "CONTRACT stage failed: MethodologyError: a proposed exclusion lacks matching "
+        "diagnostic evidence" in note
+        for note in result.notes
+    )
+    assert _assumptions(database, "run_f1_interactive") == []
+    (correction,) = _c_corrections(script)
+    assert "Do not exclude a column yourself" not in correction
+
+
+def test_unsupported_exclusions_follow_the_validator_rule():
+    task = TaskSpecification(
+        run_id="run_f1_unit",
+        version=1,
+        objective="Predict target",
+        target="target",
+        task_type=TaskType.BINARY_CLASSIFICATION,
+        primary_metric=MetricName.ROC_AUC,
+        requested_actions=[RequestedAction.TRAIN],
+        budget=Budget(max_usd=1.0),
+        forbidden_columns=["age_years"],
+    )
+    proposal = _contract(
+        ["duration_months"],
+        [
+            ExcludedFeature(name="age_years", reason="user's choice", evidence="task_spec:v1"),
+            ExcludedFeature(name="foreign_worker", reason="r", evidence="diag_1"),
+            ExcludedFeature(name="credit_amount", reason="r", evidence="diag_2"),
+            ExcludedFeature(name="collections_referrals_12m", reason="r", evidence="diag_3"),
+        ],
+    )
+    evidence = {"diag_1": ("feature_predictiveness", "foreign_worker"), "diag_3": ("x", "other")}
+    assert unsupported_exclusions(proposal, task, evidence) == [
+        "credit_amount",
+        "collections_referrals_12m",
+    ]
+
+
+def test_assume_conservatively_adopts_only_question_named_unsupported_exclusions():
+    made_up = ExcludedFeature(name="collections_referrals_12m", reason="r", evidence="diag_x")
+    other = ExcludedFeature(name="credit_amount", reason="r", evidence="diag_y")
+    proposal = _contract(["duration_months", "foreign_worker"], [made_up, other], [DRIFT])
+    converted, evidence, assumptions = assume_conservatively(
+        proposal,
+        tag="initial",
+        unsupported=["collections_referrals_12m", "credit_amount"],
+        earlier=[TIMING, DRIFT],
+    )
+    # The earlier TIMING question accounts for its column; credit_amount stays unsupported.
+    assert converted.excluded_features == (
+        ExcludedFeature(
+            name="collections_referrals_12m",
+            reason=ASSUMPTION_REASON,
+            evidence="assumption:initial_1",
+        ),
+        other,
+    )
+    assert converted.allowed_features == ("duration_months", "foreign_worker")
+    assert evidence == {"assumption:initial_1": ("assumption", "collections_referrals_12m")}
+    assert [(a.question, a.columns) for a in assumptions] == [
+        (DRIFT, ()),
+        (TIMING, ("collections_referrals_12m",)),
+    ]
+    # Without an answer, the questions stay open and no allowed feature is excluded.
+    unanswered, _, _ = assume_conservatively(
+        _contract(["foreign_worker", "duration_months"], [made_up], [TIMING, POLICY]),
+        tag="initial",
+        unsupported=["collections_referrals_12m"],
+        answer=False,
+    )
+    assert unanswered.open_questions == (TIMING, POLICY)
+    assert unanswered.allowed_features == ("foreign_worker", "duration_months")
+    assert unanswered.excluded_features[0].reason == ASSUMPTION_REASON
 
 
 def test_a_later_proposal_cannot_take_an_assumed_exclusion_back():

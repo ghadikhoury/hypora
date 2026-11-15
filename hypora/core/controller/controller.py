@@ -87,6 +87,7 @@ from hypora.core.controller.methodology import (
     MethodologyError,
     assume_conservatively,
     keep_assumed_exclusions,
+    unsupported_exclusions,
     validate_data_proposal,
 )
 from hypora.core.controller.states import START, RunEvent, RunState, next_state
@@ -1067,7 +1068,8 @@ class _Run:
         """Record each of C's open questions as its conservative assumption (S4.2c, D-052).
 
         Only in a run with no user. The platform has already applied every assumption to the
-        contract (`assume_conservatively`: each column a question names is excluded). One
+        contract (`assume_conservatively`: each column a question names is excluded, including
+        one C excluded itself without evidence because of its question, F1). One
         `escalation` event per assumption (`DATA_PROBLEM`, summary starting `ASSUMPTION_PREFIX`;
         the report lists those summaries as limitations). The question text is screened like an
         S4.2b question and, because the report and A's narrative read it, with the instruction rule
@@ -1479,19 +1481,32 @@ class _Run:
         columns = [str(column) for column in load_tabular(self.dataset).columns]
         attempts = 0
         tag = "initial" if previous is None else "reconcile"
+        # C's open questions on each checked attempt, in order (F1: an exclusion C made itself for
+        # a question it asked on the previous attempt is that question's assumption).
+        asked: list[tuple[str, ...]] = []
 
         def check(proposal: DataContract, found: dict[str, tuple[str, str]]) -> None:
             """The same checks the caller applies, run early so C can correct a refusal once.
 
             With no user (S4.2c), open questions left after C's correction are not refused: the
-            proposal is checked as it will be used, each question answered conservatively.
+            proposal is checked as it will be used, each question answered conservatively. Also
+            with no user (F1), an exclusion without diagnostic evidence whose column one of C's
+            questions on this or the previous attempt names is checked as that assumption.
             """
             nonlocal attempts
             attempts += 1
             known = {**(prior_evidence or {}), **found}
+            earlier = asked[-1] if asked else ()
+            asked.append(tuple(proposal.open_questions))
             try:
-                if self._no_user and proposal.open_questions and attempts >= MAX_PROPOSAL_ATTEMPTS:
-                    assumed, extra, _ = assume_conservatively(proposal, tag=tag)
+                if self._no_user:
+                    assumed, extra, _ = assume_conservatively(
+                        proposal,
+                        tag=tag,
+                        unsupported=unsupported_exclusions(proposal, spec, known),
+                        earlier=earlier,
+                        answer=attempts >= MAX_PROPOSAL_ATTEMPTS,
+                    )
                     validate_data_proposal(assumed, spec, columns, {**known, **extra})
                 else:
                     validate_data_proposal(proposal, spec, columns, known)
@@ -1565,14 +1580,23 @@ class _Run:
                     self._handoff(instance, role, HandoffStatus.COMPLETE)
         if failure is not None:
             raise failure
-        if proposal.open_questions:
-            # Only `check`'s no-user path accepts open questions (S4.2c). Answer them before
+        if proposal.open_questions and not self._no_user:
+            raise MethodologyError(OPEN_QUESTIONS_REFUSAL)
+        if self._no_user:
+            # Only `check`'s no-user path accepts open questions (S4.2c) or an exclusion that
+            # one of C's questions accounts for (F1). Answer them exactly as `check` did, before
             # anything forwards or stores the proposal, so the raw questions go nowhere.
-            if not self._no_user:
-                raise MethodologyError(OPEN_QUESTIONS_REFUSAL)
-            proposal, extra, assumptions = assume_conservatively(proposal, tag=tag)
+            proposal, extra, assumptions = assume_conservatively(
+                proposal,
+                tag=tag,
+                unsupported=unsupported_exclusions(
+                    proposal, spec, {**(prior_evidence or {}), **evidence}
+                ),
+                earlier=asked[-2] if len(asked) > 1 else (),
+            )
             evidence.update(extra)
-            self._record_assumptions(assumptions, proposal=tag)
+            if assumptions:
+                self._record_assumptions(assumptions, proposal=tag)
         if prior_evidence:
             # A column excluded for an assumption stays excluded after the split is locked.
             proposal = keep_assumed_exclusions(proposal, prior_evidence)
