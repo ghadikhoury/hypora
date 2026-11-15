@@ -31,6 +31,7 @@ from hypora.core.schemas.events import (
     EscalationPayload,
     HandoffPayload,
     JobTransitionPayload,
+    LeakageCheckPayload,
     ModelCallPayload,
     PlanPayload,
     PolicyDecisionPayload,
@@ -175,6 +176,11 @@ def describe(event: AnyEvent) -> str:
         return f"{p.role_instance_id}{tier}{tools}"
     if isinstance(p, PlanPayload):
         return f"{p.plan.plan_id} rev {p.plan.revision}: {len(p.plan.steps)} steps"
+    if isinstance(p, LeakageCheckPayload):
+        text = f"{p.step.value} -> {p.outcome.value}"
+        if p.columns:
+            text += " " + ",".join(c.column for c in p.columns)
+        return text + (f": {_short(p.reason, 80)}" if p.reason else "")
     if isinstance(p, HandoffPayload):
         h = p.handoff
         text = f"{h.from_role.value} -> {h.to.value} {h.status.value}"

@@ -146,6 +146,110 @@
       "title": "CostEstimate",
       "type": "object"
     },
+    "ExpectedScoreRange": {
+      "additionalProperties": false,
+      "description": "The plan's expected range of the primary metric, and its source (D-046 part 1).\n\n`unknown` carries no numbers. A research range names the citation B gave for it; an estimate\nmay carry A's short basis (screened by the data firewall before it is recorded).",
+      "properties": {
+        "basis": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Basis"
+        },
+        "citation_ref": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "pattern": "^[a-z][a-z0-9_]*:\\S+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Citation Ref"
+        },
+        "high": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "High"
+        },
+        "low": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Low"
+        },
+        "metric": {
+          "$ref": "#/$defs/MetricName"
+        },
+        "source": {
+          "$ref": "#/$defs/ScoreRangeSource"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Url"
+        }
+      },
+      "required": [
+        "metric",
+        "source"
+      ],
+      "title": "ExpectedScoreRange",
+      "type": "object"
+    },
+    "MetricName": {
+      "description": "Metrics computed by platform code (spec §18; PLAN.md S1.3).",
+      "enum": [
+        "accuracy",
+        "balanced_accuracy",
+        "precision",
+        "recall",
+        "f1",
+        "precision_macro",
+        "recall_macro",
+        "f1_macro",
+        "roc_auc",
+        "pr_auc",
+        "log_loss",
+        "brier_score",
+        "mae",
+        "rmse",
+        "r2"
+      ],
+      "title": "MetricName",
+      "type": "string"
+    },
     "ProposedMeasurement": {
       "additionalProperties": false,
       "description": "One candidate the Phase B plan would measure (spec §7.1 'proposed Phase B plan').",
@@ -245,6 +349,16 @@
       "title": "RecommendationKind",
       "type": "string"
     },
+    "ScoreRangeSource": {
+      "description": "Where an expected score range came from (D-046 part 1).",
+      "enum": [
+        "research",
+        "estimate",
+        "unknown"
+      ],
+      "title": "ScoreRangeSource",
+      "type": "string"
+    },
     "TrialKind": {
       "description": "`trials.kind`, spec §15.1.",
       "enum": [
@@ -277,6 +391,18 @@
       "exclusiveMinimum": 0,
       "title": "Data Contract Version",
       "type": "integer"
+    },
+    "expected_score_range": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ExpectedScoreRange"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "D-050: the typical primary-metric range for similar problems and its source; set only with the leakage_flag on. Absent from the canonical form when unset, so plans written before it keep their hash."
     },
     "phase_b_plan": {
       "$ref": "#/$defs/ProposedPhaseBPlan"

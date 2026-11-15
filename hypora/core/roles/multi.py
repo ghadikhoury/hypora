@@ -4,14 +4,14 @@ import json
 from collections.abc import Callable
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, create_model
 
 from hypora.core.llm.adapter import LLMAdapter
 from hypora.core.llm.errors import LLMError
 from hypora.core.llm.types import CallContext, Message
 from hypora.core.roles.base import CallGuard
 from hypora.core.roles.prompt_loader import load_prompt
-from hypora.core.schemas import ActorRole, ModelTier, StrictModel
+from hypora.core.schemas import ActorRole, MetricName, ModelTier, RecordRef, StrictModel
 from hypora.core.schemas.strategy import StrategyReport
 
 
@@ -24,12 +24,60 @@ class LeadAction(StrictModel):
     overlap_reason: str | None = Field(default=None, min_length=1, max_length=500)
 
 
+class ScoreRangeEstimate(StrictModel):
+    """A's expected range of the primary metric when it assigns C's experiments (D-046 part 1).
+
+    `research` adopts B's cited typical range (the platform copies B's numbers and citation);
+    `estimate` is A's own, from the task type and the profile; `unknown` when neither is credible.
+    """
+
+    source: Literal["research", "estimate", "unknown"]
+    low: float | None = None
+    high: float | None = None
+    basis: str | None = Field(default=None, max_length=300)
+
+
+LeadActionWithRange = create_model(
+    "LeadAction",
+    __base__=LeadAction,
+    __doc__=(
+        "A bounded decision about whether the runtime may continue, with A's expected score "
+        "range (the C-assignment decision with the leakage_flag on: one more optional field, no "
+        "new model call). It keeps LeadAction's schema name, so providers and traces see the "
+        "same decision schema."
+    ),
+    expected_score_range=(ScoreRangeEstimate | None, None),
+)
+
+
 class ResearchObservation(StrictModel):
     """A research observation and its optional structured, cited strategy report."""
 
     summary: str = Field(min_length=1, max_length=2000)
     uncertainties: list[str] = Field(default_factory=list, max_length=10)
     strategy_report: StrategyReport | None = None
+
+
+class TypicalScoreRange(StrictModel):
+    """The typical score range B found for similar problems, with the source that reports it."""
+
+    metric: MetricName
+    low: float
+    high: float
+    citation_ref: RecordRef
+    note: str | None = Field(default=None, max_length=300)
+
+
+ResearchObservationWithRange = create_model(
+    "ResearchObservation",
+    __base__=ResearchObservation,
+    __doc__=(
+        "A research observation and its optional structured, cited strategy report, with the "
+        "typical score range B found (leakage_flag on). It keeps ResearchObservation's schema "
+        "name."
+    ),
+    typical_score_range=(TypicalScoreRange | None, None),
+)
 
 
 async def main_role_call(
@@ -41,16 +89,23 @@ async def main_role_call(
     context: str,
     assignment_validator: Callable[[str], None] | None = None,
     overlap_validator: Callable[[str], None] | None = None,
+    lead_schema: type[LeadAction] = LeadAction,
 ) -> LeadAction | ResearchObservation:
-    """Call A or B without a tool channel and validate the structured result."""
+    """Call A or B without a tool channel and validate the structured result.
+
+    `lead_schema` is A's output schema: `LeadActionWithRange` only for the C-assignment decision
+    with the leakage_flag on; every other call keeps `LeadAction` exactly.
+    """
     if role not in (ActorRole.AGENT_A, ActorRole.AGENT_B):
         raise ValueError("Only A and B use this role call")
     prompt = load_prompt("agent_a_decide" if role is ActorRole.AGENT_A else "agent_b")
-    schema = LeadAction if role is ActorRole.AGENT_A else ResearchObservation
+    schema: type[LeadAction] | type[ResearchObservation] = (
+        lead_schema if role is ActorRole.AGENT_A else ResearchObservation
+    )
 
     def filter_sensitive_output(text: str) -> str:
         try:
-            decision = LeadAction.model_validate_json(text)
+            decision = lead_schema.model_validate_json(text)
             if (
                 assignment_validator is not None
                 and decision.action == "continue"
@@ -62,14 +117,20 @@ async def main_role_call(
             if decision.overlap_reason is not None:
                 assert overlap_validator is not None
                 overlap_validator(decision.overlap_reason)
-            return json.dumps(
-                {
-                    "action": decision.action,
-                    "assignment": decision.assignment,
-                    "overlap_reason": decision.overlap_reason,
-                },
-                ensure_ascii=True,
-            )
+            logged: dict[str, object] = {
+                "action": decision.action,
+                "assignment": decision.assignment,
+                "overlap_reason": decision.overlap_reason,
+            }
+            estimate = getattr(decision, "expected_score_range", None)
+            if estimate is not None:
+                # Numbers and the source label only: A's free-text basis is screened later.
+                logged["expected_score_range"] = {
+                    "source": estimate.source,
+                    "low": estimate.low,
+                    "high": estimate.high,
+                }
+            return json.dumps(logged, ensure_ascii=True)
         except Exception:
             return "[FILTERED]"
 

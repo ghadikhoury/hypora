@@ -1,14 +1,18 @@
 """Execution-plane harness. It never imports trial code or deserializes a model on the host."""
 
+import dataclasses
 import hashlib
 import io
 import json
 import os
 import platform
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Final
 from uuid import uuid4
 
+import numpy as np
 import pandas as pd  # type: ignore[import-untyped]
 import pyarrow.parquet as pq  # type: ignore[import-untyped]
 import yaml  # type: ignore[import-untyped]
@@ -77,6 +81,23 @@ class FrozenCandidate:
 
 class HarnessFailure(RuntimeError):
     """A sandbox failed or produced outputs that cannot be scored."""
+
+
+FOLD_MODELS_DIR: Final = "fold-models"
+FOLD_MODELS_INDEX: Final = "fold-models.json"
+"""Where a validation job keeps its fitted fold models when asked (D-050): inside its own
+platform-owned harness folder, never registered as artifacts and never mounted, so only a later
+PERMUTATION job of the same run reads them back, as opaque bytes for a predict sandbox."""
+
+
+def withhold_columns(data: PreparedData, withheld: Sequence[str]) -> PreparedData:
+    """`data` with platform-withheld allowed features removed before any stage sees them."""
+    if not withheld:
+        return data
+    missing = sorted(set(withheld) - set(data.features.columns))
+    if missing:
+        raise HarnessFailure("withheld columns are not allowed features of the contract")
+    return dataclasses.replace(data, features=data.features.drop(columns=list(withheld)))
 
 
 class TabularHarness:
@@ -223,6 +244,8 @@ class TabularHarness:
         config: dict | None = None,
         limits: JobLimits | None = None,
         source: bytes | None = None,
+        withheld_columns: Sequence[str] = (),
+        keep_fold_models: bool = False,
     ) -> ValidationResult:
         """Fit every validation fold and recompute scores from saved predictions on the worker.
 
@@ -230,6 +253,9 @@ class TabularHarness:
         the contract's `default_job_limits`. The caller checks they stay within the contract.
         `source` is the dataset's content the caller already read and verified: the path then
         only names the format, and is never read again (one read, one fingerprint).
+        `withheld_columns` (D-050) are removed from the features before any stage. With
+        `keep_fold_models` each fold's fitted model stays in this harness folder for a later
+        PERMUTATION job (`permutation_scores`).
         """
         if isinstance(frame, Path):
             source = frame.read_bytes() if source is None else source
@@ -238,17 +264,22 @@ class TabularHarness:
         else:
             fingerprint = digest(parquet_bytes(frame))
         resource_start = len(self.resources)
-        data = prepare_data(frame, contract)
+        data = withhold_columns(prepare_data(frame, contract), withheld_columns)
         pipeline = read_output_bytes(trial_dir.resolve(), "pipeline.py", 2 * 1024**2)
         artifact_dir = self.root / "artifacts" / uuid4().hex
         artifact_dir.mkdir(parents=True)
         all_predictions = []
         fold_scores = []
         fold_classes = []
+        kept: list[dict] = []
         for number, fold in enumerate(data.folds):
             model = self._fit(
                 data, fold.train, pipeline, contract, config or {}, fold.validation, limits
             )
+            if keep_fold_models:
+                (self.root / FOLD_MODELS_DIR).mkdir(exist_ok=True)
+                self._write(self.root / FOLD_MODELS_DIR / f"fold-{number}.joblib", model)
+                kept.append({"fold": number, "sha256": digest(model)})
             predictions, classes = self._predict(
                 data.features.iloc[fold.validation], model, pipeline, contract, config or {}, limits
             )
@@ -273,6 +304,18 @@ class TabularHarness:
             )
         scores = {"folds": fold_scores}
         self._write(artifact_dir / "metrics.json", self._json(scores))
+        if keep_fold_models:
+            self._write(
+                self.root / FOLD_MODELS_INDEX,
+                self._json(
+                    {
+                        "pipeline_sha256": digest(pipeline),
+                        "contract_hash": contract.hash,
+                        "features": list(data.features.columns),
+                        "folds": kept,
+                    }
+                ),
+            )
         result = ValidationResult(
             data,
             pipeline,
@@ -286,6 +329,97 @@ class TabularHarness:
             self.resources[resource_start:],
         )
         self._manifest(result, contract, config or {}, "validation")
+        return result
+
+    def permutation_scores(
+        self,
+        frame: pd.DataFrame | Path,
+        contract: ExperimentContract,
+        trial_dir: Path,
+        source_root: Path,
+        *,
+        columns: Sequence[str],
+        repeats: int,
+        max_rows: int,
+        seed: int = 0,
+        config: dict | None = None,
+        limits: JobLimits | None = None,
+        source: bytes | None = None,
+        withheld_columns: Sequence[str] = (),
+    ) -> dict:
+        """Permutation check on a validated job's own fitted fold models (D-050). No refit.
+
+        For each fold, the model the source job fitted (kept by `validate(keep_fold_models=True)`
+        in `source_root`) predicts that fold's validation rows once as they are and once per
+        candidate column and repeat with that column shuffled among those rows, all in one predict
+        sandbox. The platform scores every slice on the fold's validation labels. No test row and
+        no test label is ever read. Returns plain numbers per fold, per column.
+        """
+        if isinstance(frame, Path):
+            source = frame.read_bytes() if source is None else source
+            frame = load_tabular(frame, source=source)
+        data = withhold_columns(prepare_data(frame, contract), withheld_columns)
+        pipeline = read_output_bytes(trial_dir.resolve(), "pipeline.py", 2 * 1024**2)
+        index = json.loads(read_output_bytes(source_root, FOLD_MODELS_INDEX, 1024**2))
+        if (
+            index.get("pipeline_sha256") != digest(pipeline)
+            or index.get("contract_hash") != contract.hash
+            or index.get("features") != list(data.features.columns)
+            or len(index.get("folds", [])) != len(data.folds)
+        ):
+            raise HarnessFailure("kept fold models do not match this trial, contract or split")
+        unknown = sorted(set(columns) - set(data.features.columns))
+        if unknown:
+            raise HarnessFailure("permutation columns are not features of this trial")
+        metric = contract.primary_metric.value
+        cap = int((limits or contract.default_job_limits).max_memory_gb * 1024**3)
+        rng = np.random.default_rng(seed)
+        folds = []
+        for number, fold in enumerate(data.folds):
+            entry = index["folds"][number]
+            model = read_output_bytes(source_root / FOLD_MODELS_DIR, f"fold-{number}.joblib", cap)
+            if entry.get("fold") != number or digest(model) != entry.get("sha256"):
+                raise HarnessFailure("a kept fold model changed after validation")
+            rows = np.asarray(fold.validation)
+            if len(rows) > max_rows:
+                rows = np.sort(rng.choice(rows, size=max_rows, replace=False))
+            base = data.features.iloc[rows].reset_index(drop=True)
+            blocks = [base]
+            for column in columns:
+                for _ in range(repeats):
+                    shuffled = base.copy()
+                    order = rng.permutation(len(base))
+                    shuffled[column] = base[column].iloc[order].set_axis(base.index)
+                    blocks.append(shuffled)
+            stacked = pd.concat(blocks, ignore_index=True)
+            predictions, classes = self._predict(
+                stacked, model, pipeline, contract, config or {}, limits
+            )
+
+            def score(block: int, fold=fold, rows=rows, predictions=predictions, classes=classes):
+                part = predictions.iloc[block * len(rows) : (block + 1) * len(rows)]
+                scored = self._score(
+                    data, rows, part.reset_index(drop=True), classes, contract, fold.train
+                )
+                value = scored["metrics"].get(metric)
+                return None if value is None else float(value)
+
+            shuffled_scores = {
+                column: [score(1 + c * repeats + r) for r in range(repeats)]
+                for c, column in enumerate(columns)
+            }
+            folds.append(
+                {
+                    "fold": number,
+                    "rows": len(rows),
+                    "baseline": score(0),
+                    "shuffled": shuffled_scores,
+                }
+            )
+        result = {"metric": metric, "columns": list(columns), "repeats": repeats, "folds": folds}
+        artifact_dir = self.root / "artifacts" / uuid4().hex
+        artifact_dir.mkdir(parents=True)
+        self._write(artifact_dir / "permutation.json", self._json(result))
         return result
 
     def freeze_candidate(

@@ -29,6 +29,7 @@ from hypora.core.schemas.common import (
     IdempotencyKey,
     Identifier,
     JobState,
+    MetricName,
     NonEmptyStr,
     Operation,
     Record,
@@ -40,12 +41,19 @@ from hypora.core.schemas.common import (
     UtcDatetime,
 )
 from hypora.core.schemas.contracts import ApprovalArtifactType
+from hypora.core.schemas.leakage import (
+    LeakageColumnScore,
+    LeakageOutcome,
+    LeakageSection,
+    LeakageStep,
+    ScoreRangeSource,
+)
 from hypora.core.schemas.plan import Plan
 from hypora.core.schemas.tools import ErrorClass, ToolError, ToolTier
 
 
 class EventType(StrEnum):
-    """`events.type`: the 12 types of spec §15.1, then the 3 added by D-003."""
+    """`events.type`: the 12 types of spec §15.1, the 3 added by D-003, then D-050's one."""
 
     MODEL_CALL = "model_call"
     TOOL_CALL = "tool_call"
@@ -62,6 +70,7 @@ class EventType(StrEnum):
     ROLE_STARTED = "role_started"
     PLAN = "plan"
     HANDOFF = "handoff"
+    LEAKAGE_CHECK = "leakage_check"  # D-050: one step of the too-good-score investigation
 
 
 ToolNameStr = Annotated[str, StringConstraints(max_length=64, pattern=r"^[a-z][a-z0-9_]*$")]
@@ -340,6 +349,30 @@ class HandoffPayload(StrictModel):
     handoff: Handoff
 
 
+class LeakageCheckPayload(StrictModel):
+    """One step of the too-good-score investigation (PLAN.md S4.1b, D-050).
+
+    Platform-written facts only: the expected range, summary scores, column names, trial and job
+    references and a platform-written reason. No row or cell value is ever recorded here.
+    `section` is set on the decision step and is exactly what the report shows.
+    """
+
+    step: LeakageStep
+    outcome: LeakageOutcome
+    trial_id: Identifier | None = None
+    job_id: Identifier | None = None
+    metric: MetricName | None = None
+    expected_low: float | None = None
+    expected_high: float | None = None
+    expected_source: ScoreRangeSource | None = None
+    score_mean: float | None = None
+    score_noise: float | None = None
+    margin: float | None = None
+    columns: list[LeakageColumnScore] = Field(default_factory=list)
+    reason: str | None = Field(None, max_length=1000)
+    section: LeakageSection | None = None
+
+
 # --- Events ---------------------------------------------------------------------------------------
 
 
@@ -433,6 +466,11 @@ class HandoffEvent(EventBase):
     payload: HandoffPayload
 
 
+class LeakageCheckEvent(EventBase):
+    type: Literal[EventType.LEAKAGE_CHECK] = EventType.LEAKAGE_CHECK
+    payload: LeakageCheckPayload
+
+
 AnyEvent = Annotated[
     ModelCallEvent
     | ToolCallEvent
@@ -448,7 +486,8 @@ AnyEvent = Annotated[
     | ErrorEvent
     | RoleStartedEvent
     | PlanEvent
-    | HandoffEvent,
+    | HandoffEvent
+    | LeakageCheckEvent,
     Field(discriminator="type"),
 ]
 """Any event, discriminated by `type`."""
@@ -471,6 +510,7 @@ EVENT_CLASSES: dict[EventType, type[EventBase]] = {
     EventType.ROLE_STARTED: RoleStartedEvent,
     EventType.PLAN: PlanEvent,
     EventType.HANDOFF: HandoffEvent,
+    EventType.LEAKAGE_CHECK: LeakageCheckEvent,
 }
 """Concrete event class per type, e.g. for validating a DB row's `payload_json` by its `type`."""
 

@@ -7,7 +7,7 @@ exist only here because no schema needs them.
 from enum import StrEnum
 from typing import Annotated
 
-from pydantic import BeforeValidator, Field, PositiveInt
+from pydantic import BeforeValidator, Field, NonNegativeFloat, PositiveFloat, PositiveInt
 
 from hypora.core.schemas.common import ApprovalPolicy, FrozenModel
 
@@ -69,6 +69,32 @@ class DefenseFlags(FrozenModel):
     injection_filter: bool = True
 
 
+class LeakageCheckConfig(FrozenModel):
+    """Thresholds of the too-good-score investigation (PLAN.md S4.1b; calibration and reasons in
+    docs/notes/leakage-flag.md). Not a comparison switch: `leakage_flag` is."""
+
+    score_margin: NonNegativeFloat = 0.08
+    """Maximized metrics: the fold mean must exceed the range's high end by more than the
+    fold-to-fold standard deviation plus this (metric units)."""
+    relative_margin: NonNegativeFloat = Field(0.35, le=1.0)
+    """Minimized metrics: the fold mean must fall below the low end by more than the noise plus
+    this fraction of the low end (error metrics have no common scale)."""
+    screen_max_rows: PositiveInt = 50_000
+    screen_folds: int = Field(5, ge=2, le=10)
+    screen_min_excess: NonNegativeFloat = 0.10
+    """A candidate's screen score must beat chance by at least this (AUC 0.6, |rho| 0.1)."""
+    screen_gap_ratio: float = Field(1.5, gt=1.0)
+    """Candidates stand this many times above the best remaining column's excess over chance."""
+    max_candidates: int = Field(3, ge=1, le=3)
+    permutation_repeats: int = Field(3, ge=1, le=10)
+    permutation_max_rows: PositiveInt = 10_000
+    confirm_fraction: PositiveFloat = Field(0.5, le=1.0)
+    """Shuffling must remove at least this share of the score's excess over the range."""
+    dominance_ratio: float = Field(2.0, ge=1.0)
+    """A confirmed column's drop is this many times every unconfirmed candidate's drop."""
+    max_confirmed: int = Field(2, ge=1, le=2)
+
+
 class FeatureFlags(FrozenModel):
     """All comparison switches (spec §19.4) plus the parallelism limits of spec §9.5.
 
@@ -88,3 +114,6 @@ class FeatureFlags(FrozenModel):
     max_diagnostic_workers: PositiveInt = 4
     max_parallel_trials: PositiveInt = 3
     max_c_workers: int = Field(default=2, ge=0, le=2)
+    leakage_flag: OnOff = Toggle.ON
+    """D-046/D-050: investigate a validation score far above the plan's expected range."""
+    leakage_check: LeakageCheckConfig = LeakageCheckConfig()

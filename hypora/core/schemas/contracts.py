@@ -18,7 +18,9 @@ from pydantic import (
     Field,
     NonNegativeFloat,
     PositiveInt,
+    SerializerFunctionWrapHandler,
     StringConstraints,
+    model_serializer,
     model_validator,
 )
 
@@ -39,6 +41,7 @@ from hypora.core.schemas.common import (
     TaskType,
     UtcDatetime,
 )
+from hypora.core.schemas.leakage import ExpectedScoreRange
 from hypora.core.schemas.strategy import ProposedPhaseBPlan, Recommendation
 
 # --- DataContract (spec §7.2) ---------------------------------------------------------------------
@@ -192,6 +195,21 @@ class ApprovedPlan(FrozenRecord):
     approval_policy: ApprovalPolicy
     requested_model_downloads: tuple[PinnedModelRef, ...] = ()
     requested_dependencies: tuple[NonEmptyStr, ...] = ()
+    expected_score_range: ExpectedScoreRange | None = Field(
+        None,
+        description=(
+            "D-050: the typical primary-metric range for similar problems and its source; set "
+            "only with the leakage_flag on. Absent from the canonical form when unset, so plans "
+            "written before it keep their hash."
+        ),
+    )
+
+    @model_serializer(mode="wrap")
+    def _omit_unset_range(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        data: dict[str, object] = handler(self)
+        if data.get("expected_score_range") is None:
+            data.pop("expected_score_range", None)
+        return data
 
 
 class ExperimentContract(FrozenRecord):

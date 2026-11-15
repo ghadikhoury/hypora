@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "run_id": "run_112",
+  "seq": 88,
+  "actor_role": "controller",
+  "created_at": "2026-11-14T12:00:00Z",
+  "type": "leakage_check",
+  "payload": {
+    "step": "confirmation",
+    "outcome": "confirmed",
+    "trial_id": "trl_0004",
+    "job_id": "job_0009",
+    "metric": "roc_auc",
+    "expected_low": 0.75,
+    "expected_high": 0.82,
+    "expected_source": "research",
+    "columns": [
+      {
+        "column": "collections_referrals_12m",
+        "screen_score": 0.934,
+        "screen_method": "rank_auc",
+        "permutation_drop": 0.21,
+        "confirmed": true,
+        "clues": [
+          "the name contains \"collections\"",
+          "the name contains the time window \"12m\""
+        ]
+      }
+    ]
+  }
+}

@@ -72,13 +72,14 @@ def test_assignment_reruns_cross_field_validators() -> None:
         spec.primary_metric = None
 
 
-def test_event_types_are_the_spec_list_plus_d003() -> None:
+def test_event_types_are_the_spec_list_plus_d003_and_d050() -> None:
     spec_15_1 = [
         "model_call", "tool_call", "tool_result", "policy_decision", "approval_requested",
         "approval_granted", "approval_denied", "stage_transition", "job_transition",
         "checkpoint", "escalation", "error",
     ]  # fmt: skip
-    assert [t.value for t in EventType] == [*spec_15_1, "role_started", "plan", "handoff"]
+    d003 = ["role_started", "plan", "handoff"]
+    assert [t.value for t in EventType] == [*spec_15_1, *d003, "leakage_check"]
 
 
 def test_run_status_is_exactly_spec_15_1() -> None:

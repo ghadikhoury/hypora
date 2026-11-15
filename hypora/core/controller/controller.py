@@ -25,7 +25,9 @@ import ast
 import contextlib
 import hashlib
 import json
+import math
 import re
+import secrets
 import uuid
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
@@ -36,6 +38,7 @@ from typing import Any, Final
 
 import anyio
 import pandas as pd  # type: ignore[import-untyped]
+import yaml  # type: ignore[import-untyped]
 from mcp import Client
 from pydantic import BaseModel, TypeAdapter
 
@@ -56,6 +59,16 @@ from hypora.core.controller.contract import (
     ContractError,
     build_experiment_contract,
     build_plan,
+)
+from hypora.core.controller.leakage import (
+    column_outcomes,
+    column_scores,
+    confirm_columns,
+    display_name,
+    known_at_prediction,
+    permutation_drops,
+    resolve_expected_range,
+    trigger_check,
 )
 from hypora.core.controller.limits import RunGuard
 from hypora.core.controller.local import (
@@ -95,7 +108,13 @@ from hypora.core.policy.injection import (
 from hypora.core.roles.base import USER_CANCEL, RunLimitReached
 from hypora.core.roles.intake import IntakeError, IntakeForm, _task_type, run_intake
 from hypora.core.roles.methodology import propose_data_contract
-from hypora.core.roles.multi import LeadAction, ResearchObservation, draft_plan, main_role_call
+from hypora.core.roles.multi import (
+    LeadAction,
+    LeadActionWithRange,
+    ResearchObservation,
+    draft_plan,
+    main_role_call,
+)
 from hypora.core.roles.outcome_evidence import has_authorized_model_route
 from hypora.core.roles.prompt_loader import load_prompt
 from hypora.core.roles.recovery import (
@@ -123,6 +142,7 @@ from hypora.core.roles.single_agent import (
 from hypora.core.roles.worker import WorkerProposal, WorkerReport, WorkerRequest
 from hypora.core.scheduler.ready import ReadyTask, run_ready
 from hypora.core.schemas import (
+    TRIAL_DIR_TEMPLATE,
     ActorRole,
     ApprovalPolicy,
     ApprovalRecord,
@@ -134,6 +154,7 @@ from hypora.core.schemas import (
     ErrorClass,
     EscalationType,
     EventType,
+    ExcludedFeature,
     ExperimentContract,
     Family,
     Handoff,
@@ -151,12 +172,15 @@ from hypora.core.schemas import (
     TaskSpecification,
     TaskType,
     ToolName,
+    TrialFile,
+    TrialKind,
 )
 from hypora.core.schemas.briefs import Brief, FindingSchemaName
 from hypora.core.schemas.events import (
     ErrorPayload,
     EscalationPayload,
     HandoffPayload,
+    LeakageCheckPayload,
     PlanPayload,
     PolicyDecisionPayload,
     PolicyOutcome,
@@ -165,11 +189,22 @@ from hypora.core.schemas.events import (
     StageTransitionPayload,
 )
 from hypora.core.schemas.findings import FindingStatus, TrialFinding, TrialOutcome
+from hypora.core.schemas.leakage import (
+    ExpectedScoreRange,
+    LeakageColumnScore,
+    LeakageModel,
+    LeakageOutcome,
+    LeakageSection,
+    LeakageStep,
+    ScoreRangeSource,
+)
 from hypora.core.schemas.strategy import RecommendationKind
 from hypora.execution.harness.runner import load_tabular
 from hypora.execution.protocol import experiments as protocol
 from hypora.execution.sandbox.image import tabular_image_tag
 from hypora.mcp_server.server import _redact
+from hypora.mcp_server.trialfs import write_file
+from hypora.profiling.diagnostics import screen_candidates, single_column_screen
 from hypora.profiling.integrity import ERROR_CODE as INTEGRITY_ERROR_CODE
 from hypora.profiling.integrity import (
     IntegrityFinding,
@@ -190,15 +225,19 @@ from hypora.storage.jobs import (
 )
 from hypora.storage.records import (
     RecordNotFound,
+    count_trials,
     create_run,
     list_trials,
     load_result,
+    load_trial,
     run_jobs,
     save_data_contract,
     save_dataset_profile,
     save_experiment_contract,
     save_task_spec,
     set_run_status,
+    set_trial_status,
+    upsert_trial,
 )
 
 MAX_AGENT_TURNS: Final = 60
@@ -287,6 +326,15 @@ already made, because a failed research revision was still in the notes."""
 
 MAX_ROLE_TEXT_ATTEMPTS: Final = 2
 """A or B may restate a refused decision once; the refusal reason names no data."""
+
+EXPECTED_RANGE_REQUEST: Final = (
+    "\nAlso record expected_score_range for the primary metric {metric}: the score a good model "
+    "typically reaches on similar problems. Choose source research to adopt the typical range B "
+    "cited (its typical_score_range), estimate to give your own low and high from the task type "
+    "and the profile, or unknown when no credible range exists; never invent precision. The "
+    "platform uses it only to notice a result that is too good for this kind of problem."
+)
+"""Added to A's C-assignment decision with the leakage_flag on (D-046 part 1): no extra call."""
 
 
 class RoleTextRefused(ValueError):
@@ -490,11 +538,20 @@ def select_final(
 
 
 def queue_final_job(
-    queue: JobQueue, runs_root: Path, run_id: str, trial_id: str, source_job_id: str
+    queue: JobQueue,
+    runs_root: Path,
+    run_id: str,
+    trial_id: str,
+    source_job_id: str,
+    contract: ExperimentContract | None = None,
 ) -> str:
     """Queue the FINAL job of `trial_id`: the validated job's exact snapshot, re-run by the
     experiment worker with `phase=final` (D-019). Returns the job ID; raises FinalJobConflict
-    if the reserved key already names a job that is not this trial's FINAL job."""
+    if the reserved key already names a job that is not this trial's FINAL job.
+
+    With `contract` newer than the validated job's (D-050: the plan that excludes a flagged
+    column), the final job runs under it and its approval: the contract itself leaves the column
+    out, so nothing is withheld on top."""
     source = protocol.job_dir(runs_root, run_id, source_job_id)
     original = protocol.read_request(source)
     snapshot = {
@@ -502,8 +559,13 @@ def queue_final_job(
         for name in original.trial_files
     }
     key = final_job_key(run_id, trial_id)
+    terms: dict[str, Any] = {}
+    withheld = list(original.withheld_columns)
+    if contract is not None and contract.version != original.request.contract_version:
+        terms = {"contract_version": contract.version, "approval_ref": contract.approval_id}
+        withheld = [c for c in withheld if c in contract.data_contract.allowed_features]
     request = SubmitExperimentRequest.model_validate(
-        {**original.request.model_dump(mode="json"), "idempotency_key": key}
+        {**original.request.model_dump(mode="json"), "idempotency_key": key, **terms}
     )
     job_id = new_job_id()
     protocol.publish_job(
@@ -516,6 +578,8 @@ def queue_final_job(
             trial_files=dict(original.trial_files),
             phase=protocol.ExperimentPhase.FINAL,
             source_job_id=source_job_id,
+            # A comparison trial (D-050) is finalized without its flagged columns, as validated.
+            withheld_columns=withheld,
         ),
         snapshot,
     )
@@ -683,6 +747,13 @@ class _Run:
         """The approved plan file of the current contract, re-read at every approval re-check."""
         self.approval: ApprovalRecord | None = None
         self.plan_denied: PlanDenied | None = None
+        self.research_observation: ResearchObservation | None = None
+        self.range_estimate: Any | None = None
+        """A's ScoreRangeEstimate from the C-assignment decision (leakage_flag on)."""
+        self.expected_range: ExpectedScoreRange | None = None
+        """The approved plan's expected primary-metric range (leakage_flag on), D-050."""
+        self.leakage_suspects: list[str] = []
+        """The screen's candidates, named in the limitation if the investigation then fails."""
 
     # --- the run ----------------------------------------------------------------------------------
 
@@ -785,6 +856,10 @@ class _Run:
         return self.controller.run_config.flags.agent_mode is AgentMode.MULTI
 
     @property
+    def _leakage_on(self) -> bool:
+        return self.controller.run_config.flags.leakage_flag is Toggle.ON
+
+    @property
     def approval_policy(self) -> ApprovalPolicy:
         """The plan gate's configured policy (`flags.approval_policy`)."""
         return self.controller.run_config.flags.approval_policy
@@ -798,7 +873,12 @@ class _Run:
         return self.approval_policy
 
     async def _main_role(
-        self, role: ActorRole, context: str, *, require_assignment: bool = False
+        self,
+        role: ActorRole,
+        context: str,
+        *,
+        require_assignment: bool = False,
+        lead_schema: type[LeadAction] = LeadAction,
     ) -> LeadAction | ResearchObservation:
         instance = self._role_started(role, ModelTier.LEAD)
         try:
@@ -812,6 +892,7 @@ class _Run:
                     context=attempt_context,
                     assignment_validator=self._validate_assignment if require_assignment else None,
                     overlap_validator=self._validate_assignment,
+                    lead_schema=lead_schema,
                 )
                 try:
                     if isinstance(result, LeadAction):
@@ -908,12 +989,23 @@ class _Run:
                 "role text shows dataset values; describe the work without quoting data"
             )
 
-    async def _lead_decision(self, context: str, *, require_assignment: bool = False) -> bool:
+    async def _lead_decision(
+        self,
+        context: str,
+        *,
+        require_assignment: bool = False,
+        lead_schema: type[LeadAction] = LeadAction,
+    ) -> bool:
         result = await self._main_role(
-            ActorRole.AGENT_A, context, require_assignment=require_assignment
+            ActorRole.AGENT_A,
+            context,
+            require_assignment=require_assignment,
+            lead_schema=lead_schema,
         )
         if not isinstance(result, LeadAction):
             raise ValueError("Agent A returned the wrong decision type")
+        if isinstance(result, LeadActionWithRange):
+            self.range_estimate = getattr(result, "expected_score_range", None)
         if result.assignment is not None:
             self.lead_assignment = result.assignment
         self.overlap_reason = result.overlap_reason
@@ -937,6 +1029,7 @@ class _Run:
         async def research() -> None:
             nonlocal result
             result = await self._research(spec, profile)
+            self.research_observation = result
             self.research_brief = result.model_dump_json()
 
         async def methodology() -> None:
@@ -985,8 +1078,16 @@ class _Run:
             + "\nIf continuing, supply concrete bounded work for C in the assignment field: which "
             "kinds of models to try and what to compare. The approved contract already fixes the "
             "split, the validation scheme, the metric and every compute limit, and C runs all "
-            "trials in the platform's local sandbox; do not restate or change those.",
+            "trials in the platform's local sandbox; do not restate or change those."
+            + (
+                EXPECTED_RANGE_REQUEST.format(metric=spec.primary_metric.value)
+                if self._leakage_on and spec.primary_metric is not None
+                else ""
+            ),
             require_assignment=True,
+            lead_schema=LeadActionWithRange
+            if self._leakage_on and spec.primary_metric is not None
+            else LeadAction,
         ):
             raise LeadStop
 
@@ -1062,6 +1163,7 @@ class _Run:
                         context=context,
                         max_turns=c.max_agent_turns,
                         recovery=self._recovery(instance, role, context, names, plan),
+                        typical_range_metric=spec.primary_metric if self._leakage_on else None,
                     )
         except Exception as exc:
             limit = _run_limit(exc)  # the MCP client's task group may wrap it
@@ -1081,7 +1183,7 @@ class _Run:
             self.notes.append(reason)
             return ResearchObservation(summary=RESEARCH_UNAVAILABLE, uncertainties=[reason])
         cleaned = c.adapter.redact_model_data(outcome.observation.model_dump(mode="json"))
-        result = ResearchObservation.model_validate(cleaned)
+        result = type(outcome.observation).model_validate(cleaned)
         output_dir = self.run_dir / "role_outputs"
         output_dir.mkdir(parents=True, exist_ok=True)
         (output_dir / f"{instance}.json").write_text(result.model_dump_json(), encoding="utf-8")
@@ -1168,6 +1270,7 @@ class _Run:
             data,
             self.budget,
             note="Evidence-backed methodology; split locked before experiments.",
+            expected_score_range=self._plan_range(spec),
         )
         approval = await self._approve(
             plan, "Data methodology approved; diagnostic partition to be locked."
@@ -1413,6 +1516,7 @@ class _Run:
             self.budget,
             note="Evidence-backed methodology; split locked before experiments.",
             version=2,
+            expected_score_range=self._plan_range(spec),
         )
         # A changed artifact resets approval (spec §10.2; D-044 8.6): plan v2 is a new hash and
         # a new approval ID, so the gate asks again under the run's policy.
@@ -1427,6 +1531,34 @@ class _Run:
         load_verified_partition(frame, contract, self.dataset_fingerprint, lock_path)
         save_experiment_contract(self.database, contract)
         return contract
+
+    def _plan_range(self, spec: TaskSpecification) -> ExpectedScoreRange | None:
+        """The expected range the plan records (D-046 part 1), or None with the flag off.
+
+        B's cited range when A adopted it, A's labelled estimate, or unknown (always unknown in the
+        single-agent configuration, which has no A). Computed once; plan v2 records the same.
+        """
+        if not self._leakage_on or spec.primary_metric is None:
+            return None
+        if self.expected_range is None:
+            observation = self.research_observation
+            report = observation.strategy_report if observation is not None else None
+
+            def basis_ok(text: str) -> bool:
+                try:
+                    self._validate_assignment(text, instruction=False)
+                except (RoleTextRefused, ValueError):
+                    return False
+                return True
+
+            self.expected_range = resolve_expected_range(
+                spec.primary_metric,
+                self.range_estimate,
+                getattr(observation, "typical_score_range", None),
+                report.citations if report is not None else [],
+                basis_ok,
+            )
+        return self.expected_range
 
     async def _approve(self, plan: ApprovedPlan, note: str) -> ApprovalRecord:
         """Bind `plan` to its approval scope, write both files, and let the plan gate decide.
@@ -1596,7 +1728,12 @@ class _Run:
             self.notes.append(f"No final model: {selection.reason}.")
             return
         self.notes.append(f"Final candidate {selection.trial_id}: {selection.reason}.")
-        await self._final(selection.trial_id, selection.source_job_id, contract)
+        trial_id, source_job_id = selection.trial_id, selection.source_job_id
+        if self._leakage_on:
+            trial_id, source_job_id, contract = await self._too_good_check(
+                spec, contract, trial_id, source_job_id
+            )
+        await self._final(trial_id, source_job_id, contract)
 
     async def _agent(
         self, spec: TaskSpecification, contract: ExperimentContract, profile: DatasetProfile
@@ -2202,7 +2339,7 @@ class _Run:
             return
         self._recheck_approval(contract, "before the final job")
         job_id = queue_final_job(
-            self.queue, self.controller.runs_root, self.run_id, trial_id, source_job_id
+            self.queue, self.controller.runs_root, self.run_id, trial_id, source_job_id, contract
         )
         self.final_trial_id = trial_id
         timeout = contract.default_job_limits.max_wall_seconds * final_job_stages(contract)
@@ -2240,7 +2377,7 @@ class _Run:
             output_ref=f"result:{trial_id}/test" if outcome and outcome.test_scores else None,
         )
 
-    async def _await_job(self, job_id: str, timeout: float) -> JobState:
+    async def _await_job(self, job_id: str, timeout: float, what: str = "final job") -> JobState:
         deadline = anyio.current_time() + timeout
         cancelled = False
         while True:
@@ -2249,16 +2386,476 @@ class _Run:
                     self.guard.before_job()
                 except RunLimitReached as reached:
                     self._cancel(job_id, str(reached))
-                    self.notes.append(f"Stopped the final job: {reached}.")
+                    self.notes.append(f"Stopped the {what}: {reached}.")
                     cancelled = True
                     deadline = anyio.current_time() + CANCEL_TIMEOUT_S
             status = self.queue.get(job_id).status
             if status in TERMINAL_STATES:
                 return status
             if anyio.current_time() >= deadline or not self.worker.alive():
-                self._cancel(job_id, "the final job timed out or the worker exited")
+                self._cancel(job_id, f"the {what} timed out or the worker exited")
                 return self.queue.get(job_id).status
             await anyio.sleep(self.controller.poll_seconds)
+
+    # --- the too-good-score investigation (PLAN.md S4.1b, D-046, D-050) ---------------------------
+
+    def _leakage_event(self, step: LeakageStep, outcome: LeakageOutcome, **fields: Any) -> None:
+        if fields.get("reason") is not None:
+            fields["reason"] = shorten(fields["reason"], 1000)  # marked, never cut silently
+        expected = self.expected_range
+        known = expected is not None and expected.source is not ScoreRangeSource.UNKNOWN
+        payload = LeakageCheckPayload(
+            step=step,
+            outcome=outcome,
+            metric=expected.metric if expected is not None else None,
+            expected_low=expected.low if known and expected else None,
+            expected_high=expected.high if known and expected else None,
+            expected_source=expected.source if expected is not None else None,
+            **fields,
+        )
+        self._event(EventType.LEAKAGE_CHECK, payload)
+
+    async def _too_good_check(
+        self, spec: TaskSpecification, contract: ExperimentContract, trial_id: str, job_id: str
+    ) -> tuple[str, str, ExperimentContract]:
+        """Check the final candidate's score against the plan's range; investigate if too good.
+
+        Returns the trial, validated job and contract for the one final job: the candidate under
+        its own contract, unless a column was confirmed, a comparison trial without it was
+        trained, the user did not say the column is known at prediction time, and the plan that
+        excludes it was approved (then the comparison under the new contract version). Platform
+        code only, no model call. The test split is never read here: the screen uses the training
+        rows, the permutation check and the comparison use validation rows only.
+
+        A failure inside the investigation never costs the run its candidate: it is recorded as an
+        unavailable confirmation and the candidate goes on to the final job. A run limit, a user
+        cancel and a stale approval still stop as they do everywhere else.
+        """
+        self.leakage_suspects = []
+        try:
+            return await self._investigate(spec, contract, trial_id, job_id)
+        except (RunLimitReached, ApprovalStale, PlanDenied):
+            raise
+        except Exception as exc:
+            reason = f"the investigation failed ({type(exc).__name__})"
+            suspects = [display_name(name) for name in self.leakage_suspects]
+            self._leakage_event(
+                LeakageStep.CONFIRMATION,
+                LeakageOutcome.UNAVAILABLE,
+                trial_id=trial_id,
+                columns=[LeakageColumnScore(column=name) for name in suspects],
+                reason=reason,
+            )
+            named = f" (screened candidates: {', '.join(suspects)})" if suspects else ""
+            self.notes.append(f"No column was confirmed: {reason}{named}.")
+            return trial_id, job_id, contract
+
+    async def _investigate(
+        self, spec: TaskSpecification, contract: ExperimentContract, trial_id: str, job_id: str
+    ) -> tuple[str, str, ExperimentContract]:
+        config = self.controller.run_config.flags.leakage_check
+        metric = contract.primary_metric
+        expected = self.expected_range or ExpectedScoreRange(
+            metric=metric, source=ScoreRangeSource.UNKNOWN
+        )
+        self.expected_range = expected
+        result = load_result(self.database, trial_id, "validation")
+        folds = _metric_folds(result.metrics if result else {}, metric)
+        trigger = trigger_check(expected, folds, config)
+        self._leakage_event(
+            LeakageStep.TRIGGER,
+            trigger.outcome,
+            trial_id=trial_id,
+            score_mean=_rounded(trigger.mean),
+            score_noise=_rounded(trigger.noise),
+            margin=_rounded(trigger.margin),
+        )
+        if trigger.outcome is not LeakageOutcome.FIRED:
+            return trial_id, job_id, contract
+        assert trigger.excess is not None and trigger.noise is not None
+        assert trigger.mean is not None and expected.low is not None and expected.high is not None
+        self.notes.append(
+            f"The final candidate's validation {metric.value} ({trigger.mean:.4f}) is above the "
+            f"expected range ({expected.low:g} to {expected.high:g}, {expected.source.value}) by "
+            "more than the fold noise plus the margin; the platform checked which column explains "
+            "it (no model call, no test rows)."
+        )
+        # 1. The single-column screen, on the locked training (development) rows only.
+        from hypora.execution.harness.partition import load_verified_partition
+
+        locked = load_verified_partition(
+            load_tabular(self.dataset),
+            contract,
+            self.dataset_fingerprint,
+            self.run_dir / "partition-lock.json",
+        )
+        prepared = locked.prepared
+        rows = prepared.development
+        scores = single_column_screen(
+            prepared.features.iloc[rows],
+            prepared.target.iloc[rows],
+            contract.task_type,
+            max_rows=config.screen_max_rows,
+            folds=config.screen_folds,
+            seed=contract.seed,
+        )
+        candidates, rest = screen_candidates(
+            scores,
+            min_excess=config.screen_min_excess,
+            gap_ratio=config.screen_gap_ratio,
+            max_candidates=config.max_candidates,
+        )
+        screen = {item.column: (item.score, item.method) for item in scores}
+        names = [item.column for item in candidates]
+        self.leakage_suspects = list(names)
+        rest_note = (
+            f"next best column {display_name(rest.column)} scored {rest.score:.4f}"
+            if rest is not None and rest.score is not None
+            else "no other column"
+        )
+        self._leakage_event(
+            LeakageStep.SCREEN,
+            LeakageOutcome.CANDIDATES if names else LeakageOutcome.NO_CANDIDATES,
+            trial_id=trial_id,
+            columns=column_scores(names, screen),
+            reason=f"{len(scores)} column(s) screened on the training rows; {rest_note}.",
+        )
+        if not names:
+            self.notes.append("No column stood out in the single-column screen.")
+            return trial_id, job_id, contract
+        # 2. The permutation check on the candidate's own fitted fold models (no refit).
+        drops: dict[str, float | None] | None = None
+        perm_job: str | None = None
+        reason = "the permutation check did not complete"
+        try:
+            self.guard.before_job()
+            self._recheck_approval(contract, "before the permutation check")
+            perm_job = queue_controller_job(
+                self.queue,
+                self.controller.runs_root,
+                self.run_id,
+                trial_id,
+                job_id,
+                key=f"{self.run_id}:final_leakage_permutation_{trial_id}",
+                phase=protocol.ExperimentPhase.PERMUTATION,
+                permutation=protocol.PermutationRequest(
+                    columns=names,
+                    repeats=config.permutation_repeats,
+                    max_rows=config.permutation_max_rows,
+                    seed=contract.seed,
+                ),
+            )
+            status = await self._await_job(
+                perm_job,
+                self._job_timeout(contract),
+                "permutation check",
+            )
+            self.guard.sync_compute()
+            outcome = protocol.read_outcome(
+                protocol.job_dir(self.controller.runs_root, self.run_id, perm_job)
+            )
+            if status is JobState.COMPLETED and outcome is not None and outcome.permutation:
+                drops = permutation_drops(dict(outcome.permutation), metric)
+            elif outcome is not None and outcome.error_code:
+                reason += f" ({outcome.error_code})"
+        except RunLimitReached as reached:
+            reason = f"a run limit stopped the permutation check: {reached}"
+        if drops is None:
+            self._leakage_event(
+                LeakageStep.CONFIRMATION,
+                LeakageOutcome.UNAVAILABLE,
+                trial_id=trial_id,
+                job_id=perm_job,
+                columns=column_scores(names, screen),
+                reason=reason[:1000],
+            )
+            self.notes.append(f"No column was confirmed: {reason}.")
+            return trial_id, job_id, contract
+        confirmed_map = confirm_columns(drops, trigger.excess, trigger.noise, config)
+        confirmed = sorted(
+            (name for name in names if confirmed_map.get(name)),
+            key=lambda name: -(drops.get(name) or 0.0),
+        )
+        self._leakage_event(
+            LeakageStep.CONFIRMATION,
+            LeakageOutcome.CONFIRMED if confirmed else LeakageOutcome.NOT_CONFIRMED,
+            trial_id=trial_id,
+            job_id=perm_job,
+            columns=column_scores(names, screen, drops, confirmed_map),
+        )
+        if not confirmed:
+            self.notes.append(
+                "Shuffling no single candidate column removed most of the score's excess over "
+                "the expected range, so no column was flagged."
+            )
+            return trial_id, job_id, contract
+        # 3. One comparison model per confirmed column the user did not call legitimate (the
+        # second also leaves out the first).
+        user_text = " ".join(filter(None, (self.request.goal, self.request.visible_constraints)))
+        declared = [name for name in confirmed if known_at_prediction(user_text, name)]
+        doubtful = [name for name in confirmed if name not in declared]
+        known = not doubtful
+        with_model = _leakage_model(self.database, trial_id, metric, [])
+        without_model: LeakageModel | None = None
+        without_job: str | None = None
+        if declared:
+            self._leakage_event(
+                LeakageStep.COMPARISON,
+                LeakageOutcome.SKIPPED_KNOWN_AT_PREDICTION,
+                trial_id=trial_id,
+                columns=[LeakageColumnScore(column=display_name(name)) for name in declared],
+                reason="the user said the column is known at prediction time",
+            )
+        attempts: list[LeakageOutcome] = []
+        for count in range(1, len(doubtful) + 1):
+            withheld = doubtful[:count]
+            outcome_k, model, cmp_job = await self._comparison(
+                contract, trial_id, job_id, withheld, metric
+            )
+            attempts.append(outcome_k)
+            if model is None:
+                break
+            without_model, without_job = model, cmp_job
+        final_contract = contract
+        exclusion: LeakageOutcome | None = None
+        if without_model is not None:
+            # The recommended model runs under a contract that excludes the flagged columns, so
+            # every later reader (the verifier, the report, a grader, the user) sees the model's
+            # real inputs. A changed plan resets approval: the gate decides under the run's policy.
+            excluded, exclusion = await self._exclude_flagged(
+                spec, contract, without_model.without_columns
+            )
+            if excluded is not None:
+                final_contract = excluded
+        recommend_without = exclusion is LeakageOutcome.EXCLUDED
+        recommended = (
+            (without_model.trial_id, without_job)
+            if recommend_without and without_model is not None and without_job is not None
+            else (trial_id, job_id)
+        )
+        outcomes = column_outcomes(confirmed, declared, attempts, exclusion)
+        comparison = (
+            LeakageOutcome.TRAINED
+            if without_model is not None
+            else attempts[0]
+            if attempts
+            else LeakageOutcome.SKIPPED_KNOWN_AT_PREDICTION
+        )
+        section = LeakageSection(
+            metric=metric,
+            expected_low=expected.low,
+            expected_high=expected.high,
+            expected_source=expected.source,
+            expected_citation=expected.source_url or expected.citation_ref or expected.basis,
+            columns=column_scores(confirmed, screen, drops, confirmed_map, outcomes),
+            next_best_column=display_name(rest.column) if rest is not None else None,
+            next_best_score=_rounded(rest.score) if rest is not None else None,
+            with_columns=with_model,
+            without_columns=without_model,
+            comparison=comparison,
+            recommended_trial_id=recommended[0],
+            known_at_prediction=known,
+            exclusion=exclusion,
+        )
+        self._leakage_event(
+            LeakageStep.DECISION,
+            LeakageOutcome.RECOMMEND_WITHOUT
+            if recommend_without
+            else LeakageOutcome.RECOMMEND_WITH,
+            trial_id=recommended[0],
+            section=section,
+            reason=(
+                f"the final model runs under contract v{final_contract.version}, which excludes "
+                + ", ".join(without_model.without_columns)
+                if recommend_without and without_model is not None
+                else None
+            ),
+        )
+        left_out = [display_name(c) for c in confirmed if not outcomes[c][1]]
+        still_used = [display_name(c) for c in confirmed if outcomes[c][1]]
+        parts = []
+        if left_out:
+            parts.append("leaves out " + ", ".join(left_out))
+        if still_used:
+            parts.append("still uses " + ", ".join(still_used))
+        self.notes.append(
+            f"Flagged column(s) {', '.join(display_name(c) for c in confirmed)}: the recommended "
+            f"final model ({recommended[0]}) " + " and ".join(parts) + "; see the report section."
+        )
+        return recommended[0], recommended[1], final_contract
+
+    async def _exclude_flagged(
+        self, spec: TaskSpecification, contract: ExperimentContract, columns: list[str]
+    ) -> tuple[ExperimentContract | None, LeakageOutcome]:
+        """A new contract version that excludes `columns`, through the ordinary plan gate.
+
+        Only features change, so the locked partition stays valid (the same rule as C's feature
+        revision). When the plan is denied, or the new contract cannot be applied, the candidate
+        stays the final model under its own contract and approval, and the outcome says which.
+        A run limit or a user cancel while the gate waits still stops the run.
+        """
+        plan_path, approval = self.plan_path, self.approval
+        try:
+            return await self._excluding_contract(spec, contract, columns)
+        except PlanDenied as denied:
+            self.notes.append(
+                f"The plan that leaves out {', '.join(display_name(c) for c in columns)} was "
+                f"denied ({denied.result.reason}); the candidate with them stays the final model."
+            )
+            outcome = LeakageOutcome.EXCLUSION_DENIED
+        except RunLimitReached:
+            raise
+        except Exception as exc:
+            self.notes.append(
+                f"The contract that leaves out {', '.join(display_name(c) for c in columns)} "
+                f"could not be applied ({type(exc).__name__}); the candidate with them stays the "
+                "final model."
+            )
+            outcome = LeakageOutcome.EXCLUSION_FAILED
+        # The candidate's own approval still authorizes it: its contract stays the latest.
+        self.plan_path, self.approval = plan_path, approval
+        return None, outcome
+
+    async def _excluding_contract(
+        self, spec: TaskSpecification, contract: ExperimentContract, columns: list[str]
+    ) -> tuple[ExperimentContract, LeakageOutcome]:
+        from hypora.execution.harness.partition import load_verified_partition
+
+        data = contract.data_contract
+        evidence = f"leakage_check:{self.run_id}"
+        revised = DataContract.model_validate(
+            {
+                **data.model_dump(mode="json", by_alias=True),
+                "data_contract_version": data.data_contract_version + 1,
+                "allowed_features": [f for f in data.allowed_features if f not in columns],
+                "excluded_features": [
+                    *data.excluded_features,
+                    *(
+                        ExcludedFeature(
+                            name=column,
+                            reason="validation score too good for the expected range; the "
+                            "platform's screen and permutation check single out this column",
+                            evidence=evidence,
+                        )
+                        for column in columns
+                    ),
+                ],
+            }
+        )
+        save_data_contract(self.database, self.run_id, revised)
+        version = contract.version + 1
+        plan = build_plan(
+            spec,
+            revised,
+            self.budget,
+            note="Too-good-score check: leave out "
+            + ", ".join(display_name(c) for c in columns)
+            + "; split locked.",
+            version=version,
+            expected_score_range=self.expected_range,
+        )
+        approval = await self._approve(
+            plan, "Leave out the flagged column(s) " + ", ".join(display_name(c) for c in columns)
+        )
+        excluded = build_experiment_contract(
+            spec,
+            revised,
+            approval,
+            budget=self.budget,
+            job_limits=self.controller.run_config.budgets.job_limits,
+        ).model_copy(update={"version": version})
+        load_verified_partition(
+            load_tabular(self.dataset),
+            excluded,
+            self.dataset_fingerprint,
+            self.run_dir / "partition-lock.json",
+        )
+        save_experiment_contract(self.database, excluded)
+        return excluded, LeakageOutcome.EXCLUDED
+
+    def _job_timeout(self, contract: ExperimentContract) -> float:
+        timeout = contract.default_job_limits.max_wall_seconds * final_job_stages(contract)
+        remaining = self.guard.remaining_wall_clock()
+        return timeout if remaining is None else min(timeout, remaining)
+
+    async def _comparison(
+        self,
+        contract: ExperimentContract,
+        trial_id: str,
+        job_id: str,
+        withheld: list[str],
+        metric: MetricName,
+    ) -> tuple[LeakageOutcome, LeakageModel | None, str | None]:
+        """Train one comparison trial: the candidate's code and settings without `withheld`.
+
+        It is a new trial of the run, so it counts against the trial cap and every other run
+        limit; with no room left the investigation reports the flag without a second model.
+        """
+        columns = [LeakageColumnScore(column=display_name(name)) for name in withheld]
+        maximum = self.budget.max_trials
+        reason: str | None = None
+        if maximum is not None and count_trials(self.database, self.run_id) >= maximum:
+            reason = f"the run's trial limit ({maximum}) is used up"
+        else:
+            try:
+                self.guard.before_job()
+            except RunLimitReached as reached:
+                reason = f"a run limit leaves no room: {reached}"
+        if reason is not None:
+            self._leakage_event(
+                LeakageStep.COMPARISON,
+                LeakageOutcome.BUDGET_EXHAUSTED,
+                trial_id=trial_id,
+                columns=columns,
+                reason=reason,
+            )
+            self.notes.append(f"No comparison model: {reason}.")
+            return LeakageOutcome.BUDGET_EXHAUSTED, None, None
+        self._recheck_approval(contract, "before the comparison trial")
+        comparison_trial, cmp_job = submit_comparison_trial(
+            self.database,
+            self.queue,
+            self.controller.runs_root,
+            self.run_id,
+            trial_id,
+            job_id,
+            withheld,
+        )
+        self._leakage_event(
+            LeakageStep.COMPARISON,
+            LeakageOutcome.SUBMITTED,
+            trial_id=comparison_trial,
+            job_id=cmp_job,
+            columns=columns,
+        )
+        try:
+            status = await self._await_job(cmp_job, self._job_timeout(contract), "comparison trial")
+        except RunLimitReached as reached:  # pragma: no cover - _await_job cancels instead
+            status = JobState.CANCELLED
+            self.notes.append(f"Stopped the comparison trial: {reached}.")
+        self.guard.sync_compute()
+        model = _leakage_model(self.database, comparison_trial, metric, withheld)
+        if status is not JobState.COMPLETED or model.validation_mean is None:
+            self._leakage_event(
+                LeakageStep.COMPARISON,
+                LeakageOutcome.FAILED,
+                trial_id=comparison_trial,
+                job_id=cmp_job,
+                columns=columns,
+                reason=f"the comparison job ended {status.value}",
+            )
+            self.notes.append(f"The comparison trial {comparison_trial} ended {status.value}.")
+            return LeakageOutcome.FAILED, None, None
+        self._leakage_event(
+            LeakageStep.COMPARISON,
+            LeakageOutcome.TRAINED,
+            trial_id=comparison_trial,
+            job_id=cmp_job,
+            columns=columns,
+            score_mean=model.validation_mean,
+            score_noise=model.validation_std,
+        )
+        return LeakageOutcome.TRAINED, model, cmp_job
 
     def _write_facts(self, narrative_note: str | None = None) -> Report | None:
         """Write the report from stored records; None if the run stopped before its contract."""
@@ -2729,6 +3326,173 @@ class _Run:
             role,
             HandoffPayload(role_instance_id=instance, handoff=handoff).model_dump(mode="json"),
         )
+
+
+def _rounded(value: float | None) -> float | None:
+    return None if value is None else round(float(value), 6)
+
+
+def _metric_folds(scores: dict[str, Any], metric: MetricName) -> list[float]:
+    """The finite per-fold values of `metric` in stored validation scores."""
+    values = []
+    for fold in scores.get("folds", []) if isinstance(scores, dict) else []:
+        value = fold.get("metrics", {}).get(metric.value) if isinstance(fold, dict) else None
+        if isinstance(value, int | float) and not isinstance(value, bool) and math.isfinite(value):
+            values.append(float(value))
+    return values
+
+
+def _leakage_model(
+    database: Database, trial_id: str, metric: MetricName, without: list[str]
+) -> LeakageModel:
+    """A model the report compares, with its stored validation score (never a test score)."""
+    result = load_result(database, trial_id, "validation")
+    summary = metric_summary(result.metrics, metric) if result else None
+    return LeakageModel(
+        trial_id=trial_id,
+        without_columns=list(without),
+        validation_mean=_rounded(summary.mean) if summary else None,
+        validation_std=_rounded(summary.std) if summary else None,
+        folds=summary.folds if summary else 0,
+    )
+
+
+def queue_controller_job(
+    queue: JobQueue,
+    runs_root: Path,
+    run_id: str,
+    trial_id: str,
+    source_job_id: str,
+    *,
+    key: str,
+    phase: protocol.ExperimentPhase,
+    permutation: protocol.PermutationRequest | None = None,
+) -> str:
+    """Queue a controller-owned job on `source_job_id`'s exact snapshot (D-050 permutation check).
+
+    The request is the validated job's own, under a key in the controller's reserved namespace, so
+    it runs under the same contract, approval and limits; nothing a role wrote is added.
+    """
+    source = protocol.job_dir(runs_root, run_id, source_job_id)
+    original = protocol.read_request(source)
+    snapshot = {
+        name: (source / protocol.TRIAL_SNAPSHOT_DIR / name).read_bytes()
+        for name in original.trial_files
+    }
+    request = SubmitExperimentRequest.model_validate(
+        {**original.request.model_dump(mode="json"), "idempotency_key": key}
+    )
+    job_id = new_job_id()
+    protocol.publish_job(
+        protocol.job_dir(runs_root, run_id, job_id),
+        protocol.ExperimentRequest(
+            request=request,
+            dataset_id=original.dataset_id,
+            dataset_path=original.dataset_path,
+            dataset_sha256=original.dataset_sha256,
+            trial_files=dict(original.trial_files),
+            phase=phase,
+            source_job_id=source_job_id,
+            withheld_columns=list(original.withheld_columns),
+            permutation=permutation,
+        ),
+        snapshot,
+    )
+    queued = queue.enqueue(
+        trial_id=trial_id,
+        operation=Operation.FIT,
+        limits=request.limits,
+        idempotency_key=key,
+        approval_ref=request.approval_ref,
+        initiator="controller",
+        actor_role=ActorRole.CONTROLLER,
+        job_id=job_id,
+    )
+    if queued != job_id:
+        raise FinalJobConflict(trial_id)
+    return job_id
+
+
+def submit_comparison_trial(
+    database: Database,
+    queue: JobQueue,
+    runs_root: Path,
+    run_id: str,
+    trial_id: str,
+    source_job_id: str,
+    withheld: Sequence[str],
+) -> tuple[str, str]:
+    """Create and queue the comparison trial (D-046 part 5): the final candidate's exact code and
+    settings, run through the ordinary trial path with `withheld` removed by the platform.
+
+    The trial is a new `candidate` of the run (it counts against the trial cap). Its job is the
+    candidate's validated request under a new trial ID and a reserved key; the harness drops the
+    withheld columns before any stage, so trial code never receives them.
+    """
+    source = protocol.job_dir(runs_root, run_id, source_job_id)
+    original = protocol.read_request(source)
+    snapshot = {
+        name: (source / protocol.TRIAL_SNAPSHOT_DIR / name).read_bytes()
+        for name in original.trial_files
+    }
+    design = TrialFile.model_validate(yaml.safe_load(snapshot["trial.yaml"]))
+    for _ in range(20):
+        new_id = f"trl_{secrets.token_hex(4)}"
+        try:
+            load_trial(database, new_id)
+        except RecordNotFound:
+            break
+    else:  # pragma: no cover - 20 collisions of 32 random bits
+        raise RuntimeError("could not allocate a comparison trial ID")
+    trial = TrialFile.model_validate(
+        {
+            **design.model_dump(mode="json"),
+            "trial_id": new_id,
+            "kind": TrialKind.CANDIDATE.value,
+            "hypothesis": (
+                f"Comparison for the too-good score: the code and settings of {trial_id} without "
+                + ", ".join(display_name(name) for name in withheld)
+            ),
+        }
+    )
+    snapshot["trial.yaml"] = yaml.safe_dump(trial.model_dump(mode="json"), sort_keys=False).encode()
+    parts = (run_id, "trials", new_id)
+    for name, content in snapshot.items():
+        write_file(runs_root, parts, name, content)
+    upsert_trial(database, run_id, trial, TRIAL_DIR_TEMPLATE.format(run_id=run_id, trial_id=new_id))
+    key = f"{run_id}:final_leakage_comparison_{new_id}"
+    request = SubmitExperimentRequest.model_validate(
+        {**original.request.model_dump(mode="json"), "trial_id": new_id, "idempotency_key": key}
+    )
+    job_id = new_job_id()
+    protocol.publish_job(
+        protocol.job_dir(runs_root, run_id, job_id),
+        protocol.ExperimentRequest(
+            request=request,
+            dataset_id=original.dataset_id,
+            dataset_path=original.dataset_path,
+            dataset_sha256=original.dataset_sha256,
+            trial_files={
+                name: hashlib.sha256(content).hexdigest() for name, content in snapshot.items()
+            },
+            withheld_columns=list(withheld),
+        ),
+        snapshot,
+    )
+    queued = queue.enqueue(
+        trial_id=new_id,
+        operation=Operation.FIT,
+        limits=request.limits,
+        idempotency_key=key,
+        approval_ref=request.approval_ref,
+        initiator="controller",
+        actor_role=ActorRole.CONTROLLER,
+        job_id=job_id,
+    )
+    if queued != job_id:
+        raise FinalJobConflict(new_id)
+    set_trial_status(database, new_id, "submitted")
+    return new_id, job_id
 
 
 def _data_finding(draft: DataContract, revised: DataContract) -> str:

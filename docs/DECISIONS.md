@@ -1257,3 +1257,39 @@ by waiting. Design note: `docs/notes/long-job-wait.md`.
   budget, or other profile field changed. Worst case for one logical model call: 4 attempts of
   240 s plus about 42 s of backoff.
 - No schema, event type, tool signature, dependency, eval case or grading change.
+
+## D-050 — S4.1b frozen additions for the too-good-score check (2026-11-14)
+
+Ghadi approved implementing S4.1b on 2026-11-14 ("Yes, go implement all of these"), covering the
+minimal frozen-contract additions the step describes (PLAN.md S4.1b part 7). Design, thresholds and
+calibration: `docs/notes/leakage-flag.md`. All additions are optional and backward compatible: runs
+saved before them still load, replay and show in `hypora status` and `hypora trace`.
+
+- `ApprovedPlan.expected_score_range` (`ExpectedScoreRange`: metric, source
+  `research | estimate | unknown`, low, high, citation or basis). Left out of the canonical form
+  when unset, so every earlier plan keeps its hash.
+- `Report.leakage` (`LeakageSection`, `LeakageColumnScore`, `LeakageModel`), present only when a
+  column was confirmed. Per confirmed column it records what happened to its comparison and
+  whether the recommended final model uses it (`comparison`, `in_final_model`); the section records
+  whether the exclusion plan was approved, denied or could not be applied (`exclusion`). A column
+  that stays in the final model is always named as such (PR #50 review).
+- One event type, `leakage_check` (`LeakageCheckPayload`, steps `trigger | screen | confirmation |
+  comparison | decision`), with migration `0005` adding it to the events table's check
+  constraint. One type with a step field covers the five recorded steps.
+- B's cited range is an optional `typical_score_range` on B's research observation and A's range an
+  optional `expected_score_range` on its C-assignment decision; both output schemas keep their
+  names and are used only with the flag on, so the frozen `StrategyReport` is unchanged.
+- Internal job protocol (not frozen schemas): a `permutation` job phase, `withheld_columns` and
+  `permutation` on the job request, `permutation` on the job outcome, and verifier evidence
+  `withheld_columns` (the allowed-features check accepts the contract's features minus exactly the
+  platform-withheld ones).
+- A recommended comparison model is finalized under a new data/experiment contract version that
+  excludes the flagged column, approved through the existing plan gate (the same path as C's
+  feature revision), so the verifier, reports and graders see the model's real inputs. No grader
+  or grading rule changes.
+- Flag `leakage_flag: on | off` (default on, as the plan's full system; S4.2 may revisit) with
+  thresholds under `leakage_check` in `configs/flags.yaml`. Off reproduces the earlier behavior,
+  model inputs and plan hashes; stored records only gain the new optional fields, empty.
+- No MCP tool signature or description, fit/predict interface, dependency, eval case, grading rule,
+  hidden split, `eval` profile or security-code change. The data firewall is unchanged: only column
+  names and summary scores reach a model.

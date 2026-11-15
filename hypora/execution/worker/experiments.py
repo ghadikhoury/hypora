@@ -72,7 +72,13 @@ from hypora.execution.sandbox.spec import SandboxSpec
 from hypora.storage.artifacts import ArtifactStore
 from hypora.storage.database import Database
 from hypora.storage.jobs import HeartbeatStatus, JobQueue, JobRecord, StaleJobState, WorkerCapacity
-from hypora.storage.records import load_experiment_contract, set_trial_status, upsert_result
+from hypora.storage.records import (
+    RecordNotFound,
+    load_experiment_contract,
+    load_run,
+    set_trial_status,
+    upsert_result,
+)
 
 log = logging.getLogger(__name__)
 
@@ -334,22 +340,29 @@ class ExperimentWorker:
         )
         failure: tuple[str, str, bool] | None = None
         final: _Final | None = None
+        permutation: dict[str, Any] | None = None
         try:
-            # The verified bytes themselves: the harness never reopens the dataset path, so
-            # what runs is exactly what was hashed and what the firewall indexed.
-            result = harness.validate(
-                dataset,
-                contract,
-                folder / TRIAL_SNAPSHOT_DIR,
-                trial_id=job.trial_id,
-                dataset_ref=f"dataset:{request.dataset_id}",
-                config=dict(request.request.config),
-                limits=request.request.limits,
-                source=source,
-            )
-            failure = _provenance_mismatch(request, result.dataset_fingerprint, result.pipeline)
-            if failure is None and request.phase is ExperimentPhase.FINAL:
-                final = self._finalize(harness, result, contract, launcher, job)
+            if request.phase is ExperimentPhase.PERMUTATION:
+                permutation = self._permute(harness, request, contract, dataset, source, job)
+            else:
+                # The verified bytes themselves: the harness never reopens the dataset path, so
+                # what runs is exactly what was hashed and what the firewall indexed.
+                result = harness.validate(
+                    dataset,
+                    contract,
+                    folder / TRIAL_SNAPSHOT_DIR,
+                    trial_id=job.trial_id,
+                    dataset_ref=f"dataset:{request.dataset_id}",
+                    config=dict(request.request.config),
+                    limits=request.request.limits,
+                    source=source,
+                    withheld_columns=request.withheld_columns,
+                    keep_fold_models=request.phase is ExperimentPhase.VALIDATE
+                    and self._keeps_fold_models(job.run_id),
+                )
+                failure = _provenance_mismatch(request, result.dataset_fingerprint, result.pipeline)
+                if failure is None and request.phase is ExperimentPhase.FINAL:
+                    final = self._finalize(harness, result, contract, launcher, job, request)
         except Exception as exc:
             failure = self._failure(exc, launcher, firewall)
         finally:
@@ -368,6 +381,23 @@ class ExperimentWorker:
             return ExperimentRun(job.id, record.status, outcome)
         if failure is not None:
             return self._fail(job, (request, launcher), *failure)
+        if permutation is not None:
+            # Validation-row scores only: no artifact, no result row, no trial status change.
+            outcome = ExperimentOutcome(
+                job_id=job.id,
+                succeeded=True,
+                stages=launcher.stages,
+                limits=request.request.limits,
+                permutation=permutation,
+            )
+            write_json_once(folder / OUTCOME_FILE, outcome)
+            try:
+                record = self.queue.complete(
+                    job.id, self.worker_id, f"permutation: {launcher.stages} sandbox stages"
+                )
+            except StaleJobState:
+                return ExperimentRun(job.id, None, outcome)
+            return ExperimentRun(job.id, record.status, outcome)
 
         kinds = _FINAL_ARTIFACTS if final is not None else _ARTIFACTS
         artifacts = self._store_artifacts(job, result.artifacts, kinds)
@@ -432,6 +462,53 @@ class ExperimentWorker:
             return "limits exceed the contract: " + ", ".join(dict.fromkeys(over))
         return None
 
+    def _keeps_fold_models(self, run_id: str) -> bool:
+        """Whether this run's validation jobs keep their fitted fold models (D-050): only with
+        the run's recorded `leakage_flag` on, so a later permutation check can reuse them."""
+        try:
+            flags = load_run(self.database, run_id).model_config.get("flags", {})
+        except RecordNotFound:
+            return False
+        return isinstance(flags, dict) and flags.get("leakage_flag") == "on"
+
+    def _permute(
+        self,
+        harness: TabularHarness,
+        request: ExperimentRequest,
+        contract: ExperimentContract,
+        dataset: Path,
+        source: bytes,
+        job: JobRecord,
+    ) -> dict[str, Any]:
+        """PERMUTATION phase (D-050): rescore the source job's own fitted fold models with each
+        candidate column shuffled in the fold's validation rows. No fit and no test row."""
+        spec = request.permutation
+        if spec is None or request.source_job_id is None:
+            raise ValueError("a permutation job needs candidate columns and a source job")
+        source_folder = job_dir(self.runs_root, job.run_id, request.source_job_id)
+        original = read_request(source_folder)
+        if (
+            original.phase is not ExperimentPhase.VALIDATE
+            or original.request.trial_id != job.trial_id
+            or original.trial_files != request.trial_files
+            or original.withheld_columns != request.withheld_columns
+        ):
+            raise ValueError("the source job is not this trial's validated job")
+        return harness.permutation_scores(
+            dataset,
+            contract,
+            job_dir(self.runs_root, job.run_id, job.id) / TRIAL_SNAPSHOT_DIR,
+            source_folder / HARNESS_DIR,
+            columns=spec.columns,
+            repeats=spec.repeats,
+            max_rows=spec.max_rows,
+            seed=spec.seed,
+            config=dict(request.request.config),
+            limits=request.request.limits,
+            source=source,
+            withheld_columns=request.withheld_columns,
+        )
+
     def _finalize(
         self,
         harness: TabularHarness,
@@ -439,6 +516,7 @@ class ExperimentWorker:
         contract: ExperimentContract,
         launcher: _RecordingLauncher,
         job: JobRecord,
+        request: ExperimentRequest,
     ) -> "_Final":
         """FINAL phase (D-019): refit on development rows, score the test split once, verify."""
         frozen = harness.freeze_candidate(result, contract, limits=job.limits)
@@ -475,6 +553,7 @@ class ExperimentWorker:
             stages=tuple(launcher.records),
             model_sha256=hashlib.sha256(read("model.joblib", 4 * 1024**3)).hexdigest(),
             frozen_model_sha256=frozen.model_hash,
+            withheld_columns=tuple(request.withheld_columns),
         )
         return _Final(test_scores, verify_final(evidence))
 
@@ -530,6 +609,13 @@ class ExperimentWorker:
             )
         return stored
 
+    def _is_permutation(self, job: JobRecord) -> bool:
+        try:
+            request = read_request(job_dir(self.runs_root, job.run_id, job.id))
+        except (OSError, ValueError):
+            return False
+        return request.phase is ExperimentPhase.PERMUTATION
+
     def _outcome(
         self,
         job: JobRecord,
@@ -572,7 +658,8 @@ class ExperimentWorker:
             return ExperimentRun(job.id, None, None)
         if record.status is not JobState.FAILED_TERMINAL:  # requeued: the next attempt reports
             return ExperimentRun(job.id, record.status, None)
-        set_trial_status(self.database, job.trial_id, "failed")
+        if not self._is_permutation(job):  # a failed check does not fail the trial (D-050)
+            set_trial_status(self.database, job.trial_id, "failed")
         return ExperimentRun(
             job.id, record.status, self._outcome(job, request, launcher, code, message)
         )
