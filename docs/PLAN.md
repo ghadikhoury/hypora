@@ -116,6 +116,119 @@ Done when: actual results and per-case evidence are committed, regressions are e
 limits/prompts/model are locked, and unsupported behaviors are explicitly scoped out. This is the
 sole new full development readiness run; dev remains available for targeted debugging.
 
+### S4.2 follow-ups (D-052)
+
+Ghadi approved exactly the six steps below on 2026-11-15, within D-052's limits. They come from the
+S4.2 readiness findings (`docs/notes/readiness.md`, D-051): 8 of 12 agent runs stopped at CONTRACT
+on C's open questions; the 24 per-case records are uncommitted because gitleaks flags `split_key`;
+the merged dev cases do not permit B's research tools, so A's expected range was always `unknown`.
+S4.2a, S4.2b, S4.2d and S4.2e are independent and may run in parallel; S4.2c follows S4.2b;
+S4.2f runs last. Across all six: C workers stay at most 2, S4.3 is not started, AGENTS.md and CI
+are unchanged, and any frozen-contract change is kept minimal and listed in the PR body and in the
+step's decision or notes entry.
+
+### S4.2a — Commit the readiness records
+**PR:** `s4.2a-readiness-records` · Depends on S4.2 · **Spec:** §§16, 19.5
+`🔍 REVIEW FOCUS` — The scanner exception covers only the exact path regex below; records are
+byte-identical to the tarball; the tarball's SHA-256 was verified first. Approved trigger 3 change.
+
+**Why.** gitleaks flags the deterministic `split_key` line in 20 of the 24 S4.2 records (the D-035
+false positive), so the per-case evidence behind D-051's results is not in git.
+
+Scope: verify `~/hypora-readiness-records-1fa719d.tar.gz` has SHA-256
+`5d694b1ffc0a67731315985742f01ae1c2cccbf15fc340ea5422db3cbd0fd76b`; extend D-035's path-scoped
+exception (same rule, same `split_key` line regex) to exactly
+`results/1fa719d43a9f7262587ac8c7441f6179cf4abae6/(default|single_agent)/(agent|baseline)/dev_*.json`;
+commit the 24 records unchanged; update the "held back" text in `docs/notes/readiness.md`.
+Not in scope: any other scanner change, rule or path; editing any record.
+Done when: the SHA-256 matches; `gitleaks` passes in CI; each committed record is byte-identical to
+its tarball member; the summaries already committed still match the records.
+
+### S4.2b — Keep C's screened open questions
+**PR:** `s4.2b-c-questions` · Depends on S4.2 · **Spec:** §§4.3, 7.2, 15.1
+`🔍 REVIEW FOCUS` — Firewall unchanged; no unscreened model text stored; a withheld question is
+stored as a count only; nothing new reaches A; run flow unchanged.
+
+**Why.** The questions that stopped 8 of 12 readiness runs cannot be quoted: the refused proposal is
+never stored, so nobody can tell whether they are reasonable questions or a prompt problem.
+
+Scope: when a data contract is refused because C left open questions, screen each question through
+the existing data firewall and store the passing questions with the refusal (event and run record);
+a question that fails the screen is recorded only as withheld, with a count. The run then proceeds
+exactly as today: no reprompt, no change to when it stops.
+Not in scope: weakening or changing the firewall, passing the questions to A or the user, changing
+the stop behavior (S4.2c).
+Done when:
+- Unit tests cover a passing question stored verbatim, a failing one stored only as a withheld
+  count, and a mix of both; the run flow and A's inputs are unchanged.
+- One or two free dev-profile live runs on trap cases show the stored questions, and those
+  questions are reported verbatim to Ghadi.
+
+### S4.2c — Record assumptions when no user is present
+**PR:** `s4.2c-assumptions` · Depends on S4.2b and Ghadi's confirmation that the S4.2b questions
+are the expected kind · **Spec:** §§7.2, 10.1, 15.1, 19.2
+`🔍 REVIEW FOCUS` — Interactive runs still stop and ask; assumptions are listed in the report;
+assumptions are screened like questions.
+
+**Why.** An evaluation run has no user to answer C's questions, so today it fails with no model
+(D-051) even when a reasonable assumption would let it continue.
+
+Scope: in non-interactive runs, C's open questions no longer end the run; C records an assumption
+for each and continues, and the report lists the assumptions. Assumptions pass the same firewall
+screen as S4.2b questions. Interactive runs keep stopping to ask the user.
+Not in scope: answering on the user's behalf in interactive runs; any grader or case change.
+Done when: unit or scripted tests show a non-interactive run continuing with its assumptions in the
+report, an interactive run still stopping to ask, and a withheld assumption stored as a count only.
+
+### S4.2d — Comparison model covered by the first plan approval
+**PR:** `s4.2d-leakage-no-prompt` · Depends on S4.2 (S4.1b behavior, D-050) · **Spec:** §§7.3,
+8.6–8.7, 10.1
+`🔍 REVIEW FOCUS` — Exactly one comparison model per confirmed column within existing limits
+(D-046 step 5); no second approval prompt; report shows both models, the trigger, the column and
+why; recommended model is the one without the column; winner never picked by test score; nothing
+else trains without approval.
+
+**Why.** S4.1b finalizes a recommended comparison model through a second plan approval (D-050). In a
+run without a user that prompt cannot be answered, and the extra prompt adds friction where the
+user's first plan approval can already cover this bounded check.
+
+Scope: the user's first plan approval also covers training one comparison model without each
+confirmed column, through the existing trial path and limits. The report shows both models, what
+triggered the check, which column and why; the recommended model is the one without the column.
+Not in scope: any other training without approval; choosing by test score; changing the trigger,
+screen or thresholds.
+Done when: scripted runs on the planted credit-g file show the comparison trained and reported with
+no second approval prompt, and the control shows no comparison; tests show nothing else trains
+without approval and the test split is scored once, for the recommended model only.
+
+### S4.2e — Allow Agent B's research tools in the dev cases
+**PR:** `s4.2e-dev-research` · Depends on S4.2 · **Spec:** §§7.1, 13, 19.2
+Approved trigger 4 change, limited to the research-tools allowance in the six merged dev case files.
+
+**Why.** The dev cases' `permitted_tools` exclude B's research tools, so B reported invalid
+citations in every multi run, A recorded an `unknown` range and the S4.1b check never ran.
+
+Scope: add B's research tools to `permitted_tools` in the six files under
+`hypora/evaluation/cases/dev/`.
+Not in scope: any grader, data, budget, hidden-split or other case-field change.
+Done when: the six files differ only in that allowance; case loading and grader tests pass.
+
+### S4.2f — Rerun the readiness evaluation once
+**PR:** `s4.2f-readiness-rerun` · `→ SERIAL` · Depends on S4.2a–S4.2e · **Spec:** §§17, 19.5
+`🧑` Approved budget: $2 hard cap for the whole rerun, reserved before each call; spending stops
+if a call would exceed it.
+
+**Why.** S4.2b–S4.2e change behavior that D-051's evidence measured, so that evidence must be
+re-collected once.
+
+Scope: run the six-case dev set once on pinned `openai/gpt-6-luna` for multi and single; rerun the
+fixed baseline only if its S4.2 records are not reusable. No fallback, no mixed models, no reruns
+for a better result. Regenerate the readiness lock if locked inputs changed.
+Not in scope: any other model, extra runs, S4.3.
+Done when: the per-case records are committed, and a new decision records model and config hashes,
+cost, per-case results and limitations; no advantage over the baseline is claimed unless the paired
+interval supports it.
+
 ### S4.3 — Usable release and documentation
 **PR:** `s4.3-release` · `→ SERIAL` · Depends on S4.2
 Build one documented CLI path to run a task and one to evaluate it, fresh-clone setup verification,
