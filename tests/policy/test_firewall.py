@@ -91,6 +91,114 @@ def test_text_values_count_too():
     assert screened == [None] and counts == {"text_cell": 1}
 
 
+# --- disguised copies of a value are the value (D-048) -------------------------------------------
+
+
+def _patients() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "patient": [f"patient-{i:04d}" for i in range(40)],
+            "site": [f"clinic {chr(65 + i % 26)}{i}" for i in range(40)],
+            "dose_mg": np.linspace(10.25, 50.75, 40),
+            "label": [i % 2 for i in range(40)],
+        }
+    )
+
+
+def _fullwidth(text: str) -> str:
+    """Every printable ASCII character as its full-width form; spaces as ideographic spaces."""
+    return "".join(
+        "\u3000" if c == " " else chr(ord(c) + 0xFEE0) if "!" <= c <= "~" else c for c in text
+    )
+
+
+def _digits(text: str, zero: int) -> str:
+    """ASCII digits rewritten in another script's decimal digits (`zero` is its digit 0)."""
+    return "".join(chr(zero + int(c)) if c.isdigit() else c for c in text)
+
+
+DISGUISED_PATIENT = {
+    "fullwidth_digits": "patient-\uff10\uff10\uff10\uff15",
+    "fullwidth_all": _fullwidth("patient-0005"),
+    "arabic_indic_digits": _digits("patient-0005", 0x0660),
+    "devanagari_digits": _digits("patient-0005", 0x0966),
+    "math_bold_digits": _digits("patient-0005", 0x1D7CE),
+    "zero_width_space": "pat\u200bient-00\u200b05",
+    "zero_width_joiner": "patient\u200d-0005",
+    "soft_hyphen": "pa\u00adtient-0005",
+    "word_joiner_and_bom": "\u2060patient-\ufeff0005",
+    "direction_override": "\u202epatient-0005\u202c",
+    "combining_marks": "pa\u0332tient-00\u03050\u03355",
+    "variation_selector": "patient\ufe0f-0005",
+    "cyrillic_letters": "p\u0430ti\u0435nt-0005",
+    "greek_letters": "pa\u03c4ien\u03c4-0005",
+    "non_breaking_hyphen": "patient\u20110005",
+    "en_dash": "patient\u20130005",
+    "minus_sign": "patient\u22120005",
+    "circled_letters": "\u24df\u24d0\u24e3\u24d8\u24d4\u24dd\u24e3-0005",
+    "upper_case": "PATIENT-0005",
+}
+
+
+@pytest.mark.parametrize("disguised", DISGUISED_PATIENT.values(), ids=DISGUISED_PATIENT.keys())
+def test_a_disguised_text_cell_is_still_withheld(disguised):
+    firewall = DataFirewall([_patients()])
+    screened, counts = firewall.screen_untrusted([f"processing {disguised} now"])
+    assert screened == [None] and counts == {"text_cell": 1}
+
+
+@pytest.mark.parametrize(
+    "disguise",
+    [_fullwidth, lambda text: _digits(text, 0x0660), lambda text: text.replace(" ", "\u00a0")],
+    ids=["fullwidth", "arabic_indic_digits", "no_break_spaces"],
+)
+def test_a_disguised_printed_row_is_still_blocked(disguise):
+    frame = _patients()
+    firewall = DataFirewall([frame])
+    row = frame.iloc[5]
+    printed = disguise(f"{row['patient']} | {row['site']} | {row['dose_mg']:.2f}")
+    assert not printed.isascii()
+    assert firewall.check_lines([printed]).rule is FirewallRule.ROW_ON_LINE
+    assert firewall.check_payload({"logs": [printed]}).blocked
+
+
+def test_disguised_numbers_still_count(cancer, cancer_firewall):
+    """A row of numeric cells in full-width or Arabic-Indic digits is the row."""
+    row = " ".join(str(value) for value in cancer.iloc[11].tolist()[:6])
+    for disguised in (_fullwidth(row), _digits(row, 0x0660), row.replace(".", "\uff0e")):
+        assert cancer_firewall.check_lines([disguised]).rule is FirewallRule.ROW_ON_LINE
+        assert cancer_firewall.screen_untrusted([disguised])[0] == [None]
+
+
+def test_non_ascii_cells_match_both_as_written_and_disguised():
+    """The index is folded like the lines, so a full-width or accented cell matches itself and
+    its plain spelling."""
+    frame = pd.DataFrame(
+        {
+            "code": [f"\uff21\uff22-{i:03d}" for i in range(30)],  # full-width "AB-" + digits
+            "name": [f"Zo\u00eb Nakamura-{i}" for i in range(30)],
+        }
+    )
+    firewall = DataFirewall([frame])
+    for line in ("\uff21\uff22-007", "ab-007", "Zo\u00eb Nakamura-7", "zoe nakamura-7"):
+        assert firewall.screen_untrusted([f"row {line}"])[0] == [None], line
+
+
+def test_ordinary_non_ascii_log_lines_still_pass(cancer_firewall):
+    """No new false positive: non-ASCII decoration, other languages and units pass."""
+    ordinary = [
+        "100%|" + "\u2588" * 10 + "| 5/5 [00:02<00:00, 2.13it/s]",
+        "\u00c9poque 3 termin\u00e9e \u2014 perte 0,4312 \u2713",
+        "temperature \u22123.5 \u00b0C, \u0394loss = 0.0123",
+        "\u8a13\u7df4\u5b8c\u4e86: \u7cbe\u5ea6 0.912",  # Japanese: training done, accuracy
+        "fold\u00a02\u2009done in 3.2\u202fs",  # odd spaces
+    ]
+    screened, counts = cancer_firewall.screen_untrusted(ordinary)
+    assert screened == ordinary and counts == {}
+    patients = DataFirewall([_patients()])
+    assert patients.screen_untrusted(ordinary) == (ordinary, {})
+
+
 def test_values_after_contract_fixes_are_recognized_when_that_frame_is_indexed():
     """Trial code sees the contract-applied frame (e.g. after F -> C): index it too."""
     rng = np.random.default_rng(4)

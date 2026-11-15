@@ -177,7 +177,8 @@ records a `policy_decision` decided by `injection_filter` with counts per catego
 text); a clean result records "passed". In `get_experiment_metrics`, whose labels are bounded to
 40 characters, a string with a hit is replaced as a whole by a short marker so the result still
 fits its output schema. (Group labels never appear in metrics: groups are unnamed.) Dict keys, numbers and the platform's own guidance field
-`next_step` are not screened, and error results (written by the platform) are not either. A result
+`next_step` at the top level of `get_experiment_status` (the only place the platform writes it;
+D-048) are not screened, and error results (written by the platform) are not either. A result
 the screen cannot walk is withheld (`INJECTION_SCREEN_FAILED`). With `defenses.injection_filter`
 off results pass unchanged and every screened call records that the filter was off. Output schemas
 and tool descriptions are unchanged (`docs/mcp/tools.json`). It is a pattern screen; the structural

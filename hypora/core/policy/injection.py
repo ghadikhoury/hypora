@@ -10,7 +10,7 @@ each with a fixed marker. It never returns or records the matched text, only cou
 **Where it runs.** At the MCP server's single exit (`screen_tool_result`), on the results of
 `SCREENED_TOOLS` only. Output schemas and tool descriptions do not change: the screen edits text
 inside existing string fields and leaves dict keys, numbers, booleans and the platform's own
-guidance fields (`PLATFORM_KEYS`) alone.
+guidance fields alone, only at the exact position the platform sets them (`PLATFORM_FIELDS`).
 
 **What it is not.** It is a pattern screen, so a paraphrase, another language or an encoding gets
 through. It is one layer: the role allowlists, the approval check on every job, the plain-prose
@@ -20,7 +20,6 @@ records that the filter was off, like the other defense switches.
 """
 
 import re
-import unicodedata
 from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -29,6 +28,7 @@ from typing import Final
 
 from pydantic import JsonValue
 
+from hypora.core.policy.textfold import fold_text
 from hypora.core.schemas import ToolName
 from hypora.core.schemas.events import (
     PolicyDecisionPayload,
@@ -60,6 +60,13 @@ result still fits its output schema; the counts are the same as for any other to
 PLATFORM_KEYS: Final = frozenset({"next_step"})
 """Result fields the platform writes itself (for example "call get_experiment_status again"), left
 unscreened so the platform's own guidance is never withheld. Every other string is screened."""
+PLATFORM_FIELDS: Final[Mapping[str, frozenset[str]]] = {
+    ToolName.GET_EXPERIMENT_STATUS: PLATFORM_KEYS,
+}
+"""Where the platform sets those fields: the top level of these screened tools' structured
+results, and nowhere else (D-048). A key of the same name anywhere else (nested, in another
+tool's result, in a text block that is not the structured result) is screened like any text,
+because a key name proves nothing about who wrote the value."""
 OFF_REASON: Final = "defenses.injection_filter is off"
 MAX_SCREEN_DEPTH: Final = 32
 
@@ -74,9 +81,6 @@ class InjectionCategory(StrEnum):
 
 
 _TOOL_NAMES: Final = "|".join(sorted((re.escape(t.value) for t in ToolName), key=len, reverse=True))
-# Zero-width space, joiners and direction marks, word joiner, byte-order mark (built from code
-# points so the source holds no invisible characters).
-_ZERO_WIDTH: Final = re.compile(f"[{chr(0x200B)}-{chr(0x200F)}{chr(0x2060)}{chr(0xFEFF)}]")
 
 _PATTERNS: Final[tuple[tuple[InjectionCategory, re.Pattern[str]], ...]] = (
     (
@@ -121,10 +125,13 @@ _PATTERNS: Final[tuple[tuple[InjectionCategory, re.Pattern[str]], ...]] = (
 
 
 def _normalize(line: str) -> str:
-    """Case-fold and drop the tricks that hide a phrase from a plain match."""
-    text = unicodedata.normalize("NFKC", line)
-    text = _ZERO_WIDTH.sub("", text).casefold()
-    return re.sub(r"\s+", " ", text)
+    """Case-fold and drop the tricks that hide a phrase from a plain match.
+
+    The folding is the one every screen shares (`fold_text`, D-048): compatibility forms,
+    invisible format characters (zero-width, soft hyphen, direction marks), combining marks and
+    Latin look-alike letters; then whitespace is collapsed.
+    """
+    return re.sub(r"\s+", " ", fold_text(line))
 
 
 normalize_line = _normalize
@@ -167,13 +174,14 @@ class ScreenResult:
 
 
 def screen_value(
-    value: JsonValue, *, skip_keys: frozenset[str] = PLATFORM_KEYS, bounded: bool = False
+    value: JsonValue, *, skip_keys: frozenset[str] = frozenset(), bounded: bool = False
 ) -> ScreenResult:
     """Screen every string value inside a JSON value; keys, numbers and booleans are unchanged.
 
-    The values of dict keys in `skip_keys` (platform-written fields) are left as they are, at any
-    depth. With `bounded`, a string with any withheld line becomes `SHORT_INJECTION_MARKER` as a
-    whole (`BOUNDED_TOOLS`). Fails closed: a value nested deeper than `MAX_SCREEN_DEPTH` raises
+    The values of `skip_keys` (platform-written fields, `PLATFORM_FIELDS`) are left as they are
+    only at the top level of a dict `value`; the same key nested deeper is screened (D-048). With
+    `bounded`, a string with any withheld line becomes `SHORT_INJECTION_MARKER` as a whole
+    (`BOUNDED_TOOLS`). Fails closed: a value nested deeper than `MAX_SCREEN_DEPTH` raises
     ValueError instead of passing unscreened text.
     """
     counts: Counter[InjectionCategory] = Counter()
@@ -189,7 +197,7 @@ def screen_value(
             return [walk(element, depth + 1) for element in item]
         if isinstance(item, dict):
             return {
-                key: element if key in skip_keys else walk(element, depth + 1)
+                key: element if depth == 0 and key in skip_keys else walk(element, depth + 1)
                 for key, element in item.items()
             }
         return item
@@ -261,7 +269,9 @@ def screen_tool_result(
         return value, None
     if not enabled:
         return value, injection_policy_decision(tool, call_id=call_id, tier=tier, enabled=False)
-    result = screen_value(value, bounded=tool in BOUNDED_TOOLS)
+    result = screen_value(
+        value, skip_keys=PLATFORM_FIELDS.get(tool, frozenset()), bounded=tool in BOUNDED_TOOLS
+    )
     decision = injection_policy_decision(
         tool, call_id=call_id, tier=tier, enabled=True, result=result
     )
@@ -272,6 +282,7 @@ __all__ = [
     "BOUNDED_TOOLS",
     "INJECTION_MARKER",
     "OFF_REASON",
+    "PLATFORM_FIELDS",
     "PLATFORM_KEYS",
     "SCREENED_TOOLS",
     "SHORT_INJECTION_MARKER",

@@ -17,12 +17,15 @@ What this module guarantees:
   and omitted for length or for the budget, so a marker is never mistaken for a code defect.
 """
 
+import re
+import unicodedata
 from collections import Counter
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Final
 
 from hypora.core.policy.injection import INJECTION_MARKER, InjectionCategory, classify_line
+from hypora.core.policy.textfold import fold_text
 
 MAX_CODE_LINES: Final = 1000
 """Lines shown at most: a PyTorch training script of a few hundred lines fits whole."""
@@ -34,10 +37,29 @@ CODE_LINE_WITHHELD: Final = "[line withheld by the data firewall]"
 HEAD_SHARE: Final = 2 / 3
 """Of the budget, the share the head of an over-budget file gets; the tail gets the rest."""
 
-MARKER_PREFIXES: Final = ("[platform: ", "[line withheld by ")
-"""How every platform marker in the excerpt begins."""
 SOURCE_LABEL: Final = "(source text) "
 """Prefixed to a source line that begins like a marker (review of PR #47)."""
+_FORGED_MARKER: Final = re.compile(
+    r"[\W_]*[\[<]\s*(?:platform\s*:|(?:line\s+)?withheld\s+by\b|\.\.\.)"
+)
+"""A line that reads like a platform marker, matched on folded text (`imitates_marker`). Every
+platform marker begins `[platform: `, `[line withheld by ` or `[... ` (the bounded-text markers);
+this also allows any leading whitespace, comment sign or quote and any spacing or case."""
+
+
+def imitates_marker(text: str) -> bool:
+    """Whether a source line could pass for a platform marker (D-048).
+
+    Matched on folded text (`fold_text`: case, full-width forms, zero-width characters, look-alike
+    letters), with every opening bracket of any script (Unicode category Ps: full-width,
+    lenticular, ...) read as `[`, so indentation, tabs, case or a look-alike bracket do not escape
+    the label. A false positive only adds the label; the line is still shown.
+    """
+    folded = "".join(
+        "[" if unicodedata.category(char) == "Ps" else char for char in fold_text(text)
+    )
+    return _FORGED_MARKER.match(folded) is not None
+
 
 FirewallScreen = Callable[[Sequence[str]], tuple[list[str | None], dict[str, int]]]
 """`DataFirewall.screen_untrusted`: None marks a withheld line; counts per rule."""
@@ -111,9 +133,10 @@ def build_code_excerpt(
             entries.append(long_line_marker(number, len(text), max_line_chars))
             verbatim.append(False)
             continue
-        if text.startswith(MARKER_PREFIXES):
+        if imitates_marker(text):
             # A source line (say, inside a string) that imitates a platform marker is shown
-            # labelled as source, so a forged marker cannot pose as the platform's.
+            # labelled as source, so a forged marker cannot pose as the platform's; indented,
+            # re-cased or look-alike spellings included (D-048).
             text = SOURCE_LABEL + text
         entries.append(text)
         verbatim.append(True)
@@ -179,5 +202,6 @@ __all__ = [
     "CodeExcerpt",
     "budget_marker",
     "build_code_excerpt",
+    "imitates_marker",
     "long_line_marker",
 ]

@@ -1197,6 +1197,31 @@ and shown (trigger 3). Evidence and the full failure list: `docs/notes/live-run-
 - No frozen schema, event type, MCP tool signature or description, fit/predict interface,
   dependency, eval case, grader, hidden split or `eval` profile change.
 
+## D-048 — Screens compare folded text; platform exemptions apply only where the platform writes (2026-11-14)
+
+The reviewer of PR #47 found three gaps in the screens on `main`. Ghadi approved the security
+change on 2026-11-14 ("Yes, go implement all of these"; trigger 3, for exactly this scope).
+Details and residual risks: `docs/notes/live-run-hardening.md` ("Screen hardening (D-048)").
+
+- One folding for every screen (`hypora/core/policy/textfold.py`): compatibility forms (NFKD,
+  so full-width digits and letters), invisible format characters (zero-width, soft hyphen,
+  direction marks), combining marks, case, decimal digits of any script, dashes and the minus
+  sign, and Cyrillic and Greek look-alikes of Latin letters. The data firewall folds both the
+  cells it indexes and every line it checks, so `patient-0005` written with full-width digits is
+  withheld like the plain value on every path (trial output and logs, error messages, MCP tool
+  results, A's code excerpt, role text). The injection screen uses the same folding. ASCII text
+  is only case-folded, as before, so false positives on numbers, metrics, column names and code
+  do not change (Ghadi's earlier constraint: do not make the filter so strict that runs break).
+- A source line in A's code excerpt that imitates a platform marker is labelled as source in
+  every spelling: indentation, tabs, case, spacing, a leading comment sign or quote, look-alike
+  brackets and letters, and the `withheld by` and `[...` marker forms.
+- The injection screen leaves `next_step` unscreened only at the top level of
+  `get_experiment_status` results, where the platform writes it. The same key anywhere else
+  (nested, in another tool's result, in a text block that is not the structured result) is
+  screened, as PR #47 did for `encrypted_content`.
+- No frozen schema, event type, MCP tool signature or description, fit/predict interface,
+  dependency, eval case, grader, hidden split or `eval` profile change.
+
 ## D-049 — Waiting on a long job costs a few model turns; a longer model-call timeout (2026-11-14)
 
 Ghadi approved both changes on 2026-11-14 ("Yes, go implement all of these"), which covers

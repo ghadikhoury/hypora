@@ -12,8 +12,11 @@ delimiters pandas, CSV, and Python reprs use (`, ; | ( ) [ ] { } < > = ' "`).
   `df.head()` print, which rounds, is still recognized. Tokens with fewer than
   `min_significant_digits` significant digits (`3`, `42`, `0.5`) carry too little information and
   are ignored.
-- A text cell appears when its normalized text (case-folded, whitespace collapsed) equals a run of
+- A text cell appears when its normalized text (folded, whitespace collapsed) equals a run of
   up to `max_ngram` consecutive tokens; a longer text cell is keyed by its first `max_ngram` words.
+- Cells and lines are folded the same way first (`hypora.core.policy.textfold`, D-048): a
+  full-width, zero-width-split, accented or look-alike-letter copy of a value is the value. ASCII
+  text is only case-folded, as before.
 - Only **distinctive** cells count: the (column, token) pair matches at most `max_rows_per_value`
   rows, the value is not one of the column's `excluded_top_values` most frequent values, and it is
   not the column's minimum or maximum. Profiles legitimately disclose frequent labels and ranges
@@ -31,7 +34,7 @@ delimiters pandas, CSV, and Python reprs use (`, ; | ( ) [ ] { } < > = ' "`).
 `check_payload` applies the boundary rules to every string (and dict key) of a JSON value; the MCP
 server runs it on every tool result (`hypora/mcp_server/server.py`). Residual risks are listed in
 docs/notes/mcp-server.md: rows made only of common values, cells printed one per line by untrusted
-code that the screen did not see, and encoded or transformed values.
+code that the screen did not see, and encoded or transformed values (beyond the folding above).
 """
 
 import math
@@ -43,6 +46,8 @@ from enum import StrEnum
 
 import numpy as np
 import pandas as pd  # type: ignore[import-untyped]
+
+from hypora.core.policy.textfold import fold_text
 
 _SPLIT = re.compile(r"[\s,;|()\[\]{}<>=\"'`]+")
 _NUMBER = re.compile(r"^[+-]?(?P<int>\d*)(?:\.(?P<frac>\d*))?(?:[eE](?P<exp>[+-]?\d+))?$")
@@ -143,11 +148,13 @@ class _LineMatches:
 
 
 def _normalize(text: str) -> str:
-    return " ".join(text.split()).casefold()
+    """A cell's text as indexed: folded like every checked line (D-048), whitespace collapsed."""
+    return " ".join(fold_text(text).split())
 
 
 def _tokens(line: str) -> list[str]:
-    tokens = (part.rstrip(":.").casefold() for part in _SPLIT.split(line))
+    """A line's tokens, folded first (D-048) so a full-width or disguised copy of a cell matches."""
+    tokens = (part.rstrip(":.") for part in _SPLIT.split(fold_text(line)))
     return [token for token in tokens if token]
 
 
