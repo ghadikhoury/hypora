@@ -95,7 +95,7 @@
       "model_profile": "eval"
     }
   },
-  "decision": "D-051",
+  "decision": "D-053",
   "eval_profile": {
     "description": "Pinned eval model, gpt-6-luna on every tier (D-051, resolving D-033); no fallback.",
     "fallback": {
@@ -189,6 +189,6 @@
     "max_retries": 3,
     "request_timeout_s": 240.0
   },
-  "step": "S4.2",
+  "step": "S4.2f",
   "tools_contract_sha256": "1518dfe40ff96fbe0c7eb1dc94f8df685d2c706e17355910899b58d0ccea12e9"
 }
