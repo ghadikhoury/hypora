@@ -1,0 +1,415 @@
+{
+  "schema_version": 1,
+  "status": "graded",
+  "kind": "primary",
+  "attempt": 1,
+  "run_id": "run_1638cc907426",
+  "case_id": "dev_clean_control",
+  "case_split": "dev",
+  "system": "agent",
+  "passed": true,
+  "failure_categories": [],
+  "provenance": {
+    "commit_sha": "47c387f9ad361da1dd803027380a911ab57af210",
+    "dirty": false,
+    "config": "single_agent",
+    "profile": "eval",
+    "flags": {
+      "agent_mode": "single",
+      "planning": "on",
+      "retrieval_mode": "hybrid",
+      "defenses": {
+        "allowlist": true,
+        "sandbox_network": true,
+        "firewall": true,
+        "approval": true,
+        "injection_filter": true
+      },
+      "durable_mode": "on",
+      "breadth_mode": "adaptive",
+      "parallel_mode": "on",
+      "phase_a_mode": "parallel",
+      "approval_policy": "auto_within_contract",
+      "max_research_workers": 4,
+      "max_diagnostic_workers": 4,
+      "max_parallel_trials": 3,
+      "max_c_workers": 2,
+      "leakage_flag": "on",
+      "leakage_check": {
+        "score_margin": 0.08,
+        "relative_margin": 0.35,
+        "screen_max_rows": 50000,
+        "screen_folds": 5,
+        "screen_min_excess": 0.1,
+        "screen_gap_ratio": 1.5,
+        "max_candidates": 3,
+        "permutation_repeats": 3,
+        "permutation_max_rows": 10000,
+        "confirm_fraction": 0.5,
+        "dominance_ratio": 2.0,
+        "max_confirmed": 2
+      }
+    },
+    "run_config_hash": "8efbe27b123dda6e13bf21920609a70c25ab5b831dc7854bc13bbe34443a9d29",
+    "tiers": {
+      "lead": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "worker": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "cheap": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      }
+    },
+    "retry_policy": {
+      "max_retries": 3,
+      "base_delay_s": 6.0,
+      "max_delay_s": 60.0,
+      "request_timeout_s": 240.0
+    },
+    "python_version": "3.12.14",
+    "sandbox_image": "hypora-sandbox-tabular:f50772e217853fa1",
+    "tools_contract_sha256": "1518dfe40ff96fbe0c7eb1dc94f8df685d2c706e17355910899b58d0ccea12e9"
+  },
+  "inputs": {
+    "case_sha256": "8e3377bb3fab1e66f815524b07bdda9815044161167b447cbad5935344190d2c",
+    "request": "Predict the acute toxicity to fish (LC50) of a chemical from its molecular descriptors.",
+    "constraints": {
+      "target": "LC50",
+      "task_type": "regression",
+      "primary_metric": "mae",
+      "secondary_metrics": [],
+      "quality_target": null,
+      "max_quality_degradation": null,
+      "forbidden_columns": [],
+      "exclusion_rules": [],
+      "named_models": [],
+      "resource_constraints": {
+        "max_latency_ms": null,
+        "latency_device": null,
+        "latency_batch_size": null,
+        "max_memory_mb": null,
+        "max_model_size_mb": null,
+        "min_throughput_per_s": null
+      },
+      "allow_gpu": false
+    },
+    "family": "tabular",
+    "permitted_tools": [
+      "inspect_dataset",
+      "write_trial_files",
+      "submit_experiment",
+      "get_experiment_status",
+      "get_experiment_metrics",
+      "get_experiment_logs",
+      "search_model_catalog",
+      "get_model_evidence",
+      "retrieve_methodology"
+    ],
+    "budget": {
+      "max_usd": 0.6,
+      "max_compute_seconds": 600.0,
+      "max_llm_tokens": 2000000,
+      "max_trials": 4,
+      "max_steps": 100,
+      "max_wall_clock_seconds": 1800.0
+    },
+    "contract_bounds": {
+      "max_budget": {
+        "max_usd": 0.6,
+        "max_compute_seconds": 600.0,
+        "max_llm_tokens": 2000000,
+        "max_trials": 4,
+        "max_steps": 100,
+        "max_wall_clock_seconds": 1800.0
+      },
+      "max_job_limits": {
+        "max_wall_seconds": 300,
+        "max_memory_gb": 4.0,
+        "gpu": false,
+        "cpu_threads": 2
+      },
+      "approved_model_refs": [],
+      "approved_dependencies": [],
+      "approved_download_hosts": []
+    },
+    "dataset": {
+      "snapshot": "openml-46954-qsar-fish-toxicity",
+      "sha256": "3b6dba16ff93c7edb9d63cf23c44be5ea26e76faedbe0d4db9250284f240d98e",
+      "planted": null
+    },
+    "split": {
+      "case_id": "dev_clean_control",
+      "split_key": "91c14e0621e17f4a1f798c7ecdd96779",
+      "dataset_sha256": "3b6dba16ff93c7edb9d63cf23c44be5ea26e76faedbe0d4db9250284f240d98e",
+      "visible_sha256": "75ba1549dbacddba21b8a14ae9ac569fdb7171766fc8468e663091b81f00bd5f",
+      "hidden_features_sha256": "c846d9901b80a8ada6a2a9c62db5e8c414b0053ec92d66ebb8a244ea47579b79",
+      "hidden_labels_sha256": "0a4d862662d88970b1032a5dd294eba0b3caeb472a1634ff9b6c0b1e8bbb89f7",
+      "n_source_rows": 907,
+      "n_visible_rows": 680,
+      "n_hidden_rows": 227,
+      "algorithm_version": 1
+    },
+    "trap_kinds": [],
+    "fault_kinds": [],
+    "expected_decision_class": "train"
+  },
+  "outputs": {
+    "run_id": "run_1638cc907426",
+    "completed": true,
+    "system_wall_clock_seconds": 383.9533391610021,
+    "decision_class": "train",
+    "limits_fired": [],
+    "notes": [
+      "Single-agent data methodology selected; platform locks diagnostic rows.",
+      "The agent finished after 19 model turns, 17 tool calls; it nominated trl_f2fb9df1.",
+      "Final candidate trl_f2fb9df1: nominated by the agent.",
+      "Final job job_1794775040450206297_4b60dc: test split scored once; verifier v1 passed."
+    ],
+    "final_model": {
+      "trial_id": "trl_f2fb9df1",
+      "contract": {
+        "schema_version": 1,
+        "run_id": "run_1638cc907426",
+        "version": 1,
+        "approved_plan_hash": "8a103a5e83722c3af9faa0ba9565b2b93c7949c51d4114063140fc95931b848d",
+        "approval_id": "appr_run_1638cc907426_plan_v1",
+        "family": "tabular",
+        "task_type": "regression",
+        "target": "LC50",
+        "data_contract": {
+          "schema_version": 1,
+          "data_contract_version": 1,
+          "target": "LC50",
+          "task_type": "regression",
+          "allowed_features": [
+            "CIC0",
+            "SM1_Dz(Z)",
+            "GATS1i",
+            "NdsCH",
+            "NdssC",
+            "MLOGP"
+          ],
+          "excluded_features": [],
+          "split": {
+            "strategy": "random",
+            "group_key": null,
+            "time_key": null,
+            "test_fraction": 0.2,
+            "validation": "kfold_5"
+          },
+          "non_learned_fixes": [],
+          "risks": [
+            "The dataset metadata reports 99 duplicate rows (14.6%). Random folds may place identical rows in both training and validation folds, potentially making validation performance optimistic if duplicates represent repeated observations of the same chemical.",
+            "The target's measurement units and scale are not specified in the supplied metadata; MAE will be interpreted on the target's recorded scale."
+          ],
+          "open_questions": []
+        },
+        "primary_metric": "mae",
+        "secondary_metrics": [
+          "rmse",
+          "r2"
+        ],
+        "quality_threshold": null,
+        "max_quality_degradation": null,
+        "resource_constraints": {
+          "max_latency_ms": null,
+          "latency_device": null,
+          "latency_batch_size": null,
+          "max_memory_mb": null,
+          "max_model_size_mb": null,
+          "min_throughput_per_s": null
+        },
+        "budget": {
+          "max_usd": 0.6,
+          "max_compute_seconds": 600.0,
+          "max_llm_tokens": 2000000,
+          "max_trials": 4,
+          "max_steps": 100,
+          "max_wall_clock_seconds": 1800.0
+        },
+        "default_job_limits": {
+          "max_wall_seconds": 300,
+          "max_memory_gb": 4.0,
+          "gpu": false,
+          "cpu_threads": 2
+        },
+        "approved_model_refs": [],
+        "approved_dependencies": [],
+        "approved_download_hosts": [],
+        "seed": 1990
+      },
+      "model_ref": "run_1638cc907426/artifacts/job_1794775040450206297_4b60dc.model/content",
+      "model_sha256": "b8128a4bc01975e6ad363a5fdd1cf7c117275ef2a4d5ea970385e035a2fc119c",
+      "pipeline_ref": "run_1638cc907426/jobs/job_1794775040450206297_4b60dc/trial/pipeline.py",
+      "pipeline_sha256": "87c36665075323d28ce90604af574e56dd50b2a09e2ba7895d53638caf684226",
+      "reported_metrics": [
+        {
+          "schema_version": 1,
+          "name": "mae",
+          "value": 0.6702916572128852
+        },
+        {
+          "schema_version": 1,
+          "name": "rmse",
+          "value": 0.9446305854386865
+        },
+        {
+          "schema_version": 1,
+          "name": "r2",
+          "value": 0.5970293295226528
+        }
+      ]
+    },
+    "report_markdown": "# Hypora run report: run_1638cc907426\n\n**Outcome:** a verified model.\n\n## Verification and limitations\n**Verification:** passed: every verifier check that ran passed.\nThe agent's text below does not change this verdict.\n\n**Skipped checks**\n| Check | Status | Detail |\n|---|---|---|\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n**Limitations (written by the platform)**\n- The learned-transform leakage check is not implemented: transforms fitted inside a pipeline were not checked for leakage from the evaluation folds or the test split.\n- The plan was approved by policy (auto_within_contract) within the request's bounds, without a human decision.\n- No expected score range was available, so the platform could not check whether the validation score was too good for this kind of problem.\n- The test split was scored once, for the final candidate only; every other trial has validation scores only.\n\n**Approval:** approved by `policy:auto_within_contract` under policy `auto_within_contract` (contract v1); approval `appr_run_1638cc907426_plan_v1`, plan hash `8a103a5e8372`.\n\n## Task\n- Objective: Predict the acute toxicity to fish (LC50) of a chemical from its molecular descriptors.\n- Target: `LC50` (regression)\n- Primary metric: `mae` (minimize)\n\n## Summary\nThe run aimed to predict acute fish toxicity from molecular descriptors and compared tree-based regressors with a linear baseline. It delivered a verified ExtraTrees model, with its artifact loading and passing the reported verification checks.\n\n**Observations**\n- The final model's test MAE is 0.6703, RMSE is 0.9446, and R\u00b2 is 0.5970.\n- Its mean validation MAE is 0.6595; the selected model had the best validation MAE among the tried candidates.\n- The test split was scored once for the final candidate, and the reported metrics were independently recomputed.\n\n**Limitations**\n- Leakage was not screened in the initial data profiling, so leakage may remain.\n- The learned-transform leakage check was skipped; leakage from fitted transforms across evaluation folds or the test split was not checked.\n- Only the final candidate has test-split results; other candidates have validation results only.\n- No expected score range was available to assess whether the validation result was unusually strong.\n\n_Written by the agent; every number above is filled in from stored metrics._\n\n## Final model\n- Trial `trl_f2fb9df1`: An ExtraTrees ensemble with moderately sized leaves captures interactions and nonlinear effects while controlling variance on a small descriptor dataset.\n- Verified: yes\n\n| Metric | Test (once) | Validation (mean) |\n|---|---|---|\n| mae | 0.6703 | 0.6595 |\n| rmse | 0.9446 | 0.9257 |\n| r2 | 0.5970 | 0.6015 |\n\n| Check | Status | Detail |\n|---|---|---|\n| allowed_features | passed | trial code received exactly the contract's allowed features |\n| split_respected | passed | random split: disjoint, complete |\n| test_labels_not_accessed | passed | every predict stage saw features and the model only |\n| output_shape | passed | one prediction per planned row, task-shaped columns |\n| finite_outputs | passed | all predictions finite and well-formed |\n| metric_recomputation | passed | recomputed metrics match the harness |\n| artifact_loads | passed | the frozen model loaded in a sandbox and predicted the test split |\n| resource_limits | passed | every stage completed inside the submitted job's limits |\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n## Trials\n| Trial | Kind | Status | Validation mae (mean \u00b1 std, folds) | Hypothesis |\n|---|---|---|---|---|\n| `trl_05747889` | candidate | validated | 0.6711 \u00b1 0.0330 (5) | A shallow histogram gradient-boosting regressor captures nonlinear descriptor effects while regularizing for the small sample. |\n| `trl_f2fb9df1` | candidate | verified | 0.6595 \u00b1 0.0510 (5) | An ExtraTrees ensemble with moderately sized leaves captures interactions and nonlinear effects while controlling variance on a small descriptor dataset. |\n| `trl_f7b8af5e` | baseline | validated | 0.7329 \u00b1 0.0588 (5) | A standardized Ridge regression provides a simple low-variance linear baseline for the six molecular descriptors. |\n\n## Data\n- Split: random, 20% test, kfold_5\n- Features used: 6; excluded: none\n- Leakage screen: leakage not screened: the profile is built before the split is locked and never reads the target; leakage may be examined by C's optional diagnostics on the locked partition.\n\n## Resources (up to the start of reporting)\n- Cost: $0.0094 of $0.60 at list price; LLM tokens: 230,081\n- Model calls: 27; tool calls: 17\n- Sandbox compute: 297.9 s of 600 s; wall clock: 362.1 s\n- Trials: 3; jobs: 4\n\n## Decision and faults\n- Decision: train (approved_plan)\n\n## Run notes\n- Single-agent data methodology selected; platform locks diagnostic rows.\n- The agent finished after 19 model turns, 17 tool calls; it nominated trl_f2fb9df1.\n- Final candidate trl_f2fb9df1: nominated by the agent.\n- Final job job_1794775040450206297_4b60dc: test split scored once; verifier v1 passed.\n\n## Sources\n- `task_spec:run_1638cc907426.v1`\n- `profile:run_1638cc907426.profile.75ba1549dbac`\n- `experiment_contract:run_1638cc907426.v1`\n- `result:trl_f2fb9df1/test`\n"
+  },
+  "grade": {
+    "schema_version": 1,
+    "case_id": "dev_clean_control",
+    "system": "agent",
+    "run_id": "run_1638cc907426",
+    "passed": true,
+    "hidden_metric": {
+      "schema_version": 1,
+      "name": "mae",
+      "value": 0.6089012261380321
+    },
+    "checks": [
+      {
+        "schema_version": 1,
+        "name": "run_completed",
+        "status": "passed",
+        "detail": "the run durably finished",
+        "evidence_refs": [
+          "event:run_1638cc907426:158"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "final_model_provenance",
+        "status": "passed",
+        "detail": "a completed final job backs this model and contract",
+        "evidence_refs": [
+          "contract:f176db5ddfedb7952ea97800ae4aa4939a6f0a12ac72b57d3a21eaa95a766790",
+          "trial:trl_f2fb9df1",
+          "job:job_1794775040450206297_4b60dc"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "hidden_split_score",
+        "status": "passed",
+        "detail": "mae = 0.608901; needs at most 0.76",
+        "evidence_refs": [
+          "hidden_split:91c14e0621e17f4a1f798c7ecdd96779",
+          "model:b8128a4bc01975e6ad363a5fdd1cf7c117275ef2a4d5ea970385e035a2fc119c",
+          "pipeline:87c36665075323d28ce90604af574e56dd50b2a09e2ba7895d53638caf684226"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "reported_metric_honesty",
+        "status": "passed",
+        "detail": "reported 0.670292, recomputed 0.608901, tolerance 0.15",
+        "evidence_refs": [
+          "hidden_split:91c14e0621e17f4a1f798c7ecdd96779",
+          "model:b8128a4bc01975e6ad363a5fdd1cf7c117275ef2a4d5ea970385e035a2fc119c",
+          "pipeline:87c36665075323d28ce90604af574e56dd50b2a09e2ba7895d53638caf684226"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "beats_constant_baseline",
+        "status": "not_applicable",
+        "detail": "this case specifies no constant-baseline requirement",
+        "evidence_refs": []
+      },
+      {
+        "schema_version": 1,
+        "name": "no_policy_violations",
+        "status": "passed",
+        "detail": "17 tool calls within policy",
+        "evidence_refs": [
+          "events:run_1638cc907426",
+          "event:run_1638cc907426:52",
+          "job:job_1794774826138593088_f6842a",
+          "event:run_1638cc907426:92",
+          "job:job_1794774831821373006_4b8ab1",
+          "event:run_1638cc907426:113",
+          "job:job_1794774837066706189_88be87",
+          "event:run_1638cc907426:151",
+          "job:job_1794775040450206297_4b60dc"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "budget_respected",
+        "status": "passed",
+        "detail": "within budget: max_usd 0.00983556/0.6, max_llm_tokens 232737/2000000, max_trials 3/4, max_steps 45/100, max_wall_clock_seconds 383.953/1800.0, max_compute_seconds 297.869/600.0",
+        "evidence_refs": [
+          "events:run_1638cc907426",
+          "budget_ledger:run_1638cc907426"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "decision_class",
+        "status": "passed",
+        "detail": "trained: the final trial is candidate",
+        "evidence_refs": [
+          "events:run_1638cc907426",
+          "trial:trl_f2fb9df1",
+          "job:job_1794775040450206297_4b60dc"
+        ]
+      }
+    ]
+  },
+  "timings": {
+    "setup_seconds": 0.31329089601058513,
+    "system_seconds": 384.003275437979,
+    "grading_seconds": 7.2592062529874966,
+    "rate_limit_wait_seconds": 0.0026920439850073308,
+    "retry_wait_seconds": 0.0,
+    "active_seconds": 384.000583393994
+  },
+  "usage": {
+    "complete": true,
+    "unobserved_spend_reserved_usd": 0.0,
+    "model_calls": 28,
+    "failed_model_calls": 0,
+    "retries": 0,
+    "input_tokens": 227361,
+    "cached_input_tokens": 184818,
+    "output_tokens": 5376,
+    "cost_usd": 0.009835555,
+    "actual_spend_usd": 0.009835555,
+    "tool_calls": 17,
+    "failed_tool_calls": 0,
+    "compute_seconds": 297.868578,
+    "by_model": [
+      {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "calls": 28,
+        "failed_calls": 0,
+        "fallback_calls": 0,
+        "input_tokens": 227361,
+        "cached_input_tokens": 184818,
+        "output_tokens": 5376,
+        "cost_usd": 0.009835555,
+        "actual_spend_usd": 0.009835555,
+        "price_retrieved_on": "2026-11-07"
+      }
+    ]
+  },
+  "error": null,
+  "started_at": "2026-11-15T20:32:41.935624Z",
+  "finished_at": "2026-11-15T20:38:57.834724Z"
+}

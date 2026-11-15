@@ -1,11 +1,171 @@
-# Recorded readiness and configuration lock (S4.2, D-051)
+# Recorded readiness and configuration lock (S4.2, D-051; S4.2f rerun, D-053)
 
-The single new full development readiness collection (D-036). It covers the six dev cases on the
-pinned `eval` profile, for the multi-agent A/B/C system (`configs/eval/default.yaml`) and the
-single-agent comparison point (`configs/eval/single_agent.yaml`), each against the fixed baseline.
-The six dev cases are development controls, not held-out test results (S5).
+The development readiness collection (D-036). It covers the six dev cases on the pinned `eval`
+profile, for the multi-agent A/B/C system (`configs/eval/default.yaml`) and the single-agent
+comparison point (`configs/eval/single_agent.yaml`), each against the fixed baseline. The six dev
+cases are development controls, not held-out test results (S5).
 
-## Procedure
+S4.2 collected it once (D-051, sections below the S4.2f one). S4.2b–S4.2e then changed behavior
+that evidence measured, so S4.2f reran it once (D-052, D-053). **The S4.2f rerun is the current
+readiness evidence;** the S4.2 sections are kept as the record of the first collection.
+
+## S4.2f rerun (D-053)
+
+### Procedure and spending
+
+Both configs ran once from the clean commit `47c387f9ad361da1dd803027380a911ab57af210` (S4.2a–e on
+`main` 656cc9c plus the accounting change below), one run at a time under
+`flock /tmp/hypora-heavy.lock`, agent and fixed baseline in one comparison per config:
+
+```bash
+uv run --locked python -m scripts.readiness_eval run --collection s4.2f --config default
+uv run --locked python -m scripts.readiness_eval run --collection s4.2f --config single_agent
+```
+
+The baseline was rerun, not reused: S4.2e changed the six case files, so every case hash differs
+from S4.2's records.
+
+**Accounting.** S4.2f has its own collection in `scripts/readiness_eval.py`: a fresh journal under
+the ignored `runs/readiness-s4.2f/`, its own public audit
+`results/readiness/s4.2f-paid-accounting.json` and a $2.00 hard cap (D-052). S4.2's $10 journal
+was not continued, because a journal's cap is fixed in its header and S4.2's published history
+(`results/readiness/paid-accounting.json`, $0.1394) stays as it is; the S4.2 collection is now
+closed to new runs. Every OpenAI SDK attempt still reserved $0.36 before dispatch, and no call is
+dispatched unless measured spend plus every open reservation plus its own $0.36 stays within
+$2.00. The full-budget comparison pre-check stays on for S4.2 only: six $0.60 case budgets are
+$3.60, more than the whole $2 cap, so for S4.2f the per-call reservation is the cap, exactly as
+D-052 states it.
+
+| Item | Attempts | Actual $ | Wall time |
+|---|---:|---:|---:|
+| `default`: multi agent + baseline | 101 | 0.1205 | 2,045 s |
+| `single_agent`: agent + baseline | 103 | 0.0529 | 2,083 s |
+| **Total (cap $2.00)** | **204** | **0.1734** | 4,128 s |
+
+Run window 2026-11-15 19:55–21:04 UTC. No retries, no fallback, no unknown reservation, no
+infrastructure rerun and no resumed run. Every model call was `openai/gpt-6-luna` on `eval`.
+
+### Identity
+
+Same as S4.2 except the commit and the case files: run config hashes `63286a1d…` (`default`) and
+`8efbe27b…` (`single_agent`), tool contract `1518dfe4…`, sandbox image
+`hypora-sandbox-tabular:f50772e217853fa1`, Python 3.12.14, the same retry policy and prices.
+`results/readiness/lock.json` was regenerated in the run commit; only its `step` and `decision`
+changed (no prompt, flag, budget, model or tool contract changed between S4.2 and S4.2f).
+
+### Results
+
+Records, summaries and regression reports are under
+`results/47c387f9ad361da1dd803027380a911ab57af210/{default,single_agent}/`. The per-case records
+are committed under a one-path extension of D-035's scanner exception that Ghadi approved for this
+step (D-053).
+
+| Case | Multi agent | Single agent | Baseline |
+|---|---|---|---|
+| `dev_class_imbalance` | fail: CONTRACT, exclusion without diagnostic evidence | fail: same | pass (macro-F1 0.819) |
+| `dev_clean_control` | fail: A chose to report at CONTRACT | **pass** (MAE 0.609) | pass (MAE 0.681) |
+| `dev_grouped_rows` | fail: CONTRACT, `RuntimeError` (overlap wrapper) | harness error (ungraded): stopped at CONTRACT, exclusion without diagnostic evidence; record refused by a guard false positive | fail (group overlap, MAE 11.18) |
+| `dev_target_leakage` | fail: CONTRACT, exclusion without diagnostic evidence | **pass** (ROC-AUC 0.753) | fail (leak kept, ROC-AUC 0.960) |
+| `dev_temporal_order` | fail: CONTRACT, `RuntimeError` (overlap wrapper) | fail: CONTRACT, exclusion without diagnostic evidence | fail (random split) |
+| `dev_tool_failure` | fail: `max_trials` 4 of 4 before any submission (a C worker used part of the trial budget) | **pass** (ROC-AUC 0.759, recovered) | fail (no retry) |
+
+| Config | Agent | 95% Wilson | Baseline | Paired difference, 95% bootstrap CI | S4.2 |
+|---|---|---|---|---|---|
+| `default` (multi) | 0/6 | [0.000, 0.390] | 2/6 | −0.333, [−0.667, +0.000], 6 pairs: inconclusive | 3/6 vs 2/6, +0.167 [−0.333, +0.667] |
+| `single_agent` | 3/6 (5 graded) | not reported (incomplete) | 2/6 | +0.200, [−0.400, +0.800], 5 pairs: inconclusive | 1/6 vs 2/6, −0.167 [−0.667, +0.333] |
+
+**No advantage over the baseline is claimed.** Neither interval excludes zero.
+
+Per-run cost, steps (model plus tool calls) and seconds:
+
+| Case | Multi run | $ | Steps | s | Single run | $ | Steps | s |
+|---|---|---:|---:|---:|---|---:|---:|---:|
+| imbalance | `run_01699283b1dc` | 0.0173 | 25 | 213 | `run_27a301f16d8a` | 0.0032 | 5 | 47 |
+| clean control | `run_1e14d1e9ef28` | 0.0192 | 22 | 229 | `run_1638cc907426` | 0.0098 | 45 | 384 |
+| grouped | `run_c0a2b3924fca` | 0.0167 | 19 | 157 | `run_e859e940ac27` | 0.0036 | 7 | 50 |
+| leakage | `run_f6454dd2606f` | 0.0207 | 20 | 244 | `run_9ec3b8f0dfb1` | 0.0179 | 67 | 443 |
+| temporal | `run_767c08037ea7` | 0.0184 | 21 | 193 | `run_6272c04a9efa` | 0.0038 | 7 | 57 |
+| tool failure | `run_9ca9ead01495` | 0.0281 | 44 | 330 | `run_7e584339b3c3` | 0.0146 | 53 | 486 |
+
+Agent latency: multi mean 227.6 s, p95 330.0 s; single mean 244.4 s, p95 485.8 s (nearest-rank).
+No run reached a case's step, token, compute or wall-clock limit except multi tool failure's
+`max_trials`. One run started a C worker (multi tool failure, below), the first live C worker in
+recorded evidence.
+
+### What changed, and what did not work
+
+- **CONTRACT stops: 8 of 12** (multi 5, single 3, counting the single grouped run, which stopped
+  at CONTRACT before its record was refused), the same count as S4.2. None now stops on the
+  open-questions rule itself, but C's open questions are still where most runs end. C's first
+  proposal was refused for open questions in every multi run and in four single runs (imbalance,
+  grouped, leakage at both initial and reconcile, temporal); the screened questions are now stored
+  (S4.2b) and are in each record's notes. They are the expected kind (is a column known at
+  prediction time, how are rows grouped, which outcome is positive).
+- **The S4.2c assumption path never completed.** No run recorded an assumption. In five runs
+  (multi imbalance and leakage; single imbalance, grouped and temporal) C's corrected proposal, its
+  last attempt, was refused with "a proposed exclusion lacks matching diagnostic evidence".
+  **Very likely cause, not confirmable:** the S4.2c no-user correction hint ("every dataset column a
+  kept question names is excluded") led C to exclude those columns itself without a diagnostic.
+  The evidence: `validate_data_proposal` checks exclusion evidence before open questions
+  (`hypora/core/controller/methodology.py`), so each first attempt refused for open questions had
+  no unsupported exclusion, and the unsupported exclusion first appeared in the attempt right after
+  the hint. In multi, all four runs whose stored question named a dataset column (`PageValues`;
+  `age`/`sex`/`test_time`; `collections_referrals_12m`; `casual`/`registered`/`cnt`) failed
+  their second attempt, and both runs whose question named no column were accepted. In single, three
+  of four named-column runs failed. C's outputs are filtered before storage, so which column C
+  excluded cannot be confirmed.
+- **Two multi runs (grouped, temporal) failed at CONTRACT with `RuntimeError`.** Both were runs
+  where A authorized B/C overlap. In that path `_research_and_decide`
+  (`hypora/core/controller/controller.py`) raises the fixed `RuntimeError("Phase A task failed")`
+  when either task fails; `run_ready` returns C's real exception in its `failures` dict, which is
+  not used, and the failure detail keeps only the exception type, so the event reads
+  `CONTRACT: RuntimeError`. In both runs C's first attempt was refused for open questions, its
+  second attempt failed and C handed off `failed`, while B kept running (and spending) for about
+  100 s more before the controller stopped. What made C's second attempt fail is not recorded and
+  remains unknown.
+- **Multi clean control:** C's contract was accepted, then A chose to report before approval.
+- **Multi tool failure:** C delegated to a C worker (`agent_c_workers@v1`; a `trial_worker` on
+  `c_worker@v1`, worker tier). The worker made two `write_trial_files` calls, hit its token limit
+  (`WORKER_LIMIT_REACHED`) and handed off `partial`. C continued, and `max_trials` (4 of 4, counting
+  the worker's trials) fired before any `submit_experiment`, so the injected fault never fired. At
+  S4.2 this run passed.
+- **Single grouped rows:** after stopping at CONTRACT (above), the runner refused to store the
+  record (`harness_error`). This was a **false positive** of the record guard
+  (`hypora/evaluation/runner/guard.py`). The guard searches the record's strings for hidden-only cell
+  values of eight or more characters, as raw substrings without number boundaries. The grader's
+  `budget_respected` detail renders the run's own spend as `max_usd <number>/0.6`, and the first
+  eight characters of that number equal one hidden-only `NHR` cell. No hidden data reached the
+  system or the record. The run had made six model calls, so under the S4.2f rule it is final and
+  was not resumed. Making the numeric match respect number boundaries would be a guard change
+  for Ghadi (outside this step).
+- **Research in eval (S4.2e).** B's research tools ran in every multi run (catalog, evidence and
+  methodology retrieval). The single agent also has them now and used `retrieve_methodology` once.
+  B still reported invalid or unsupported citations in two runs. The S4.1b too-good-score check
+  ran in the three single runs that trained: each `leakage_check` ended `unknown_range`, so it
+  still never investigated.
+- **Single agent improved** from 1/6 to 3/6, including the leakage trap (passed for the first
+  time in recorded evidence).
+
+The multi-agent regression (3/6 → 0/6) is only partly explained after one investigation (very
+likely the S4.2c hint for two runs, an unrecorded C failure behind the overlap wrapper for two, one
+A decision and one trial-limit stop involving a C worker). It is reported to Ghadi (AGENTS.md
+trigger 7), and nothing was changed or rerun for it.
+
+### Limitations
+
+- Six development cases, one run each; intervals are wide and say nothing about held-out
+  performance. One case of single is ungraded.
+- One model, no D-007 comparison (D-051).
+- The cause of the exclusion refusals is inferred (very likely, not confirmed) because model
+  outputs are filtered; the cause of C's second failure in the two overlap runs is not recorded,
+  because the overlap path discards C's exception.
+- The `s4.2f` collection stays open in code (`scripts/readiness_eval.py`); its journal's $2 cap
+  still bounds it, and no further run is approved (D-052). Closing it is a one-line follow-up.
+- Timing is for one WSL2 machine, runs one at a time.
+
+## S4.2 collection (D-051)
+
+### Procedure
 
 Every arm ran from the clean commit `1fa719d43a9f7262587ac8c7441f6179cf4abae6` (S4.2 code on
 `main` 5ffc02f), one run at a time under `flock /tmp/hypora-heavy.lock`, through the normal runner
@@ -18,6 +178,9 @@ uv run --locked python -m scripts.readiness_eval run --config single_agent --sys
 uv run --locked python -m scripts.readiness_eval run --config single_agent --resume     # agent
 uv run --locked python -m scripts.readiness_eval lock                                   # lock.json
 ```
+
+(These commands predate S4.2f's `--collection` option; the S4.2 collection is now closed to new
+runs and only republishes its audit with `spend --collection s4.2`.)
 
 The collector reuses the S2.6 durable paid ledger: each real OpenAI SDK attempt, retries included,
 reserves $0.36 (Luna's absolute per-request bound) before dispatch, and only provider-reported
@@ -153,8 +316,8 @@ This is product behavior, recorded as measured. Changing it would change behavio
 affected evidence rerun, so it was not done here (Open for Ghadi).
 
 Other observations:
-- **Research in eval.** The dev cases' merged `permitted_tools` do not include B's research tools,
-  so B reported invalid or unsupported citations in every multi run. As a result A recorded an
+- **Research in eval.** At S4.2 the dev cases' merged `permitted_tools` did not include B's
+  research tools (S4.2e has since allowed them, D-052), so B reported invalid or unsupported citations in every multi run. As a result A recorded an
   `unknown` expected score range. The S4.1b check therefore never investigated: four `leakage_check`
   events, all `trigger` with outcome `unknown_range`. The leakage flag is wired but unexercised by
   this evidence.
@@ -204,6 +367,8 @@ have changed any grade.
 
 `tests/unit/test_readiness_eval.py` fails when any of them changes. Regenerate the lock only
 together with new evidence, or with a stated reason that the change cannot affect behavior.
+S4.2f re-locked it (`step: S4.2f`, `decision: D-053`) in its run commit; every locked value was
+unchanged, and the S4.2f evidence above is what the lock now describes.
 
 ### Limits and their source
 
@@ -231,12 +396,16 @@ planned (D-049).
 
 ## Unsupported behaviors (scoped out of the readiness claim)
 
-- **Methodology clarification.** Any open question in C's data contract stops the run. No question
-  is put to the user and the run does not continue on assumptions.
-- **C workers** are implemented and tested with scripted models but have never run live.
+- **Methodology clarification.** No question is put to the user in an evaluation run. Since S4.2c a
+  run with no user continues on conservative assumptions for C's remaining open questions, but no
+  recorded run has completed that path yet (S4.2f, D-053): the corrected proposals were refused
+  on other rules first.
+- **C workers** have run live once (S4.2f multi tool failure: one worker, stopped at its token
+  limit). They are otherwise tested only with scripted models.
 - **The too-good-score investigation** (S4.1b) has never investigated in recorded evidence, because
-  every expected range was `unknown` here.
-- **B's research** is unavailable inside the dev cases, which do not permit research tools.
+  every expected range was `unknown` (S4.2 and S4.2f).
+- **B's research** is allowed in the dev cases since S4.2e and ran in every S4.2f multi run; the
+  single agent has the same research tools. It has not yet produced an expected score range.
 - **Families other than tabular** (vision, time series), experimental mode, GPU jobs, inference
   optimization, durable restart and replay, web/API, adaptive breadth and parallelism ablations
   (D-028, PLAN Later track). `durable_mode`, `breadth_mode` and the legacy worker names are inactive.

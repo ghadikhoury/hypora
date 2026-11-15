@@ -231,6 +231,8 @@ def test_stage2_split_allowlist_is_narrow(fixture_repo: Path, image: str, scenar
 
 
 READINESS = "results/1fa719d43a9f7262587ac8c7441f6179cf4abae6"
+RERUN = "results/47c387f9ad361da1dd803027380a911ab57af210"
+"""S4.2f's readiness rerun records (D-053), the only other path in the same exception."""
 
 
 @pytest.mark.docker
@@ -245,12 +247,18 @@ READINESS = "results/1fa719d43a9f7262587ac8c7441f6179cf4abae6"
         ("results/0000000000000000000000000000000000000000/default/agent/dev_x.json", "", False),
         (f"{READINESS}/default/agent/dev_target_leakage.json", "token", False),
         (f"{READINESS}/default/agent/dev_target_leakage.json", "api_key", False),
+        (f"{RERUN}/default/agent/dev_grouped_rows.json", "", True),
+        (f"{RERUN}/single_agent/baseline/dev_tool_failure.json", "", True),
+        (f"{RERUN}/default/pending/dev_grouped_rows.json", "", False),
+        (f"{RERUN}/single_agent/agent/summary.json", "", False),
+        (f"{RERUN}/default/agent/dev_grouped_rows.json", "token", False),
+        (f"{RERUN}/default/agent/dev_grouped_rows.json", "api_key", False),
     ],
 )
 def test_readiness_split_allowlist_is_narrow(
     fixture_repo: Path, image: str, relative: str, extra: str, allowed: bool
 ) -> None:
-    """D-052: only split_key lines in the S4.2 per-case record paths gain the exception."""
+    """D-052/D-053: only split_key lines in the S4.2 and S4.2f per-case record paths are exempt."""
     import hashlib
 
     (fixture_repo / ".gitleaks.toml").write_text((ROOT / ".gitleaks.toml").read_text())
