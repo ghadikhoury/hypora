@@ -22,13 +22,15 @@ from hypora.core.controller.approval_gate import (
     user_decision,
     write_decision,
 )
-from hypora.core.controller.contract import ContractError
+from hypora.core.controller.contract import ContractError, build_data_contract, build_plan
 from hypora.core.controller.limits import CANCEL_FILE, RunGuard
 from hypora.core.policy.approvals import (
     APPROVAL_DEFENSE_OFF_APPROVER,
     ApprovalBounds,
     ApprovalScope,
     approval_problem,
+    bind_scope,
+    write_scope,
 )
 from hypora.core.roles.base import RunCancelled, RunLimitReached
 from hypora.core.schemas import (
@@ -37,19 +39,22 @@ from hypora.core.schemas import (
     ApprovalPolicy,
     ApprovedPlan,
     Budget,
+    DataContract,
     EventType,
+    ExcludedFeature,
 )
 from hypora.storage.database import Database
 from hypora.storage.events import EventLog
 from hypora.storage.records import load_approval, save_approval, save_experiment_contract
 from tests.policy.test_approvals import (
     BUDGET,
+    COLUMNS,
     contract_for,
     make_bounds,
     make_plan,
     make_scope,
 )
-from tests.unit.controller.helpers import RUN_ID, run_database
+from tests.unit.controller.helpers import RUN_ID, run_database, spec
 
 POLL = 0.005
 
@@ -458,3 +463,136 @@ def test_a_new_plan_version_needs_its_own_decision(database: Database, runs_root
     )
     assert second.record.approval_id != first.record.approval_id
     assert second.record.artifact_hash == v2.content_hash() != v1.content_hash()
+
+
+# --- covered by an earlier approval (S4.2d, D-052) ------------------------------------------------
+
+
+def _without(data: DataContract, columns: list[str], version: int = 2) -> DataContract:
+    return DataContract.model_validate(
+        {
+            **data.model_dump(mode="json", by_alias=True),
+            "data_contract_version": version,
+            "allowed_features": [f for f in data.allowed_features if f not in columns],
+            "excluded_features": [
+                *data.excluded_features,
+                *(
+                    ExcludedFeature(name=c, reason="too good", evidence="leakage_check:x")
+                    for c in columns
+                ),
+            ],
+        }
+    )
+
+
+def _covering(database: Database, runs_root: Path, policy: ApprovalPolicy) -> tuple[Any, ...]:
+    """Plan v1 granted under `policy` (by the user when interactive), with its files written as
+    the controller writes them; returns the gate, the record, the v1 data contract and scope."""
+    scope = make_scope()
+    v1 = make_plan(scope)
+    folder = runs_root / RUN_ID
+    (folder / "approved_plan.json").write_text(v1.model_dump_json(indent=2), encoding="utf-8")
+    write_scope(folder, 1, scope)
+
+    async def user() -> None:
+        pending = await until_pending(database)
+        write_decision(runs_root, user_decision(pending, approve=True, user="ghadi"))
+
+    approval_gate = gate(database, runs_root, policy)
+    interactive = policy is ApprovalPolicy.INTERACTIVE
+    first = decide(approval_gate, v1, scope, meanwhile=user if interactive else None)
+    return approval_gate, first.record, build_data_contract(spec(), COLUMNS), scope
+
+
+def _covered_plan(
+    data: DataContract, scope: ApprovalScope, version: int = 2, **scope_changes: Any
+) -> tuple[ApprovedPlan, ApprovalScope]:
+    new_scope = ApprovalScope.model_validate(
+        scope.model_dump() | {"data_contract_hash": data.content_hash()} | scope_changes
+    )
+    plan = build_plan(spec(), data, BUDGET, note="Too-good-score check.", version=version)
+    return bind_scope(plan, new_scope), new_scope
+
+
+def test_a_covered_plan_is_granted_under_the_earlier_approval_without_a_prompt(
+    database: Database, runs_root: Path
+) -> None:
+    approval_gate, first, old, scope = _covering(database, runs_root, ApprovalPolicy.INTERACTIVE)
+    new = _without(old, ["a"])
+    v2, new_scope = _covered_plan(new, scope)
+    before = len(events(database))
+    result = approval_gate.covered(
+        v2, new_scope, covered_by=first, old_data=old, new_data=new, note="one comparison"
+    )
+    assert result.granted and result.record.approval_id == f"appr_{RUN_ID}_plan_v2"
+    assert result.record.artifact_hash == v2.content_hash()
+    assert result.record.approver == "user:ghadi"
+    assert result.record.policy is ApprovalPolicy.INTERACTIVE
+    requested, decision, granted = events(database)[before:]
+    assert requested.type is EventType.APPROVAL_REQUESTED
+    assert f"covered by {first.approval_id}: one comparison" in requested.payload.summary
+    assert requested.payload.artifact_ref == f"approved_plan:{RUN_ID}.v2"
+    assert decision.type is EventType.POLICY_DECISION
+    assert decision.payload.decided_by.value == "approval_state"
+    assert granted.type is EventType.APPROVAL_GRANTED
+    assert granted.payload.approver == "user:ghadi"
+    assert pending_approval(database, RUN_ID) is None  # never pending: no prompt
+    assert not decision_path(runs_root, RUN_ID, result.record.approval_id).exists()
+    contract = contract_for(result.record)
+    save_experiment_contract(database, contract)
+    assert approval_problem(database, RUN_ID, contract, contract.approval_id) is None
+    # One comparison in total: the cover cannot be used a second time.
+    v3, scope3 = _covered_plan(_without(old, ["b"], version=3), scope, version=3)
+    with pytest.raises(ContractError, match="already used"):
+        approval_gate.covered(
+            v3,
+            scope3,
+            covered_by=first,
+            old_data=old,
+            new_data=_without(old, ["b"], version=3),
+            note="again",
+        )
+
+
+def test_the_gate_refuses_anything_the_earlier_approval_does_not_cover(
+    database: Database, runs_root: Path
+) -> None:
+    approval_gate, first, old, scope = _covering(
+        database, runs_root, ApprovalPolicy.AUTO_WITHIN_CONTRACT
+    )
+    one = _without(old, ["a"])
+    # Leaves out "a" and also adds a second exclusion: more than the one covered column.
+    two = DataContract.model_validate(
+        {
+            **one.model_dump(mode="json", by_alias=True),
+            "excluded_features": [
+                *one.excluded_features,
+                ExcludedFeature(name="extra", reason="too good", evidence="leakage_check:x"),
+            ],
+        }
+    )
+    v2, new_scope = _covered_plan(one, scope)
+    wider_plan, wider_scope = _covered_plan(one, scope, max_c_workers=3)
+    both_plan, both_scope = _covered_plan(two, scope)
+    denied = first.model_copy(update={"decision": ApprovalDecision.DENIED, "reason": "no"})
+    other_run = first.model_copy(update={"run_id": "run_other"})
+    cases: list[tuple[Any, ...]] = [
+        (v2, new_scope, denied, one, "covering approval"),
+        (v2, new_scope, other_run, one, "covering approval"),
+        (v2, make_scope(max_c_workers=1), first, one, "not bound"),
+        (wider_plan, wider_scope, first, one, "scope differs"),
+        (both_plan, both_scope, first, two, "exactly one allowed column"),
+        (v2, new_scope, first, two, "not the plan's"),
+    ]
+    before = len(events(database))
+    for plan, plan_scope, record, new, message in cases:
+        with pytest.raises(ContractError, match=message):
+            approval_gate.covered(
+                plan, plan_scope, covered_by=record, old_data=old, new_data=new, note="x"
+            )
+    # An edited covering plan file no longer covers anything.
+    path = runs_root / RUN_ID / "approved_plan.json"
+    path.write_text(path.read_text().replace("Methodology.", "Edited."), encoding="utf-8")
+    with pytest.raises(ContractError, match="changed after it was approved"):
+        approval_gate.covered(v2, new_scope, covered_by=first, old_data=old, new_data=one, note="x")
+    assert len(events(database)) == before

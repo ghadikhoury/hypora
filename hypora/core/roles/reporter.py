@@ -31,6 +31,7 @@ from typing import Any, Final, Literal
 
 from pydantic import Field, model_validator
 
+from hypora.core.controller.approval_gate import COVERED_PREFIX
 from hypora.core.controller.leakage import (
     UNCHECKED_LIMITATION,
     UNEXPLAINED_LIMITATION,
@@ -62,6 +63,7 @@ from hypora.core.schemas.common import NonEmptyStr
 from hypora.core.schemas.events import (
     ApprovalDeniedEvent,
     ApprovalGrantedEvent,
+    ApprovalRequestedEvent,
     ErrorEvent,
     HandoffEvent,
     JobTransitionEvent,
@@ -372,6 +374,17 @@ def _approval(timeline: _Timeline, approval_id: str | None) -> ReportApproval | 
         return None
     payload = decision.payload
     reason = decision.payload.reason if isinstance(decision, ApprovalDeniedEvent) else None
+    if reason is None:  # a grant under an earlier approval (S4.2d) says so
+        reason = next(
+            (
+                event.payload.summary[event.payload.summary.index(COVERED_PREFIX) :].split(":")[0]
+                for event in timeline.before
+                if isinstance(event, ApprovalRequestedEvent)
+                and event.payload.approval_id == payload.approval_id
+                and COVERED_PREFIX in event.payload.summary
+            ),
+            None,
+        )
     return ReportApproval(
         approval_id=payload.approval_id,
         artifact_hash=payload.artifact_hash,
@@ -421,6 +434,13 @@ def _approval_limitation(approval: ReportApproval | None, *, expected: bool) -> 
     if approval.decision is ApprovalDecision.DENIED:
         reason = (approval.reason or "no reason given").rstrip(".")
         return [f"The plan was denied by {approval.approver}: {reason}."]
+    if approval.reason and approval.reason.startswith(COVERED_PREFIX):
+        covering = approval.reason.removeprefix(COVERED_PREFIX)
+        return [
+            f"The final plan (leaving out the flagged column) was not put to a separate decision: "
+            f"it is covered by the earlier approval {covering} by {approval.approver}, which "
+            "covers one comparison model (D-052)."
+        ]
     if approval.approver == APPROVAL_DEFENSE_OFF_APPROVER:
         return [
             "The plan was approved with the approval defense switched off "
@@ -823,6 +843,14 @@ _COLUMN_FATE: Final = {
     LeakageOutcome.NOT_ATTEMPTED: (
         "No model without it was trained, because the comparison before it did not complete."
     ),
+    LeakageOutcome.EXCLUSION_DENIED: (
+        "A model without it needs its own approval (the plan approval covers one comparison "
+        "model only), and that plan was not approved, so no model without it was trained."
+    ),
+    LeakageOutcome.EXCLUSION_FAILED: (
+        "A model without it needs its own approval (the plan approval covers one comparison "
+        "model only), and that plan could not be applied, so no model without it was trained."
+    ),
 }
 
 
@@ -898,6 +926,11 @@ def render_leakage(section: LeakageSection | None) -> list[str]:
             + (f"The model without {left_out} scores " if not one else "")
             + f"{_number(without.validation_mean)} (trial `{without.trial_id}`). Both are "
             f"validation {metric} scores."
+        )
+        lines.append(
+            "The plan approval covers training one comparison model, without the top flagged "
+            "column; a model without any other flagged column is trained only after its own "
+            "approval."
         )
     used = [c for c in section.columns if c.in_final_model]
     dropped = [c for c in section.columns if c.in_final_model is False]

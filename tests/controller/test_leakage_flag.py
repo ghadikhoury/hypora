@@ -25,7 +25,7 @@ from hypora.core.controller.leakage import UNKNOWN_RANGE_LIMITATION
 from hypora.core.controller.states import DONE
 from hypora.core.llm.providers.fake import json_result
 from hypora.core.roles.reporter import Report, build_report
-from hypora.core.schemas.events import LeakageCheckEvent, ModelCallEvent
+from hypora.core.schemas.events import ApprovalRequestedEvent, LeakageCheckEvent, ModelCallEvent
 from hypora.core.schemas.leakage import LeakageOutcome, LeakageStep
 from hypora.evaluation.cases.dev.plant_target_leakage import LEAK, TARGET, plant
 from hypora.execution.harness.runner import FOLD_MODELS_DIR
@@ -228,8 +228,12 @@ def _assert_flagged_and_reported(
     assert "If this value is known when you predict, the model with it scores" in markdown
     assert "If it is recorded after the outcome, use the model without it" in markdown
     # The recommended model runs under a new contract version that excludes the column (plan
-    # v2, approved through the gate), so every later reader sees its real inputs.
+    # v2, covered by the plan v1 approval with no second prompt, S4.2d), so every later reader
+    # sees its real inputs.
     assert (runs_root / run_id / "approved_plan_v2.json").is_file()
+    requests = [e for e in EventLog(database).read(run_id) if isinstance(e, ApprovalRequestedEvent)]
+    assert len(requests) == 2
+    assert f"covered by appr_{run_id}_plan_v1" in requests[1].payload.summary
     assert LEAK in report.excluded_features
     final_job = next(
         j for j in jobs if j.trial_id == comparison and j.job_id != comparison_job.job_id

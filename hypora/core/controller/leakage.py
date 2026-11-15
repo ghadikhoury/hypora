@@ -174,8 +174,11 @@ def column_outcomes(
     """Per confirmed column: what happened to its comparison, and whether the final model uses it.
 
     `attempts[k]` is the outcome of comparison k + 1, which leaves out the first k + 1 columns the
-    user did not call legitimate. A column is left out of the final model only when its comparison
-    trained and the plan that excludes it was approved; every other column stays in, and says why.
+    user did not call legitimate. The first is covered by the plan approval (S4.2d, D-052); the
+    second needs its own approval first, so its outcome may also be `exclusion_denied` or
+    `exclusion_failed` (nothing trained). A column is left out of the final model only when its
+    comparison trained and the plan that excludes it was approved; every other column stays in,
+    and says why.
     """
     doubtful = [column for column in confirmed if column not in declared]
     trained = 0
