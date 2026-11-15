@@ -1,5 +1,6 @@
 """Public result records must reject held-out data and redact known secrets."""
 
+import time
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
@@ -133,3 +134,111 @@ def test_literal_batches_cannot_hide_complete_numeric_rows(detail: str) -> None:
     rows = HiddenRows(frozenset({("0", "1")}), (frozenset({"a", "b"}),))
     with pytest.raises(RecordLeakError, match="complete row"):
         RecordGuard(()).clean({"detail": detail}, hidden_rows=rows)
+
+
+def test_run_cost_extending_a_hidden_number_is_not_a_leak() -> None:
+    """The S4.2f single dev_grouped_rows refusal, with a stand-in value of the same shape.
+
+    The budget grader prints the run's spend with `.6g`; its first eight characters equalled a
+    hidden-only `NHR` cell, so the raw substring check refused a record holding no hidden data.
+    """
+    features = pd.DataFrame({"NHR": [0.012345, 0.5]})
+    visible = pd.DataFrame({"NHR": [0.25], "label": [1]})
+    values = hidden_only_values(_guard_split(features, visible))
+    assert "0.012345" in values
+    spent = 0.01234567
+    detail = f"within budget: max_usd {spent:.6g}/0.6, max_trials 1/4"
+    assert "0.012345" in detail  # What the raw substring check matched.
+    assert RecordGuard(()).clean({"checks": [{"detail": detail}]}, values)
+    with pytest.raises(RecordLeakError, match="hidden rows"):
+        RecordGuard(()).clean({"checks": [{"detail": "NHR 0.012345"}]}, values)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "within budget: max_usd 10.012345/0.6",  # a longer digit run on the left
+        "spent 0.0123456 so far",  # a longer digit run on the right
+        "version 3.0.012345",  # a decimal run on the left
+        "about 0.012345.7 units",  # a decimal run on the right
+        "ids 1.12345678 and 912345678",
+        "ids 123456789 and 12345678.5 and .012345678",
+        "ratio 1.5e-079 here",
+        "ratio 1.5e-070",
+        # Digit-only text values follow number rules too: the value set carries no dtype.
+        "postcode 100123456",
+    ],
+)
+def test_numeric_hidden_values_need_number_boundaries(text: str) -> None:
+    values = frozenset({"0.012345", "12345678", "1.5e-07", "00123456"})
+    assert RecordGuard(()).clean({"detail": text}, values)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "0.012345",
+        "NHR was 0.012345.",  # a full stop is punctuation, not a decimal
+        "NHR=0.012345, next",
+        "[0.012345, 3]",
+        "max_usd 0.012345/0.6",
+        "-0.012345",
+        "NHR 0.0123450 (padded)",  # trailing zeros: the same number
+        "NHR 00.012345",  # leading zeros: the same number
+        "id 012345678 here",
+        "id 12345678.0 here",
+        "id x.12345678",
+        "ratio 1.5e-07 here",
+        "ratio 1.5e-07.",
+        "row (-0.98765432, 7)",
+        "e12345678e",
+        "range 12345678..99999999",  # a range, not a decimal part
+        "range 1..12345678",
+        "range 0.012345..0.9",
+        "code 00123456 here",
+    ],
+)
+def test_numeric_hidden_values_standing_alone_are_still_refused(text: str) -> None:
+    values = frozenset({"0.012345", "12345678", "1.5e-07", "-0.98765432", "00123456"})
+    with pytest.raises(RecordLeakError, match="hidden rows"):
+        RecordGuard(()).clean({"detail": text}, values)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "xunique_hidden_valuex",
+        "1unique_hidden_value2",
+        "9ab12cd34ef.5",
+        "ZIP 919104-12345",
+    ],
+)
+def test_non_numeric_hidden_values_still_match_as_plain_substrings(text: str) -> None:
+    values = frozenset({"unique_hidden_value", "ab12cd34ef", "19104-1234"})
+    with pytest.raises(RecordLeakError, match="hidden rows"):
+        RecordGuard(()).clean({"detail": text}, values)
+
+
+def test_a_bounded_occurrence_is_found_after_an_unbounded_one() -> None:
+    values = frozenset({"0.012345"})
+    with pytest.raises(RecordLeakError, match="hidden rows"):
+        RecordGuard(()).clean({"detail": "cost 0.0123456; NHR 0.012345"}, values)
+
+
+def test_integer_columns_keep_number_boundaries() -> None:
+    features = pd.DataFrame({"count": [123456789, 5]})
+    visible = pd.DataFrame({"count": [7], "label": [1]})
+    values = hidden_only_values(_guard_split(features, visible))
+    assert "123456789" in values
+    guard = RecordGuard(())
+    assert guard.clean({"detail": "seed 1123456789 and 123456789.5"}, values)
+    with pytest.raises(RecordLeakError, match="hidden rows"):
+        guard.clean({"detail": "count was 123456789."}, values)
+
+
+@pytest.mark.parametrize("digit", ["1", "0"])
+def test_long_digit_runs_stay_linear(digit: str) -> None:
+    started = time.perf_counter()
+    text = digit * 20_000 + "5"
+    assert RecordGuard(()).clean({"detail": text}, frozenset({digit * 8, "0.000000"}))
+    assert time.perf_counter() - started < 2
