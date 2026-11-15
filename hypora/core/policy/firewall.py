@@ -12,11 +12,17 @@ delimiters pandas, CSV, and Python reprs use (`, ; | ( ) [ ] { } < > = ' "`).
   `df.head()` print, which rounds, is still recognized. Tokens with fewer than
   `min_significant_digits` significant digits (`3`, `42`, `0.5`) carry too little information and
   are ignored.
-- A text cell appears when its normalized text (folded, whitespace collapsed) equals a run of
-  up to `max_ngram` consecutive tokens; a longer text cell is keyed by its first `max_ngram` words.
-- Cells and lines are folded the same way first (`hypora.core.policy.textfold`, D-048): a
-  full-width, zero-width-split, accented or look-alike-letter copy of a value is the value. ASCII
-  text is only case-folded, as before.
+- A text cell appears when its tokens equal a run of up to `max_ngram` consecutive tokens of the
+  line; a longer text cell is keyed by its first `max_ngram` tokens. A cell is split with the
+  same tokenizer as a line, so a cell with a delimiter inside (`acme(ltd)`, `smith, john`) matches.
+- Folding (`hypora.core.policy.textfold`, D-048). A cell is keyed under the light fold
+  (`light_fold`: canonical composition, width variants, invisible characters, case). A line is
+  checked under the light fold *and* the full fold (`fold_text`: also compatibility forms,
+  accents, digits of any script, look-alike letters). So a disguised copy of a value
+  (full-width digits, zero-width characters, Cyrillic letters in a Latin value) still matches,
+  while an ordinary ASCII word never matches a non-ASCII cell that only becomes equal to it
+  after folding the cell (`naive` does not match an accented cell, `max` does not match a
+  Cyrillic cell). ASCII text folds to itself case-folded under both folds, as before.
 - Only **distinctive** cells count: the (column, token) pair matches at most `max_rows_per_value`
   rows, the value is not one of the column's `excluded_top_values` most frequent values, and it is
   not the column's minimum or maximum. Profiles legitimately disclose frequent labels and ranges
@@ -47,7 +53,7 @@ from enum import StrEnum
 import numpy as np
 import pandas as pd  # type: ignore[import-untyped]
 
-from hypora.core.policy.textfold import fold_text
+from hypora.core.policy.textfold import fold_text, light_fold
 
 _SPLIT = re.compile(r"[\s,;|()\[\]{}<>=\"'`]+")
 _NUMBER = re.compile(r"^[+-]?(?P<int>\d*)(?:\.(?P<frac>\d*))?(?:[eE](?P<exp>[+-]?\d+))?$")
@@ -147,15 +153,27 @@ class _LineMatches:
         return max((len(tokens) for tokens in per_column.values()), default=0)
 
 
-def _normalize(text: str) -> str:
-    """A cell's text as indexed: folded like every checked line (D-048), whitespace collapsed."""
-    return " ".join(fold_text(text).split())
-
-
-def _tokens(line: str) -> list[str]:
-    """A line's tokens, folded first (D-048) so a full-width or disguised copy of a cell matches."""
-    tokens = (part.rstrip(":.") for part in _SPLIT.split(fold_text(line)))
+def _split(folded: str) -> list[str]:
+    """Tokens of already-folded text: split on whitespace and delimiters, trailing `:`/`.` cut."""
+    tokens = (part.rstrip(":.") for part in _SPLIT.split(folded))
     return [token for token in tokens if token]
+
+
+def _cell_tokens(text: str) -> list[str]:
+    """A cell's tokens as indexed: light fold, then the line tokenizer (D-048)."""
+    return _split(light_fold(text))
+
+
+def _line_tokens(line: str) -> list[list[str]]:
+    """A line's token lists: under the light fold and, when it differs, the full fold (D-048).
+
+    The light fold matches a verbatim (or canonically equivalent, width-variant or invisibly
+    split) copy of any cell; the full fold matches a disguised copy of a cell whose light form is
+    what the disguise imitates. ASCII lines give one list, exactly as before D-048.
+    """
+    light = _split(light_fold(line))
+    full = _split(fold_text(line))
+    return [light] if full == light else [light, full]
 
 
 def _numeric_token(token: str, min_significant_digits: int) -> _NumericToken | None:
@@ -221,10 +239,10 @@ class DataFirewall:
         for row, value in present.items():
             if value in frequent:
                 continue
-            text = _normalize(str(value))
-            if len(text) < self.config.min_text_chars:
+            tokens = _cell_tokens(str(value))
+            if len(" ".join(tokens)) < self.config.min_text_chars:
                 continue
-            keys[" ".join(text.split(" ")[: self.config.max_ngram])].append(int(row))
+            keys[" ".join(tokens[: self.config.max_ngram])].append(int(row))
         for key, rows in keys.items():
             if len(rows) <= self.config.max_rows_per_value:
                 self._text[key].append((frame, column, np.asarray(rows)))
@@ -233,22 +251,21 @@ class DataFirewall:
 
     def _match_line(self, line: str) -> _LineMatches:
         found = _LineMatches()
-        tokens = _tokens(line)
-        if not tokens:
-            return found
+        token_lists = _line_tokens(line)
         token_ids: dict[str, int] = {}
-        for start in range(len(tokens)):
-            for size in range(1, self.config.max_ngram + 1):
-                if start + size > len(tokens):
-                    break
-                key = " ".join(tokens[start : start + size])
-                if key in token_ids:
-                    continue
-                token_id = token_ids[key] = len(token_ids)
-                for frame, column, rows in self._text.get(key, ()):
-                    found.text_cells += len(rows)
-                    found.cells.update((token_id, frame, int(row), column) for row in rows)
-        for token in dict.fromkeys(tokens):
+        for tokens in token_lists:
+            for start in range(len(tokens)):
+                for size in range(1, self.config.max_ngram + 1):
+                    if start + size > len(tokens):
+                        break
+                    key = " ".join(tokens[start : start + size])
+                    if key in token_ids:
+                        continue
+                    token_id = token_ids[key] = len(token_ids)
+                    for frame, column, rows in self._text.get(key, ()):
+                        found.text_cells += len(rows)
+                        found.cells.update((token_id, frame, int(row), column) for row in rows)
+        for token in dict.fromkeys(token for tokens in token_lists for token in tokens):
             number = _numeric_token(token, self.config.min_significant_digits)
             if number is None:
                 continue

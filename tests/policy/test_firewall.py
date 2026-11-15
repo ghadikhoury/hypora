@@ -137,6 +137,28 @@ DISGUISED_PATIENT = {
     "minus_sign": "patient\u22120005",
     "circled_letters": "\u24df\u24d0\u24e3\u24d8\u24d4\u24dd\u24e3-0005",
     "upper_case": "PATIENT-0005",
+    # Added after review (PR #48): the reviewer's full caught list and the non-blocking gaps.
+    "superscript_digits": "patient-" + "".join(map(chr, (0x2070, 0x2070, 0x2070, 0x2075))),
+    "subscript_digits": _digits("patient-0005", 0x2080),
+    "math_monospace_digits": _digits("patient-0005", 0x1D7F6),
+    "bengali_digits": _digits("patient-0005", 0x09E6),
+    "thai_digits": _digits("patient-0005", 0x0E50),
+    "zero_width_non_joiner": "pati" + chr(0x200C) + "ent-0005",
+    "left_to_right_mark": "patient-" + chr(0x200E) + "0005",
+    "bidi_isolates": chr(0x2066) + "patient-0005" + chr(0x2069),
+    "tag_characters": "patient" + chr(0xE0041) + "-0005",
+    "mongolian_vowel_separator": "pat" + chr(0x180E) + "ient-0005",
+    "combining_grapheme_joiner": "pati" + chr(0x034F) + "ent-0005",
+    "invisible_times": "patient-00" + chr(0x2062) + "05",
+    "variation_selector_supplement": "patient" + chr(0xE0100) + "-0005",
+    "hangul_filler": "pa" + chr(0x3164) + "tient-00" + chr(0x3164) + "05",
+    "halfwidth_hangul_filler": "patient" + chr(0xFFA0) + "-0005",
+    "choseong_jungseong_fillers": "pat" + chr(0x115F) + "ient-" + chr(0x1160) + "0005",
+    "parenthesized_digit": "patient-000" + chr(0x2478),
+    "dotted_digit": "patient-000" + chr(0x248C),
+    "negative_circled_digits": "patient-" + chr(0x24FF) * 3 + chr(0x277A),
+    "ipa_alpha": "p" + chr(0x0251) + "tient-0005",
+    "small_capital_i": "pat" + chr(0x026A) + "ent-0005",
 }
 
 
@@ -170,18 +192,107 @@ def test_disguised_numbers_still_count(cancer, cancer_firewall):
         assert cancer_firewall.screen_untrusted([disguised])[0] == [None]
 
 
-def test_non_ascii_cells_match_both_as_written_and_disguised():
-    """The index is folded like the lines, so a full-width or accented cell matches itself and
-    its plain spelling."""
+E_DIAERESIS = chr(0x00EB)
+COMBINING_DIAERESIS = chr(0x0308)
+FULLWIDTH_AB = chr(0xFF21) + chr(0xFF22)
+
+
+def test_non_ascii_cells_match_as_written_and_invisibly_disguised():
+    """A cell is keyed under the light fold: its verbatim, width-variant, decomposed or
+    zero-width-split copy matches; its accent-stripped spelling does not (review of PR #48, B2)."""
     frame = pd.DataFrame(
         {
-            "code": [f"\uff21\uff22-{i:03d}" for i in range(30)],  # full-width "AB-" + digits
-            "name": [f"Zo\u00eb Nakamura-{i}" for i in range(30)],
+            "code": [f"{FULLWIDTH_AB}-{i:03d}" for i in range(30)],  # full-width "AB-" + digits
+            "name": [f"Zo{E_DIAERESIS} Nakamura-{i}" for i in range(30)],
         }
     )
     firewall = DataFirewall([frame])
-    for line in ("\uff21\uff22-007", "ab-007", "Zo\u00eb Nakamura-7", "zoe nakamura-7"):
+    for line in (
+        f"{FULLWIDTH_AB}-007",
+        "ab-007",  # a width variant is the same characters
+        f"Zo{E_DIAERESIS} Nakamura-7",
+        f"Zoe{COMBINING_DIAERESIS} Nakamura-7",  # decomposed
+        f"Zo{chr(0x200B)}{E_DIAERESIS} Nakamura-7",  # zero-width space inside
+    ):
         assert firewall.screen_untrusted([f"row {line}"])[0] == [None], line
+    assert firewall.screen_untrusted(["row zoe nakamura-7"])[0] == ["row zoe nakamura-7"]
+
+
+def _rare_cell_frame(cell: str) -> pd.DataFrame:
+    """One rare cell among five frequent fillers (frequent values never count)."""
+    fillers = [name for name in ("alpha", "bravo", "charlie", "delta", "echo") for _ in range(6)]
+    return pd.DataFrame({"value": [*fillers, cell], "other": list(range(31))})
+
+
+FULLWIDTH_PARENS = (chr(0xFF08), chr(0xFF09))
+B1_CELLS = {
+    "cjk_fullwidth_parens": chr(0x6771)
+    + chr(0x4EAC)
+    + FULLWIDTH_PARENS[0]
+    + chr(0x672C)
+    + chr(0x793E)
+    + FULLWIDTH_PARENS[1],
+    "cjk_fullwidth_comma": chr(0x5C71) + chr(0x7530) + chr(0xFF0C) + chr(0x592A) + chr(0x90CE),
+    "ascii_parens": "acme(ltd)",
+    "ascii_comma": "smith, john",
+}
+
+
+@pytest.mark.parametrize("cell", B1_CELLS.values(), ids=B1_CELLS.keys())
+def test_a_verbatim_cell_with_delimiters_inside_is_withheld(cell):
+    """Review of PR #48, B1: cells are split with the line tokenizer, so a cell holding full-width
+    or ASCII brackets or commas matches its verbatim copy (main withheld the CJK ones)."""
+    firewall = DataFirewall([_rare_cell_frame(cell)])
+    screened, counts = firewall.screen_untrusted([f"row: {cell}"])
+    assert screened == [None] and counts == {"text_cell": 1}
+
+
+ACUTE_E = chr(0x00E9)
+B2_CASES = {
+    "naive": ("Na" + chr(0x00EF) + "ve", "fitting naive bayes baseline"),
+    "region": ("R" + ACUTE_E + "gion", "region feature dropped"),
+    "resume": ("R" + ACUTE_E + "sum" + ACUTE_E, "resume training from checkpoint"),
+    "media": ("M" + ACUTE_E + "dia", "loading media files"),
+    "senior": ("S" + ACUTE_E + "nior", "senior engineer note"),
+    "cyrillic_max": (chr(0x043C) + chr(0x0430) + chr(0x0445), "max: 0.93"),
+    "cyrillic_top": (chr(0x0442) + chr(0x043E) + chr(0x0440), "top features: a, b"),
+    "cyrillic_bet": (chr(0x0412) + chr(0x0415) + chr(0x0422), "bet size"),
+    "superscript": ("x" + chr(0x00B2) + "y", "x2y"),
+    "numero": (chr(0x2116) + " 17", "no 17"),
+}
+
+
+@pytest.mark.parametrize(("cell", "line"), B2_CASES.values(), ids=B2_CASES.keys())
+def test_an_ascii_line_never_matches_a_non_ascii_cell_only_equal_after_folding(cell, line):
+    """Review of PR #48, B2: ordinary ASCII lines pass a dataset of non-ASCII cells, while the
+    cell itself, written as in the data, is still withheld."""
+    firewall = DataFirewall([_rare_cell_frame(cell)])
+    assert firewall.screen_untrusted([line]) == ([line], {})
+    assert not firewall.check_lines([line]).blocked
+    assert firewall.screen_untrusted([f"row {cell} end"])[0] == [None]
+
+
+def test_ordinary_lines_pass_a_dataset_of_non_ascii_cells():
+    """False-positive check with French, Russian and Greek cells (not only ASCII ones)."""
+    cells = [
+        "Fran" + chr(0x00E7) + "ois Dupr" + ACUTE_E,
+        chr(0x041C) + chr(0x043E) + chr(0x0441) + chr(0x043A) + chr(0x0432) + chr(0x0430),
+        chr(0x0391) + chr(0x03B8) + chr(0x03AE) + chr(0x03BD) + chr(0x03B1),
+        "Caf" + ACUTE_E + " Cr" + ACUTE_E + "me",
+        "S" + chr(0x00E3) + "o Paulo",
+    ]
+    fillers = [name for name in ("alpha", "bravo", "charlie", "delta", "echo") for _ in range(6)]
+    frame = pd.DataFrame({"city": [*fillers, *cells]})
+    firewall = DataFirewall([frame])
+    for cell in cells:  # each cell is distinctive: its verbatim copy is withheld
+        assert firewall.screen_untrusted([f"row {cell}"])[0] == [None], cell
+    ordinary = [
+        "fitting naive bayes baseline",
+        "francois dupre is not a column; mockba moscow athena cafe creme sao paulo",
+        "top features: city, n",
+        *training_log(seed=1, n=50),
+    ]
+    assert firewall.screen_untrusted(ordinary) == (ordinary, {})
 
 
 def test_ordinary_non_ascii_log_lines_still_pass(cancer_firewall):

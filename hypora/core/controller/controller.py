@@ -897,8 +897,9 @@ class _Run:
             firewall = getattr(self, "_boundary_firewall", None)
             if firewall is None:
                 firewall = self._boundary_firewall = DataFirewall([load_tabular(self.dataset)])
-            # The firewall folds cells and lines the same way (NFKC-style compatibility forms,
-            # invisible characters, look-alike letters; D-048), so the text as written is enough.
+            # The firewall checks each line both lightly folded and fully folded (compatibility
+            # forms, invisible characters, look-alike letters; D-048), so the text as written is
+            # enough.
             screened = firewall.screen_untrusted(raw_lines)[0]
         except Exception as exc:
             raise ValueError("role text data-boundary validation unavailable") from exc

@@ -40,24 +40,34 @@ HEAD_SHARE: Final = 2 / 3
 SOURCE_LABEL: Final = "(source text) "
 """Prefixed to a source line that begins like a marker (review of PR #47)."""
 _FORGED_MARKER: Final = re.compile(
-    r"[\W_]*[\[<]\s*(?:platform\s*:|(?:line\s+)?withheld\s+by\b|\.\.\.)"
+    r"[\W_]*[\[<]\s*"
+    r"(?:platform\b\s*(?:[:\[\]>-]|$)|(?:line\s+)?withheld\s+by\b|\.\.\.)"
 )
 """A line that reads like a platform marker, matched on folded text (`imitates_marker`). Every
 platform marker begins `[platform: `, `[line withheld by ` or `[... ` (the bounded-text markers);
-this also allows any leading whitespace, comment sign or quote and any spacing or case."""
+this also allows any leading whitespace, comment sign or quote, any spacing or case, and
+`platform` followed by a closing bracket or a dash instead of the colon."""
+_OPENING: Final = frozenset({"Ps", "Pi", "Pf"})
+"""Bracket and quotation-mark categories read as `[` (guillemets open either way round)."""
+
+
+def _bracket(char: str) -> str:
+    category = unicodedata.category(char)
+    if category in _OPENING:
+        return "["
+    return "]" if category == "Pe" else char
 
 
 def imitates_marker(text: str) -> bool:
     """Whether a source line could pass for a platform marker (D-048).
 
-    Matched on folded text (`fold_text`: case, full-width forms, zero-width characters, look-alike
-    letters), with every opening bracket of any script (Unicode category Ps: full-width,
-    lenticular, ...) read as `[`, so indentation, tabs, case or a look-alike bracket do not escape
-    the label. A false positive only adds the label; the line is still shown.
+    Matched on folded text (`fold_text`: case, full-width forms, invisible characters, look-alike
+    letters and colons), with every opening bracket or quotation mark of any script (Unicode
+    categories Ps, Pi, Pf: full-width, lenticular, guillemets, ...) read as `[` and every closing
+    bracket (Pe) as `]`, so indentation, tabs, case or a look-alike bracket do not escape the
+    label. A false positive only adds the label; the line is still shown.
     """
-    folded = "".join(
-        "[" if unicodedata.category(char) == "Ps" else char for char in fold_text(text)
-    )
+    folded = "".join(_bracket(char) for char in fold_text(text))
     return _FORGED_MARKER.match(folded) is not None
 
 

@@ -92,24 +92,40 @@ Found by the reviewer of PR #47; no live run involved, all fixes are covered by 
 
 | # | Gap | Fix |
 |---|---|---|
-| 1 | The data firewall withheld `patient-0005` but passed it with full-width digits, and likewise with zero-width characters, a soft hyphen, combining marks or look-alike letters inside it | `fold_text` (`hypora/core/policy/textfold.py`) folds both the indexed cells and every checked line. Every firewall path goes through `DataFirewall._tokens` and `_normalize`, so trial output, sandbox logs, error messages, MCP tool results, A's code excerpt and role text are all covered. The controller's separate NFKC pass over role text is now redundant and was removed. The injection screen's own NFKC and zero-width folding is replaced by the same function |
-| 2 | A code line imitating `[platform: ...]` was labelled as source only if it started exactly with the marker; indentation, tabs or case escaped the label | `imitates_marker` (`hypora/core/controller/code_review.py`) matches folded text with any opening bracket read as `[`, after any leading whitespace, comment sign or quote; it also covers `[line withheld by`, `[withheld by` and `[...` |
+| 1 | The data firewall withheld `patient-0005` but passed it with full-width digits, and likewise with zero-width characters, a soft hyphen, combining marks or look-alike letters inside it | Two foldings in `hypora/core/policy/textfold.py`. The firewall keys each cell under `light_fold` (NFC, width variants, invisible characters, case), split with the line tokenizer. It checks every line under `light_fold` and `fold_text` (the full fold). Every firewall path goes through `DataFirewall._cell_tokens` and `_line_tokens`, so trial output, sandbox logs, error messages, MCP tool results, A's code excerpt and role text are all covered. The controller's separate NFKC pass over role text is now redundant and was removed. The injection screen uses `fold_text` in place of its own NFKC and zero-width folding |
+| 2 | A code line imitating `[platform: ...]` was labelled as source only if it started exactly with the marker; indentation, tabs or case escaped the label | `imitates_marker` (`hypora/core/controller/code_review.py`) matches fully folded text, with any opening bracket or guillemet read as `[`, after any leading whitespace, comment sign, quote or invisible character. It also covers `platform` followed by `]` or `-`, look-alike colons, `[line withheld by`, `[withheld by` and `[...` |
 | 3 | `next_step` was exempt from the injection screen by key name at any depth and in every screened tool | Exempt only at the top level of `get_experiment_status` results (`PLATFORM_FIELDS`), the one place the platform writes it; `screen_value` exempts nothing by default, so text blocks that are not the structured result are screened in full |
 
-Measured effect on false positives: ASCII text is only case-folded, exactly as before, so the
-training-log, profile, `describe()` and methodology-corpus tests are unchanged. New tests check
-that ordinary non-ASCII lines (progress bars, accented or Cyrillic, Greek and Japanese log text,
-odd spaces, the minus sign) still pass both screens, and that ordinary code mentioning
-`platform` is not labelled.
+PR #48's first version folded the cells as strongly as the lines. Its review found two problems
+(both fixed before merge):
+
+- **B1:** cells containing full-width brackets or commas (`東京（本社）`-style CJK values) no
+  longer matched, because the cell key kept the folded `(` while the line was split on it. Cells
+  are now split with the line tokenizer. This also closes an older gap for ASCII cells such as
+  `acme(ltd)` and `smith, john`.
+- **B2:** one rare accented or Cyrillic cell withheld ordinary ASCII lines (`fitting naive bayes
+  baseline` against a cell `Naïve`, `max: 0.93` against a Cyrillic cell). Cells are now keyed
+  under the light fold only, so an ASCII word never matches a non-ASCII cell that would only
+  equal it after folding.
+
+Effect on false positives: ASCII text is only case-folded under both folds, exactly as before,
+so the training-log, profile, `describe()` and methodology-corpus tests are unchanged. The
+tests now also cover the reviewer's whole B2 table, ordinary lines against a dataset of French,
+Russian and Greek cells, ordinary non-ASCII lines (progress bars, accented, Cyrillic, Greek and
+Japanese log text, odd spaces, the minus sign) and ordinary code that mentions `platform`. One
+kind of match is new and intended: a non-ASCII line that disguises a rare ASCII cell (for
+example, an accented `region` when the data has a rare `region` cell) is withheld.
 
 Residual risks (not fixed here):
 
-- No full Unicode confusables table (TR39): only common Cyrillic and Greek look-alikes are folded.
-  A value spelled out, encoded (base64, hex), reversed or split across lines still passes.
+- No full Unicode confusables table (TR39): only common Cyrillic, Greek and IPA look-alikes and
+  the circled digits are folded. Greek omicron or Latin O used for zero, a value spelled out,
+  encoded (base64, hex), reversed or split across lines, or separated by `_`, `.`, spaces or
+  U+2800 still passes.
 - An invisible character is removed, not treated as a separator, so two cells joined only by a
   zero-width space read as one token and are not matched. They also read as one glued word.
-- Folding is coarser for non-Latin data: two cells that differ only by an accent or a combining
-  vowel sign index under one key, which can make a rare value count as less distinctive.
+- A non-ASCII cell is matched only under the light fold. A copy of it with its accents stripped
+  or its letters transliterated is not withheld; that is the price of B2.
 - A forged marker in the middle of a code line (`print("[platform: ...]")`) is not labelled; the
   platform's markers always occupy a whole line, and such a line reads as code.
 - The evaluation guard on hidden rows (`hypora/evaluation/runner/guard.py`) keeps its own
