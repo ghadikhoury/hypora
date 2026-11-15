@@ -1269,7 +1269,10 @@ saved before them still load, replay and show in `hypora status` and `hypora tra
   `research | estimate | unknown`, low, high, citation or basis). Left out of the canonical form
   when unset, so every earlier plan keeps its hash.
 - `Report.leakage` (`LeakageSection`, `LeakageColumnScore`, `LeakageModel`), present only when a
-  column was confirmed.
+  column was confirmed. Per confirmed column it records what happened to its comparison and
+  whether the recommended final model uses it (`comparison`, `in_final_model`); the section records
+  whether the exclusion plan was approved, denied or could not be applied (`exclusion`). A column
+  that stays in the final model is always named as such (PR #50 review).
 - One event type, `leakage_check` (`LeakageCheckPayload`, steps `trigger | screen | confirmation |
   comparison | decision`), with migration `0005` adding it to the events table's check
   constraint. One type with a step field covers the five recorded steps.

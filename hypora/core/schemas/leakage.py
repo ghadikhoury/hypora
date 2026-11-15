@@ -123,6 +123,11 @@ class LeakageOutcome(StrEnum):
     FAILED = "failed"
     BUDGET_EXHAUSTED = "budget_exhausted"
     SKIPPED_KNOWN_AT_PREDICTION = "skipped_known_at_prediction"
+    NOT_ATTEMPTED = "not_attempted"  # an earlier comparison did not complete
+    # exclusion of the flagged columns from the final model's contract
+    EXCLUDED = "excluded"
+    EXCLUSION_DENIED = "exclusion_denied"
+    EXCLUSION_FAILED = "exclusion_failed"
     # decision
     RECOMMEND_WITHOUT = "recommend_without"
     RECOMMEND_WITH = "recommend_with"
@@ -130,7 +135,12 @@ class LeakageOutcome(StrEnum):
 
 class LeakageColumnScore(StrictModel):
     """One column's summary scores: its single-column screen score and, once confirmed or not,
-    the mean drop in the primary metric when it was shuffled in the validation rows."""
+    the mean drop in the primary metric when it was shuffled in the validation rows.
+
+    In the report section, `comparison` is what happened to this column's comparison model
+    (trained, failed, no room, not attempted, or skipped because the user called it legitimate)
+    and `in_final_model` says whether the recommended final model uses the column.
+    """
 
     column: NonEmptyStr = Field(max_length=1024)
     screen_score: float | None = None
@@ -138,6 +148,8 @@ class LeakageColumnScore(StrictModel):
     permutation_drop: float | None = None
     confirmed: bool | None = None
     clues: list[str] = Field(default_factory=list, max_length=8)
+    comparison: LeakageOutcome | None = None
+    in_final_model: bool | None = None
 
 
 class LeakageModel(StrictModel):
@@ -170,6 +182,9 @@ class LeakageSection(StrictModel):
     comparison: LeakageOutcome
     recommended_trial_id: Identifier
     known_at_prediction: bool = False
+    exclusion: LeakageOutcome | None = None
+    """Whether the plan that leaves the columns out of the final model was approved
+    (`excluded`), denied or could not be applied; None when no comparison was recommended."""
 
 
 __all__ = [

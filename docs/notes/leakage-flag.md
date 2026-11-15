@@ -136,10 +136,14 @@ the user denies that plan, the candidate with the column stays the final model a
 so. A column the user called legitimate is never withheld; with two confirmed columns only the ones
 the user did not call legitimate are.
 
-The comparison is skipped when the user's own goal or structured constraints say the column is
-known at prediction time: one sentence must name the column and use a phrase such as "known at
-prediction time", "available at prediction" or "is not leakage", with no negation just before it.
-Anything less keeps the safe default.
+The comparison is skipped for a column the user's own goal or structured constraints clearly call
+legitimate (`known_at_prediction`). One sentence, not a question, must name the exact column as
+whole words (case, quotes, backticks, and underscores read as spaces do not matter; "unpaid" never
+names `paid`, "status_code" never names `status`) and use one of the fixed phrases ("known at
+prediction time", "available at prediction", "recorded before the outcome", "is legitimate", "is
+not leakage", ...). Any negation, uncertainty or condition word anywhere else in that sentence
+("not", "unclear", "whether", "if", "maybe", "think", "only", ...) defeats the match. When in doubt
+the answer is no, and the comparison runs.
 
 ## 5. The report
 
@@ -147,11 +151,24 @@ Anything less keeps the safe default.
 range and its source, each column's screen score against the next-best column, its permutation
 drop, the clues, and both models' validation scores, in plain words: "If this value is known when
 you predict, the model with it scores X. If it is recorded after the outcome, use the model without
-it: Y." The recommended final model is the one without the column unless the user said it is
-legitimate, or no comparison could be trained. Both models are kept. The test split rule is
-unchanged: it is scored once, for the recommended model only; the comparison uses validation
-scores and says so. Every number comes from the `leakage_check` events, so a recomputation of the
-report gives the same section. A triggered check that confirmed nothing adds one limitation line.
+it: Y." Both models are kept. The test split rule is unchanged: it is scored once, for the
+recommended model only; the comparison uses validation scores and says so.
+
+**Per column, the report states whether the recommended final model uses it, and why.** Each
+confirmed column carries what happened to its comparison (`trained`, `failed`, `budget_exhausted`,
+`not_attempted` because an earlier comparison did not complete, or `skipped_known_at_prediction`)
+and `in_final_model`. A column is left out of the final model only when its comparison trained and
+the plan that excludes it was approved (`exclusion: excluded`). Every other confirmed column is
+named as still used ("the recommended final model STILL USES it", and "Recommended final model:
+trial ... (it does not use `a`; it still uses `b`)"), with a plain instruction to run the task
+again without it if it is recorded after the outcome; a denied or failed exclusion plan is stated
+in the section. The run note says the same. Every number comes from the `leakage_check` events, so
+a recomputation of the report gives the same section. A triggered check that confirmed nothing, or
+did not complete, adds one limitation line naming any screened candidates.
+
+Column names are shown on one line, shortened with a counted marker past 200 characters, and
+backticks inside a name are replaced, so a name cannot break report.md or make the investigation
+fail; the real names are still used for withholding and exclusion.
 
 ## What reaches a model, and what does not
 
@@ -164,6 +181,17 @@ firewall is unchanged. A's estimate basis is screened like any role text before 
 
 - The trigger is only as good as the range: a range set too high hides a leak, and an unknown range
   disables the check (reported). B's range must come from a source a research tool returned.
+- A range set too low makes honest data trigger (an estimate of 0.50 to 0.55 fires on 0.66). The
+  confirmation then asks only that shuffling remove half of the excess over that low range, which
+  a strong honest column can do, so it can be confirmed and left out of the recommended model. The
+  report states the range, its source and both scores, so the user can see and reverse it.
+- The screen treats datetime columns as categories, so they score near chance: a post-outcome date
+  column is not seen by the screen (the permutation check only tests screened candidates).
+- With three columns or fewer left, the last screened column has nothing after it, so every strong
+  column, and weak ones when nothing stands out, can become a candidate; the permutation check is
+  what filters them.
+- After C's diagnostics, B's revised research is asked for a typical range again, but the plan's
+  range was already recorded from the first research and is not updated.
 - Two columns that copy each other split the permutation drop and may stay unconfirmed; the report
   then says the score was unexplained.
 - With the flag on, every validation job keeps its fold models on the worker's disk for the run.
@@ -172,8 +200,13 @@ firewall is unchanged. A's estimate basis is screened like any role text before 
   fills them today).
 - Recommending the model without the column needs one more plan approval; an interactive user is
   asked a second (or third) time.
-- With two confirmed columns the report shows the model without both; the comparison without only
-  the first is kept and recorded in the events.
+- With two confirmed columns the second comparison leaves out both. If it trains, the report shows
+  the model without both; the comparison without only the first is kept and recorded in the
+  events. If it does not train (no room, or its job fails), the recommended model is the one
+  without the first column and the report names the second column as still used.
+- If the plan that excludes a column is denied, or its contract cannot be applied after approval,
+  the candidate with the column stays the final model under its own approval, and the report says
+  it still uses the column and why.
 - With the flag off, stored job records and report.json carry the new optional fields empty
   (`withheld_columns: []`, `permutation: null`, `leakage: null`); behavior, model inputs and plan
   hashes are unchanged.

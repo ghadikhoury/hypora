@@ -61,8 +61,10 @@ from hypora.core.controller.contract import (
     build_plan,
 )
 from hypora.core.controller.leakage import (
+    column_outcomes,
     column_scores,
     confirm_columns,
+    display_name,
     known_at_prediction,
     permutation_drops,
     resolve_expected_range,
@@ -750,6 +752,8 @@ class _Run:
         """A's ScoreRangeEstimate from the C-assignment decision (leakage_flag on)."""
         self.expected_range: ExpectedScoreRange | None = None
         """The approved plan's expected primary-metric range (leakage_flag on), D-050."""
+        self.leakage_suspects: list[str] = []
+        """The screen's candidates, named in the limitation if the investigation then fails."""
 
     # --- the run ----------------------------------------------------------------------------------
 
@@ -2396,6 +2400,8 @@ class _Run:
     # --- the too-good-score investigation (PLAN.md S4.1b, D-046, D-050) ---------------------------
 
     def _leakage_event(self, step: LeakageStep, outcome: LeakageOutcome, **fields: Any) -> None:
+        if fields.get("reason") is not None:
+            fields["reason"] = shorten(fields["reason"], 1000)  # marked, never cut silently
         expected = self.expected_range
         known = expected is not None and expected.source is not ScoreRangeSource.UNKNOWN
         payload = LeakageCheckPayload(
@@ -2425,19 +2431,23 @@ class _Run:
         unavailable confirmation and the candidate goes on to the final job. A run limit, a user
         cancel and a stale approval still stop as they do everywhere else.
         """
+        self.leakage_suspects = []
         try:
             return await self._investigate(spec, contract, trial_id, job_id)
         except (RunLimitReached, ApprovalStale, PlanDenied):
             raise
         except Exception as exc:
             reason = f"the investigation failed ({type(exc).__name__})"
+            suspects = [display_name(name) for name in self.leakage_suspects]
             self._leakage_event(
                 LeakageStep.CONFIRMATION,
                 LeakageOutcome.UNAVAILABLE,
                 trial_id=trial_id,
+                columns=[LeakageColumnScore(column=name) for name in suspects],
                 reason=reason,
             )
-            self.notes.append(f"No column was confirmed: {reason}.")
+            named = f" (screened candidates: {', '.join(suspects)})" if suspects else ""
+            self.notes.append(f"No column was confirmed: {reason}{named}.")
             return trial_id, job_id, contract
 
     async def _investigate(
@@ -2497,8 +2507,9 @@ class _Run:
         )
         screen = {item.column: (item.score, item.method) for item in scores}
         names = [item.column for item in candidates]
+        self.leakage_suspects = list(names)
         rest_note = (
-            f"next best column {rest.column} scored {rest.score:.4f}"
+            f"next best column {display_name(rest.column)} scored {rest.score:.4f}"
             if rest is not None and rest.score is not None
             else "no other column"
         )
@@ -2587,38 +2598,48 @@ class _Run:
         with_model = _leakage_model(self.database, trial_id, metric, [])
         without_model: LeakageModel | None = None
         without_job: str | None = None
-        comparison = LeakageOutcome.SKIPPED_KNOWN_AT_PREDICTION
         if declared:
             self._leakage_event(
                 LeakageStep.COMPARISON,
-                comparison,
+                LeakageOutcome.SKIPPED_KNOWN_AT_PREDICTION,
                 trial_id=trial_id,
-                columns=[LeakageColumnScore(column=name) for name in declared],
+                columns=[LeakageColumnScore(column=display_name(name)) for name in declared],
                 reason="the user said the column is known at prediction time",
             )
+        attempts: list[LeakageOutcome] = []
         for count in range(1, len(doubtful) + 1):
             withheld = doubtful[:count]
-            comparison, model, cmp_job = await self._comparison(
+            outcome_k, model, cmp_job = await self._comparison(
                 contract, trial_id, job_id, withheld, metric
             )
+            attempts.append(outcome_k)
             if model is None:
                 break
             without_model, without_job = model, cmp_job
         final_contract = contract
-        recommend_without = without_model is not None and without_job is not None
-        if recommend_without and without_model is not None:
+        exclusion: LeakageOutcome | None = None
+        if without_model is not None:
             # The recommended model runs under a contract that excludes the flagged columns, so
             # every later reader (the verifier, the report, a grader, the user) sees the model's
             # real inputs. A changed plan resets approval: the gate decides under the run's policy.
-            excluded = await self._exclude_flagged(spec, contract, without_model.without_columns)
-            if excluded is None:
-                recommend_without = False
-            else:
+            excluded, exclusion = await self._exclude_flagged(
+                spec, contract, without_model.without_columns
+            )
+            if excluded is not None:
                 final_contract = excluded
+        recommend_without = exclusion is LeakageOutcome.EXCLUDED
         recommended = (
             (without_model.trial_id, without_job)
             if recommend_without and without_model is not None and without_job is not None
             else (trial_id, job_id)
+        )
+        outcomes = column_outcomes(confirmed, declared, attempts, exclusion)
+        comparison = (
+            LeakageOutcome.TRAINED
+            if without_model is not None
+            else attempts[0]
+            if attempts
+            else LeakageOutcome.SKIPPED_KNOWN_AT_PREDICTION
         )
         section = LeakageSection(
             metric=metric,
@@ -2626,14 +2647,15 @@ class _Run:
             expected_high=expected.high,
             expected_source=expected.source,
             expected_citation=expected.source_url or expected.citation_ref or expected.basis,
-            columns=column_scores(confirmed, screen, drops, confirmed_map),
-            next_best_column=rest.column if rest is not None else None,
+            columns=column_scores(confirmed, screen, drops, confirmed_map, outcomes),
+            next_best_column=display_name(rest.column) if rest is not None else None,
             next_best_score=_rounded(rest.score) if rest is not None else None,
             with_columns=with_model,
             without_columns=without_model,
-            comparison=LeakageOutcome.TRAINED if without_model is not None else comparison,
+            comparison=comparison,
             recommended_trial_id=recommended[0],
             known_at_prediction=known,
+            exclusion=exclusion,
         )
         self._leakage_event(
             LeakageStep.DECISION,
@@ -2649,25 +2671,54 @@ class _Run:
                 else None
             ),
         )
-        flagged = ", ".join(confirmed)
+        left_out = [display_name(c) for c in confirmed if not outcomes[c][1]]
+        still_used = [display_name(c) for c in confirmed if outcomes[c][1]]
+        parts = []
+        if left_out:
+            parts.append("leaves out " + ", ".join(left_out))
+        if still_used:
+            parts.append("still uses " + ", ".join(still_used))
         self.notes.append(
-            f"Flagged column(s) {flagged}: "
-            + (
-                f"the model without them ({recommended[0]}) is the recommended final model."
-                if recommend_without
-                else f"the final model ({recommended[0]}) still uses them; see the report section."
-            )
+            f"Flagged column(s) {', '.join(display_name(c) for c in confirmed)}: the recommended "
+            f"final model ({recommended[0]}) " + " and ".join(parts) + "; see the report section."
         )
         return recommended[0], recommended[1], final_contract
 
     async def _exclude_flagged(
         self, spec: TaskSpecification, contract: ExperimentContract, columns: list[str]
-    ) -> ExperimentContract | None:
+    ) -> tuple[ExperimentContract | None, LeakageOutcome]:
         """A new contract version that excludes `columns`, through the ordinary plan gate.
 
         Only features change, so the locked partition stays valid (the same rule as C's feature
-        revision). Returns None, and the candidate stays the final model, when the plan is denied.
+        revision). When the plan is denied, or the new contract cannot be applied, the candidate
+        stays the final model under its own contract and approval, and the outcome says which.
+        A run limit or a user cancel while the gate waits still stops the run.
         """
+        plan_path, approval = self.plan_path, self.approval
+        try:
+            return await self._excluding_contract(spec, contract, columns)
+        except PlanDenied as denied:
+            self.notes.append(
+                f"The plan that leaves out {', '.join(display_name(c) for c in columns)} was "
+                f"denied ({denied.result.reason}); the candidate with them stays the final model."
+            )
+            outcome = LeakageOutcome.EXCLUSION_DENIED
+        except RunLimitReached:
+            raise
+        except Exception as exc:
+            self.notes.append(
+                f"The contract that leaves out {', '.join(display_name(c) for c in columns)} "
+                f"could not be applied ({type(exc).__name__}); the candidate with them stays the "
+                "final model."
+            )
+            outcome = LeakageOutcome.EXCLUSION_FAILED
+        # The candidate's own approval still authorizes it: its contract stays the latest.
+        self.plan_path, self.approval = plan_path, approval
+        return None, outcome
+
+    async def _excluding_contract(
+        self, spec: TaskSpecification, contract: ExperimentContract, columns: list[str]
+    ) -> tuple[ExperimentContract, LeakageOutcome]:
         from hypora.execution.harness.partition import load_verified_partition
 
         data = contract.data_contract
@@ -2697,20 +2748,15 @@ class _Run:
             spec,
             revised,
             self.budget,
-            note="Too-good-score check: leave out " + ", ".join(columns) + "; split locked.",
+            note="Too-good-score check: leave out "
+            + ", ".join(display_name(c) for c in columns)
+            + "; split locked.",
             version=version,
             expected_score_range=self.expected_range,
         )
-        try:
-            approval = await self._approve(
-                plan, "Leave out the flagged column(s) " + ", ".join(columns)
-            )
-        except PlanDenied as denied:
-            self.notes.append(
-                f"The plan that leaves out {', '.join(columns)} was denied "
-                f"({denied.result.reason}); the candidate with them stays the final model."
-            )
-            return None
+        approval = await self._approve(
+            plan, "Leave out the flagged column(s) " + ", ".join(display_name(c) for c in columns)
+        )
         excluded = build_experiment_contract(
             spec,
             revised,
@@ -2725,7 +2771,7 @@ class _Run:
             self.run_dir / "partition-lock.json",
         )
         save_experiment_contract(self.database, excluded)
-        return excluded
+        return excluded, LeakageOutcome.EXCLUDED
 
     def _job_timeout(self, contract: ExperimentContract) -> float:
         timeout = contract.default_job_limits.max_wall_seconds * final_job_stages(contract)
@@ -2745,7 +2791,7 @@ class _Run:
         It is a new trial of the run, so it counts against the trial cap and every other run
         limit; with no room left the investigation reports the flag without a second model.
         """
-        columns = [LeakageColumnScore(column=name) for name in withheld]
+        columns = [LeakageColumnScore(column=display_name(name)) for name in withheld]
         maximum = self.budget.max_trials
         reason: str | None = None
         if maximum is not None and count_trials(self.database, self.run_id) >= maximum:
@@ -3405,7 +3451,7 @@ def submit_comparison_trial(
             "kind": TrialKind.CANDIDATE.value,
             "hypothesis": (
                 f"Comparison for the too-good score: the code and settings of {trial_id} without "
-                + ", ".join(withheld)
+                + ", ".join(display_name(name) for name in withheld)
             ),
         }
     )

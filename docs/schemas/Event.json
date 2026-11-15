@@ -2078,7 +2078,7 @@
     },
     "LeakageColumnScore": {
       "additionalProperties": false,
-      "description": "One column's summary scores: its single-column screen score and, once confirmed or not,\nthe mean drop in the primary metric when it was shuffled in the validation rows.",
+      "description": "One column's summary scores: its single-column screen score and, once confirmed or not,\nthe mean drop in the primary metric when it was shuffled in the validation rows.\n\nIn the report section, `comparison` is what happened to this column's comparison model\n(trained, failed, no room, not attempted, or skipped because the user called it legitimate)\nand `in_final_model` says whether the recommended final model uses the column.",
       "properties": {
         "clues": {
           "items": {
@@ -2094,6 +2094,17 @@
           "title": "Column",
           "type": "string"
         },
+        "comparison": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LeakageOutcome"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "confirmed": {
           "anyOf": [
             {
@@ -2105,6 +2116,18 @@
           ],
           "default": null,
           "title": "Confirmed"
+        },
+        "in_final_model": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "In Final Model"
         },
         "permutation_drop": {
           "anyOf": [
@@ -2220,6 +2243,10 @@
         "failed",
         "budget_exhausted",
         "skipped_known_at_prediction",
+        "not_attempted",
+        "excluded",
+        "exclusion_denied",
+        "exclusion_failed",
         "recommend_without",
         "recommend_with"
       ],
@@ -2241,6 +2268,17 @@
         },
         "comparison": {
           "$ref": "#/$defs/LeakageOutcome"
+        },
+        "exclusion": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LeakageOutcome"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "expected_citation": {
           "anyOf": [

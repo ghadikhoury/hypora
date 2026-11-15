@@ -377,7 +377,7 @@ def test_name_clues_are_context_words() -> None:
         ("Predict churn. Everything is known at prediction time.", False),
         ("Predict whether a customer is good or bad.", False),
     ],
-)
+)  # more cases, including the PR #50 review's, in test_leakage_review.py
 def test_the_user_saying_a_column_is_legitimate_is_recognized_narrowly(
     goal: str, known: bool
 ) -> None:

@@ -70,7 +70,12 @@ from hypora.core.schemas.events import (
     StageTransitionEvent,
     ToolCallEvent,
 )
-from hypora.core.schemas.leakage import LeakageOutcome, LeakageSection, LeakageStep
+from hypora.core.schemas.leakage import (
+    LeakageColumnScore,
+    LeakageOutcome,
+    LeakageSection,
+    LeakageStep,
+)
 from hypora.execution.protocol import experiments as protocol
 from hypora.profiling.tabular import leakage_screen_summary
 from hypora.storage.database import Database
@@ -510,7 +515,10 @@ def _leakage_limitations(timeline: _Timeline) -> list[str]:
             (e for e in events if e.payload.outcome is LeakageOutcome.UNAVAILABLE), None
         )
         if unchecked is not None:
-            names = [c.column for c in unchecked.payload.columns]
+            # The suspects the investigation had named before it stopped, from its latest event
+            # that names any (the screen, at least).
+            named = [e for e in events if e.payload.columns and e.seq <= unchecked.seq]
+            names = [c.column for c in named[-1].payload.columns] if named else []
             suspects = f" (screened candidates: {', '.join(names)})" if names else ""
             return [
                 UNCHECKED_LIMITATION.format(
@@ -746,7 +754,7 @@ def render_markdown(report: Report) -> str:
         ]
     elif report.narrative_note:
         lines += [f"_{report.narrative_note}_", ""]
-    lines += _render_leakage(report.leakage)
+    lines += render_leakage(report.leakage)
     lines += ["## Final model"]
     if report.final is None:
         lines += ["No final model: no trial completed validation and verification.", ""]
@@ -787,7 +795,7 @@ def render_markdown(report: Report) -> str:
         "## Data",
         f"- Split: {report.split}",
         f"- Features used: {report.features}; "
-        f"excluded: {', '.join(report.excluded_features) or 'none'}",
+        f"excluded: {', '.join(' '.join(n.split()) for n in report.excluded_features) or 'none'}",
         f"- Leakage screen: {report.leakage_screen}",
         "",
     ]
@@ -799,15 +807,58 @@ def render_markdown(report: Report) -> str:
     return "\n".join(lines)
 
 
-def _render_leakage(section: LeakageSection | None) -> list[str]:
-    """The plain-language section on a flagged column (D-046 part 6), only once one is confirmed."""
+def _md(text: str) -> str:
+    """Text as one safe inline code span in report.md: no line break, no backtick inside."""
+    return "`" + " ".join(text.split()).replace("`", "'") + "`"
+
+
+_COLUMN_FATE: Final = {
+    LeakageOutcome.SKIPPED_KNOWN_AT_PREDICTION: (
+        "You said it is known when you predict, so no model without it was trained."
+    ),
+    LeakageOutcome.BUDGET_EXHAUSTED: (
+        "No model without it could be trained: the run's limits left no room for it."
+    ),
+    LeakageOutcome.FAILED: "The model without it was started but did not complete.",
+    LeakageOutcome.NOT_ATTEMPTED: (
+        "No model without it was trained, because the comparison before it did not complete."
+    ),
+}
+
+
+def _column_fate(column: LeakageColumnScore, section: LeakageSection) -> str:
+    """Whether the recommended final model uses this column, and why, in plain words."""
+    if column.comparison is LeakageOutcome.TRAINED and not column.in_final_model:
+        return "The recommended final model does not use it."
+    if column.comparison is LeakageOutcome.TRAINED:
+        why = (
+            "the plan that leaves it out was denied"
+            if section.exclusion is LeakageOutcome.EXCLUSION_DENIED
+            else "the plan that leaves it out could not be applied"
+        )
+        return (
+            f"A model without it was trained, but {why}, so the recommended final model STILL "
+            "USES it."
+        )
+    fate = _COLUMN_FATE.get(
+        column.comparison or LeakageOutcome.NOT_ATTEMPTED,
+        _COLUMN_FATE[LeakageOutcome.NOT_ATTEMPTED],
+    )
+    return fate + " The recommended final model STILL USES it."
+
+
+def render_leakage(section: LeakageSection | None) -> list[str]:
+    """The plain-language section on flagged columns (D-046 part 6), only once one is confirmed.
+
+    Every confirmed column gets one line that says whether the recommended final model uses it and
+    why; a column that stays in is named as such, never described as left out.
+    """
     if section is None:
         return []
     metric = section.metric.value
     source = section.expected_source.value
-    cited = f": {section.expected_citation}" if section.expected_citation else ""
+    cited = f": {' '.join(section.expected_citation.split())}" if section.expected_citation else ""
     with_model = section.with_columns
-    names = ", ".join(f"`{c.column}`" for c in section.columns)
     lines = [
         "## A column may be recorded after the outcome",
         f"The final candidate's validation {metric} was {_number(with_model.validation_mean)}, "
@@ -817,54 +868,65 @@ def _render_leakage(section: LeakageSection | None) -> list[str]:
         "",
     ]
     for column in section.columns:
-        detail = f"- `{column.column}`: alone it scores {_number(column.screen_score)}"
+        detail = f"- {_md(column.column)}: alone it scores {_number(column.screen_score)}"
         if section.next_best_column is not None:
             detail += (
                 f", against {_number(section.next_best_score)} for the next best column, "
-                f"`{section.next_best_column}`"
+                f"{_md(section.next_best_column)}"
             )
         detail += (
             f". Shuffling it in the validation rows lowered the validation {metric} by "
             f"{_number(column.permutation_drop)}."
         )
         if column.clues:
-            detail += " Clues: " + "; ".join(column.clues) + "."
+            detail += " Clues: " + "; ".join(" ".join(c.split()) for c in column.clues) + "."
+        detail += " " + _column_fate(column, section)
         lines.append(detail)
     lines.append("")
     without = section.without_columns
     if without is not None:
+        left_out = ", ".join(_md(c) for c in without.without_columns)
+        one = len(section.columns) == 1
         lines.append(
-            f"If this value is known when you predict, the model with it scores "
-            f"{_number(with_model.validation_mean)} (trial `{with_model.trial_id}`). If it is "
-            f"recorded after the outcome, use the model without it: "
-            f"{_number(without.validation_mean)} (trial `{without.trial_id}`). Both are "
+            (
+                "If this value is known when you predict, the model with it scores "
+                if one
+                else "If these values are known when you predict, the model with them scores "
+            )
+            + f"{_number(with_model.validation_mean)} (trial `{with_model.trial_id}`). "
+            + ("If it is recorded after the outcome, use the model without it: " if one else "")
+            + (f"The model without {left_out} scores " if not one else "")
+            + f"{_number(without.validation_mean)} (trial `{without.trial_id}`). Both are "
             f"validation {metric} scores."
         )
-    elif section.known_at_prediction:
+    used = [c for c in section.columns if c.in_final_model]
+    dropped = [c for c in section.columns if c.in_final_model is False]
+    summary = f"Recommended final model: trial `{section.recommended_trial_id}`"
+    clauses = []
+    if dropped:
+        clauses.append("it does not use " + ", ".join(_md(c.column) for c in dropped))
+    if used:
+        clauses.append("it still uses " + ", ".join(_md(c.column) for c in used))
+    lines += ["", summary + (" (" + "; ".join(clauses) + ")" if clauses else "") + "."]
+    if section.exclusion is LeakageOutcome.EXCLUSION_DENIED:
         lines.append(
-            f"You said {names} is known when you predict, so the model with it is the final model "
-            f"(validation {metric} {_number(with_model.validation_mean)}); no model without it "
-            "was trained."
+            "The plan that leaves the flagged column(s) out of the final model was denied, so the "
+            "final model keeps them."
         )
-    else:
-        why = (
-            "the run's limits left no room for it"
-            if section.comparison is LeakageOutcome.BUDGET_EXHAUSTED
-            else "its trial did not complete"
-        )
+    elif section.exclusion is LeakageOutcome.EXCLUSION_FAILED:
         lines.append(
-            f"No model without {names} could be trained ({why}). The final model below uses it: "
-            "if this value is recorded after the outcome, run the task again without it."
+            "The contract that leaves the flagged column(s) out could not be applied, so the "
+            "final model keeps them."
         )
-    recommended = (
-        "the model without it"
-        if without is not None and section.recommended_trial_id == without.trial_id
-        else "the model with it"
-    )
+    doubtful = [c for c in used if c.comparison is not LeakageOutcome.SKIPPED_KNOWN_AT_PREDICTION]
+    if doubtful:
+        lines.append(
+            "If " + ", ".join(_md(c.column) for c in doubtful) + " is recorded after the outcome, "
+            "do not use this model: run the task again without it."
+        )
     lines += [
-        "",
-        f"Recommended final model: {recommended} (trial `{section.recommended_trial_id}`). Only "
-        "the recommended model is scored on the test split, once. Both models are kept.",
+        "Only the recommended model is scored on the test split, once. Every trained model is "
+        "kept.",
         "",
     ]
     return lines
@@ -1025,6 +1087,7 @@ __all__ = [
     "fill_placeholders",
     "metric_summary",
     "render_early_stop",
+    "render_leakage",
     "render_markdown",
     "write_narrative",
 ]

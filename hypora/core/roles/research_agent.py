@@ -47,6 +47,8 @@ TYPICAL_RANGE_REQUEST = (
     "estimate it yourself."
 )
 """B's extra instruction with the leakage_flag on (D-046 part 1); no extra model call."""
+MAX_UNCERTAINTIES = 10
+"""`ResearchObservation.uncertainties` holds at most this many items."""
 RANGE_DROPPED = (
     "[Platform] The typical score range was left out: {reason}. A records its own estimate or "
     "an unknown range instead."
@@ -160,12 +162,15 @@ def checked_typical_range(
         reason = "its citation is not one of the returned sources B cited"
     else:
         return result
-    return result.model_copy(
-        update={
-            "typical_score_range": None,
-            "uncertainties": [*result.uncertainties, RANGE_DROPPED.format(reason=reason)][-10:],
-        }
-    )
+    note = RANGE_DROPPED.format(reason=reason)
+    kept = list(result.uncertainties)
+    if len(kept) >= MAX_UNCERTAINTIES:
+        # The field holds ten items: the platform's note takes the last place and counts the
+        # research uncertainties it displaced, so none is dropped silently (D-047).
+        left_out = len(kept) - (MAX_UNCERTAINTIES - 1)
+        kept = kept[: MAX_UNCERTAINTIES - 1]
+        note += f" ({left_out} more research uncertainty item(s) not shown for space.)"
+    return result.model_copy(update={"typical_score_range": None, "uncertainties": [*kept, note]})
 
 
 def _mark_unverified(result: ResearchObservation) -> ResearchObservation:

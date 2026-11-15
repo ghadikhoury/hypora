@@ -19,6 +19,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Final
 
+from hypora.core.bounded_text import shorten
 from hypora.core.config.flags import LeakageCheckConfig
 from hypora.core.schemas import MetricDirection, MetricName
 from hypora.core.schemas.leakage import (
@@ -47,26 +48,37 @@ CLUE_WORDS: Final = (
 )
 """Words in a column name that suggest a value recorded after the outcome (context only)."""
 _WINDOW: Final = re.compile(r"^\d+(m|mo|d|w|y)$")
-_NEGATION: Final = re.compile(r"\b(not|never|no longer|unknown|unavailable)\b|n't\b")
 """A trailing time window such as `12m`: often a count over a period after the event."""
 KNOWN_PHRASES: Final = (
-    "known at prediction",
-    "known when we predict",
-    "known when predicting",
-    "known before the outcome",
-    "known before the decision",
-    "available at prediction",
-    "available when we predict",
-    "available when predicting",
-    "available before the decision",
-    "recorded before the outcome",
-    "recorded before the decision",
-    "is not leakage",
-    "is not a leak",
-    "is legitimate",
+    ("known", "at", "prediction"),
+    ("known", "when", "we", "predict"),
+    ("known", "when", "predicting"),
+    ("known", "before", "the", "outcome"),
+    ("known", "before", "the", "decision"),
+    ("available", "at", "prediction"),
+    ("available", "when", "we", "predict"),
+    ("available", "when", "predicting"),
+    ("available", "before", "the", "decision"),
+    ("recorded", "before", "the", "outcome"),
+    ("recorded", "before", "the", "decision"),
+    ("is", "legitimate"),
+    ("is", "not", "leakage"),
+    ("is", "not", "a", "leak"),
 )
-"""How a user says a column is legitimate. Deliberately narrow: anything else keeps the safe default
-(the comparison runs and the model without the column is recommended)."""
+"""How a user says a column is legitimate, as word sequences. Deliberately narrow: anything else
+keeps the safe default (the comparison runs and the model without the column is recommended)."""
+DOUBT_WORDS: Final = frozenset(
+    {
+        "not", "no", "never", "nobody", "none", "neither", "nor", "cannot", "cant", "isnt",
+        "arent", "wasnt", "werent", "dont", "doesnt", "didnt", "wont", "unknown", "unavailable",
+        "unclear", "unsure", "uncertain", "whether", "if", "maybe", "perhaps", "possibly",
+        "probably", "might", "may", "could", "should", "doubt", "doubtful", "wonder", "question",
+        "ask", "check", "verify", "sure", "think", "guess", "assume", "suppose", "believe",
+        "unless", "except", "only", "later", "after",
+    }
+)  # fmt: skip
+"""Any of these anywhere in the sentence (outside the column's own name and the matched phrase)
+defeats the match: negation, uncertainty and conditions all keep the safe default."""
 
 UNKNOWN_RANGE_LIMITATION: Final = (
     "No expected score range was available, so the platform could not check whether the "
@@ -94,26 +106,94 @@ def name_clues(column: str) -> list[str]:
     return clues[:8]
 
 
-def known_at_prediction(text: str, column: str) -> bool:
-    """Whether the user's own words say `column` is known at prediction time.
+def _words(text: str) -> list[str]:
+    """Lower-case identifier-like words ("status_code" stays one word); apostrophes are dropped
+    first, so "isn't" is one word. Quotes, backticks and other punctuation separate words."""
+    folded = text.lower().replace("'", "").replace("\u2019", "")
+    return [word.strip("_-") for word in re.findall(r"[a-z0-9_-]+", folded) if word.strip("_-")]
 
-    True only when one sentence names the column (as written, or with underscores read as spaces)
-    and says it is known or available at prediction time in one of `KNOWN_PHRASES`, with no
-    negation just before the phrase ("not known at prediction time" keeps the safe default).
+
+def _name_forms(column: str) -> list[list[str]]:
+    """The word sequences that name `column`: as written, and with underscores, hyphens and
+    spaces read as word breaks ("collections referrals 12m" names `collections_referrals_12m`)."""
+    written = _words(column)
+    parts = [part for word in written for part in re.split(r"[_-]+", word) if part]
+    return [form for form in (written, parts) if form]
+
+
+def _find(tokens: Sequence[str], run: Sequence[str]) -> int:
+    for start in range(len(tokens) - len(run) + 1):
+        if list(tokens[start : start + len(run)]) == list(run):
+            return start
+    return -1
+
+
+def known_at_prediction(text: str, column: str) -> bool:
+    """Whether the user's own words clearly say `column` is known at prediction time.
+
+    True only when one sentence, not a question, names the column as a whole word sequence (case,
+    underscores, spaces, quotes and backticks do not matter; "unpaid" never names `paid`), says
+    it is known or available at prediction time in one of `KNOWN_PHRASES`, and has no word from
+    `DOUBT_WORDS` anywhere else. When in doubt the answer is no: the comparison then runs.
     """
-    names = {column.lower(), column.lower().replace("_", " ")}
-    for sentence in re.split(r"[.;!?\n]+", text.lower()):
-        if not any(name in sentence for name in names):
+    forms = _name_forms(column)
+    if not forms:
+        return False
+    for sentence in re.split(r"(?<=[.;!?\n])", text):
+        if "?" in sentence:
             continue
+        tokens = _words(sentence)
+        found = [(form, _find(tokens, form)) for form in forms]
+        match = next(((form, at) for form, at in found if at >= 0), None)
+        if match is None:
+            continue
+        name, at_name = match
+        rest = tokens[:at_name] + tokens[at_name + len(name) :]
         for phrase in KNOWN_PHRASES:
-            start = sentence.find(phrase)
-            if start < 0:
+            at_phrase = _find(rest, phrase)
+            if at_phrase < 0:
                 continue
-            if phrase.startswith("is not") or not _NEGATION.search(
-                sentence[max(0, start - 30) : start]
-            ):
+            others = rest[:at_phrase] + rest[at_phrase + len(phrase) :]
+            if not any(word in DOUBT_WORDS for word in others):
                 return True
     return False
+
+
+def display_name(column: str) -> str:
+    """A column name as events and the report show it: one line, at most 200 characters, with a
+    counted marker when shortened (D-047), so a long name can never break the investigation."""
+    return shorten(" ".join(column.split()) or "(blank name)", 200)
+
+
+def column_outcomes(
+    confirmed: Sequence[str],
+    declared: Sequence[str],
+    attempts: Sequence[LeakageOutcome],
+    exclusion: LeakageOutcome | None,
+) -> dict[str, tuple[LeakageOutcome, bool]]:
+    """Per confirmed column: what happened to its comparison, and whether the final model uses it.
+
+    `attempts[k]` is the outcome of comparison k + 1, which leaves out the first k + 1 columns the
+    user did not call legitimate. A column is left out of the final model only when its comparison
+    trained and the plan that excludes it was approved; every other column stays in, and says why.
+    """
+    doubtful = [column for column in confirmed if column not in declared]
+    trained = 0
+    for outcome in attempts:
+        if outcome is not LeakageOutcome.TRAINED:
+            break
+        trained += 1
+    result: dict[str, tuple[LeakageOutcome, bool]] = {
+        column: (LeakageOutcome.SKIPPED_KNOWN_AT_PREDICTION, True) for column in declared
+    }
+    for index, column in enumerate(doubtful):
+        if index < trained:
+            result[column] = (LeakageOutcome.TRAINED, exclusion is not LeakageOutcome.EXCLUDED)
+        elif index < len(attempts):
+            result[column] = (attempts[index], True)
+        else:
+            result[column] = (LeakageOutcome.NOT_ATTEMPTED, True)
+    return result
 
 
 def resolve_expected_range(
@@ -139,7 +219,7 @@ def resolve_expected_range(
                 low=typical.low,
                 high=typical.high,
                 citation_ref=typical.citation_ref,
-                source_url=url[:512],
+                source_url=shorten(url, 512),
             )
     if source in ("research", "estimate"):
         low, high = getattr(estimate, "low", None), getattr(estimate, "high", None)
@@ -248,16 +328,19 @@ def column_scores(
     screen: dict[str, tuple[float | None, str]],
     drops: dict[str, float | None] | None = None,
     confirmed: dict[str, bool] | None = None,
+    outcomes: dict[str, tuple[LeakageOutcome, bool]] | None = None,
 ) -> list[LeakageColumnScore]:
     """The event and report form of the candidates' summary scores (names and numbers only)."""
     return [
         LeakageColumnScore(
-            column=name,
+            column=display_name(name),
             screen_score=None if screen.get(name) is None else _round(screen[name][0]),
             screen_method=screen[name][1] if name in screen else None,
             permutation_drop=None if drops is None else _round(drops.get(name)),
             confirmed=None if confirmed is None else confirmed.get(name, False),
             clues=name_clues(name),
+            comparison=outcomes[name][0] if outcomes and name in outcomes else None,
+            in_final_model=outcomes[name][1] if outcomes and name in outcomes else None,
         )
         for name in names
     ]
@@ -274,8 +357,10 @@ __all__ = [
     "UNKNOWN_RANGE_LIMITATION",
     "TriggerResult",
     "beyond_range",
+    "column_outcomes",
     "column_scores",
     "confirm_columns",
+    "display_name",
     "known_at_prediction",
     "name_clues",
     "permutation_drops",
