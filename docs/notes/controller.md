@@ -70,6 +70,52 @@ record's `outputs.notes`. The component is deliberately not `controller`, so the
 and fault evidence (`outcome_evidence.py`) read the run exactly as before. No schema, event type or tool changed: `ErrorCode` is a pattern and
 `details` a free JSON object.
 
+### Conservative assumptions when no user is present (S4.2c, D-052)
+
+"No user is present" means the configured `flags.approval_policy` is `auto_within_contract`, as
+in every evaluation run (spec §10.3); under `interactive` nothing changes and open questions left
+after C's correction still stop the run for the user. With no user:
+
+- C's first refusal for open questions is recorded as in S4.2b, and its correction hint says that
+  no user is present and that a kept question becomes an assumption whose named columns are
+  excluded. C can still drop questions the platform settles itself.
+- Questions still present on C's last attempt are not refused. Platform code
+  (`assume_conservatively`, no model call) answers each one conservatively: every allowed feature
+  the question names (case and punctuation ignored, whole words) is treated as not available at
+  prediction time or not permitted, and excluded with the fixed `ASSUMPTION_REASON` and evidence
+  `assumption:<initial|reconcile>_<n>`, so the existing validator checks it like diagnostic
+  evidence. A question that names no column changes nothing and is reported as an unverified
+  risk; one that names only already-excluded columns says so. The model never picks the answer,
+  so it cannot take the convenient one. A false name match only excludes a column, but common-word
+  names (`time`, `age`) match ordinary wording and can over-exclude. Names of two characters or
+  fewer (`a`, `x`, `id`, `no`) would match nearly every question and could exclude every feature,
+  so they count only when written exactly and quoted (backticks or quotes). If no feature would
+  remain, the run stops as before and the questions are kept screened on an S4.2b refusal event.
+  Known limit: a paraphrase ("the referrals count") does not match `collections_referrals_12m`,
+  and a name with no ASCII letters or digits never matches, so such a column stays a feature and
+  the question is reported as an unverified risk. The correction hint therefore asks C to name each
+  column exactly as in the dataset, in backticks. A quoted question is collapsed to one line.
+- The questions are answered before the proposal is forwarded to A, stored or put through the
+  payload checks, so the contract keeps no raw question (`open_questions` is empty). After the
+  split is locked, `keep_assumed_exclusions` keeps every assumed exclusion even if C's reconcile
+  proposal allows the column again.
+- One `escalation` event per assumption (`DATA_PROBLEM`, actor `controller`, `evidence_refs` = its
+  exclusions). Its summary starts with `ASSUMPTION_PREFIX` and quotes the question only if it passes
+  the S4.2b role-text screen, plus the instruction rule because this text reaches the report and
+  A's narrative. The screen runs on the question as written and on the exact one-line summary that
+  is stored and shown, since joining lines can form a phrase no single line held. (S4.2b's refusal
+  event likewise screens each question as written, joined on one line, and JSON-encoded as the
+  eval-record note writes it.) A question that fails, or can't be screened, is recorded without its text, so
+  withheld questions show up only as a count. Its named columns are still excluded: those names
+  come from the dataset header, not from the question.
+- The report's code-written `limitations` list every assumption summary (`_assumption_limitations`,
+  recomputed from the event log like the other limitations). One run note gives the counts and the
+  excluded columns.
+
+No schema, event type, MCP tool or fit/predict interface changed: the event reuses `escalation`
+and `EscalationPayload`, the evidence reference fits `RecordRef`, and the correction hint is
+platform text in `roles/methodology.py`.
+
 ## Plan approval gate (S3.5, D-044; spec §10)
 
 `_Run._approve` runs for every plan version (v1, and v2 after C's feature revision: a changed

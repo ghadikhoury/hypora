@@ -16,6 +16,7 @@ from hypora.core.controller.methodology import (
     open_question_notes,
 )
 from hypora.core.llm.providers.fake import json_result
+from hypora.core.schemas import ApprovalPolicy
 from hypora.core.schemas.events import ErrorEvent, EventType
 from hypora.storage.events import EventFilters, EventLog
 from tests.controller.conftest import NoWorker
@@ -49,12 +50,16 @@ def _row_dump(dataset) -> str:
     return "Is this row an outlier: " + ", ".join(str(value) for value in row) + "?"
 
 
-async def _run(make_controller, run_config, dataset, run_id, questions):
+async def _run(make_controller, run_config, dataset, run_id, questions, policy=None):
+    """A scripted multi run; `policy` overrides the fixture's `auto_within_contract`. Under
+    `interactive` a user is present, so open questions left after C's correction still stop the
+    run (S4.2c changes only runs with no user)."""
     script = QuestioningC(run_id, questions)
     controller = make_controller(script, worker_factory=NoWorker)
-    flags = run_config.flags.model_copy(
-        update={"agent_mode": AgentMode.MULTI, "planning": Toggle.OFF}
-    )
+    update = {"agent_mode": AgentMode.MULTI, "planning": Toggle.OFF}
+    if policy is not None:
+        update["approval_policy"] = policy
+    flags = run_config.flags.model_copy(update=update)
     controller.run_config = run_config.model_copy(update={"flags": flags})
     result = await controller.run(RunRequest(dataset=dataset, goal="Predict target", run_id=run_id))
     return script, result
@@ -87,6 +92,7 @@ async def test_a_mix_is_stored_screened_and_the_run_stops_as_before(
         dataset,
         "run_questions_stop",
         [[FAIR, dump, CODE], [FAIR]],
+        policy=ApprovalPolicy.INTERACTIVE,
     )
     refusals = _refusals(database, "run_questions_stop")
     assert [e.payload.details for e in refusals] == [
@@ -150,6 +156,7 @@ async def test_only_failing_questions_are_withheld_as_a_count(
         dataset,
         "run_questions_withheld",
         [[_row_dump(dataset)], [CODE]],
+        policy=ApprovalPolicy.INTERACTIVE,
     )
     details = [e.payload.details for e in _refusals(database, "run_questions_withheld")]
     assert [(d["open_questions"], d["open_questions_withheld"]) for d in details] == [
@@ -162,3 +169,25 @@ async def test_a_clean_run_records_no_refusal(make_controller, run_config, datas
     await _run(make_controller, run_config, dataset, "run_questions_none", [])
     assert _refusals(database, "run_questions_none") == []
     assert open_question_notes(EventLog(database).read("run_questions_none")) == []
+
+
+async def test_a_row_split_across_lines_is_withheld(make_controller, run_config, dataset, database):
+    """Each line holds one value and passes alone; joined (as the eval note shows it) the line
+    is a whole row, so the question is screened in its joined form too and withheld."""
+    row = pd.read_csv(dataset).iloc[0]
+    split = "Are these outliers:\n" + "\n".join(str(value) for value in row)
+    await _run(
+        make_controller,
+        run_config,
+        dataset,
+        "run_questions_split",
+        [[split], [split]],
+        policy=ApprovalPolicy.INTERACTIVE,
+    )
+    details = [e.payload.details for e in _refusals(database, "run_questions_split")]
+    assert [(d["open_questions"], d["open_questions_withheld"]) for d in details] == [
+        ([], 1),
+        ([], 1),
+    ]
+    notes = open_question_notes(EventLog(database).read("run_questions_split"))
+    assert not any("outliers" in note for note in notes)

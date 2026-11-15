@@ -79,9 +79,14 @@ from hypora.core.controller.local import (
     write_session,
 )
 from hypora.core.controller.methodology import (
+    ASSUMPTION_PREFIX,
+    NO_FEATURE_LEFT,
     OPEN_QUESTIONS_REFUSAL,
     OPEN_QUESTIONS_REFUSED,
+    Assumption,
     MethodologyError,
+    assume_conservatively,
+    keep_assumed_exclusions,
     validate_data_proposal,
 )
 from hypora.core.controller.states import START, RunEvent, RunState, next_state
@@ -892,6 +897,13 @@ class _Run:
             return ApprovalPolicy.AUTO_WITHIN_CONTRACT
         return self.approval_policy
 
+    @property
+    def _no_user(self) -> bool:
+        """No person can answer questions in this run (S4.2c): the configured policy is
+        `auto_within_contract`, as in every evaluation run (spec §10.3). Under `interactive` a
+        person is there, and C's open questions still stop the run for them."""
+        return self.approval_policy is ApprovalPolicy.AUTO_WITHIN_CONTRACT
+
     async def _main_role(
         self,
         role: ActorRole,
@@ -1025,7 +1037,11 @@ class _Run:
         withheld = 0
         for question in questions:
             try:
-                self._validate_assignment(question, instruction=False)
+                # Screen every form it is kept in: as written (stored on the event), joined on
+                # one line, and JSON-encoded as `open_question_notes` writes it into the eval
+                # record, so lines that pass alone cannot join into a refused text (S4.2c).
+                for form in (question, " ".join(question.split()), json.dumps(question)):
+                    self._validate_assignment(form, instruction=False)
             except Exception:  # fail closed: refused, or the screen itself was unavailable
                 withheld += 1
             else:
@@ -1045,6 +1061,72 @@ class _Run:
                     "open_questions_withheld": withheld,
                 },
             ),
+        )
+
+    def _record_assumptions(self, assumptions: Sequence[Assumption], *, proposal: str) -> None:
+        """Record each of C's open questions as its conservative assumption (S4.2c, D-052).
+
+        Only in a run with no user. The platform has already applied every assumption to the
+        contract (`assume_conservatively`: each column a question names is excluded). One
+        `escalation` event per assumption (`DATA_PROBLEM`, summary starting `ASSUMPTION_PREFIX`;
+        the report lists those summaries as limitations). The question text is screened like an
+        S4.2b question and, because the report and A's narrative read it, with the instruction rule
+        as well; a question that fails, or that cannot be screened, is recorded without its text,
+        so the withheld ones are a count. Column names come from the dataset's header, not the
+        question. One run note gives the counts and the excluded columns.
+        """
+        withheld = 0
+        excluded: list[str] = []
+        for assumption in assumptions:
+            excluded += assumption.columns
+            if assumption.columns:
+                resolution = (
+                    ", ".join(assumption.columns) + " treated as not available at prediction "
+                    "time or not permitted, and excluded from the features"
+                )
+            elif assumption.already:
+                resolution = (
+                    "it names only columns already excluded ("
+                    + ", ".join(assumption.already)
+                    + "), so no feature changed"
+                )
+            else:
+                resolution = (
+                    "it names no dataset column by its exact name, so no feature was excluded "
+                    "for it; it remains an unverified risk for this result"
+                )
+            # One line, so quoted text cannot add lines to the platform-written report.
+            question = shorten(" ".join(assumption.question.split()), 600)
+            summary = f'C\'s open question "{question}" was answered conservatively: '
+            summary += f"{resolution}."
+            try:
+                # Screen the text exactly as it will be stored and shown (the joined line can
+                # hold a phrase no single line held), and the question as written.
+                self._validate_assignment(assumption.question)
+                self._validate_assignment(ASSUMPTION_PREFIX + summary)
+            except Exception:  # fail closed: refused, or the screen itself was unavailable
+                withheld += 1
+                summary = (
+                    "one of C's open questions was withheld by the data firewall screen (its "
+                    f"text is not stored) and answered conservatively: {resolution}."
+                )
+            self._event(
+                EventType.ESCALATION,
+                EscalationPayload(
+                    escalation_type=EscalationType.DATA_PROBLEM,
+                    summary=ASSUMPTION_PREFIX + summary,
+                    evidence_refs=list(assumption.refs),
+                ),
+            )
+        self.notes.append(
+            f"No user is present: C's {len(assumptions)} open question(s) on its {proposal} data "
+            f"contract proposal were recorded as conservative assumptions ({withheld} withheld by "
+            "the data firewall screen); "
+            + (
+                f"excluded for them: {', '.join(excluded)}."
+                if excluded
+                else "no column was excluded for them."
+            )
         )
 
     async def _lead_decision(
@@ -1396,19 +1478,29 @@ class _Run:
         context += "\n" + PLATFORM_GUARANTEES
         columns = [str(column) for column in load_tabular(self.dataset).columns]
         attempts = 0
+        tag = "initial" if previous is None else "reconcile"
 
         def check(proposal: DataContract, found: dict[str, tuple[str, str]]) -> None:
-            """The same checks the caller applies, run early so C can correct a refusal once."""
+            """The same checks the caller applies, run early so C can correct a refusal once.
+
+            With no user (S4.2c), open questions left after C's correction are not refused: the
+            proposal is checked as it will be used, each question answered conservatively.
+            """
             nonlocal attempts
             attempts += 1
+            known = {**(prior_evidence or {}), **found}
             try:
-                validate_data_proposal(proposal, spec, columns, {**(prior_evidence or {}), **found})
+                if self._no_user and proposal.open_questions and attempts >= MAX_PROPOSAL_ATTEMPTS:
+                    assumed, extra, _ = assume_conservatively(proposal, tag=tag)
+                    validate_data_proposal(assumed, spec, columns, {**known, **extra})
+                else:
+                    validate_data_proposal(proposal, spec, columns, known)
             except MethodologyError as refused:
-                if str(refused) == OPEN_QUESTIONS_REFUSAL:
+                # Also when answering the questions would leave no feature (S4.2c): the run stops
+                # on them, so they are kept screened like any open-questions refusal.
+                if str(refused) in (OPEN_QUESTIONS_REFUSAL, NO_FEATURE_LEFT):
                     self._record_open_questions(
-                        proposal.open_questions,
-                        proposal="initial" if previous is None else "reconcile",
-                        attempt=attempts,
+                        proposal.open_questions, proposal=tag, attempt=attempts
                     )
                 raise
             if previous is not None and (
@@ -1458,6 +1550,7 @@ class _Run:
                         max_turns=c.max_agent_turns,
                         recovery=self._recovery(instance, role, context, names, plan),
                         validate=check,
+                        no_user=self._no_user,
                     )
                 except Exception as exc:
                     self._handoff(
@@ -1472,6 +1565,17 @@ class _Run:
                     self._handoff(instance, role, HandoffStatus.COMPLETE)
         if failure is not None:
             raise failure
+        if proposal.open_questions:
+            # Only `check`'s no-user path accepts open questions (S4.2c). Answer them before
+            # anything forwards or stores the proposal, so the raw questions go nowhere.
+            if not self._no_user:
+                raise MethodologyError(OPEN_QUESTIONS_REFUSAL)
+            proposal, extra, assumptions = assume_conservatively(proposal, tag=tag)
+            evidence.update(extra)
+            self._record_assumptions(assumptions, proposal=tag)
+        if prior_evidence:
+            # A column excluded for an assumption stays excluded after the split is locked.
+            proposal = keep_assumed_exclusions(proposal, prior_evidence)
         # Model-generated strings must pass both existing secret and dataset-value boundaries
         # before forwarding to A or persisting any proposed methodology.
         payload = proposal.model_dump(mode="json")

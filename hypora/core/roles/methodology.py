@@ -32,6 +32,18 @@ _CORRECTION_HINTS = {
 }
 """Guidance for the refusals models met live, keyed by the validator's fixed messages."""
 
+_NO_USER_HINTS = {
+    **_CORRECTION_HINTS,
+    "unresolved methodology questions require escalation": (
+        "Remove questions the platform settles itself (see its guarantees) and record residual "
+        "risks in risks. No user is present in this run: each question you keep is recorded "
+        "as an assumption with its conservative answer, and every dataset column a kept "
+        "question names is excluded from the features. Name each column a kept question is "
+        "about exactly as it appears in the dataset, in backticks. "
+    ),
+}
+"""The same guidance when no user can answer (S4.2c): a kept question becomes an assumption."""
+
 ProposalValidator = Callable[[DataContract, dict[str, tuple[str, str]]], None]
 """Raises ValueError (with fixed platform text) when a proposal must be refused."""
 
@@ -48,10 +60,12 @@ async def propose_data_contract(
     max_turns: int,
     recovery: RecoverySession | None = None,
     validate: ProposalValidator | None = None,
+    no_user: bool = False,
 ) -> tuple[DataContract, dict[str, tuple[str, str]]]:
     """Collect tool evidence and a structured proposal; never persist raw model output. With
     `recovery`, tool failures are retried, replanned, clarified or stopped. With `validate`, a
-    refused proposal is returned to C once with the refusal reason before the run stops."""
+    refused proposal is returned to C once with the refusal reason before the run stops. With
+    `no_user` (no person can answer, S4.2c), the open-questions correction says so."""
     prompt = load_prompt("agent_c_methodology")
     call_context = CallContext(
         run_id=run_id,
@@ -122,7 +136,7 @@ async def propose_data_contract(
                 raise
             # The validator's messages are fixed platform text naming the rule that failed,
             # never proposal content, so the correction request carries no data forward.
-            hint = _CORRECTION_HINTS.get(str(refused), "")
+            hint = (_NO_USER_HINTS if no_user else _CORRECTION_HINTS).get(str(refused), "")
             final_messages = [
                 *final_messages,
                 response.message,

@@ -37,6 +37,7 @@ from hypora.core.controller.leakage import (
     UNEXPLAINED_LIMITATION,
     UNKNOWN_RANGE_LIMITATION,
 )
+from hypora.core.controller.methodology import ASSUMPTION_PREFIX
 from hypora.core.llm.adapter import LLMAdapter
 from hypora.core.llm.errors import LLMError
 from hypora.core.llm.types import CallContext, Message
@@ -50,6 +51,7 @@ from hypora.core.schemas import (
     AnyEvent,
     ApprovalDecision,
     ApprovalPolicy,
+    EscalationType,
     HandoffStatus,
     JobState,
     MetricDirection,
@@ -65,6 +67,7 @@ from hypora.core.schemas.events import (
     ApprovalGrantedEvent,
     ApprovalRequestedEvent,
     ErrorEvent,
+    EscalationEvent,
     HandoffEvent,
     JobTransitionEvent,
     LeakageCheckEvent,
@@ -509,10 +512,27 @@ def _limitations(
                 f"Plan approval {event.payload.approval_id} was denied by "
                 f"{event.payload.approver}: {reason}."
             )
+    lines += _assumption_limitations(timeline)
     lines += _leakage_limitations(timeline)
     if verification_status != "not_run":
         lines.append(TEST_ONCE_LIMITATION)
     return lines
+
+
+def _assumption_limitations(timeline: _Timeline) -> list[str]:
+    """One line per assumption recorded for C's open questions with no user present (S4.2c).
+
+    The controller writes these summaries from screened question text (or without the question
+    when the screen withheld it), so the report repeats them as stored.
+    """
+    return [
+        event.payload.summary
+        for event in timeline.before
+        if isinstance(event, EscalationEvent)
+        and event.actor_role is ActorRole.CONTROLLER
+        and event.payload.escalation_type is EscalationType.DATA_PROBLEM
+        and event.payload.summary.startswith(ASSUMPTION_PREFIX)
+    ]
 
 
 def _leakage_events(timeline: _Timeline) -> list[LeakageCheckEvent]:

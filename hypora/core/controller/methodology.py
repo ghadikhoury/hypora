@@ -1,11 +1,13 @@
 """Validation of C's evidence-backed data methodology proposals."""
 
 import json
+import re
 from collections.abc import Collection, Iterable, Mapping
+from dataclasses import dataclass
 from typing import Final
 
 from hypora.core.schemas import DataContract, TaskSpecification
-from hypora.core.schemas.contracts import ParseDatetimeFix
+from hypora.core.schemas.contracts import ExcludedFeature, ParseDatetimeFix
 from hypora.core.schemas.events import AnyEvent, ErrorEvent
 from hypora.execution.harness.data import fix_column
 
@@ -15,9 +17,139 @@ OPEN_QUESTIONS_REFUSAL: Final = "unresolved methodology questions require escala
 OPEN_QUESTIONS_REFUSED: Final = "OPEN_QUESTIONS_REFUSED"
 """Error code of the event that stores a refusal's screened open questions (S4.2b)."""
 
+ASSUMPTION_KIND: Final = "assumption"
+"""Evidence kind (and `RecordRef` prefix) of an exclusion the platform made for an assumption."""
+
+ASSUMPTION_REASON: Final = (
+    "assumed not available at prediction time or not permitted: C's open question about it "
+    "could not be asked because no user is present (S4.2c)"
+)
+"""The fixed `reason` of every exclusion made for a conservative assumption."""
+
+NO_FEATURE_LEFT: Final = "no allowed feature remains after the conservative assumptions"
+"""The refusal when answering the open questions conservatively would exclude every feature."""
+
+ASSUMPTION_PREFIX: Final = "Assumption (no user present): "
+"""Every assumption escalation summary starts with this; the report lists those summaries."""
+
 
 class MethodologyError(ValueError):
     """A proposed methodology is inconsistent with the task or its evidence."""
+
+
+@dataclass(frozen=True)
+class Assumption:
+    """One open question turned into its conservative answer (S4.2c, D-052).
+
+    `columns` are the allowed features the question names; the platform excludes each of them,
+    cited by the matching entry of `refs`. `already` are named columns that were excluded before
+    it. A question that names no column changes nothing and is reported as an open risk. The
+    question text itself is screened before anything stores it.
+    """
+
+    question: str
+    columns: tuple[str, ...]
+    refs: tuple[str, ...]
+    already: tuple[str, ...] = ()
+
+
+def _words(text: str) -> str:
+    """`text` case-folded, with every run of non-alphanumeric characters as one space."""
+    return " " + " ".join(re.split(r"[^0-9a-z]+", text.casefold())).strip() + " "
+
+
+def columns_named(question: str, columns: Iterable[str]) -> list[str]:
+    """The `columns` that `question` names, in their given order.
+
+    Matching ignores case and punctuation (`collections_referrals_12m`, `Collections referrals
+    12m` and a back-quoted name all match) and needs whole words, so `age` matches "the age of"
+    but not "average". A false match only excludes a column: the conservative side.
+
+    A name of `SHORT_NAME` characters or fewer (`a`, `x`, `id`, `no`) would match ordinary words
+    in nearly every question and could exclude every feature, so it counts only when written
+    exactly and quoted (in backticks or quotes), e.g. `` `id` ``.
+    """
+    words = _words(question)
+    named = []
+    for column in columns:
+        if len(column.strip()) <= SHORT_NAME:
+            quoted = rf"[`'\"]{re.escape(column)}[`'\"]"
+            if re.search(quoted, question):
+                named.append(column)
+        elif _words(column).strip() and _words(column) in words:
+            named.append(column)
+    return named
+
+
+SHORT_NAME: Final = 2
+"""Column names up to this length match a question only when quoted exactly."""
+
+
+def assume_conservatively(
+    proposal: DataContract, *, tag: str
+) -> tuple[DataContract, dict[str, tuple[str, str]], list[Assumption]]:
+    """Turn each open question into its conservative answer; platform code, no model call.
+
+    The conservative answer to a question about a column (is it known at prediction time, may it
+    be used) is that it is not available: every allowed feature a question names is excluded,
+    never kept. The contract comes back with no open questions, the new exclusions cite
+    `assumption:<tag>_<n>` evidence (returned for the validator) and nothing else changes.
+    Raises MethodologyError when no allowed feature would remain.
+    """
+    allowed = list(proposal.allowed_features)
+    excluded = list(proposal.excluded_features)
+    evidence: dict[str, tuple[str, str]] = {}
+    assumptions = []
+    for question in proposal.open_questions:
+        named = columns_named(question, allowed)
+        already = columns_named(question, [item.name for item in excluded])
+        refs = []
+        for column in named:
+            ref = f"{ASSUMPTION_KIND}:{tag}_{len(evidence) + 1}"
+            evidence[ref] = (ASSUMPTION_KIND, column)
+            excluded.append(ExcludedFeature(name=column, reason=ASSUMPTION_REASON, evidence=ref))
+            allowed.remove(column)
+            refs.append(ref)
+        assumptions.append(Assumption(question, tuple(named), tuple(refs), tuple(already)))
+    if not allowed:
+        raise MethodologyError(NO_FEATURE_LEFT)
+    converted = proposal.model_copy(
+        update={
+            "allowed_features": tuple(allowed),
+            "excluded_features": tuple(excluded),
+            "open_questions": (),
+        }
+    )
+    return converted, evidence, assumptions
+
+
+def keep_assumed_exclusions(
+    proposal: DataContract, evidence: Mapping[str, tuple[str, str]]
+) -> DataContract:
+    """`proposal` with every column an earlier assumption excluded still excluded.
+
+    After the split is locked C may change exclusions; a column excluded for a conservative
+    assumption stays excluded (cited by the same evidence), so no later proposal can quietly
+    take the convenient answer back.
+    """
+    assumed = {column: ref for ref, (kind, column) in evidence.items() if kind == ASSUMPTION_KIND}
+    back = [column for column in proposal.allowed_features if column in assumed]
+    if not back:
+        return proposal
+    if len(back) == len(proposal.allowed_features):
+        raise MethodologyError(NO_FEATURE_LEFT)
+    return proposal.model_copy(
+        update={
+            "allowed_features": tuple(c for c in proposal.allowed_features if c not in assumed),
+            "excluded_features": (
+                *proposal.excluded_features,
+                *(
+                    ExcludedFeature(name=c, reason=ASSUMPTION_REASON, evidence=assumed[c])
+                    for c in back
+                ),
+            ),
+        }
+    )
 
 
 def open_question_notes(events: Iterable[AnyEvent]) -> list[str]:
