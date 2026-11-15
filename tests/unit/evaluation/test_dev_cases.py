@@ -12,7 +12,8 @@ import numpy as np
 import pandas as pd  # type: ignore[import-untyped]
 import pytest
 
-from hypora.core.schemas import TaskType, ToolName
+from hypora.core.policy.allowlists import allowed_tools
+from hypora.core.schemas import ActorRole, TaskType, ToolName
 from hypora.evaluation.case import (
     CASES_DIR,
     Case,
@@ -108,6 +109,21 @@ def test_both_systems_can_run_it(case: Case) -> None:
         assert not getattr(case.constraints, name)
     assert case.constraints.resource_constraints.model_dump(exclude_none=True) == {}
     assert {fault.kind for fault in case.injected_faults} <= {FaultKind.TOOL_ERROR}
+
+
+@every_case
+def test_agent_b_research_tools_are_permitted(case: Case) -> None:
+    """S4.2e (D-052): B's research allowlist survives the case intersection; C's is unchanged."""
+    permitted = set(case.permitted_tools)
+    research = allowed_tools(ActorRole.AGENT_B)
+    assert research == {
+        ToolName.SEARCH_MODEL_CATALOG,
+        ToolName.GET_MODEL_EVIDENCE,
+        ToolName.RETRIEVE_METHODOLOGY,
+    }
+    assert research <= permitted
+    assert not research & allowed_tools(ActorRole.AGENT_C)
+    assert not research & allowed_tools(ActorRole.TRIAL_WORKER)
 
 
 @every_case
