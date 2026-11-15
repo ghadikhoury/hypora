@@ -1181,11 +1181,20 @@ class _Run:
             self.notes.append(
                 "A authorized independent B/C overlap: " + (self.overlap_reason or "")
             )
+            # The first failure cancels the other task, so B stops spending once C has failed
+            # (and the reverse); the failure itself is re-raised for `_failed`, whose rules
+            # decide how much of it reaches the report.
             failures = await run_ready(
-                {"research": ReadyTask(research), "methodology": ReadyTask(methodology)}, 2
+                {"research": ReadyTask(research), "methodology": ReadyTask(methodology)},
+                2,
+                cancel_on_failure=True,
             )
             if failures:
-                raise RuntimeError("Phase A task failed")
+                finished = {"research"} if result is not None else set()
+                if self.methodology_draft is not None:
+                    finished.add("methodology")
+                self.notes.append(_overlap_failure_note(failures, finished))
+                raise _overlap_failure(failures)
         else:
             await research()
         assert result is not None
@@ -1319,6 +1328,12 @@ class _Run:
             reason = f"Research session failed ({type(exc).__name__}); A decides without it."
             self.notes.append(reason)
             return ResearchObservation(summary=RESEARCH_UNAVAILABLE, uncertainties=[reason])
+        except anyio.get_cancelled_exc_class():
+            # Cancelled from outside, e.g. because C's overlapping task failed: B's session
+            # ends with a recorded `cancelled` handoff, and the cancellation propagates.
+            if instance is not None:
+                self._handoff(instance, role, HandoffStatus.CANCELLED)
+            raise
         if outcome.observation is None:
             self._handoff(instance, role, HandoffStatus.PARTIAL)
             reason = outcome.error or "Research could not complete."
@@ -1576,6 +1591,10 @@ class _Run:
                         else HandoffStatus.FAILED,
                     )
                     failure = exc
+                except anyio.get_cancelled_exc_class():
+                    # Cancelled from outside, e.g. because B's overlapping task failed.
+                    self._handoff(instance, role, HandoffStatus.CANCELLED)
+                    raise
                 else:
                     self._handoff(instance, role, HandoffStatus.COMPLETE)
         if failure is not None:
@@ -3871,6 +3890,34 @@ def _run_limit(exc: BaseException) -> RunLimitReached | None:
             if found is not None:
                 return found
     return None
+
+
+_OVERLAP_TASKS = {"research": "Agent B's research", "methodology": "Agent C's methodology draft"}
+
+
+def _overlap_failure(failures: dict[str, Exception]) -> Exception:
+    """The exception that stops a failed B/C overlap: a run limit (or user cancel) first, so
+    it keeps its own handling; otherwise the first actual failure, unchanged. Re-raising the
+    original lets `_failed` apply its usual rules instead of a fixed, uninformative error."""
+    for exc in failures.values():
+        limit = _run_limit(exc)
+        if limit is not None:
+            return limit
+    return next(iter(failures.values()))
+
+
+def _overlap_failure_note(failures: dict[str, Exception], finished: set[str]) -> str:
+    """A platform-written note naming which overlap task failed (by exception type only) and
+    which was cancelled; no exception text, so no model or data value reaches the report."""
+    parts = [
+        f"{_OVERLAP_TASKS[name]} failed ({type(exc).__name__})" for name, exc in failures.items()
+    ]
+    parts += [
+        f"{label} {'had finished' if name in finished else 'was cancelled'}"
+        for name, label in _OVERLAP_TASKS.items()
+        if name not in failures
+    ]
+    return "B/C overlap stopped: " + "; ".join(parts) + "."
 
 
 def _describe(outcome: AgentOutcome) -> str:

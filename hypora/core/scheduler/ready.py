@@ -14,8 +14,15 @@ class ReadyTask:
     dependencies: frozenset[str] = frozenset()
 
 
-async def run_ready(tasks: Mapping[str, ReadyTask], limit: int) -> dict[str, Exception]:
-    """Run ready operations up to limit, skipping descendants of failed operations."""
+async def run_ready(
+    tasks: Mapping[str, ReadyTask], limit: int, *, cancel_on_failure: bool = False
+) -> dict[str, Exception]:
+    """Run ready operations up to limit, skipping descendants of failed operations.
+
+    With `cancel_on_failure`, the first failure cancels every other operation, running or
+    waiting, so no sibling keeps spending after one has failed. Cancelled operations are not
+    failures and do not appear in the result; the result holds each actual failure, in order.
+    """
     if limit < 1:
         raise ValueError("concurrency must be positive")
     if any(not task.dependencies <= tasks.keys() for task in tasks.values()):
@@ -53,6 +60,8 @@ async def run_ready(tasks: Mapping[str, ReadyTask], limit: int) -> dict[str, Exc
                     await task.run()
                 except Exception as exc:
                     failures[name] = exc
+                    if cancel_on_failure:
+                        group.cancel_scope.cancel()
         finally:
             completed[name].set()
 

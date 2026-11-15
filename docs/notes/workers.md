@@ -33,3 +33,10 @@ dependents after failures. It does not persist or replay workflows. By default B
 C drafts methodology. A may justify independent target-free B/C overlap; the runtime waits for
 both before A reviews, locks diagnostic rows and reconciles later findings. Worker concurrency
 is separate from the unchanged experiment worker/resource-pool concurrency.
+
+If one overlap task fails, the scheduler (`cancel_on_failure`) cancels the other at once, so B
+stops spending when C has failed, and the cancelled role records a `cancelled` handoff. The
+actual exception is re-raised (a run limit first) and recorded by the controller's usual failure
+rules: platform-written messages are kept, anything else is reduced to its type. A note names
+which task failed (type only) and which was cancelled. Before this fix every overlap failure
+became a fixed `RuntimeError` and B kept running (seen in the S4.2f rerun).

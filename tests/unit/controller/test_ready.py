@@ -60,6 +60,40 @@ async def test_failure_skips_dependents_but_independent_work_finishes():
 
 
 @pytest.mark.anyio
+async def test_cancel_on_failure_stops_running_and_waiting_siblings():
+    started = anyio.Event()
+    cancelled = []
+
+    async def hang():
+        started.set()
+        try:
+            await anyio.sleep_forever()
+        except anyio.get_cancelled_exc_class():
+            cancelled.append("hang")
+            raise
+
+    async def fail():
+        await started.wait()
+        raise ValueError("expected")
+
+    async def never():
+        cancelled.append("never ran")  # must not run
+
+    with anyio.fail_after(10):
+        failures = await run_ready(
+            {
+                "hang": ReadyTask(hang),
+                "fail": ReadyTask(fail),
+                "child": ReadyTask(never, frozenset({"hang"})),
+            },
+            3,
+            cancel_on_failure=True,
+        )
+    assert list(failures) == ["fail"] and isinstance(failures["fail"], ValueError)
+    assert cancelled == ["hang"]
+
+
+@pytest.mark.anyio
 async def test_cycles_and_unknown_dependencies_rejected():
     async def noop():
         pass
