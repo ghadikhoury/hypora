@@ -40,7 +40,7 @@ import anyio
 import pandas as pd  # type: ignore[import-untyped]
 import yaml  # type: ignore[import-untyped]
 from mcp import Client
-from pydantic import BaseModel, TypeAdapter
+from pydantic import BaseModel, JsonValue, TypeAdapter
 
 from hypora.core.bounded_text import shorten
 from hypora.core.config.flags import AgentMode, Toggle
@@ -78,7 +78,12 @@ from hypora.core.controller.local import (
     mcp_transport,
     write_session,
 )
-from hypora.core.controller.methodology import MethodologyError, validate_data_proposal
+from hypora.core.controller.methodology import (
+    OPEN_QUESTIONS_REFUSAL,
+    OPEN_QUESTIONS_REFUSED,
+    MethodologyError,
+    validate_data_proposal,
+)
 from hypora.core.controller.states import START, RunEvent, RunState, next_state
 from hypora.core.controller.workers import (
     WorkerGuard,
@@ -107,7 +112,7 @@ from hypora.core.policy.injection import (
 )
 from hypora.core.roles.base import USER_CANCEL, RunLimitReached
 from hypora.core.roles.intake import IntakeError, IntakeForm, _task_type, run_intake
-from hypora.core.roles.methodology import propose_data_contract
+from hypora.core.roles.methodology import MAX_PROPOSAL_ATTEMPTS, propose_data_contract
 from hypora.core.roles.multi import (
     LeadAction,
     LeadActionWithRange,
@@ -989,6 +994,44 @@ class _Run:
                 "role text shows dataset values; describe the work without quoting data"
             )
 
+    def _record_open_questions(
+        self, questions: Sequence[str], *, proposal: str, attempt: int
+    ) -> None:
+        """Store a refused proposal's open questions with the refusal, screened (S4.2b, D-052).
+
+        Each question goes through the role-text boundary (`_validate_assignment` without the
+        instruction rule): credentials, code, record identifiers and anything the data firewall
+        recognizes as dataset values are refused. A question that fails, or that cannot be
+        screened, is kept only as a count. The event is a record for people reading the log: it
+        goes to no role, and the run continues exactly as before (C's one correction, then the
+        stop). Only the event carries the questions, not the run notes, because the notes reach A.
+        """
+        stored: list[JsonValue] = []
+        withheld = 0
+        for question in questions:
+            try:
+                self._validate_assignment(question, instruction=False)
+            except Exception:  # fail closed: refused, or the screen itself was unavailable
+                withheld += 1
+            else:
+                stored.append(question)
+        self._event(
+            EventType.ERROR,
+            ErrorPayload(
+                component="methodology_validator",
+                code=OPEN_QUESTIONS_REFUSED,
+                message=f"C's {proposal} data contract proposal was refused: "
+                + OPEN_QUESTIONS_REFUSAL,
+                retryable=attempt < MAX_PROPOSAL_ATTEMPTS,
+                details={
+                    "proposal": proposal,
+                    "attempt": attempt,
+                    "open_questions": stored,
+                    "open_questions_withheld": withheld,
+                },
+            ),
+        )
+
     async def _lead_decision(
         self,
         context: str,
@@ -1337,10 +1380,22 @@ class _Run:
             context += validation_guidance(profile)
         context += "\n" + PLATFORM_GUARANTEES
         columns = [str(column) for column in load_tabular(self.dataset).columns]
+        attempts = 0
 
         def check(proposal: DataContract, found: dict[str, tuple[str, str]]) -> None:
             """The same checks the caller applies, run early so C can correct a refusal once."""
-            validate_data_proposal(proposal, spec, columns, {**(prior_evidence or {}), **found})
+            nonlocal attempts
+            attempts += 1
+            try:
+                validate_data_proposal(proposal, spec, columns, {**(prior_evidence or {}), **found})
+            except MethodologyError as refused:
+                if str(refused) == OPEN_QUESTIONS_REFUSAL:
+                    self._record_open_questions(
+                        proposal.open_questions,
+                        proposal="initial" if previous is None else "reconcile",
+                        attempt=attempts,
+                    )
+                raise
             if previous is not None and (
                 proposal.target != previous.target
                 or proposal.task_type != previous.task_type

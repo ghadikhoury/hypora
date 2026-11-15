@@ -1,14 +1,45 @@
 """Validation of C's evidence-backed data methodology proposals."""
 
-from collections.abc import Collection, Mapping
+import json
+from collections.abc import Collection, Iterable, Mapping
+from typing import Final
 
 from hypora.core.schemas import DataContract, TaskSpecification
 from hypora.core.schemas.contracts import ParseDatetimeFix
+from hypora.core.schemas.events import AnyEvent, ErrorEvent
 from hypora.execution.harness.data import fix_column
+
+OPEN_QUESTIONS_REFUSAL: Final = "unresolved methodology questions require escalation"
+"""The validator's fixed refusal when C's proposal still lists open questions."""
+
+OPEN_QUESTIONS_REFUSED: Final = "OPEN_QUESTIONS_REFUSED"
+"""Error code of the event that stores a refusal's screened open questions (S4.2b)."""
 
 
 class MethodologyError(ValueError):
     """A proposed methodology is inconsistent with the task or its evidence."""
+
+
+def open_question_notes(events: Iterable[AnyEvent]) -> list[str]:
+    """One run-record note per open-questions refusal, from its event (S4.2b).
+
+    The event already holds only questions that passed the data firewall screen and a count of
+    the withheld ones, so this formats stored text and reads nothing else.
+    """
+    notes = []
+    for event in events:
+        if not isinstance(event, ErrorEvent) or event.payload.code != OPEN_QUESTIONS_REFUSED:
+            continue
+        details = event.payload.details
+        questions = details.get("open_questions")
+        stored = questions if isinstance(questions, list) else []
+        notes.append(
+            f"C's {details.get('proposal', 'unknown')} data contract proposal (attempt "
+            f"{details.get('attempt', '?')}) was refused for open questions; stored after the "
+            f"data firewall screen ({details.get('open_questions_withheld', 0)} withheld): "
+            + json.dumps(stored, ensure_ascii=False)
+        )
+    return notes
 
 
 def _validate_fixes(proposal: DataContract, known: set[str]) -> None:
@@ -74,4 +105,4 @@ def validate_data_proposal(
             raise MethodologyError("the proposed split key lacks matching diagnostic evidence")
     _validate_fixes(proposal, known)
     if proposal.open_questions:
-        raise MethodologyError("unresolved methodology questions require escalation")
+        raise MethodologyError(OPEN_QUESTIONS_REFUSAL)
