@@ -39,7 +39,7 @@ _NO_USER_HINTS = {
         "risks in risks. No user is present in this run: each question you keep is recorded "
         "as an assumption with its conservative answer, and every dataset column a kept "
         "question names is excluded from the features. Name each column a kept question is "
-        "about exactly as it appears in the dataset. "
+        "about exactly as it appears in the dataset, in backticks. "
     ),
 }
 """The same guidance when no user can answer (S4.2c): a kept question becomes an assumption."""

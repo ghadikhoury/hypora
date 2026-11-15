@@ -87,12 +87,14 @@ after C's correction still stop the run for the user. With no user:
   evidence. A question that names no column changes nothing and is reported as an unverified
   risk; one that names only already-excluded columns says so. The model never picks the answer,
   so it cannot take the convenient one. A false name match only excludes a column, but common-word
-  names (`time`, `age`, `id`) match ordinary wording and can over-exclude. If no feature would
+  names (`time`, `age`) match ordinary wording and can over-exclude. Names of two characters or
+  fewer (`a`, `x`, `id`, `no`) would match nearly every question and could exclude every feature,
+  so they count only when written exactly and quoted (backticks or quotes). If no feature would
   remain, the run stops as before and the questions are kept screened on an S4.2b refusal event.
   Known limit: a paraphrase ("the referrals count") does not match `collections_referrals_12m`,
   and a name with no ASCII letters or digits never matches, so such a column stays a feature and
   the question is reported as an unverified risk. The correction hint therefore asks C to name each
-  column exactly as in the dataset. A quoted question is collapsed to one line.
+  column exactly as in the dataset, in backticks. A quoted question is collapsed to one line.
 - The questions are answered before the proposal is forwarded to A, stored or put through the
   payload checks, so the contract keeps no raw question (`open_questions` is empty). After the
   split is locked, `keep_assumed_exclusions` keeps every assumed exclusion even if C's reconcile
@@ -100,7 +102,10 @@ after C's correction still stop the run for the user. With no user:
 - One `escalation` event per assumption (`DATA_PROBLEM`, actor `controller`, `evidence_refs` = its
   exclusions). Its summary starts with `ASSUMPTION_PREFIX` and quotes the question only if it passes
   the S4.2b role-text screen, plus the instruction rule because this text reaches the report and
-  A's narrative. A question that fails, or can't be screened, is recorded without its text, so
+  A's narrative. The screen runs on the question as written and on the exact one-line summary that
+  is stored and shown, since joining lines can form a phrase no single line held. (S4.2b's refusal
+  event likewise screens each question as written, joined on one line, and JSON-encoded as the
+  eval-record note writes it.) A question that fails, or can't be screened, is recorded without its text, so
   withheld questions show up only as a count. Its named columns are still excluded: those names
   come from the dataset header, not from the question.
 - The report's code-written `limitations` list every assumption summary (`_assumption_limitations`,

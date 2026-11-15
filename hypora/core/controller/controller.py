@@ -1037,7 +1037,11 @@ class _Run:
         withheld = 0
         for question in questions:
             try:
-                self._validate_assignment(question, instruction=False)
+                # Screen every form it is kept in: as written (stored on the event), joined on
+                # one line, and JSON-encoded as `open_question_notes` writes it into the eval
+                # record, so lines that pass alone cannot join into a refused text (S4.2c).
+                for form in (question, " ".join(question.split()), json.dumps(question)):
+                    self._validate_assignment(form, instruction=False)
             except Exception:  # fail closed: refused, or the screen itself was unavailable
                 withheld += 1
             else:
@@ -1088,22 +1092,24 @@ class _Run:
                 )
             else:
                 resolution = (
-                    "it names no dataset column, so no feature changed; it remains an "
-                    "unverified risk for this result"
+                    "it names no dataset column by its exact name, so no feature was excluded "
+                    "for it; it remains an unverified risk for this result"
                 )
+            # One line, so quoted text cannot add lines to the platform-written report.
+            question = shorten(" ".join(assumption.question.split()), 600)
+            summary = f'C\'s open question "{question}" was answered conservatively: '
+            summary += f"{resolution}."
             try:
+                # Screen the text exactly as it will be stored and shown (the joined line can
+                # hold a phrase no single line held), and the question as written.
                 self._validate_assignment(assumption.question)
+                self._validate_assignment(ASSUMPTION_PREFIX + summary)
             except Exception:  # fail closed: refused, or the screen itself was unavailable
                 withheld += 1
                 summary = (
                     "one of C's open questions was withheld by the data firewall screen (its "
                     f"text is not stored) and answered conservatively: {resolution}."
                 )
-            else:
-                # One line, so quoted text cannot add lines to the platform-written report.
-                question = shorten(" ".join(assumption.question.split()), 600)
-                summary = f'C\'s open question "{question}" was answered conservatively: '
-                summary += f"{resolution}."
             self._event(
                 EventType.ESCALATION,
                 EscalationPayload(

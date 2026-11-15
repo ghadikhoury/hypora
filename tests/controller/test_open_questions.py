@@ -169,3 +169,25 @@ async def test_a_clean_run_records_no_refusal(make_controller, run_config, datas
     await _run(make_controller, run_config, dataset, "run_questions_none", [])
     assert _refusals(database, "run_questions_none") == []
     assert open_question_notes(EventLog(database).read("run_questions_none")) == []
+
+
+async def test_a_row_split_across_lines_is_withheld(make_controller, run_config, dataset, database):
+    """Each line holds one value and passes alone; joined (as the eval note shows it) the line
+    is a whole row, so the question is screened in its joined form too and withheld."""
+    row = pd.read_csv(dataset).iloc[0]
+    split = "Are these outliers:\n" + "\n".join(str(value) for value in row)
+    await _run(
+        make_controller,
+        run_config,
+        dataset,
+        "run_questions_split",
+        [[split], [split]],
+        policy=ApprovalPolicy.INTERACTIVE,
+    )
+    details = [e.payload.details for e in _refusals(database, "run_questions_split")]
+    assert [(d["open_questions"], d["open_questions_withheld"]) for d in details] == [
+        ([], 1),
+        ([], 1),
+    ]
+    notes = open_question_notes(EventLog(database).read("run_questions_split"))
+    assert not any("outliers" in note for note in notes)

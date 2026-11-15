@@ -64,9 +64,25 @@ def columns_named(question: str, columns: Iterable[str]) -> list[str]:
     Matching ignores case and punctuation (`collections_referrals_12m`, `Collections referrals
     12m` and a back-quoted name all match) and needs whole words, so `age` matches "the age of"
     but not "average". A false match only excludes a column: the conservative side.
+
+    A name of `SHORT_NAME` characters or fewer (`a`, `x`, `id`, `no`) would match ordinary words
+    in nearly every question and could exclude every feature, so it counts only when written
+    exactly and quoted (in backticks or quotes), e.g. `` `id` ``.
     """
     words = _words(question)
-    return [column for column in columns if _words(column).strip() and _words(column) in words]
+    named = []
+    for column in columns:
+        if len(column.strip()) <= SHORT_NAME:
+            quoted = rf"[`'\"]{re.escape(column)}[`'\"]"
+            if re.search(quoted, question):
+                named.append(column)
+        elif _words(column).strip() and _words(column) in words:
+            named.append(column)
+    return named
+
+
+SHORT_NAME: Final = 2
+"""Column names up to this length match a question only when quoted exactly."""
 
 
 def assume_conservatively(
