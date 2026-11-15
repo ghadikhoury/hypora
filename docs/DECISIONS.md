@@ -1197,6 +1197,42 @@ and shown (trigger 3). Evidence and the full failure list: `docs/notes/live-run-
 - No frozen schema, event type, MCP tool signature or description, fit/predict interface,
   dependency, eval case, grader, hidden split or `eval` profile change.
 
+## D-048 — Screens compare folded text; platform exemptions apply only where the platform writes (2026-11-14)
+
+The reviewer of PR #47 found three gaps in the screens on `main`. Ghadi approved the security
+change on 2026-11-14 ("Yes, go implement all of these"; trigger 3, for exactly this scope).
+Details and residual risks: `docs/notes/live-run-hardening.md` ("Screen hardening (D-048)").
+
+- Shared foldings (`hypora/core/policy/textfold.py`). The light fold removes only what no
+  reader sees: canonical composition, width variants, invisible characters (format characters,
+  Hangul fillers, variation selectors) and case. The full fold also removes the reversible
+  disguises: compatibility forms (full-width, circled, parenthesized and mathematical letters and
+  digits), combining marks, decimal digits of any script, dashes, look-alike colons, and common
+  Cyrillic, Greek and IPA look-alikes of Latin letters.
+- The data firewall keys each cell under the light fold, split with the line tokenizer, and
+  decides distinctiveness per key after grouping every row (so `Yes.` is as common as `yes`). It
+  checks each line under both folds. So `patient-0005` written with full-width digits (or any disguise
+  above) is withheld like the plain value on every path: trial output and logs, error messages,
+  MCP tool results, A's code excerpt and role text. A verbatim non-ASCII cell, including one with
+  full-width brackets or commas, is withheld too. An ordinary ASCII line never matches a
+  non-ASCII cell that only equals it after folding the cell, so `naive` does not match an
+  accented cell and `max` does not match a Cyrillic one. ASCII text is only case-folded under
+  both folds. False positives on numbers, metrics, column names and code therefore do not change
+  (Ghadi's earlier constraint: do not make the filter so strict that runs break). The full fold
+  can still withhold a non-ASCII line that disguises a rare ASCII cell (an accented `region`
+  when the data has a rare `region`), which is the disguise this decision targets.
+- The injection screen uses the full fold.
+- A source line in A's code excerpt that imitates a platform marker is labelled as source in
+  every spelling: indentation, tabs, case, spacing, a leading comment sign, quote or invisible
+  character, look-alike brackets, guillemets, letters and colons, `platform` followed by a
+  closing bracket or a dash, and the `withheld by` and `[...` marker forms.
+- The injection screen leaves `next_step` unscreened only at the top level of
+  `get_experiment_status` results, where the platform writes it. The same key anywhere else
+  (nested, in another tool's result, in a text block that is not the structured result) is
+  screened, as PR #47 did for `encrypted_content`.
+- No frozen schema, event type, MCP tool signature or description, fit/predict interface,
+  dependency, eval case, grader, hidden split or `eval` profile change.
+
 ## D-049 — Waiting on a long job costs a few model turns; a longer model-call timeout (2026-11-14)
 
 Ghadi approved both changes on 2026-11-14 ("Yes, go implement all of these"), which covers

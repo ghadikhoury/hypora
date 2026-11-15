@@ -26,7 +26,6 @@ import contextlib
 import hashlib
 import json
 import re
-import unicodedata
 import uuid
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
@@ -875,7 +874,6 @@ class _Run:
         if any(pattern.search(assignment) for pattern in _CODE_SYNTAX):
             raise RoleTextRefused("role text cannot contain code; describe the work in prose")
         raw_lines = assignment.splitlines() or [""]
-        nfkc_lines = unicodedata.normalize("NFKC", assignment).splitlines() or [""]
         # Instruction-like text is the shape an injection takes when a role relays it: an
         # override ("ignore previous instructions", "ignore the contract"), a fake chat turn, an
         # order to call a platform tool, or a claimed approval. A role describes work instead.
@@ -899,13 +897,10 @@ class _Run:
             firewall = getattr(self, "_boundary_firewall", None)
             if firewall is None:
                 firewall = self._boundary_firewall = DataFirewall([load_tabular(self.dataset)])
-            # The firewall indexes cells case-folded but not NFKC-normalized, so screen both the
-            # text as written and its NFKC form: a verbatim copy of a full-width or decomposed
-            # cell matches the first, a compatibility-encoded copy of an ASCII cell the second.
-            screened = [
-                *firewall.screen_untrusted(raw_lines)[0],
-                *firewall.screen_untrusted(nfkc_lines)[0],
-            ]
+            # The firewall checks each line both lightly folded and fully folded (compatibility
+            # forms, invisible characters, look-alike letters; D-048), so the text as written is
+            # enough.
+            screened = firewall.screen_untrusted(raw_lines)[0]
         except Exception as exc:
             raise ValueError("role text data-boundary validation unavailable") from exc
         if any(line is None for line in screened):
