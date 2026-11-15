@@ -182,6 +182,17 @@ firewall is unchanged. A's estimate basis is screened like any role text before 
 - The `dev_target_leakage` grading rule is unchanged (a run passes when its recommended final model
   excludes the column).
 
-## Live evidence
+## Live evidence (Gemini `dev` profile, free tier, 2026-11-14)
 
-Recorded below once the free-tier runs are done.
+One run of each file, `make run ... ARGS="--approve auto_within_contract"`, on this branch.
+
+| Run | File | Expected range on the plan | Outcome |
+|---|---|---|---|
+| `run_03e1428ea7bd` | planted credit-g | 0.70 to 0.85, A's estimate (B's citations were refused, so research was unavailable) | Trigger fired (validation 0.9768). Screen: `collections_referrals_12m` 0.9384 against `checking_status` 0.6910. Permutation drop 0.3291: confirmed. Comparison trial without it: validation 0.8033. Plan v2 excluding the column approved by policy; the comparison was finalized under it: test ROC-AUC 0.7561, verifier passed. Report shows both models. 4 trials, 9 jobs, list price $0.103 |
+| `run_96aacaacb07b` | clean credit-g (OpenML 46918) | 0.70 to 0.88, A's estimate | Trigger did not fire (validation 0.8045). No investigation, no extra trial or job, no report section; test ROC-AUC 0.7575, verifier passed. 3 trials, 4 jobs, list price $0.087 |
+
+Both runs used the free tier (list prices shown are what the platform charges itself, not
+money spent). In neither run did B cite a typical range: the first because its research failed
+citation validation, the second because its sources gave none, so A's labelled estimate was used
+both times, as designed. The planted run's test score of the recommended model (0.756) matches the
+clean data's, where the earlier run that kept the column reported 0.966.
