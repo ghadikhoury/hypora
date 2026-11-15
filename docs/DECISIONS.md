@@ -1357,14 +1357,21 @@ Ghadi approved exactly these six items on 2026-11-15, after the S4.2 readiness f
   after screening it through the data firewall; a question that fails is stored only as withheld,
   with a count. The run continues as today (no reprompt, no stop change) and nothing new reaches A.
   The firewall is not weakened and no unscreened model text is stored. Then one or two free
-  dev-profile runs on trap cases, with the stored questions reported to Ghadi verbatim.
+  dev-profile runs on trap cases, with the stored questions reported verbatim to the orchestrator,
+  who shows them to Ghadi.
 - **S4.2c.** In non-interactive runs, C's open questions no longer end the run: C records an
   assumption and continues, and the report lists the assumptions. Interactive runs still stop and
-  ask the user. Starts only after Ghadi confirms the S4.2b questions are the expected kind.
-- **S4.2d.** The user's first plan approval also covers training one comparison model without each
-  confirmed column (within existing limits, as D-046 step 5). The report shows both models, the
+  ask the user. Ghadi: "if the questions from item 2 are not the kind we expected, tell me before
+  building this". So the orchestrator reads the S4.2b questions, and S4.2c proceeds unless they are
+  not the expected kind, in which case Ghadi decides first.
+- **S4.2d.** The user's first plan approval also covers training one comparison model in total: the
+  final candidate's family and settings without the top confirmed column, within existing limits.
+  Any other confirmed column is reported with its evidence and gets a comparison model only through
+  the existing approval path (D-050), never automatically. The report shows both models, the
   trigger, the column and why; the recommended model is the one without the column; the winner is
   never picked by test score; nothing else trains without approval.
+- **S4.2d replaces D-050's second approval prompt for that one comparison only;** its new contract
+  version is still written so the verifier sees the model's real inputs.
 - **S4.2e.** Allow Agent B's research tools in the six merged dev cases. This covers trigger 4 for
   that allowance only; no other case, grader, data or hidden-split change.
 - **S4.2f.** Rerun the six-case dev evaluation once on pinned `openai/gpt-6-luna` (multi, single,

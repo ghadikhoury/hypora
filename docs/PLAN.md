@@ -162,11 +162,12 @@ Done when:
 - Unit tests cover a passing question stored verbatim, a failing one stored only as a withheld
   count, and a mix of both; the run flow and A's inputs are unchanged.
 - One or two free dev-profile live runs on trap cases show the stored questions, and those
-  questions are reported verbatim to Ghadi.
+  questions are reported verbatim to the orchestrator, who shows them to Ghadi.
 
 ### S4.2c — Record assumptions when no user is present
-**PR:** `s4.2c-assumptions` · Depends on S4.2b and Ghadi's confirmation that the S4.2b questions
-are the expected kind · **Spec:** §§7.2, 10.1, 15.1, 19.2
+**PR:** `s4.2c-assumptions` · Depends on S4.2b · **Spec:** §§7.2, 10.1, 15.1, 19.2
+Gate: the orchestrator reads the S4.2b questions first. S4.2c proceeds unless they are not the
+kind expected; in that case Ghadi decides before it is built.
 `🔍 REVIEW FOCUS` — Interactive runs still stop and ask; assumptions are listed in the report;
 assumptions are screened like questions.
 
@@ -183,23 +184,29 @@ report, an interactive run still stopping to ask, and a withheld assumption stor
 ### S4.2d — Comparison model covered by the first plan approval
 **PR:** `s4.2d-leakage-no-prompt` · Depends on S4.2 (S4.1b behavior, D-050) · **Spec:** §§7.3,
 8.6–8.7, 10.1
-`🔍 REVIEW FOCUS` — Exactly one comparison model per confirmed column within existing limits
-(D-046 step 5); no second approval prompt; report shows both models, the trigger, the column and
-why; recommended model is the one without the column; winner never picked by test score; nothing
-else trains without approval.
+`🔍 REVIEW FOCUS` — The first approval covers exactly one comparison model in total, within
+existing limits; no second approval prompt for it; any other confirmed column gets a comparison
+only through the existing approval path (D-050), never automatically; report shows both models,
+the trigger, the column and why; recommended model is the one without the column; winner never
+picked by test score; nothing else trains without approval.
 
 **Why.** S4.1b finalizes a recommended comparison model through a second plan approval (D-050). In a
 run without a user that prompt cannot be answered, and the extra prompt adds friction where the
 user's first plan approval can already cover this bounded check.
 
-Scope: the user's first plan approval also covers training one comparison model without each
-confirmed column, through the existing trial path and limits. The report shows both models, what
-triggered the check, which column and why; the recommended model is the one without the column.
+Scope: the user's first plan approval also covers training one comparison model in total: the
+final candidate's family and settings without the top confirmed column, through the existing
+trial path and limits. This replaces D-050's second approval prompt for that one comparison; the
+new contract version is still written so the verifier sees the model's real inputs. Any other
+confirmed column is reported with its evidence and gets a comparison model only through the
+existing approval path (D-050). The report shows both models, what triggered the check, which
+column and why; the recommended model is the one without the column.
 Not in scope: any other training without approval; choosing by test score; changing the trigger,
 screen or thresholds.
-Done when: scripted runs on the planted credit-g file show the comparison trained and reported with
-no second approval prompt, and the control shows no comparison; tests show nothing else trains
-without approval and the test split is scored once, for the recommended model only.
+Done when: scripted runs on the planted credit-g file show the one comparison trained and reported
+with no second approval prompt, and the control shows no comparison; tests show that a second
+confirmed column gets no automatic comparison, nothing else trains without approval, and the test
+split is scored once, for the recommended model only.
 
 ### S4.2e — Allow Agent B's research tools in the dev cases
 **PR:** `s4.2e-dev-research` · Depends on S4.2 · **Spec:** §§7.1, 13, 19.2
@@ -215,8 +222,8 @@ Done when: the six files differ only in that allowance; case loading and grader 
 
 ### S4.2f — Rerun the readiness evaluation once
 **PR:** `s4.2f-readiness-rerun` · `→ SERIAL` · Depends on S4.2a–S4.2e · **Spec:** §§17, 19.5
-`🧑` Approved budget: $2 hard cap for the whole rerun, reserved before each call; spending stops
-if a call would exceed it.
+Budget approved by Ghadi in D-052 ($2 hard cap) for the whole rerun, reserved before each call;
+spending stops if a call would exceed it.
 
 **Why.** S4.2b–S4.2e change behavior that D-051's evidence measured, so that evidence must be
 re-collected once.
