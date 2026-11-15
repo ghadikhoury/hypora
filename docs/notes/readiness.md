@@ -64,10 +64,10 @@ step (D-053).
 |---|---|---|---|
 | `dev_class_imbalance` | fail: CONTRACT, exclusion without diagnostic evidence | fail: same | pass (macro-F1 0.819) |
 | `dev_clean_control` | fail: A chose to report at CONTRACT | **pass** (MAE 0.609) | pass (MAE 0.681) |
-| `dev_grouped_rows` | fail: CONTRACT, `RuntimeError` | harness error (ungraded) | fail (group overlap, MAE 11.18) |
+| `dev_grouped_rows` | fail: CONTRACT, `RuntimeError` (overlap wrapper) | harness error (ungraded): stopped at CONTRACT, exclusion without diagnostic evidence; record refused by a guard false positive | fail (group overlap, MAE 11.18) |
 | `dev_target_leakage` | fail: CONTRACT, exclusion without diagnostic evidence | **pass** (ROC-AUC 0.753) | fail (leak kept, ROC-AUC 0.960) |
-| `dev_temporal_order` | fail: CONTRACT, `RuntimeError` | fail: CONTRACT, exclusion without diagnostic evidence | fail (random split) |
-| `dev_tool_failure` | fail: `max_trials` 4 of 4 before any submission | **pass** (ROC-AUC 0.759, recovered) | fail (no retry) |
+| `dev_temporal_order` | fail: CONTRACT, `RuntimeError` (overlap wrapper) | fail: CONTRACT, exclusion without diagnostic evidence | fail (random split) |
+| `dev_tool_failure` | fail: `max_trials` 4 of 4 before any submission (a C worker used part of the trial budget) | **pass** (ROC-AUC 0.759, recovered) | fail (no retry) |
 
 | Config | Agent | 95% Wilson | Baseline | Paired difference, 95% bootstrap CI | S4.2 |
 |---|---|---|---|---|---|
@@ -89,31 +89,55 @@ Per-run cost, steps (model plus tool calls) and seconds:
 
 Agent latency: multi mean 227.6 s, p95 330.0 s; single mean 244.4 s, p95 485.8 s (nearest-rank).
 No run reached a case's step, token, compute or wall-clock limit except multi tool failure's
-`max_trials`. No run started a C worker.
+`max_trials`. One run started a C worker (multi tool failure, below), the first live C worker in
+recorded evidence.
 
 ### What changed, and what did not work
 
-- **CONTRACT stops: 7 of 12** (multi 5, single 2), against 8 of 12 at S4.2. None now stops on the
+- **CONTRACT stops: 8 of 12** (multi 5, single 3, counting the single grouped run, which stopped
+  at CONTRACT before its record was refused), the same count as S4.2. None now stops on the
   open-questions rule itself, but C's open questions are still where most runs end. C's first
-  proposal was refused for open questions in every multi run and in three single runs; the
-  screened questions are now stored (S4.2b) and are in each record's notes. They are the expected
-  kind (is a column known at prediction time, how are rows grouped, which outcome is positive).
-- **The S4.2c assumption path never completed.** No run recorded an assumption. In four runs (multi
-  imbalance and leakage, single imbalance and temporal) C's corrected proposal was refused with
-  "a proposed exclusion lacks matching diagnostic evidence", its last attempt. The likely cause is
-  that the no-user correction hint tells C that columns named by a kept question are excluded, and C
-  then excluded them itself without a diagnostic, but this could not be confirmed: model outputs
-  are filtered before storage.
-- **Two multi runs (grouped, temporal) failed at CONTRACT with a bare `RuntimeError`.** C's
-  handoff failed after its first refusal; the controller replaces an exception message that
-  carries redactable content with `RuntimeError`, so the underlying error is not recorded. Both
-  runs were ones where A authorized B/C overlap. The cause is not known.
+  proposal was refused for open questions in every multi run and in four single runs (imbalance,
+  grouped, leakage at both initial and reconcile, temporal); the screened questions are now stored
+  (S4.2b) and are in each record's notes. They are the expected kind (is a column known at
+  prediction time, how are rows grouped, which outcome is positive).
+- **The S4.2c assumption path never completed.** No run recorded an assumption. In five runs
+  (multi imbalance and leakage; single imbalance, grouped and temporal) C's corrected proposal, its
+  last attempt, was refused with "a proposed exclusion lacks matching diagnostic evidence".
+  **Very likely cause, not confirmable:** the S4.2c no-user correction hint ("every dataset column a
+  kept question names is excluded") led C to exclude those columns itself without a diagnostic.
+  The evidence: `validate_data_proposal` checks exclusion evidence before open questions
+  (`hypora/core/controller/methodology.py`), so each first attempt refused for open questions had
+  no unsupported exclusion, and the unsupported exclusion first appeared in the attempt right after
+  the hint. In multi, all four runs whose stored question named a dataset column (`PageValues`;
+  `age`/`sex`/`test_time`; `collections_referrals_12m`; `casual`/`registered`/`cnt`) failed
+  their second attempt, and both runs whose question named no column were accepted. In single, three
+  of four named-column runs failed. C's outputs are filtered before storage, so which column C
+  excluded cannot be confirmed.
+- **Two multi runs (grouped, temporal) failed at CONTRACT with `RuntimeError`.** Both were runs
+  where A authorized B/C overlap. In that path `_research_and_decide`
+  (`hypora/core/controller/controller.py`) raises the fixed `RuntimeError("Phase A task failed")`
+  when either task fails; `run_ready` returns C's real exception in its `failures` dict, which is
+  not used, and the failure detail keeps only the exception type, so the event reads
+  `CONTRACT: RuntimeError`. In both runs C's first attempt was refused for open questions, its
+  second attempt failed and C handed off `failed`, while B kept running (and spending) for about
+  100 s more before the controller stopped. What made C's second attempt fail is not recorded and
+  remains unknown.
 - **Multi clean control:** C's contract was accepted, then A chose to report before approval.
-- **Multi tool failure:** `max_trials` (4 of 4) fired after five `write_trial_files` calls and
-  before any `submit_experiment`, so the injected fault never fired. At S4.2 this run passed.
-- **Single grouped rows:** the runner refused to store the record because it held a value found
-  only in the hidden rows (`harness_error`). The run had made six model calls, so under the S4.2f
-  rule it is final and was not resumed.
+- **Multi tool failure:** C delegated to a C worker (`agent_c_workers@v1`; a `trial_worker` on
+  `c_worker@v1`, worker tier). The worker made two `write_trial_files` calls, hit its token limit
+  (`WORKER_LIMIT_REACHED`) and handed off `partial`. C continued, and `max_trials` (4 of 4, counting
+  the worker's trials) fired before any `submit_experiment`, so the injected fault never fired. At
+  S4.2 this run passed.
+- **Single grouped rows:** after stopping at CONTRACT (above), the runner refused to store the
+  record (`harness_error`). This was a **false positive** of the record guard
+  (`hypora/evaluation/runner/guard.py`). The guard searches the record's strings for hidden-only cell
+  values of eight or more characters, as raw substrings without number boundaries. The grader's
+  `budget_respected` detail renders the run's own spend as `max_usd <number>/0.6`, and the first
+  eight characters of that number equal one hidden-only `NHR` cell. No hidden data reached the
+  system or the record. The run had made six model calls, so under the S4.2f rule it is final and
+  was not resumed. Making the numeric match respect number boundaries would be a guard change
+  for Ghadi (outside this step).
 - **Research in eval (S4.2e).** B's research tools ran in every multi run (catalog, evidence and
   methodology retrieval). The single agent also has them now and used `retrieve_methodology` once.
   B still reported invalid or unsupported citations in two runs. The S4.1b too-good-score check
@@ -122,16 +146,21 @@ No run reached a case's step, token, compute or wall-clock limit except multi to
 - **Single agent improved** from 1/6 to 3/6, including the leakage trap (passed for the first
   time in recorded evidence).
 
-The multi-agent regression (3/6 → 0/6) has no single clear cause after one investigation; it is
-reported to Ghadi (AGENTS.md trigger 7) and nothing was changed or rerun for it.
+The multi-agent regression (3/6 → 0/6) is only partly explained after one investigation (very
+likely the S4.2c hint for two runs, an unrecorded C failure behind the overlap wrapper for two, one
+A decision and one trial-limit stop involving a C worker). It is reported to Ghadi (AGENTS.md
+trigger 7), and nothing was changed or rerun for it.
 
 ### Limitations
 
 - Six development cases, one run each; intervals are wide and say nothing about held-out
   performance. One case of single is ungraded.
 - One model, no D-007 comparison (D-051).
-- The causes above for the exclusion refusals and the `RuntimeError` are inferred at rule level;
-  filtered model outputs and the redacted exception keep them from being confirmed.
+- The cause of the exclusion refusals is inferred (very likely, not confirmed) because model
+  outputs are filtered; the cause of C's second failure in the two overlap runs is not recorded,
+  because the overlap path discards C's exception.
+- The `s4.2f` collection stays open in code (`scripts/readiness_eval.py`); its journal's $2 cap
+  still bounds it, and no further run is approved (D-052). Closing it is a one-line follow-up.
 - Timing is for one WSL2 machine, runs one at a time.
 
 ## S4.2 collection (D-051)
@@ -371,7 +400,8 @@ planned (D-049).
   run with no user continues on conservative assumptions for C's remaining open questions, but no
   recorded run has completed that path yet (S4.2f, D-053): the corrected proposals were refused
   on other rules first.
-- **C workers** are implemented and tested with scripted models but have never run live.
+- **C workers** have run live once (S4.2f multi tool failure: one worker, stopped at its token
+  limit). They are otherwise tested only with scripted models.
 - **The too-good-score investigation** (S4.1b) has never investigated in recorded evidence, because
   every expected range was `unknown` (S4.2 and S4.2f).
 - **B's research** is allowed in the dev cases since S4.2e and ran in every S4.2f multi run; the

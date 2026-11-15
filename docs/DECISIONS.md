@@ -1419,34 +1419,52 @@ S4.2f ran the six-case dev evaluation once, as D-052 approved. Details and per-r
   Wall time 4,128 s (2026-11-15 19:55–21:04 UTC).
 - **Results** (agent / baseline per case):
   - Multi: 0/6. imbalance fail (CONTRACT: exclusion without diagnostic evidence) / pass; clean
-    control fail (A reported at CONTRACT) / pass; grouped fail (CONTRACT: `RuntimeError`) / fail;
-    leakage fail (CONTRACT: exclusion evidence) / fail; temporal fail (CONTRACT: `RuntimeError`) /
-    fail; tool failure fail (`max_trials` before any submission) / fail.
+    control fail (A reported at CONTRACT) / pass; grouped fail (CONTRACT: `RuntimeError` from the
+    B/C overlap wrapper) / fail; leakage fail (CONTRACT: exclusion evidence) / fail; temporal fail
+    (CONTRACT: `RuntimeError`, overlap wrapper) / fail; tool failure fail (`max_trials` before any
+    submission; a C worker ran live for the first time, hit its token limit and used part of the
+    trial budget) / fail.
   - Single: 3/6 with 5 graded. imbalance fail (CONTRACT: exclusion evidence) / pass; clean control
-    pass (MAE 0.609) / pass; grouped harness error, ungraded (record held a value found only in the
-    hidden rows; final, six model calls made) / fail; leakage pass (ROC-AUC 0.753) / fail;
-    temporal fail (CONTRACT: exclusion evidence) / fail; tool failure pass (recovered) / fail.
+    pass (MAE 0.609) / pass; grouped harness error, ungraded (stopped at CONTRACT on exclusion
+    evidence; the record was then refused by a record-guard false positive: the run's own cost
+    figure in the `budget_respected` detail prefix-matched a hidden-only `NHR` value; no hidden
+    data reached the system or the record; final, six model calls made) / fail; leakage pass
+    (ROC-AUC 0.753) / fail; temporal fail (CONTRACT: exclusion evidence) / fail; tool failure pass
+    (recovered) / fail.
   - Baseline: 2/6 under each config, with the same passes and the same hidden metrics S4.2's notes
     report (macro-F1 0.819, MAE 0.681, MAE 11.18, ROC-AUC 0.960).
 - **Paired differences (agent minus baseline, 95% paired bootstrap).** Multi −0.333,
   [−0.667, +0.000], 6 pairs (S4.2: 3/6 vs 2/6, +0.167 [−0.333, +0.667]). Single +0.200,
   [−0.400, +0.800], 5 pairs (S4.2: 1/6 vs 2/6, −0.167 [−0.667, +0.333]). Both include zero:
   **no advantage over the baseline is claimed.**
-- **CONTRACT stops: 7 of 12** (multi 5, single 2), against 8 of 12 at S4.2. None stopped on the
-  open-questions rule itself, and no run recorded an S4.2c assumption: every second C proposal was
-  refused on another rule, or C dropped its questions.
-- **Regression reported (trigger 7).** Multi fell from 3/6 to 0/6. After one investigation the
-  causes are only partly clear: four refusals of C's corrected proposal for an exclusion without
-  diagnostic evidence (likely C excluding the columns its kept questions name, as the no-user hint
-  describes, without a diagnostic; unconfirmable because model outputs are filtered), two bare
-  `RuntimeError`s whose message the controller redacted (cause unknown), one A decision to
-  report, and one `max_trials` stop before any submission. Nothing was changed or rerun for it.
+- **CONTRACT stops: 8 of 12** (multi 5, single 3 including the ungraded grouped run), the same
+  count as S4.2. None stopped on the open-questions rule itself, and no run recorded an S4.2c
+  assumption: every second C proposal was refused on another rule, failed, or dropped its
+  questions. C's first proposal was refused for open questions in all six multi runs and four
+  single runs.
+- **Regression reported (trigger 7).** Multi fell from 3/6 to 0/6. After one investigation:
+  - Exclusion-evidence refusals of C's corrected proposal in five runs (multi imbalance and
+    leakage; single imbalance, grouped and temporal). **Very likely, but unconfirmable because
+    model outputs are filtered:** the S4.2c no-user hint led C to exclude the columns its kept
+    questions name without a diagnostic. The validator checks exclusion evidence before open
+    questions, so the unsupported exclusion first appeared in the attempt after the hint. All
+    four multi runs whose question named a dataset column failed that attempt, both whose question
+    named none were accepted, and three of four such single runs failed.
+  - Two multi `RuntimeError`s (grouped, temporal) are the fixed `RuntimeError("Phase A task
+    failed")` of the B/C overlap path in `_research_and_decide`: C's real exception, returned by
+    `run_ready`, is discarded, and B kept running about 100 s after C failed. The cause of C's
+    second failure there is not recorded.
+  - One A decision to report (clean control), and one `max_trials` stop before any submission
+    after a C worker used part of the trial budget (tool failure).
+  Nothing was changed or rerun for it.
 - **Records committed.** Ghadi approved on 2026-11-15 one more path in D-035's existing allowlist,
   same rule, `AND` condition and `split_key` line regex, written like S4.2a's entry:
   `^results/47c387f9ad361da1dd803027380a911ab57af210/(default|single_agent)/(agent|baseline)/dev_[^/]*\.json$`,
   with matching cases in the narrow-allowlist Docker test. No other scanner change.
 - **Limitations.** Six development cases, one run each, one model; wide intervals and nothing about
-  held-out performance. One single case is ungraded. The refusal and `RuntimeError` causes are
-  inferred at rule level. Timing is for one WSL2 machine.
+  held-out performance. One single case is ungraded (a guard false positive, see above). The
+  exclusion-refusal cause is inferred, and C's failure behind the overlap wrapper is unrecorded.
+  The `s4.2f` collection stays open in code, bounded by its $2 journal cap; no further run is
+  approved. Timing is for one WSL2 machine.
 - No schema, event type, MCP tool, fit/predict interface, dependency, sandbox, firewall, policy,
   eval case, grading rule or hidden split change; the only scanner change is the approved path.
