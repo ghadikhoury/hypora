@@ -36,13 +36,16 @@ _NO_USER_HINTS = {
     **_CORRECTION_HINTS,
     "unresolved methodology questions require escalation": (
         "Remove questions the platform settles itself (see its guarantees) and record residual "
-        "risks in risks. No user is present in this run: each question you keep is recorded "
-        "as an assumption with its conservative answer, and every dataset column a kept "
-        "question names is excluded from the features. Name each column a kept question is "
+        "risks in risks. No user is present in this run: keep each question only the user "
+        "could answer in open_questions; the platform records it as an assumption with its "
+        "conservative answer and itself excludes every dataset column a kept question names. "
+        "Do not exclude a column yourself because of a question: an exclusion still needs a "
+        "diagnostic_id a tool returned for that column. Name each column a kept question is "
         "about exactly as it appears in the dataset, in backticks. "
     ),
 }
-"""The same guidance when no user can answer (S4.2c): a kept question becomes an assumption."""
+"""The same guidance when no user can answer (S4.2c): a kept question becomes an assumption,
+and C keeps it rather than excluding its columns itself (F1)."""
 
 ProposalValidator = Callable[[DataContract, dict[str, tuple[str, str]]], None]
 """Raises ValueError (with fixed platform text) when a proposal must be refused."""

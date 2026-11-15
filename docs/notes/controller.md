@@ -116,6 +116,26 @@ No schema, event type, MCP tool or fit/predict interface changed: the event reus
 and `EscalationPayload`, the evidence reference fits `RecordRef`, and the correction hint is
 platform text in `roles/methodology.py`.
 
+**Self-made exclusions for a question (F1, Ghadi option B, 2026-11-15; recorded in D-054).** In
+the S4.2f readiness rerun no assumption was ever recorded: in five runs C's corrected proposal
+was refused with "a proposed exclusion lacks matching diagnostic evidence", very likely because
+the hint ("every column a kept question names is excluded") led C to exclude those columns itself.
+Two changes, no-user runs only:
+
+- The hint now tells C to keep such a question in `open_questions` and not to exclude a column
+  itself because of it (an exclusion still needs a diagnostic for that column); the platform
+  excludes the named columns.
+- Robustness: `unsupported_exclusions` lists the exclusions the validator would refuse for
+  evidence (same rule; the user's forbidden columns are not among them). One whose column a C
+  question names, from this attempt or the previous one, is recorded as that question's platform
+  assumption: C's reason and evidence are replaced by `ASSUMPTION_REASON` and an
+  `assumption:<tag>_<n>` reference, with the same escalation event, report limitation and run note.
+  A previous-attempt question C dropped is reported only when it accounts for such an exclusion.
+  On a first attempt only the exclusion is converted (the questions stay open, so C still gets
+  the open-questions correction). An unsupported exclusion that no question names is still
+  refused, and the conversion never allows a column. Interactive runs and every other validator
+  rule are unchanged.
+
 ## Plan approval gate (S3.5, D-044; spec §10)
 
 `_Run._approve` runs for every plan version (v1, and v2 after C's feature revision: a changed
