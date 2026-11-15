@@ -76,6 +76,11 @@ UNEXPLAINED_LIMITATION: Final = (
     "The final validation score was well above the expected range ({low} to {high}, {source}), "
     "but no single column explained it; review the data for values recorded after the outcome."
 )
+UNCHECKED_LIMITATION: Final = (
+    "The final validation score was well above the expected range ({low} to {high}, {source}), "
+    "but the check of which column explains it did not complete{suspects}; review the data for "
+    "values recorded after the outcome."
+)
 
 
 def name_clues(column: str) -> list[str]:

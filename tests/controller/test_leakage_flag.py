@@ -19,6 +19,7 @@ import pytest
 from hypora.cli.trace import describe
 from hypora.core.config.flags import Toggle
 from hypora.core.config.run_config import RunConfig
+from hypora.core.controller import controller as controller_module
 from hypora.core.controller.controller import RunController, RunRequest
 from hypora.core.controller.leakage import UNKNOWN_RANGE_LIMITATION
 from hypora.core.controller.states import DONE
@@ -29,6 +30,7 @@ from hypora.core.schemas.leakage import LeakageOutcome, LeakageStep
 from hypora.evaluation.cases.dev.plant_target_leakage import LEAK, TARGET, plant
 from hypora.execution.harness.runner import FOLD_MODELS_DIR
 from hypora.execution.protocol import experiments as protocol
+from hypora.profiling.diagnostics import single_column_screen
 from hypora.storage.database import Database
 from hypora.storage.events import EventLog
 from hypora.storage.records import list_trials, run_jobs
@@ -214,6 +216,16 @@ def _assert_flagged_and_reported(
     assert "## A column may be recorded after the outcome" in markdown
     assert "If this value is known when you predict, the model with it scores" in markdown
     assert "If it is recorded after the outcome, use the model without it" in markdown
+    # The recommended model runs under a new contract version that excludes the column (plan
+    # v2, approved through the gate), so every later reader sees its real inputs.
+    assert (runs_root / run_id / "approved_plan_v2.json").is_file()
+    assert LEAK in report.excluded_features
+    final_job = next(
+        j for j in jobs if j.trial_id == comparison and j.job_id != comparison_job.job_id
+    )
+    final_request = protocol.read_request(protocol.job_dir(runs_root, run_id, final_job.job_id))
+    assert final_request.phase is protocol.ExperimentPhase.FINAL
+    assert final_request.request.contract_version == 2 and final_request.withheld_columns == []
     assert UNKNOWN_RANGE_LIMITATION not in report.limitations
     again = build_report(
         database, run_id, final_trial_id=comparison, notes=report.notes, runs_root=runs_root
@@ -234,12 +246,24 @@ async def test_a_planted_column_is_flagged_compared_and_reported(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     sandbox = scripted_sandbox.install(monkeypatch)
+    screened: list[set[int]] = []
+    real_screen = single_column_screen
+
+    def recording_screen(features: pd.DataFrame, *args: Any, **kwargs: Any) -> Any:
+        screened.append(set(features.index.tolist()))
+        return real_screen(features, *args, **kwargs)
+
+    monkeypatch.setattr(controller_module, "single_column_screen", recording_screen)
     dataset = _write(tmp_path, plant(_credit_like()), "planted.csv")
     run_id = "run_leak_planted"
     script = LeakageScript(run_id, typical=(0.6, 0.75))
     controller = make_controller(script, worker_factory=scripted_sandbox.ThreadWorker)
     result = await _run(controller, run_config, dataset, run_id)
     _assert_flagged_and_reported(result, database, runs_root, sandbox, run_id)
+    # The screen read the locked development rows only, never a test row.
+    lock = json.loads((runs_root / run_id / "partition-lock.json").read_text())
+    assert screened == [set(lock["development"])]
+    assert not screened[0] & set(lock["test"])
 
 
 async def test_a_clean_control_has_no_investigation_no_extra_trial_and_no_section(

@@ -31,7 +31,11 @@ from typing import Any, Final, Literal
 
 from pydantic import Field, model_validator
 
-from hypora.core.controller.leakage import UNEXPLAINED_LIMITATION, UNKNOWN_RANGE_LIMITATION
+from hypora.core.controller.leakage import (
+    UNCHECKED_LIMITATION,
+    UNEXPLAINED_LIMITATION,
+    UNKNOWN_RANGE_LIMITATION,
+)
 from hypora.core.llm.adapter import LLMAdapter
 from hypora.core.llm.errors import LLMError
 from hypora.core.llm.types import CallContext, Message
@@ -502,6 +506,17 @@ def _leakage_limitations(timeline: _Timeline) -> list[str]:
     p = trigger.payload
     if p.outcome is LeakageOutcome.FIRED and not decided:
         source = p.expected_source.value if p.expected_source else "unknown source"
+        unchecked = next(
+            (e for e in events if e.payload.outcome is LeakageOutcome.UNAVAILABLE), None
+        )
+        if unchecked is not None:
+            names = [c.column for c in unchecked.payload.columns]
+            suspects = f" (screened candidates: {', '.join(names)})" if names else ""
+            return [
+                UNCHECKED_LIMITATION.format(
+                    low=p.expected_low, high=p.expected_high, source=source, suspects=suspects
+                )
+            ]
         return [
             UNEXPLAINED_LIMITATION.format(low=p.expected_low, high=p.expected_high, source=source)
         ]
@@ -848,8 +863,8 @@ def _render_leakage(section: LeakageSection | None) -> list[str]:
     )
     lines += [
         "",
-        f"Recommended final model: {recommended} (trial `{section.recommended_trial_id}`). The "
-        "test split was scored once, for the recommended model only. Both models are kept.",
+        f"Recommended final model: {recommended} (trial `{section.recommended_trial_id}`). Only "
+        "the recommended model is scored on the test split, once. Both models are kept.",
         "",
     ]
     return lines

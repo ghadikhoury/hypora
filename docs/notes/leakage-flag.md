@@ -122,8 +122,19 @@ created by the controller rather than by asking C to rewrite the code: the only 
 the two models is then the column, and the step needs no extra model call. With two confirmed
 columns the second comparison leaves out both, so a model without every flagged column exists. Each
 comparison counts against the run's trial cap and every other limit; with no room left the report
-gives the flag without a second model. The verifier's allowed-features check accepts exactly the
-contract's features minus the platform-withheld ones (and still refuses anything else).
+gives the flag without a second model. During validation the comparison runs under the run's
+contract with the column withheld by the harness; the verifier's allowed-features check accepts
+exactly the contract's features minus the platform-withheld ones (and still refuses anything else).
+
+When the comparison is to be recommended, the platform first writes a new data contract version
+with the column in `excluded_features` (evidence `leakage_check:<run>`), builds the next plan
+version and sends it through the ordinary plan gate, exactly like C's feature revision: under
+`auto_within_contract` it is granted within the request's bounds, under `interactive` the user is
+asked again. The final job then runs under that contract, so the verifier, the report, the graders
+and anyone using the model see its real inputs (the column is not an allowed feature any more). If
+the user denies that plan, the candidate with the column stays the final model and the report says
+so. A column the user called legitimate is never withheld; with two confirmed columns only the ones
+the user did not call legitimate are.
 
 The comparison is skipped when the user's own goal or structured constraints say the column is
 known at prediction time: one sentence must name the column and use a phrase such as "known at
@@ -157,7 +168,17 @@ firewall is unchanged. A's estimate basis is screened like any role text before 
   then says the score was unexplained.
 - With the flag on, every validation job keeps its fold models on the worker's disk for the run.
 - The "known at prediction time" rule is deliberately narrow; a user who says it differently gets
-  the safe default and both scores.
+  the safe default and both scores. Intake's clarification answers are not read (Intake never
+  fills them today).
+- Recommending the model without the column needs one more plan approval; an interactive user is
+  asked a second (or third) time.
+- With two confirmed columns the report shows the model without both; the comparison without only
+  the first is kept and recorded in the events.
+- With the flag off, stored job records and report.json carry the new optional fields empty
+  (`withheld_columns: []`, `permutation: null`, `leakage: null`); behavior, model inputs and plan
+  hashes are unchanged.
+- If anything inside the investigation fails, the run keeps its candidate: the failure is recorded
+  as an unavailable confirmation and the report names the screened candidates.
 - The `dev_target_leakage` grading rule is unchanged (a run passes when its recommended final model
   excludes the column).
 

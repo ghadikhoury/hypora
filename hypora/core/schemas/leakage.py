@@ -132,7 +132,7 @@ class LeakageColumnScore(StrictModel):
     """One column's summary scores: its single-column screen score and, once confirmed or not,
     the mean drop in the primary metric when it was shuffled in the validation rows."""
 
-    column: NonEmptyStr = Field(max_length=256)
+    column: NonEmptyStr = Field(max_length=1024)
     screen_score: float | None = None
     screen_method: str | None = Field(None, max_length=64)
     permutation_drop: float | None = None

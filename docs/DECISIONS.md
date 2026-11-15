@@ -1280,8 +1280,13 @@ saved before them still load, replay and show in `hypora status` and `hypora tra
   `permutation` on the job request, `permutation` on the job outcome, and verifier evidence
   `withheld_columns` (the allowed-features check accepts the contract's features minus exactly the
   platform-withheld ones).
-- Flag `leakage_flag: on | off` (default on) with thresholds under `leakage_check` in
-  `configs/flags.yaml`; off reproduces the earlier behavior and schemas exactly.
+- A recommended comparison model is finalized under a new data/experiment contract version that
+  excludes the flagged column, approved through the existing plan gate (the same path as C's
+  feature revision), so the verifier, reports and graders see the model's real inputs. No grader
+  or grading rule changes.
+- Flag `leakage_flag: on | off` (default on, as the plan's full system; S4.2 may revisit) with
+  thresholds under `leakage_check` in `configs/flags.yaml`. Off reproduces the earlier behavior,
+  model inputs and plan hashes; stored records only gain the new optional fields, empty.
 - No MCP tool signature or description, fit/predict interface, dependency, eval case, grading rule,
   hidden split, `eval` profile or security-code change. The data firewall is unchanged: only column
   names and summary scores reach a model.
