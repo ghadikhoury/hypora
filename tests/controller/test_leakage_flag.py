@@ -25,7 +25,7 @@ from hypora.core.controller.leakage import UNKNOWN_RANGE_LIMITATION
 from hypora.core.controller.states import DONE
 from hypora.core.llm.providers.fake import json_result
 from hypora.core.roles.reporter import Report, build_report
-from hypora.core.schemas.events import LeakageCheckEvent
+from hypora.core.schemas.events import LeakageCheckEvent, ModelCallEvent
 from hypora.core.schemas.leakage import LeakageOutcome, LeakageStep
 from hypora.evaluation.cases.dev.plant_target_leakage import LEAK, TARGET, plant
 from hypora.execution.harness.runner import FOLD_MODELS_DIR
@@ -153,8 +153,19 @@ def _phases(runs_root: Path, database: Database, run_id: str) -> list[tuple[str,
     ]
 
 
-def _model_calls(database: Database, run_id: str) -> int:
-    return sum(e.type.value == "model_call" for e in EventLog(database).read(run_id))
+def _model_calls(database: Database, run_id: str) -> dict[tuple[str, str | None], int]:
+    """Model calls per (role, prompt), without C's experiment-loop turns: how often C polls a
+    running job depends on the job's timing (D-049), not on this step."""
+    counts: dict[tuple[str, str | None], int] = {}
+    for event in EventLog(database).read(run_id):
+        if not isinstance(event, ModelCallEvent):
+            continue
+        prompt = event.payload.prompt_ref
+        if event.actor_role.value == "agent_c" and prompt and prompt.startswith("agent_c@"):
+            continue
+        key = (event.actor_role.value, prompt)
+        counts[key] = counts.get(key, 0) + 1
+    return counts
 
 
 def _assert_flagged_and_reported(
