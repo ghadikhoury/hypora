@@ -35,7 +35,7 @@ Two model **profiles** live in `configs/models.yaml`:
 | Profile | Primary | Fallback | Used for |
 |---|---|---|---|
 | `dev` | Gemini (free tier) for all tiers (`lead`, `worker`, `cheap`): `gemini-3.5-flash-lite` (D-007) | OpenAI (same tier mapping as `eval`) on rate-limit (429), quota, or 5xx after bounded retries; **kept disabled for S2.6** (D-033) | All development, debugging, unrecorded test runs |
-| `eval` | **Pinned exact model IDs** per tier, fixed temperature (or "not configurable"); temporarily `openai/gpt-6-luna` on every tier at S2.6 (D-033); reselect by D-007 at S4.2 after Stage 3 data planning | **None — fallback disabled** | Every **recorded** evaluation: the first recorded dev eval (S2.6), all Stage 4–5 recorded runs, and the demo |
+| `eval` | **Pinned exact model IDs** per tier, fixed temperature (or "not configurable"); `openai/gpt-6-luna` on every tier, temperature not configurable: temporary at S2.6 (D-033), pinned at S4.2 (D-051) | **None — fallback disabled** | Every **recorded** evaluation: the first recorded dev eval (S2.6), all Stage 4–5 recorded runs, and the demo |
 
 Rules:
 - Every model call records provider, model ID, profile, and whether a fallback occurred (event log, spec §15.1).
@@ -43,7 +43,7 @@ Rules:
 - **Stage gates (D-016, D-029):** S1.7 ran its smoke tasks on `dev`; matching `eval` evidence is added at S2.6 after the eval model is pinned. S2.6 runs the dev case set on **both** profiles and commits both result sets, catching profile-specific behavior differences. S4.2 commits the single new readiness `eval` result set; `dev` stays free for debugging.
 - **Live runs (D-029):** scripted models by default; see `AGENTS.md`, "Live runs".
 - Changing the `eval` profile after S2.6 invalidates recorded results; it requires `🧑 HUMAN · DECIDE` and a re-run of affected evals.
-- **Model selection (D-007):** S2.6 temporarily locks `eval` to Luna under D-033; repeat selection at S4.2 after Stage 3 data planning using measured cost per passed trap (`docs/DECISIONS.md` D-007).
+- **Model selection (D-007):** S2.6 temporarily locked `eval` to Luna under D-033. S4.2 revisited the selection on existing evidence, found no other candidate with eligibility or cost evidence, and pinned Luna without a paid comparison (D-051).
 - The two providers also serve as the "two models" required for the F5 MCP evaluation (S5.3).
 
 ---
@@ -81,7 +81,7 @@ Completed and merged (each step's full text is in `docs/archive/PLAN-completed-s
 | 1 — Walking skeleton | S1.1 (#7), S1.2 (#8), S1.3 (#14), S1.4 (#15), S1.5 (#16), S1.6 (#17), S1.7 (#21) |
 | 2 — Evaluation harness | S2.0 (#24), S2.0b (#25), S2.1 (#23), S2.2 (#26), S2.3 (#27), S2.4 (#28), S2.5 (#29), S2.6 (#32) |
 | 3 — A/B/C workflow | S3.1 (#35), S3.2 (#36), S3.3 (#37), S3.4 (#40), S3.5 (#41) |
-| 4 — Integrated product | S4.1 (#42) |
+| 4 — Integrated product | S4.1 (#42), S4.1b (#50) |
 
 The S2.6 recorded development results are agent 3/6 versus fixed baseline 2/6 on each profile,
 inconclusive. Those S2.6 failures (leakage, group and time order) informed Stage 3; S4.2
@@ -103,94 +103,6 @@ Later: additional families, elaborate retrieval, durability, web UI and optional
   decision (spec §5.4); it says nothing about how many coding agents work on this repository.
 
 ## Stage 4 — Make the integrated product ready
-
-### S4.1b — Investigate a too-good score and report both models (D-046)
-**PR:** `s4.1b-leakage-flag` · `→ SERIAL` · Depends on S4.1 · **Spec:** §§7.1–7.3, 8.6–8.7, 15.1, 19.4
-`🔍 REVIEW FOCUS` — Rare by design; no test-split access; no silent drop and no silent use of a
-flagged column.
-
-**Why.** The live run `run_07fa7fdc10f5` on the planted-leakage credit-g file kept the planted
-post-outcome column `collections_referrals_12m` (test ROC-AUC 0.97 against 0.756 on the same rows
-without it) and never told the user. An agent cannot know for certain that a column is recorded
-after the outcome, and silently dropping a strong column hurts honest datasets. Hypora therefore
-notices when a result is too good *for this kind of problem*, finds the column responsible, trains
-one comparison model without it and lets the user decide.
-
-**Rare by design.** On a normal run nothing in this step is visible and it adds no model call, no
-trial and no report section; the run continues exactly as before. A fixed score cutoff ("above 0.95")
-is never used: what is too good depends on the dataset and the problem (0.97 is suspicious for
-credit risk and ordinary for some sensor tasks).
-
-It fits into the existing graph, with no new stage or role:
-
-1. **Ballpark during planning (no extra model call).** When B researches the task, its strategy
-   report also gives the typical score range for similar problems, with its cited source, as part
-   of the existing research step. When A writes the plan it records an expected range for the
-   primary metric (low and high) and where that came from: B's cited range, or when research did
-   not run or found nothing, A's own estimate from the task type and the profile, labelled as an
-   estimate. If no credible range exists, A records "unknown" rather than inventing one. Reuse an
-   existing plan or research-report field if one fits; a new field needs approval first (step 7).
-2. **Trigger check after the final candidate is chosen (platform code).** In A's existing lead
-   decision (§8.7), the platform compares the final candidate's mean validation score with the
-   recorded range. Only when the score is clearly above the high end, by more than the fold-to-fold
-   noise plus a config-defined margin, does the investigation below start. Otherwise the step ends
-   here. When the range is "unknown" there is nothing to compare with, so there is no investigation;
-   the report's limitations say in one line that no expected range was available for this check.
-3. **Find the column responsible (platform code, seconds, no LLM call).** Two cheap checks, run only
-   once the investigation has started:
-   - **Single-column screen, no training.** On the training split only, score every allowed feature
-     alone against the target. A number column with a classification target gets the rank ROC-AUC
-     of its raw values, direction-free (max(AUC, 1−AUC)), one-vs-rest averaged for multiclass. A
-     category column (missing values count as their own category, since missingness can leak) gets
-     out-of-fold target rates: rates computed on one part of the training rows and scored on the
-     other, so an ID-like column with a different value in every row scores near chance, not perfect.
-     For a regression target, use absolute Spearman correlation, with out-of-fold category means. Use
-     a stratified sample capped at a config value (starting at 50,000 rows) so large data stays fast.
-     The up-to-three columns whose scores stand far above the rest of this dataset's columns are the
-     candidates. Reuse or extend `hypora/profiling/diagnostics.py`: `feature_predictiveness`
-     already scores one column on caller-supplied training rows.
-   - **Permutation check, no retraining.** For the already-fitted final candidate only: shuffle one
-     candidate column in its validation rows, predict again with the same model and rescore,
-     repeated a few times. A column is confirmed when shuffling it removes most of the gain over the
-     baseline and its drop clearly exceeds every other candidate's drop and the fold noise.
-   Thresholds are config values, calibrated on dev cases and recorded in the design note.
-4. **Context, never a trigger alone.** C and A add name or description clues that a value is
-   recorded after the outcome ("after", "12m", "status", "outcome", "refund", "collections",
-   "closed") and B's cited range. These go into the explanation; they neither flag nor clear a column.
-5. **One comparison model.** For each confirmed column (two at most), C submits one extra trial
-   through the existing trial path: the final candidate's same family and settings, without that
-   column. It counts against the run's normal limits. When the budget is exhausted, report the
-   flag without the second model. Skip the comparison when the user already said, in the goal or a
-   clarification, that the column is known at prediction time.
-6. **Report.** A's report gains a section only when a column was confirmed. It names the column, the
-   expected range and its source, the column's screen score against the next-best column, the drop
-   when it was shuffled, the clues from step 4, and both models' validation scores, for example: "If
-   this value is known when you predict, the model with it scores X. If it is recorded after the
-   outcome, use the model without it: Y." Both artifacts are kept. The recommended final model is
-   the one without the column (the safe default), unless the user said the column is legitimate.
-   The test-split rule is unchanged: the test split is scored once, for the recommended final model
-   only, and the comparison is shown on validation scores, labelled as such.
-7. **Wiring.** Add a flag `leakage_flag: on | off` to `configs/flags.yaml` (spec §19.4); `off` keeps
-   today's behavior so the evaluation can compare both. The trigger check, each screen and
-   confirmation, the extra trial and the report decision each emit an event (§15.1). Only column names
-   and summary scores reach any model, never rows (the data firewall is unchanged). A new plan,
-   research-report or report field, event type or tool parameter is a frozen-contract change: stop and
-   ask (trigger 1) before adding it, and reuse existing fields where they fit.
-
-**Not in scope:** changing the `dev_target_leakage` grading rule (trigger 4; under the current rule
-a run whose recommended final model excludes the column already passes), dropping any column
-without telling the user, retraining once per column, or running the investigation on every run.
-
-**Done when:**
-- Unit tests cover the trigger check (above range, inside range, unknown range), the screen on
-  number, category, missing-value and regression columns, an ID-like column that is not flagged,
-  the absence of any test-split read, and permutation reusing the fitted model without refitting.
-- Scripted runs show the planted credit-g file triggering, flagging `collections_referrals_12m` and
-  reporting both models. The original credit-g file (the control) shows no investigation, no extra
-  trial, no extra model call and no new report section.
-- With the flag `off`, behavior is unchanged.
-- The design note `docs/notes/leakage-flag.md` records the calibrated thresholds and their reasons.
-- One live check of each of the two files on the free dev profile is enough.
 
 ### S4.2 — Recorded readiness and configuration lock
 **PR:** `s4.2-readiness` · `→ SERIAL` · Depends on S4.1b · **Spec:** §§17, 19.5

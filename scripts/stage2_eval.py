@@ -70,10 +70,17 @@ class SpendSnapshot:
 class SpendLedger:
     """Append-only, cross-process locked, fsync'ed reservations; malformed history fails closed."""
 
-    def __init__(self, path: Path = LEDGER, cap_usd: float = CAP_USD) -> None:
+    def __init__(
+        self, path: Path = LEDGER, cap_usd: float = CAP_USD, audit: Path | None = None
+    ) -> None:
         if not math.isfinite(cap_usd) or cap_usd <= 0:
             raise SpendError("invalid aggregate cap")
-        self.path, self.cap_usd = path, cap_usd
+        self.path, self.cap_usd, self._audit = path, cap_usd, audit
+
+    @property
+    def audit(self) -> Path:
+        """The public accounting audit; S2.6's by default, another collection names its own."""
+        return self._audit or ROOT / "results" / "stage2" / "paid-accounting.json"
 
     @contextmanager
     def _locked(self) -> Iterator[Any]:
@@ -266,7 +273,7 @@ class SpendLedger:
         """Save a public accounting audit containing IDs/costs only, never model input/output."""
         check_published_history(self)
         state = self.snapshot()
-        path = ROOT / "results" / "stage2" / "paid-accounting.json"
+        path = self.audit
         path.parent.mkdir(parents=True, exist_ok=True)
         data = {
             "cap_usd": self.cap_usd,
@@ -570,7 +577,7 @@ def collection_lock() -> Iterator[None]:
 
 def check_published_history(ledger: SpendLedger) -> None:
     """A new clone or missing journal cannot reset already-published paid exposure."""
-    audit = ROOT / "results" / "stage2" / "paid-accounting.json"
+    audit = ledger.audit
     if not audit.exists():
         return
     if not ledger.path.exists():

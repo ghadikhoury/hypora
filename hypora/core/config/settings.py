@@ -54,7 +54,7 @@ class ConfigError(ValueError):
 
 
 class BudgetsConfig(FrozenModel):
-    """`configs/budgets.yaml`: defaults until S4.2 (`🧑 DECIDE`) sets the real ones."""
+    """`configs/budgets.yaml`: the default run and job limits, locked at S4.2 (D-051)."""
 
     run: Budget
     job_limits: JobLimits

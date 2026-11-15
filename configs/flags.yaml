@@ -16,7 +16,8 @@ flags:
   parallel_mode: "on"          # on | off
   phase_a_mode: parallel       # parallel = A may justify B/C overlap; research_first = never (§5.4)
   approval_policy: interactive # interactive | auto_within_contract
-  # Parallelism limits (spec §9.5); provisional until S4.2 (DECIDE).
+  # Parallelism limits (spec §9.5); locked at S4.2 (D-051, docs/notes/readiness.md). No live run
+  # has started a C worker yet; max_c_workers keeps the D-042 ceiling.
   max_research_workers: 4      # inactive legacy name
   max_diagnostic_workers: 4    # inactive legacy name
   max_parallel_trials: 3       # inactive legacy name
