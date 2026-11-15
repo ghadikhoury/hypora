@@ -82,18 +82,19 @@ no prior attempts replaced. Every model call was `openai/gpt-6-luna` on the `eva
 
 `summary.md`, `summary.json` and `regressions.json` are under
 `results/1fa719d43a9f7262587ac8c7441f6179cf4abae6/{default,single_agent}/`. These are derived
-from the 24 per-case records, which are not committed yet.
+from the 24 per-case records, committed beside them under
+`{default,single_agent}/{agent,baseline}/dev_*.json` (S4.2a).
 
-**Per-case records held back (open for Ghadi).** gitleaks' generic-api-key rule flags the
+**Per-case records (committed at S4.2a, D-052).** gitleaks' generic-api-key rule flags the
 `split_key` line in 20 of the 24 records. Each of these lines is a deterministic 32-hex split
 identifier, the same false-positive class as D-035. All 12 values are identical to the ones
-already committed at S2.6 under D-035's exception. That exception is scoped to the S2.6 result
-paths, and widening it is a change to the scanner configuration, which this step may not make.
-The records are preserved byte-for-byte, outside git, in the readiness clone and in
-`~/hypora-readiness-records-1fa719d.tar.gz` on the collection machine. If Ghadi approves
-extending D-035 to `results/1fa719d43a9f7262587ac8c7441f6179cf4abae6/(default|single_agent)/(agent|baseline)/dev_*.json`
-(same rule, same `split_key` line regex), a follow-up commit adds the exception and the records
-unchanged. The tables below are read from those records.
+already committed at S2.6 under D-035's exception. S4.2 held the records back because that
+exception was scoped to the S2.6 result paths. Ghadi approved extending it (D-052), and S4.2a
+added `results/1fa719d43a9f7262587ac8c7441f6179cf4abae6/(default|single_agent)/(agent|baseline)/dev_*.json`
+to the same rule and `split_key` line regex in `.gitleaks.toml`, with no other scanner change. The
+records were committed byte-identical to `~/hypora-readiness-records-1fa719d.tar.gz` (SHA-256
+`5d694b1ffc0a67731315985742f01ae1c2cccbf15fc340ea5422db3cbd0fd76b`, checked before extraction);
+the summaries already committed match the tarball. The tables below are read from those records.
 
 | Case | Multi agent | Single agent | Baseline |
 |---|---|---|---|
