@@ -142,3 +142,12 @@ Residual risks (not fixed here):
   harmless.
 - The evaluation guard on hidden rows (`hypora/evaluation/runner/guard.py`) keeps its own
   tokenizer. Changing it is grading/hidden-split work (trigger 4), so it was left as it is.
+  One later change, approved by Ghadi for this alone (option B, 2026-11-15; recorded in D-054):
+  a hidden-only cell value that is a number now matches a record only where it stands as its own
+  number, not inside a longer digit/decimal run. S4.2f refused a record because the run's cost
+  (`max_usd 0.0123456/0.6`-shaped) began with a hidden `NHR` value. A full stop after the number,
+  a sign before it, a range (`12345678..9`) and zeros that keep its value (`0.0123450`,
+  `012345678`) still match. "Number" is decided from the value's text, because the value set
+  carries no column type, so a digit-only text cell (an ID like `00123456`) follows the same
+  rule. Non-numeric values still match as plain substrings, exactly as before. Each side of a
+  match stops at the first character that decides, so long digit runs stay linear.

@@ -258,13 +258,84 @@ def _holds_row(
     return False
 
 
-def _holds_any(text: str, values: frozenset[str], lengths: Iterable[int]) -> bool:
-    """A set lookup per window and length: fast with many values, unlike one large regex."""
-    return any(
-        text[start : start + length] in values
-        for length in lengths
-        for start in range(len(text) - length + 1)
+_NUMERIC_VALUE = re.compile(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[-+]?\d+)?", re.I | re.ASCII)
+_DIGITS: Final = frozenset("0123456789")
+
+
+def _char(text: str, index: int) -> str:
+    return text[index] if 0 <= index < len(text) else ""
+
+
+def _right_keeps_value(text: str, end: int, value: str) -> bool:
+    """Whether what follows a match leaves its number unchanged: no more digits or decimals.
+
+    Trailing zeros after a decimal point keep the value (not after an exponent). A point is
+    a decimal point only when a digit follows it and no point precedes it, so a full stop or
+    a range (`12345678..9`) ends the number.
+    """
+    index = end
+    if "e" not in value.casefold():
+        if "." not in value and _char(text, index) == "." and _char(text, index + 1) != ".":
+            index += 1  # 12345678.0 is still 12345678
+        if "." in value or index > end:
+            while _char(text, index) == "0":
+                index += 1
+    after = _char(text, index)
+    if after in _DIGITS:
+        return False
+    return not (
+        after == "." and _char(text, index - 1) != "." and _char(text, index + 1) in _DIGITS
     )
+
+
+def _left_keeps_value(text: str, start: int, value: str) -> bool:
+    """Whether what precedes a match leaves its number unchanged: leading zeros at most.
+
+    A signed value is not checked: its sign already starts the number. A point before the
+    match makes it a decimal part when a digit precedes that point and no second point does
+    (`1..12345678` is a range); a point before leading zeros (`.012345678`) always does.
+    """
+    if value[0] in "+-":
+        return True
+    index = start - 1
+    while _char(text, index) == "0":
+        index -= 1
+    before = _char(text, index)
+    if before in _DIGITS:
+        return False
+    if before != ".":
+        return True
+    return index == start - 1 and _char(text, index - 1) not in _DIGITS
+
+
+def _is_same_number(text: str, start: int, value: str) -> bool:
+    """Whether a numeric value found at `start` stands as its own number in the text.
+
+    A match inside a longer digit/decimal run is a different number (a run's cost
+    `0.0123456` is not a hidden `0.012345`), so it does not count. Zeros that keep the
+    value (leading zeros, trailing zeros after its decimal point) still count. Each side
+    stops at the first character that decides, and the left side's zero scan runs only
+    after the right side passed, so a long run of digits stays linear.
+    """
+    return _right_keeps_value(text, start + len(value), value) and _left_keeps_value(
+        text, start, value
+    )
+
+
+def _holds_any(
+    text: str, values: frozenset[str], lengths: Iterable[int], numeric: frozenset[str]
+) -> bool:
+    """A set lookup per window and length: fast with many values, unlike one large regex.
+
+    Values in `numeric` must also stand as their own number (`_is_same_number`); every
+    other value matches as a plain substring.
+    """
+    for length in lengths:
+        for start in range(len(text) - length + 1):
+            window = text[start : start + length]
+            if window in values and (window not in numeric or _is_same_number(text, start, window)):
+                return True
+    return False
 
 
 @dataclass(frozen=True)
@@ -291,6 +362,7 @@ class RecordGuard:
         """
         forbidden = (*self.forbidden_paths, HIDDEN_FEATURES_FILE, HIDDEN_LABELS_FILE)
         lengths = sorted({len(value) for value in hidden_values})
+        numeric = frozenset(v for v in hidden_values if _NUMERIC_VALUE.fullmatch(v))
         for text in _strings(document):
             if any(path in text for path in forbidden):
                 raise RecordLeakError("the record names the hidden store or its files")
@@ -300,7 +372,7 @@ class RecordGuard:
             else document
         )
         for text in _strings(derived):
-            if lengths and _holds_any(text, hidden_values, lengths):
+            if lengths and _holds_any(text, hidden_values, lengths, numeric):
                 raise RecordLeakError("the record holds a value found only in the hidden rows")
         widths = tuple({len(row) for row in hidden_rows.tokens})
         fields = frozenset().union(*hidden_rows.field_sets)
