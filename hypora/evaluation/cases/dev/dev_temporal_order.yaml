@@ -18,6 +18,9 @@ permitted_tools:
   - get_experiment_status
   - get_experiment_metrics
   - get_experiment_logs
+  - search_model_catalog
+  - get_model_evidence
+  - retrieve_methodology
 budget: &budget
   max_usd: 0.6
   max_compute_seconds: 600
