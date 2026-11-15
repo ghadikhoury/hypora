@@ -1,9 +1,10 @@
 # Model profiles (PLAN.md §1, spec §17), self-imposed rate limits, and the retry policy (S0.5).
 #   - dev: Gemini free tier on the dedicated "Hypora" Google project (D-007). Flash-Lite is the
 #     smallest tier: dev results on it answer "does the system work", not "how good is Hypora".
-#   - eval: temporary Stage 2 lock to gpt-6-luna, owner-approved D-033. Structural trap
-#     failures remain failures; reselect by D-007 after Stage 3 data planning exists.
-#     Changing eval after S2.6 invalidates recorded results.
+#   - eval: gpt-6-luna on every tier, temperature not configurable, no fallback. Pinned at S4.2
+#     (D-051), resolving D-033's temporary Stage 2 lock. OpenAI exposes no dated gpt-6-luna
+#     snapshot, so records keep the exact provider model ID, the served model ID and the run
+#     date. Changing eval invalidates recorded results and needs the owner's approval.
 # Select a profile with HYPORA_MODEL_PROFILE=dev|eval (default: dev).
 # Gemini 3 temperature: Google strongly recommends the default 1.0 (lower values may cause looping).
 models:
@@ -18,7 +19,7 @@ models:
       # must be `tiers_from: eval` with triggers from [rate_limit, quota, server_error].
       enabled: false
   eval:
-    description: Temporary Stage 2 eval lock, gpt-6-luna (D-033); no fallback; reselect after Stage 3.
+    description: Pinned eval model, gpt-6-luna on every tier (D-051, resolving D-033); no fallback.
     tiers:
       lead:   {provider: openai, model_id: gpt-6-luna, temperature: not_configurable}
       worker: {provider: openai, model_id: gpt-6-luna, temperature: not_configurable}

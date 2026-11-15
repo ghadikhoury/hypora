@@ -1,4 +1,5 @@
-# Default budgets (spec §6.8, §12). Provisional until S4.2 (DECIDE).
+# Default budgets (spec §6.8, §12). Locked at S4.2 (D-051): each is at least ~1.5x the largest use
+# measured in the 2026-11-14/15 live A/B/C runs (docs/notes/readiness.md). Eval cases set their own.
 # Note PLAN.md §0.3 trigger 6: a single run must not spend more than $5 without asking.
 budgets:
   run:

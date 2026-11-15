@@ -98,7 +98,7 @@ class LeakageCheckConfig(FrozenModel):
 class FeatureFlags(FrozenModel):
     """All comparison switches (spec §19.4) plus the parallelism limits of spec §9.5.
 
-    Defaults are the full system. Worker-count limits are provisional until S4.2 (`🧑 DECIDE`).
+    Defaults are the full system. Worker-count limits were locked at S4.2 (D-051).
     """
 
     agent_mode: AgentMode = AgentMode.MULTI

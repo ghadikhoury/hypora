@@ -1,0 +1,194 @@
+{
+  "budgets": {
+    "job_limits": {
+      "cpu_threads": 2,
+      "gpu": false,
+      "max_memory_gb": 4.0,
+      "max_wall_seconds": 1800
+    },
+    "run": {
+      "max_compute_seconds": 3600.0,
+      "max_llm_tokens": 1000000,
+      "max_steps": 200,
+      "max_trials": 12,
+      "max_usd": 2.0,
+      "max_wall_clock_seconds": 7200.0
+    }
+  },
+  "configs": {
+    "default": {
+      "flags": {
+        "agent_mode": "multi",
+        "approval_policy": "auto_within_contract",
+        "breadth_mode": "adaptive",
+        "defenses": {
+          "allowlist": true,
+          "approval": true,
+          "firewall": true,
+          "injection_filter": true,
+          "sandbox_network": true
+        },
+        "durable_mode": "on",
+        "leakage_check": {
+          "confirm_fraction": 0.5,
+          "dominance_ratio": 2.0,
+          "max_candidates": 3,
+          "max_confirmed": 2,
+          "permutation_max_rows": 10000,
+          "permutation_repeats": 3,
+          "relative_margin": 0.35,
+          "score_margin": 0.08,
+          "screen_folds": 5,
+          "screen_gap_ratio": 1.5,
+          "screen_max_rows": 50000,
+          "screen_min_excess": 0.1
+        },
+        "leakage_flag": "on",
+        "max_c_workers": 2,
+        "max_diagnostic_workers": 4,
+        "max_parallel_trials": 3,
+        "max_research_workers": 4,
+        "parallel_mode": "on",
+        "phase_a_mode": "parallel",
+        "planning": "on",
+        "retrieval_mode": "hybrid"
+      },
+      "model_profile": "eval"
+    },
+    "single_agent": {
+      "flags": {
+        "agent_mode": "single",
+        "approval_policy": "auto_within_contract",
+        "breadth_mode": "adaptive",
+        "defenses": {
+          "allowlist": true,
+          "approval": true,
+          "firewall": true,
+          "injection_filter": true,
+          "sandbox_network": true
+        },
+        "durable_mode": "on",
+        "leakage_check": {
+          "confirm_fraction": 0.5,
+          "dominance_ratio": 2.0,
+          "max_candidates": 3,
+          "max_confirmed": 2,
+          "permutation_max_rows": 10000,
+          "permutation_repeats": 3,
+          "relative_margin": 0.35,
+          "score_margin": 0.08,
+          "screen_folds": 5,
+          "screen_gap_ratio": 1.5,
+          "screen_max_rows": 50000,
+          "screen_min_excess": 0.1
+        },
+        "leakage_flag": "on",
+        "max_c_workers": 2,
+        "max_diagnostic_workers": 4,
+        "max_parallel_trials": 3,
+        "max_research_workers": 4,
+        "parallel_mode": "on",
+        "phase_a_mode": "parallel",
+        "planning": "on",
+        "retrieval_mode": "hybrid"
+      },
+      "model_profile": "eval"
+    }
+  },
+  "decision": "D-051",
+  "eval_profile": {
+    "description": "Pinned eval model, gpt-6-luna on every tier (D-051, resolving D-033); no fallback.",
+    "fallback": {
+      "enabled": false,
+      "tiers_from": null,
+      "triggers": []
+    },
+    "tiers": {
+      "cheap": {
+        "model_id": "gpt-6-luna",
+        "provider": "openai",
+        "temperature": "not_configurable"
+      },
+      "lead": {
+        "model_id": "gpt-6-luna",
+        "provider": "openai",
+        "temperature": "not_configurable"
+      },
+      "worker": {
+        "model_id": "gpt-6-luna",
+        "provider": "openai",
+        "temperature": "not_configurable"
+      }
+    }
+  },
+  "prompts": {
+    "agent_a_decide": {
+      "sha256": "2ca2abe6d16b3171cde93f8d6bc2ddba51984bcad44866b8db44860a148dbe55",
+      "version": 4
+    },
+    "agent_a_intake": {
+      "sha256": "7c030aac729f5b1b8717cd1d10506308e20c192001dddaa470c12ea8100d698b",
+      "version": 1
+    },
+    "agent_a_report": {
+      "sha256": "ac86262900ea1217961567fedc4bfc9d64e79515f72a17c0c45477d86ef56ba5",
+      "version": 2
+    },
+    "agent_b": {
+      "sha256": "543fa1ed29859af2cfa3c6ee0395efa7de56a2ee3314e823585571580dbf4769",
+      "version": 2
+    },
+    "agent_c": {
+      "sha256": "ab83210fff32017c629d2fa5ea6c3abc44196e40596627cdac8df82175e6d45e",
+      "version": 5
+    },
+    "agent_c_methodology": {
+      "sha256": "cc6e7382f414c230adca0ba40a5a8e8d21163dd1e2b14a1b4335e54dc0e355dd",
+      "version": 3
+    },
+    "agent_c_workers": {
+      "sha256": "6cf01e249f46aa0fde219a90b6bc36a50882755c9ec8abfe28483517fa6cd8fb",
+      "version": 1
+    },
+    "c_worker": {
+      "sha256": "f7628447df79d2dc9ac5dec2b13efc45ba2f3a8880c62d26957df45fea16e678",
+      "version": 1
+    },
+    "c_worker_final": {
+      "sha256": "49cbdd1730009f8baf024ffc485803364ba365829b8dcf075e4068ce80af3267",
+      "version": 1
+    },
+    "intake": {
+      "sha256": "9e70a72cb2e361c6a99d9921d81ea460c9a1163992e0cc102148f6c06c1401c9",
+      "version": 1
+    },
+    "reporter": {
+      "sha256": "e30f85c78ac8197d2d054837c46843ffdcafc91692972cfda9f2010b1a032312",
+      "version": 1
+    },
+    "role_plan": {
+      "sha256": "9be95b14978c074284df00ed077087e182e030b0c0e9f701caae399f4e68d246",
+      "version": 1
+    },
+    "single_agent": {
+      "sha256": "bef9f1c2988ffc949123b9fb744d99023171fa4d051ec335cff5a2d96dde2c84",
+      "version": 3
+    },
+    "single_agent_context": {
+      "sha256": "629761c3d5fd864307b0295c35d5bbb091d7f3ed6396d16bd6a214ac79035c32",
+      "version": 1
+    },
+    "single_agent_final": {
+      "sha256": "d7653243cc3b0f9c204888d6aceabad93d4d62b83592cebae47984d406441031",
+      "version": 1
+    }
+  },
+  "retry": {
+    "base_delay_s": 6.0,
+    "max_delay_s": 60.0,
+    "max_retries": 3,
+    "request_timeout_s": 240.0
+  },
+  "step": "S4.2",
+  "tools_contract_sha256": "1518dfe40ff96fbe0c7eb1dc94f8df685d2c706e17355910899b58d0ccea12e9"
+}
