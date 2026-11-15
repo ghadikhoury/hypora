@@ -52,6 +52,24 @@ classification, random for regression; 20% test; 3-fold validation. Agent runs u
 evidence-backed methodology (S3.3). Leakage candidates and ID-like columns are shown to the agent
 in its context, not excluded: a candidate is not a verdict.
 
+### C's open questions on a refused proposal (S4.2b, D-052)
+
+The validator refuses a proposal that still lists `open_questions`; C gets its one correction, and
+a second refusal stops the run (unchanged). Each such refusal now writes an `error` event with code
+`OPEN_QUESTIONS_REFUSED` (component `methodology_validator`; `retryable` true when C still has its
+correction). Its `details` hold `proposal` (`initial` or `reconcile`), `attempt`, the questions
+that passed the screen verbatim in `open_questions`, and `open_questions_withheld`, a count.
+
+The screen is the existing role-text boundary (`_validate_assignment` without its instruction
+rule): configured secrets and credential shapes, code, platform record identifiers, and any line the
+data firewall withholds as dataset values. A question that fails, or that cannot be screened, is
+stored only in the count. Nothing new reaches A or the user: the questions are not added to the run
+notes (A reads those at final review and in the narrative), and `hypora run` prints only the fixed
+message. The eval runner reads the events after the run and adds one note per refusal to the case
+record's `outputs.notes`. The component is deliberately not `controller`, so the graders' safe-stop
+and fault evidence (`outcome_evidence.py`) read the run exactly as before. No schema, event type or tool changed: `ErrorCode` is a pattern and
+`details` a free JSON object.
+
 ## Plan approval gate (S3.5, D-044; spec §10)
 
 `_Run._approve` runs for every plan version (v1, and v2 after C's feature revision: a changed

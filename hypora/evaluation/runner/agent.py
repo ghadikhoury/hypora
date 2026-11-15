@@ -37,6 +37,7 @@ from hypora.core.controller.controller import (
     RunResult,
 )
 from hypora.core.controller.local import WorkerFactory, WorkerProcess
+from hypora.core.controller.methodology import open_question_notes
 from hypora.core.controller.states import DONE
 from hypora.core.llm import LLMAdapter, ProviderAdmission
 from hypora.core.llm.sinks import FileModelIOStore
@@ -75,7 +76,7 @@ from hypora.evaluation.system import (
 from hypora.execution.protocol import experiments as protocol
 from hypora.storage.artifacts import ArtifactStore
 from hypora.storage.database import Database
-from hypora.storage.events import EventLog
+from hypora.storage.events import EventFilters, EventLog
 from hypora.storage.migrate import migrate
 from hypora.storage.records import (
     list_trials,
@@ -488,6 +489,10 @@ class AgentSystem:
         else:
             decision = planned_decision(result.report_json)
         notes += result.notes
+        # Read from the log after the run, so these notes reach no role (S4.2b).
+        notes += open_question_notes(
+            EventLog(database).read(context.run_id, EventFilters(types=(EventType.ERROR,)))
+        )
         if channels:
             notes += channels[-1].fault_notes()
         elif context.injected_faults:  # the run stopped before the agent had a tool channel
