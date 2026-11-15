@@ -1293,3 +1293,52 @@ saved before them still load, replay and show in `hypora status` and `hypora tra
 - No MCP tool signature or description, fit/predict interface, dependency, eval case, grading rule,
   hidden split, `eval` profile or security-code change. The data firewall is unchanged: only column
   names and summary scores reach a model.
+
+## D-051 — S4.2: pin the eval model, lock limits and prompts, readiness collection (2026-11-15)
+
+Ghadi decided the S4.2 `🧑 HUMAN · DECIDE` items in advance on 2026-11-15 (model, budget, worker
+limits, run and process). That covers trigger 5 for exactly the model pin below. The evidence, the
+estimate, observed usage and the results are in `docs/notes/readiness.md`.
+
+- **Model (resolves D-033's temporary lock).** `eval` stays `openai/gpt-6-luna` on every tier
+  (`lead`, `worker`, `cheap`), temperature `not_configurable`, fallback disabled. It is now pinned,
+  not temporary. OpenAI exposes no dated `gpt-6-luna` snapshot (the key lists only `gpt-6-luna` and
+  `gpt-5.6-luna`), so records keep the provider model ID, the served model ID of every call and the
+  run date. No model ID or parameter changed; only descriptions did.
+- **D-007 is not settled by existing evidence; this is a stated limitation.** D-007 compares
+  eligible candidates (those passing both the leakage and grouped traps) by cost per passed trap.
+  At S2.6, Flash-Lite and Luna both failed both traps under the Stage 1 contract. No billed Gemini
+  Flash or other mini model was ever measured. In the readiness run below, Luna passed neither
+  trap either. Ghadi ruled out a paid comparison, so Luna is kept and the gap is reported.
+- **Worker and run limits are locked unchanged.** `max_c_workers: 2` (D-042) is kept. No live run,
+  including the 12 readiness runs, has started a C worker, so 1.5x of measured use gives no
+  ceiling. Whether to keep 2 or disable workers is open for Ghadi. The `configs/budgets.yaml`
+  defaults are kept: each is at least about 1.5x the largest use measured in the 14 live A/B/C runs
+  of 2026-11-14/15 that reached training. The inactive legacy worker names stay inactive. Nothing
+  is loosened, and eval cases keep their own merged budgets.
+- **Prompts and configuration are locked** in `results/readiness/lock.json`: eval models, retry
+  policy, both eval configs' flags (`leakage_flag: on`, as merged), budgets, every runtime prompt's
+  version and SHA-256, and the tool contract hash. A unit test fails when a locked input changes
+  without the lock being regenerated. Such a change means the readiness results no longer describe
+  the code.
+- **Readiness spending.** The hard caps were $10 for the whole collection including retries and a
+  quota probe, $5 per comparison at full case budgets, and $0.60 per case run (the merged case
+  budget). Every OpenAI SDK attempt reserves $0.36 in a durable ledger before dispatch
+  (`scripts/readiness_eval.py`, reusing the S2.6 ledger). The account balance could not be read with
+  the available key, so one tiny probe call confirmed that the account had quota. Actual spend was
+  $0.1394 over 203 attempts, with no unknown reservation left.
+- **Baseline.** The S2.6 fixed-baseline records are not reused. The baseline, the harness data and
+  partition code, the graders, three case files, the model config and the tool contract have all
+  changed since S2.6. The free arm was rerun under both configs.
+- **Outcome.** Agent pass counts: multi 3/6 and single 1/6, against the fixed baseline's 2/6 under
+  each config. Both paired intervals include zero, so no advantage is claimed. In 8 of the 12 agent
+  runs, C's data contract still held open questions after its one correction, so the platform
+  stopped at CONTRACT for the user. An evaluation run has no user to answer, so those runs fail.
+  Changing that behavior is open for Ghadi and would need the affected evidence rerun.
+- **Per-case records pending a scanner decision.** gitleaks flags the deterministic `split_key`
+  line in 20 of the 24 records, the same false positive as D-035, with values identical to those
+  committed at S2.6. Widening D-035's path-scoped exception is a scanner configuration change that
+  needs Ghadi's approval. Until then the records stay preserved outside git; only the derived
+  summaries, regression reports and paid accounting are committed.
+- No schema, event type, MCP tool, fit/predict interface, dependency, sandbox, firewall, policy,
+  scanner, eval case, grading rule or hidden split change.

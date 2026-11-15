@@ -189,6 +189,8 @@ Actual spend was $0. The Luna column is the D-027 run: a Luna re-run is paid, so
   Both Luna runs hit the limit, and Gemini fish-toxicity used 994,369 of the 1,000,000 (99.4%).
   The default budgets are provisional until S4.2 (`🧑 HUMAN · DECIDE`), which should set the
   token limit with these numbers in hand and decide whether cached tokens count toward it.
+  Resolved at S4.2 (D-051, `docs/notes/readiness.md`): the 1M limit and cached-token counting are
+  kept; the A/B/C graph's largest live run used 664,263 tokens.
 - **Later measurements.** S2.6 committed both-profile results; use those records for Stage 2
   budgeting. S4.2 collects the next readiness evidence for the implemented A/B/C graph.
 

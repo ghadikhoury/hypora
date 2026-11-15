@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "commit": "1fa719d43a9f7262587ac8c7441f6179cf4abae6",
+  "config": "single_agent",
+  "status": "no_baseline",
+  "message": "No regression check: no results for config single_agent on the parent of 1fa719d43a9f or the 48 commit(s) before it. These results can be the base for the next commit.",
+  "base_commit": null,
+  "commits_back": null,
+  "newly_failing": [],
+  "recovered": [],
+  "new_cases": [],
+  "missing_cases": [],
+  "not_comparable": []
+}
