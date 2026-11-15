@@ -1342,3 +1342,45 @@ estimate, observed usage and the results are in `docs/notes/readiness.md`.
   summaries, regression reports and paid accounting are committed.
 - No schema, event type, MCP tool, fit/predict interface, dependency, sandbox, firewall, policy,
   scanner, eval case, grading rule or hidden split change.
+
+## D-052 — Approve six S4.2 follow-ups: S4.2a to S4.2f (2026-11-15)
+
+Ghadi approved exactly these six items on 2026-11-15, after the S4.2 readiness findings (D-051,
+`docs/notes/readiness.md`). The steps are in `docs/PLAN.md` Stage 4. Nothing wider is approved.
+
+- **S4.2a.** Extend D-035's gitleaks exception (same rule, same `split_key` line regex) to exactly
+  `results/1fa719d43a9f7262587ac8c7441f6179cf4abae6/(default|single_agent)/(agent|baseline)/dev_*.json`
+  and commit the 24 readiness records unchanged from the tarball, after checking its SHA-256
+  (`5d694b1ffc0a67731315985742f01ae1c2cccbf15fc340ea5422db3cbd0fd76b`). This covers trigger 3 for
+  that path only; no other scanner change.
+- **S4.2b.** When a data contract is refused because C left open questions, store each question
+  after screening it through the data firewall; a question that fails is stored only as withheld,
+  with a count. The run continues as today (no reprompt, no stop change) and nothing new reaches A.
+  The firewall is not weakened and no unscreened model text is stored. Then one or two free
+  dev-profile runs on trap cases, with the stored questions reported verbatim to the orchestrator,
+  who shows them to Ghadi.
+- **S4.2c.** In non-interactive runs, C's open questions no longer end the run: C records an
+  assumption and continues, and the report lists the assumptions. Interactive runs still stop and
+  ask the user. Ghadi: "if the questions from item 2 are not the kind we expected, tell me before
+  building this". So the orchestrator reads the S4.2b questions, and S4.2c proceeds unless they are
+  not the expected kind, in which case Ghadi decides first.
+- **S4.2d.** The user's first plan approval also covers training one comparison model in total: the
+  final candidate's family and settings without the top confirmed column, within existing limits.
+  Any other confirmed column is reported with its evidence and gets a comparison model only through
+  the existing approval path (D-050), never automatically. The report shows both models, the
+  trigger, the column and why; the recommended model is the one without the column; the winner is
+  never picked by test score; nothing else trains without approval.
+- **S4.2d replaces D-050's second approval prompt for that one comparison only;** its new contract
+  version is still written so the verifier sees the model's real inputs.
+- **S4.2e.** Allow Agent B's research tools in the six merged dev cases. This covers trigger 4 for
+  that allowance only; no other case, grader, data or hidden-split change.
+- **S4.2f.** Rerun the six-case dev evaluation once on pinned `openai/gpt-6-luna` (multi, single,
+  and the baseline only if its records are not reusable). Hard cap $2 in total, reserved before each
+  call; spending stops if a call would exceed it. No fallback, no mixed models, no reruns for a
+  better result. A new decision records hashes, cost, per-case results and limitations, and the
+  per-case records are committed. No advantage over the baseline is claimed unless the interval
+  supports it.
+- **Limits for all six.** C workers stay at most 2 (D-042). S4.3 is not started. No change to
+  `AGENTS.md` or CI workflows. A frozen-contract change a step needs (schema field, event type,
+  tool) is kept minimal and listed in its PR body and its decision or notes entry for the reviewer.
+  Anything else that hits a stop-and-ask trigger still goes to Ghadi.
