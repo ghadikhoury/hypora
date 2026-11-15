@@ -228,3 +228,46 @@ def test_stage2_split_allowlist_is_narrow(fixture_repo: Path, image: str, scenar
         assert result.returncode != 0
         assert "Secret scan passed" not in output
         assert "generic-api-key" in output or "github-pat" in output
+
+
+READINESS = "results/1fa719d43a9f7262587ac8c7441f6179cf4abae6"
+
+
+@pytest.mark.docker
+@pytest.mark.parametrize(
+    ("relative", "secret_inside", "allowed"),
+    [
+        (f"{READINESS}/default/agent/dev_target_leakage.json", False, True),
+        (f"{READINESS}/single_agent/baseline/dev_tool_failure.json", False, True),
+        (f"{READINESS}/default/pending/dev_target_leakage.json", False, False),
+        (f"{READINESS}/default/dev_target_leakage.json", False, False),
+        (f"{READINESS}/default/agent/summary.json", False, False),
+        ("results/0000000000000000000000000000000000000000/default/agent/dev_x.json", False, False),
+        (f"{READINESS}/default/agent/dev_target_leakage.json", True, False),
+    ],
+)
+def test_readiness_split_allowlist_is_narrow(
+    fixture_repo: Path, image: str, relative: str, secret_inside: bool, allowed: bool
+) -> None:
+    """D-052: only the S4.2 per-case record paths gain the split-ID exception."""
+    import hashlib
+
+    (fixture_repo / ".gitleaks.toml").write_text((ROOT / ".gitleaks.toml").read_text())
+    path = fixture_repo / relative
+    path.parent.mkdir(parents=True)
+    fake_id = hashlib.sha256(b"public readiness split fixture").hexdigest()[:32]
+    line = f'  "split_key": "{fake_id}"'
+    if secret_inside:
+        # Synthetic format fixture only; never a real credential.
+        line += ',\n  "token": "' + "ghp_" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8" + '"'
+    path.write_text("{\n" + line + "\n}\n")
+    git(fixture_repo, "add", ".")
+    git(fixture_repo, "commit", "-m", "Test readiness split allowlist")
+    result = run_scan(fixture_repo, image)
+    output = result.stdout + result.stderr
+    if allowed:
+        assert result.returncode == 0, output
+    else:
+        assert result.returncode != 0
+        assert "Secret scan passed" not in output
+        assert "generic-api-key" in output or "github-pat" in output
