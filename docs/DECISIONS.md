@@ -1384,3 +1384,69 @@ Ghadi approved exactly these six items on 2026-11-15, after the S4.2 readiness f
   `AGENTS.md` or CI workflows. A frozen-contract change a step needs (schema field, event type,
   tool) is kept minimal and listed in its PR body and its decision or notes entry for the reviewer.
   Anything else that hits a stop-and-ask trigger still goes to Ghadi.
+
+## D-053 — S4.2f: the readiness rerun, its accounting, re-lock and results (2026-11-15)
+
+S4.2f ran the six-case dev evaluation once, as D-052 approved. Details and per-run tables are in
+`docs/notes/readiness.md` ("S4.2f rerun"); this entry records what was decided and measured.
+
+- **Identity.** Commit `47c387f9ad361da1dd803027380a911ab57af210` (clean; `main` 656cc9c plus the
+  accounting change below). Model `openai/gpt-6-luna` on every `eval` tier, temperature not
+  configurable, no fallback; every call served `gpt-6-luna`. Run config hashes
+  `63286a1d7cc9bffadf1bfa7eb6a6d5a53b7fbc6edc8474fff7e13415e3d4ebd8` (`default`, multi) and
+  `8efbe27b123dda6e13bf21920609a70c25ab5b831dc7854bc13bbe34443a9d29` (`single_agent`). Tool
+  contract `1518dfe40ff96fbe0c7eb1dc94f8df685d2c706e17355910899b58d0ccea12e9`. Sandbox image
+  `hypora-sandbox-tabular:f50772e217853fa1`. Prompts (version, SHA-256 prefix):
+  `agent_a_decide@v4` 2ca2abe6d16b, `agent_a_intake@v1` 7c030aac729f, `agent_a_report@v2`
+  ac86262900ea, `agent_b@v2` 543fa1ed2985, `agent_c@v5` ab83210fff32, `agent_c_methodology@v3`
+  cc6e7382f414, `agent_c_workers@v1` 6cf01e249f46, `c_worker@v1` f7628447df79,
+  `c_worker_final@v1` 49cbdd173000, `intake@v1` 9e70a72cb2e3, `reporter@v1` e30f85c78ac8,
+  `role_plan@v1` 9be95b14978c, `single_agent@v3` bef9f1c2988f, `single_agent_context@v1`
+  629761c3d5fd, `single_agent_final@v1` d7653243cc3b (full hashes in `results/readiness/lock.json`).
+- **Re-lock.** `results/readiness/lock.json` was regenerated in the run commit (`step: S4.2f`,
+  `decision: D-053`). No locked value changed from S4.2: S4.2b–e changed controller code and case
+  files, not prompts, flags, budgets, models or the tool contract.
+- **Accounting.** A separate collection, not a continuation of S4.2's journal: fresh ignored journal
+  `runs/readiness-s4.2f/`, public audit `results/readiness/s4.2f-paid-accounting.json`, hard cap
+  $2.00. A journal's cap is fixed in its header, and S4.2's $10 history stays published unchanged;
+  the S4.2 collection is closed to new runs. The $0.36 reservation before every SDK attempt is
+  unchanged and is what enforces the $2 cap; the full-budget pre-check applies to S4.2 only,
+  because six $0.60 case budgets exceed $2.
+- **Baseline rerun.** S4.2e changed every dev case file, so the S4.2 baseline records were not
+  reusable; the free arm ran under both configs.
+- **Cost and time.** $0.1734 actual over 204 attempts (multi comparison $0.1205 / 101 attempts,
+  single $0.0529 / 103), no unknown reservation, no retry, no fallback, no rerun or resume.
+  Wall time 4,128 s (2026-11-15 19:55–21:04 UTC).
+- **Results** (agent / baseline per case):
+  - Multi: 0/6. imbalance fail (CONTRACT: exclusion without diagnostic evidence) / pass; clean
+    control fail (A reported at CONTRACT) / pass; grouped fail (CONTRACT: `RuntimeError`) / fail;
+    leakage fail (CONTRACT: exclusion evidence) / fail; temporal fail (CONTRACT: `RuntimeError`) /
+    fail; tool failure fail (`max_trials` before any submission) / fail.
+  - Single: 3/6 with 5 graded. imbalance fail (CONTRACT: exclusion evidence) / pass; clean control
+    pass (MAE 0.609) / pass; grouped harness error, ungraded (record held a value found only in the
+    hidden rows; final, six model calls made) / fail; leakage pass (ROC-AUC 0.753) / fail;
+    temporal fail (CONTRACT: exclusion evidence) / fail; tool failure pass (recovered) / fail.
+  - Baseline: 2/6 under each config, with the same passes and the same hidden metrics S4.2's notes
+    report (macro-F1 0.819, MAE 0.681, MAE 11.18, ROC-AUC 0.960).
+- **Paired differences (agent minus baseline, 95% paired bootstrap).** Multi −0.333,
+  [−0.667, +0.000], 6 pairs (S4.2: 3/6 vs 2/6, +0.167 [−0.333, +0.667]). Single +0.200,
+  [−0.400, +0.800], 5 pairs (S4.2: 1/6 vs 2/6, −0.167 [−0.667, +0.333]). Both include zero:
+  **no advantage over the baseline is claimed.**
+- **CONTRACT stops: 7 of 12** (multi 5, single 2), against 8 of 12 at S4.2. None stopped on the
+  open-questions rule itself, and no run recorded an S4.2c assumption: every second C proposal was
+  refused on another rule, or C dropped its questions.
+- **Regression reported (trigger 7).** Multi fell from 3/6 to 0/6. After one investigation the
+  causes are only partly clear: four refusals of C's corrected proposal for an exclusion without
+  diagnostic evidence (likely C excluding the columns its kept questions name, as the no-user hint
+  describes, without a diagnostic; unconfirmable because model outputs are filtered), two bare
+  `RuntimeError`s whose message the controller redacted (cause unknown), one A decision to
+  report, and one `max_trials` stop before any submission. Nothing was changed or rerun for it.
+- **Records committed.** Ghadi approved on 2026-11-15 one more path in D-035's existing allowlist,
+  same rule, `AND` condition and `split_key` line regex, written like S4.2a's entry:
+  `^results/47c387f9ad361da1dd803027380a911ab57af210/(default|single_agent)/(agent|baseline)/dev_[^/]*\.json$`,
+  with matching cases in the narrow-allowlist Docker test. No other scanner change.
+- **Limitations.** Six development cases, one run each, one model; wide intervals and nothing about
+  held-out performance. One single case is ungraded. The refusal and `RuntimeError` causes are
+  inferred at rule level. Timing is for one WSL2 machine.
+- No schema, event type, MCP tool, fit/predict interface, dependency, sandbox, firewall, policy,
+  eval case, grading rule or hidden split change; the only scanner change is the approved path.

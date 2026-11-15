@@ -7,11 +7,12 @@ useDefault = true
 id = "generic-api-key"
 
   [[rules.allowlists]]
-  description = "Deterministic public split IDs in the recorded Stage 2 results (D-035) and the S4.2 readiness records (D-052)"
+  description = "Deterministic public split IDs in the recorded Stage 2 results (D-035) and the S4.2 and S4.2f readiness records (D-052, D-053)"
   condition = "AND"
   regexTarget = "line"
   regexes = ['''^\s*"split_key":\s*"[0-9a-f]{32}"\s*,?\s*$''']
   paths = [
     '''^results/ec81155d54c78568df93e7dd6751e9e90f1316e3/single_agent(\.dev)?/(agent|baseline)/dev_(class_imbalance|clean_control|grouped_rows|target_leakage|temporal_order|tool_failure)\.json$''',
     '''^results/1fa719d43a9f7262587ac8c7441f6179cf4abae6/(default|single_agent)/(agent|baseline)/dev_[^/]*\.json$''',
+    '''^results/47c387f9ad361da1dd803027380a911ab57af210/(default|single_agent)/(agent|baseline)/dev_[^/]*\.json$''',
   ]
