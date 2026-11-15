@@ -1,4 +1,4 @@
-# Too-good score check and both models (S4.1b, D-046, D-050)
+# Too-good score check and both models (S4.1b, S4.2d; D-046, D-050, D-052)
 
 The live run `run_07fa7fdc10f5` on the planted-leakage credit-g file kept the post-outcome column
 `collections_referrals_12m` (validation ROC-AUC 0.9909, test 0.9663, against about 0.76 without it)
@@ -115,26 +115,56 @@ free of model calls; A's report narrative sees the section and may explain it.
 
 ## 4. The comparison model
 
-For each confirmed column (two at most), one comparison trial is created through the ordinary
-trial path (trial row, trial folder, job queue, worker, harness, verifier) with the final
-candidate's exact code and settings and the column removed by the platform before any stage. It is
-created by the controller rather than by asking C to rewrite the code: the only difference between
-the two models is then the column, and the step needs no extra model call. With two confirmed
-columns the second comparison leaves out both, so a model without every flagged column exists. Each
-comparison counts against the run's trial cap and every other limit; with no room left the report
-gives the flag without a second model. During validation the comparison runs under the run's
-contract with the column withheld by the harness; the verifier's allowed-features check accepts
-exactly the contract's features minus the platform-withheld ones (and still refuses anything else).
+**One comparison is covered by the plan approval (S4.2d, D-052).** The plan approval that
+authorized the final candidate also covers training one comparison model in total: the candidate's
+exact code and settings without the top confirmed column the user did not call legitimate (the one
+whose shuffling lowered the score most). The gate's request summary for every plan with a known
+range says so ("this approval also covers training one comparison model without the column that
+explains it"), so the user knows what the approval covers. The comparison trial is created through
+the ordinary trial path (trial row, trial folder, job queue, worker, harness, verifier) with the
+column removed by the platform before any stage. It is created by the controller rather than by
+asking C to rewrite the code: the only difference between the two models is then the column, and
+the step needs no extra model call. It counts against the run's trial cap and every other limit;
+with no room left the report gives the flag without a second model. During validation it runs under
+the run's contract with the column withheld by the harness; the verifier's allowed-features check
+accepts exactly the contract's features minus the platform-withheld ones (and still refuses
+anything else).
 
-When the comparison is to be recommended, the platform first writes a new data contract version
-with the column in `excluded_features` (evidence `leakage_check:<run>`), builds the next plan
-version and sends it through the ordinary plan gate, exactly like C's feature revision: under
-`auto_within_contract` it is granted within the request's bounds, under `interactive` the user is
-asked again. The final job then runs under that contract, so the verifier, the report, the graders
-and anyone using the model see its real inputs (the column is not an allowed feature any more). If
-the user denies that plan, the candidate with the column stays the final model and the report says
-so. A column the user called legitimate is never withheld; with two confirmed columns only the ones
-the user did not call legitimate are.
+When that comparison trains, the platform writes a new data contract version with the column in
+`excluded_features` (evidence `leakage_check:<run>`) and the next plan version, and records that
+plan as granted under the covering approval instead of asking again (`ApprovalGate.covered`): an
+`approval_requested` whose summary says "covered by appr_<run>_plan_v<N>", a `policy_decision`
+(`approval_state`) naming the covering approval, and an `approval_granted` with the covering
+approval's approver and policy, appended in one transaction so the plan is never pending and no
+prompt appears, in an interactive run or without a user. The gate checks the cover itself and
+records nothing otherwise: it re-reads the covering plan and scope files and their hashes, requires
+the new scope to equal the covered one apart from the data contract hash, the new data contract
+to be the covered one with exactly one allowed column moved to the excluded features, the plan's
+budget, policy, dependencies, downloads and range to be unchanged, and the run to have no earlier
+covered grant (one comparison in total). The report's approval line names the covering approval
+("covered by the earlier approval appr_<run>_plan_v<N> ... (D-052)"), so it never reads as a
+separate decision. The final job runs under that contract,
+so the verifier, the report, the graders and anyone using the model see its real inputs (the
+column is not an allowed feature any more). If the new contract cannot be applied, the candidate
+with the column stays the final model and the report says so.
+
+**Any other confirmed column needs its own approval first.** A second confirmed column is reported
+with its screen score, permutation drop and clues, and gets a comparison model only through the
+existing approval path (D-050): the plan that leaves out both columns goes through the ordinary
+plan gate *before* anything trains (under `auto_within_contract` the policy decides within the
+request's bounds, under `interactive` the user is asked). Granted, the comparison without both is
+trained the same way and, once it trains, finalized under that approved contract. Denied (recorded
+as `exclusion_denied` on the column), not applicable (`exclusion_failed`), out of room
+(`budget_exhausted`) or failed, nothing more trains, the covered comparison stays the recommended
+model under its own covered contract version, and the report says the final model still uses the
+second column and why. A denied plan keeps its version and approval ID, so the covered plan takes
+the next free version. No other training happens without approval. A column the user called
+legitimate is never withheld and gets no comparison.
+
+No frozen contract changes for S4.2d: no schema field, event type, outcome value, MCP tool or
+fit/predict change. The covered grant reuses the existing approval events, `policy_decision` and
+`ApprovalRecord`; the second column's refused approval reuses the existing `exclusion_denied` and
+`exclusion_failed` outcomes.
 
 The comparison is skipped for a column the user's own goal or structured constraints clearly call
 legitimate (`known_at_prediction`). One sentence, not a question, must name the exact column as
@@ -156,8 +186,11 @@ recommended model only; the comparison uses validation scores and says so.
 
 **Per column, the report states whether the recommended final model uses it, and why.** Each
 confirmed column carries what happened to its comparison (`trained`, `failed`, `budget_exhausted`,
-`not_attempted` because an earlier comparison did not complete, or `skipped_known_at_prediction`)
-and `in_final_model`. A column is left out of the final model only when its comparison trained and
+`not_attempted` because an earlier comparison did not complete, `skipped_known_at_prediction`, or,
+for a second column, `exclusion_denied` / `exclusion_failed` when its own approval was refused or
+could not be applied) and `in_final_model`. When a comparison was trained, the section also says
+that the plan approval covers one comparison model and any other flagged column needs its own
+approval. A column is left out of the final model only when its comparison trained and
 the plan that excludes it was approved (`exclusion: excluded`). Every other confirmed column is
 named as still used ("the recommended final model STILL USES it", and "Recommended final model:
 trial ... (it does not use `a`; it still uses `b`)"), with a plain instruction to run the task
@@ -198,15 +231,23 @@ firewall is unchanged. A's estimate basis is screened like any role text before 
 - The "known at prediction time" rule is deliberately narrow; a user who says it differently gets
   the safe default and both scores. Intake's clarification answers are not read (Intake never
   fills them today).
-- Recommending the model without the column needs one more plan approval; an interactive user is
-  asked a second (or third) time.
-- With two confirmed columns the second comparison leaves out both. If it trains, the report shows
-  the model without both; the comparison without only the first is kept and recorded in the
-  events. If it does not train (no room, or its job fails), the recommended model is the one
-  without the first column and the report names the second column as still used.
-- If the plan that excludes a column is denied, or its contract cannot be applied after approval,
-  the candidate with the column stays the final model under its own approval, and the report says
-  it still uses the column and why.
+- Since S4.2d the model without the top column is recommended under the first plan approval, with
+  no second prompt. Only a second confirmed column asks again (an interactive user is asked a
+  second time, before its comparison trains).
+- With two confirmed columns the second comparison leaves out both, and only after its own
+  approval. If it trains, the report shows the model without both; the comparison without only
+  the first is kept and recorded in the events. If it is not approved or does not train (no room,
+  or its job fails), the recommended model is the one without the first column and the report
+  names the second column as still used.
+- If the contract that excludes the column cannot be applied, the candidate with the column stays
+  the final model under its own approval, and the report says it still uses the column and why.
+- Comparison jobs run under the candidate's contract and approval, as in S4.1b. That the second
+  comparison waits for its own plan approval is enforced by the controller (the approval is
+  requested and granted before the job is queued, and the events show the order), not by the
+  worker's approval check.
+- A covered plan's grant carries the covering approval's approver (for example `user:<name>`) and
+  policy; its request summary and `policy_decision` name the covering approval, so the trace shows
+  it was not a separate decision.
 - With the flag off, stored job records and report.json carry the new optional fields empty
   (`withheld_columns: []`, `permutation: null`, `leakage: null`); behavior, model inputs and plan
   hashes are unchanged.

@@ -386,6 +386,21 @@ class Selection:
     reason: str
 
 
+@dataclass
+class _NextVersions:
+    """The next plan (experiment contract) and data contract versions the too-good-score check
+    may write. A denied plan keeps its version and approval ID, so each attempt takes new ones."""
+
+    plan: int
+    data: int
+
+    def take(self) -> tuple[int, int]:
+        taken = (self.plan, self.data)
+        self.plan += 1
+        self.data += 1
+        return taken
+
+
 def new_run_id() -> str:
     """Allocate a path-safe ID for a new run."""
     return f"run_{uuid.uuid4().hex[:12]}"
@@ -1567,6 +1582,41 @@ class _Run:
         the granted record; raises PlanDenied on a denial, and the guard's RunCancelled or
         RunLimitReached when the user cancels or the wall clock runs out while waiting.
         """
+        bound, scope = self._bind_plan(plan)
+        result = await self._gate().decide(bound, scope, self._approval_bounds(), note=note)
+        if not result.granted:
+            raise PlanDenied(result)
+        self.approval = result.record
+        return result.record
+
+    def _approve_covered(
+        self,
+        plan: ApprovedPlan,
+        note: str,
+        covered_by: ApprovalRecord,
+        old_data: DataContract,
+        new_data: DataContract,
+    ) -> ApprovalRecord:
+        """Bind and write `plan` like `_approve`, recorded as granted under `covered_by` (S4.2d).
+
+        Only for the plan that leaves the top confirmed too-good column out of the comparison
+        model the earlier plan approval already covers (D-052): no prompt. The gate checks the
+        cover itself and raises ContractError when `plan` is anything more.
+        """
+        bound, scope = self._bind_plan(plan)
+        result = self._gate().covered(
+            bound,
+            scope,
+            covered_by=covered_by,
+            old_data=old_data,
+            new_data=new_data,
+            note=note,
+        )
+        self.approval = result.record
+        return result.record
+
+    def _bind_plan(self, plan: ApprovedPlan) -> tuple[ApprovedPlan, ApprovalScope]:
+        """Bind `plan` to its approval scope and write the plan and scope files."""
         scope = self._approval_scope(plan.data_contract_hash)
         bound = bind_scope(
             plan.model_copy(update={"approval_policy": self.approval_policy_recorded}), scope
@@ -1578,7 +1628,10 @@ class _Run:
         path.write_text(bound.model_dump_json(indent=2), encoding="utf-8")
         write_scope(self.run_dir, bound.version, scope)
         self.plan_path = path
-        gate = ApprovalGate(
+        return bound, scope
+
+    def _gate(self) -> ApprovalGate:
+        return ApprovalGate(
             database=self.database,
             runs_root=self.controller.runs_root,
             run_id=self.run_id,
@@ -1587,11 +1640,6 @@ class _Run:
             guard=self.guard,
             poll_seconds=self.controller.poll_seconds,
         )
-        result = await gate.decide(bound, scope, self._approval_bounds(), note=note)
-        if not result.granted:
-            raise PlanDenied(result)
-        self.approval = result.record
-        return result.record
 
     def _session_roles(self) -> tuple[ActorRole, ...]:
         """The roles that get an MCP session in this run (their tools are part of the scope)."""
@@ -2589,8 +2637,10 @@ class _Run:
                 "the expected range, so no column was flagged."
             )
             return trial_id, job_id, contract
-        # 3. One comparison model per confirmed column the user did not call legitimate (the
-        # second also leaves out the first).
+        # 3. One comparison model in total is covered by the plan approval that authorized the
+        # candidate (S4.2d, D-052): its code and settings without the top confirmed column the
+        # user did not call legitimate. Any other confirmed column gets a comparison model only
+        # after its own approval through the plan gate (D-050), never automatically.
         user_text = " ".join(filter(None, (self.request.goal, self.request.visible_constraints)))
         declared = [name for name in confirmed if known_at_prediction(user_text, name)]
         doubtful = [name for name in confirmed if name not in declared]
@@ -2607,26 +2657,37 @@ class _Run:
                 reason="the user said the column is known at prediction time",
             )
         attempts: list[LeakageOutcome] = []
-        for count in range(1, len(doubtful) + 1):
-            withheld = doubtful[:count]
-            outcome_k, model, cmp_job = await self._comparison(
-                contract, trial_id, job_id, withheld, metric
-            )
-            attempts.append(outcome_k)
-            if model is None:
-                break
-            without_model, without_job = model, cmp_job
         final_contract = contract
         exclusion: LeakageOutcome | None = None
-        if without_model is not None:
-            # The recommended model runs under a contract that excludes the flagged columns, so
-            # every later reader (the verifier, the report, a grader, the user) sees the model's
-            # real inputs. A changed plan resets approval: the gate decides under the run's policy.
-            excluded, exclusion = await self._exclude_flagged(
-                spec, contract, without_model.without_columns
+        if doubtful:
+            # Captured now: a second column's own approval would replace self.approval.
+            covered_by = self.approval
+            versions = _NextVersions(
+                contract.version + 1, contract.data_contract.data_contract_version + 1
             )
-            if excluded is not None:
-                final_contract = excluded
+            outcome_1, model, cmp_job = await self._comparison(
+                contract, trial_id, job_id, doubtful[:1], metric
+            )
+            attempts.append(outcome_1)
+            if model is not None:
+                without_model, without_job = model, cmp_job
+                if len(doubtful) > 1:
+                    outcome_2, model_2, job_2, approved = await self._approved_comparison(
+                        spec, contract, trial_id, job_id, doubtful[:2], metric, versions
+                    )
+                    attempts.append(outcome_2)
+                    if model_2 is not None and approved is not None:
+                        without_model, without_job = model_2, job_2
+                        final_contract, exclusion = approved, LeakageOutcome.EXCLUDED
+                if exclusion is None:
+                    # The recommended model runs under a contract version that excludes the
+                    # column, so every later reader (the verifier, the report, a grader, the
+                    # user) sees its real inputs; the covering approval grants it, no prompt.
+                    excluded, exclusion = self._exclude_covered(
+                        spec, contract, doubtful[:1], versions, covered_by
+                    )
+                    if excluded is not None:
+                        final_contract = excluded
         recommend_without = exclusion is LeakageOutcome.EXCLUDED
         recommended = (
             (without_model.trial_id, without_job)
@@ -2684,25 +2745,44 @@ class _Run:
         )
         return recommended[0], recommended[1], final_contract
 
-    async def _exclude_flagged(
-        self, spec: TaskSpecification, contract: ExperimentContract, columns: list[str]
+    def _exclude_covered(
+        self,
+        spec: TaskSpecification,
+        contract: ExperimentContract,
+        columns: list[str],
+        versions: "_NextVersions",
+        covered_by: ApprovalRecord | None,
     ) -> tuple[ExperimentContract | None, LeakageOutcome]:
-        """A new contract version that excludes `columns`, through the ordinary plan gate.
+        """The contract version that leaves out the top confirmed column, without a prompt.
 
-        Only features change, so the locked partition stays valid (the same rule as C's feature
-        revision). When the plan is denied, or the new contract cannot be applied, the candidate
-        stays the final model under its own contract and approval, and the outcome says which.
-        A run limit or a user cancel while the gate waits still stops the run.
+        S4.2d (D-052): the plan approval that authorized the candidate (`covered_by`) also covers
+        this one comparison model, so the new plan version is recorded as granted under it
+        instead of asking again. Only features change, so the locked partition stays valid (the
+        same rule as C's feature revision). When the new contract cannot be applied, the
+        candidate stays the final model under its own contract and approval, and the outcome
+        says so.
         """
         plan_path, approval = self.plan_path, self.approval
         try:
-            return await self._excluding_contract(spec, contract, columns)
-        except PlanDenied as denied:
-            self.notes.append(
-                f"The plan that leaves out {', '.join(display_name(c) for c in columns)} was "
-                f"denied ({denied.result.reason}); the candidate with them stays the final model."
+            if covered_by is None or covered_by.approval_id != contract.approval_id:
+                raise ContractError("the candidate's own plan approval is not on record")
+            plan_version, data_version = versions.take()
+            revised, plan = self._excluding_plan(
+                spec, contract, columns, plan_version, data_version
             )
-            outcome = LeakageOutcome.EXCLUSION_DENIED
+            granted = self._approve_covered(
+                plan,
+                "the first plan approval covers one comparison model without the top flagged "
+                "column, "
+                + ", ".join(display_name(c) for c in columns)
+                + " (too-good-score check, D-052)",
+                covered_by,
+                contract.data_contract,
+                revised,
+            )
+            excluded = self._excluding_experiment(spec, revised, granted, plan_version)
+            save_experiment_contract(self.database, excluded)
+            return excluded, LeakageOutcome.EXCLUDED
         except RunLimitReached:
             raise
         except Exception as exc:
@@ -2711,22 +2791,98 @@ class _Run:
                 f"could not be applied ({type(exc).__name__}); the candidate with them stays the "
                 "final model."
             )
-            outcome = LeakageOutcome.EXCLUSION_FAILED
         # The candidate's own approval still authorizes it: its contract stays the latest.
         self.plan_path, self.approval = plan_path, approval
-        return None, outcome
+        return None, LeakageOutcome.EXCLUSION_FAILED
 
-    async def _excluding_contract(
-        self, spec: TaskSpecification, contract: ExperimentContract, columns: list[str]
-    ) -> tuple[ExperimentContract, LeakageOutcome]:
-        from hypora.execution.harness.partition import load_verified_partition
+    async def _approved_comparison(
+        self,
+        spec: TaskSpecification,
+        contract: ExperimentContract,
+        trial_id: str,
+        job_id: str,
+        withheld: list[str],
+        metric: MetricName,
+        versions: "_NextVersions",
+    ) -> tuple[LeakageOutcome, LeakageModel | None, str | None, ExperimentContract | None]:
+        """A comparison model for a second confirmed column, only after its own approval.
 
+        The first plan approval covers one comparison model only (S4.2d, D-052). For another
+        confirmed column the plan that leaves out `withheld` goes through the ordinary plan gate
+        (D-050) before anything trains: granted, the comparison is trained under the candidate's
+        contract with `withheld` removed by the harness and, once it trains, the approved contract
+        becomes the latest; denied or not applicable, nothing trains and the outcome says so. A
+        run limit or a user cancel while the gate waits still stops the run.
+        """
+        columns = [LeakageColumnScore(column=display_name(name)) for name in withheld]
+        shown = ", ".join(display_name(name) for name in withheld)
+        room = self._comparison_room()
+        if room is not None:
+            self._leakage_event(
+                LeakageStep.COMPARISON,
+                LeakageOutcome.BUDGET_EXHAUSTED,
+                trial_id=trial_id,
+                columns=columns,
+                reason=room,
+            )
+            self.notes.append(f"No second comparison model: {room}.")
+            return LeakageOutcome.BUDGET_EXHAUSTED, None, None, None
+        plan_path, approval = self.plan_path, self.approval
+        outcome: LeakageOutcome | None = None
+        try:
+            plan_version, data_version = versions.take()
+            revised, plan = self._excluding_plan(
+                spec, contract, withheld, plan_version, data_version
+            )
+            granted = await self._approve(
+                plan,
+                f"Train one more comparison model without {shown} and use it if it trains: the "
+                "first plan approval covers one comparison model only",
+            )
+            approved = self._excluding_experiment(spec, revised, granted, plan_version)
+        except PlanDenied as denied:
+            outcome = LeakageOutcome.EXCLUSION_DENIED
+            reason = f"the plan for a comparison model without {shown} was not approved"
+            self.notes.append(f"No second comparison model: {reason} ({denied.result.reason}).")
+        except RunLimitReached:
+            raise
+        except Exception as exc:
+            outcome = LeakageOutcome.EXCLUSION_FAILED
+            reason = f"the plan for a comparison model without {shown} could not be applied"
+            self.notes.append(f"No second comparison model: {reason} ({type(exc).__name__}).")
+        if outcome is not None:
+            self.plan_path, self.approval = plan_path, approval
+            self._leakage_event(
+                LeakageStep.COMPARISON, outcome, trial_id=trial_id, columns=columns, reason=reason
+            )
+            return outcome, None, None, None
+        approved_path, approved_record = self.plan_path, self.approval
+        # Trained like the first comparison, under the candidate's contract (still the latest).
+        self.plan_path, self.approval = plan_path, approval
+        trained, model, cmp_job = await self._comparison(
+            contract, trial_id, job_id, withheld, metric
+        )
+        if model is None:
+            return trained, None, None, None
+        save_experiment_contract(self.database, approved)
+        self.plan_path, self.approval = approved_path, approved_record
+        return trained, model, cmp_job, approved
+
+    def _excluding_plan(
+        self,
+        spec: TaskSpecification,
+        contract: ExperimentContract,
+        columns: list[str],
+        plan_version: int,
+        data_version: int,
+    ) -> tuple[DataContract, ApprovedPlan]:
+        """The data contract version and plan version that leave `columns` out (saved data)."""
         data = contract.data_contract
         evidence = f"leakage_check:{self.run_id}"
         revised = DataContract.model_validate(
             {
                 **data.model_dump(mode="json", by_alias=True),
-                "data_contract_version": data.data_contract_version + 1,
+                "data_contract_version": data_version,
                 "allowed_features": [f for f in data.allowed_features if f not in columns],
                 "excluded_features": [
                     *data.excluded_features,
@@ -2743,7 +2899,6 @@ class _Run:
             }
         )
         save_data_contract(self.database, self.run_id, revised)
-        version = contract.version + 1
         plan = build_plan(
             spec,
             revised,
@@ -2751,12 +2906,22 @@ class _Run:
             note="Too-good-score check: leave out "
             + ", ".join(display_name(c) for c in columns)
             + "; split locked.",
-            version=version,
+            version=plan_version,
             expected_score_range=self.expected_range,
         )
-        approval = await self._approve(
-            plan, "Leave out the flagged column(s) " + ", ".join(display_name(c) for c in columns)
-        )
+        return revised, plan
+
+    def _excluding_experiment(
+        self,
+        spec: TaskSpecification,
+        revised: DataContract,
+        approval: ApprovalRecord,
+        version: int,
+    ) -> ExperimentContract:
+        """The experiment contract for an approved excluding plan, checked against the locked
+        partition (only features change, so the locked rows stay valid). Not saved here."""
+        from hypora.execution.harness.partition import load_verified_partition
+
         excluded = build_experiment_contract(
             spec,
             revised,
@@ -2770,8 +2935,18 @@ class _Run:
             self.dataset_fingerprint,
             self.run_dir / "partition-lock.json",
         )
-        save_experiment_contract(self.database, excluded)
-        return excluded, LeakageOutcome.EXCLUDED
+        return excluded
+
+    def _comparison_room(self) -> str | None:
+        """Why no comparison trial fits in the run's limits, or None when one does."""
+        maximum = self.budget.max_trials
+        if maximum is not None and count_trials(self.database, self.run_id) >= maximum:
+            return f"the run's trial limit ({maximum}) is used up"
+        try:
+            self.guard.before_job()
+        except RunLimitReached as reached:
+            return f"a run limit leaves no room: {reached}"
+        return None
 
     def _job_timeout(self, contract: ExperimentContract) -> float:
         timeout = contract.default_job_limits.max_wall_seconds * final_job_stages(contract)
@@ -2792,15 +2967,7 @@ class _Run:
         limit; with no room left the investigation reports the flag without a second model.
         """
         columns = [LeakageColumnScore(column=display_name(name)) for name in withheld]
-        maximum = self.budget.max_trials
-        reason: str | None = None
-        if maximum is not None and count_trials(self.database, self.run_id) >= maximum:
-            reason = f"the run's trial limit ({maximum}) is used up"
-        else:
-            try:
-                self.guard.before_job()
-            except RunLimitReached as reached:
-                reason = f"a run limit leaves no room: {reached}"
+        reason = self._comparison_room()
         if reason is not None:
             self._leakage_event(
                 LeakageStep.COMPARISON,

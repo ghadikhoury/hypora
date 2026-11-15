@@ -60,6 +60,7 @@ from hypora.core.schemas import (
     ApprovalRecord,
     ApprovedPlan,
     Budget,
+    DataContract,
     EventType,
 )
 from hypora.core.schemas.events import (
@@ -88,6 +89,8 @@ USER_PREFIX: Final = "user:"
 DEFENSE_OFF_NOTE: Final = (
     "defenses.approval is off (F6 ablation): plan granted by policy without the bounds check"
 )
+COVERED_PREFIX: Final = "covered by "
+"""Starts the reason (and so the request summary) of a grant made under an earlier approval."""
 GATE_TOOL: Final = "plan_gate"
 """The `tool` named on the gate's `policy_decision` events (the schema requires one)."""
 
@@ -372,6 +375,177 @@ class ApprovalGate:
             )
         return await self._wait_for_user(approval_id, artifact_hash)
 
+    def covered(
+        self,
+        plan: ApprovedPlan,
+        scope: ApprovalScope,
+        *,
+        covered_by: ApprovalRecord,
+        old_data: DataContract,
+        new_data: DataContract,
+        note: str,
+    ) -> GateResult:
+        """Record `plan` as granted under `covered_by`, an earlier grant that already covers it.
+
+        S4.2d (D-052): the plan approval that authorized the final candidate also covers training
+        one comparison model without the top confirmed too-good column, so the plan version that
+        leaves that column out is recorded without asking again. The gate itself checks the
+        cover (`covered_problem`): the covering plan and scope are re-read from the files it
+        approved; the new scope equals that scope apart from the data contract hash; the new data
+        contract (`new_data`) is the covered one (`old_data`) with exactly one allowed column moved
+        to the excluded features; every other plan term is unchanged; and the run has no earlier
+        covered grant (one comparison in total). Anything else raises ContractError and records
+        nothing. The record carries the covering approval's approver and policy, the request
+        summary and a `policy_decision` name the covering approval, and the request, decision and
+        grant are appended in one transaction, so no reader ever sees the plan pending (no prompt).
+        """
+        if plan.run_id != self.run_id or scope.run_id != self.run_id:
+            raise ContractError("the plan or its scope belongs to another run")
+        if plan_scope_hash(plan) != scope_hash(scope):
+            raise ContractError("the plan is not bound to its approval scope")
+        if (
+            covered_by.run_id != self.run_id
+            or covered_by.decision is not ApprovalDecision.APPROVED
+            or covered_by.artifact_type is not ApprovalArtifactType.PLAN
+        ):
+            raise ContractError("the covering approval is not a granted plan approval of this run")
+        problem = self.covered_problem(plan, scope, covered_by, old_data, new_data)
+        if problem is not None:
+            raise ContractError(f"not covered by {covered_by.approval_id}: {problem}")
+        approval_id = approval_id_for(plan)
+        artifact_hash = plan.content_hash()
+        reason = f"{COVERED_PREFIX}{covered_by.approval_id}: {note}"
+        record = ApprovalRecord(
+            approval_id=approval_id,
+            run_id=self.run_id,
+            artifact_type=ApprovalArtifactType.PLAN,
+            artifact_hash=artifact_hash,
+            approver=covered_by.approver,
+            decision=ApprovalDecision.APPROVED,
+            policy=covered_by.policy,
+            reason=reason,
+            created_at=datetime.now(UTC),
+        )
+        save_approval(self.database, record)
+        events: list[tuple[EventType, BaseModel, ActorRole]] = [
+            (
+                EventType.APPROVAL_REQUESTED,
+                ApprovalRequestedPayload(
+                    approval_id=approval_id,
+                    artifact_type=ApprovalArtifactType.PLAN,
+                    artifact_hash=artifact_hash,
+                    artifact_ref=artifact_ref_for(plan),
+                    policy=covered_by.policy,
+                    summary=self._summary(plan, scope, reason),
+                ),
+                ActorRole.CONTROLLER,
+            ),
+            (
+                EventType.POLICY_DECISION,
+                PolicyDecisionPayload(
+                    tool=GATE_TOOL,
+                    decision=PolicyOutcome.ALLOW,
+                    decided_by=PolicyRule.APPROVAL_STATE,
+                    reasons=[reason[:MAX_REASON_CHARS]],
+                ),
+                ActorRole.POLICY_ENGINE,
+            ),
+            (
+                EventType.APPROVAL_GRANTED,
+                ApprovalGrantedPayload(
+                    approval_id=approval_id,
+                    artifact_type=ApprovalArtifactType.PLAN,
+                    artifact_hash=artifact_hash,
+                    approver=record.approver,
+                    policy=record.policy,
+                ),
+                ActorRole.POLICY_ENGINE,
+            ),
+        ]
+        with self.database.write() as connection:
+            for type, payload, actor in events:
+                self.events.append(
+                    self.run_id, type, actor, payload.model_dump(mode="json"), connection=connection
+                )
+        return GateResult(GateVerdict.GRANTED, record, reason)
+
+    def covered_problem(
+        self,
+        plan: ApprovedPlan,
+        scope: ApprovalScope,
+        covered_by: ApprovalRecord,
+        old_data: DataContract,
+        new_data: DataContract,
+    ) -> str | None:
+        """Why `covered_by` does not cover `plan` (S4.2d), or None when it does."""
+        match = re.fullmatch(rf"appr_{re.escape(self.run_id)}_plan_v(\d+)", covered_by.approval_id)
+        if match is None:
+            return "the covering approval is not a plan version's approval"
+        version = int(match.group(1))
+        folder = self.runs_root / self.run_id
+        name = "approved_plan.json" if version == 1 else f"approved_plan_v{version}.json"
+        try:
+            old_plan = ApprovedPlan.model_validate_json((folder / name).read_bytes())
+            old_scope = ApprovalScope.model_validate_json(
+                (folder / f"approval_scope_v{version}.json").read_bytes()
+            )
+        except (OSError, ValidationError, ValueError):
+            return "the covering plan or scope file is missing or invalid"
+        if old_plan.content_hash() != covered_by.artifact_hash:
+            return "the covering plan file changed after it was approved"
+        if plan_scope_hash(old_plan) != scope_hash(old_scope):
+            return "the covering scope file changed after it was approved"
+        if plan.version <= old_plan.version:
+            return "the plan is not a later version"
+        changed = {"data_contract_hash"}
+        if scope.model_dump(mode="json", exclude=changed) != old_scope.model_dump(
+            mode="json", exclude=changed
+        ):
+            return "the approval scope differs from the covered one"
+        if old_data.content_hash() != old_plan.data_contract_hash:
+            return "the covered data contract is not the covering plan's"
+        if new_data.content_hash() != plan.data_contract_hash:
+            return "the new data contract is not the plan's"
+        if new_data.data_contract_version != plan.data_contract_version:
+            return "the plan names another data contract version"
+        features = {"data_contract_version", "allowed_features", "excluded_features"}
+        if new_data.model_dump(mode="json", exclude=features) != old_data.model_dump(
+            mode="json", exclude=features
+        ):
+            return "the data contract changes more than its features"
+        removed = [f for f in old_data.allowed_features if f not in new_data.allowed_features]
+        added = [e.name for e in new_data.excluded_features[len(old_data.excluded_features) :]]
+        if (
+            len(removed) != 1
+            or list(new_data.allowed_features)
+            != [f for f in old_data.allowed_features if f != removed[0]]
+            or list(new_data.excluded_features[: len(old_data.excluded_features)])
+            != list(old_data.excluded_features)
+            or added != removed
+        ):
+            return "the plan must leave out exactly one allowed column and change nothing else"
+        terms = {
+            "budget",
+            "approval_policy",
+            "requested_model_downloads",
+            "requested_dependencies",
+            "expected_score_range",
+        }
+        if plan.model_dump(mode="json", include=terms) != old_plan.model_dump(
+            mode="json", include=terms
+        ):
+            return "the plan's terms differ from the covered plan's"
+        earlier = EventLog(self.database).read(
+            self.run_id, EventFilters(types=(EventType.APPROVAL_REQUESTED,))
+        )
+        if any(
+            isinstance(event, ApprovalRequestedEvent)
+            and event.payload.summary.find(f"{COVERED_PREFIX}appr_") >= 0
+            for event in earlier
+        ):
+            return "the run already used its one covered comparison"
+        return None
+
     # --- interactive ------------------------------------------------------------------------------
 
     async def _wait_for_user(self, approval_id: str, artifact_hash: str) -> GateResult:
@@ -569,12 +743,15 @@ def _range_text(plan: ApprovedPlan) -> str:
         return f"expected {expected.metric.value} range unknown (no too-good-score check)"
     return (
         f"expected {expected.metric.value} range {expected.low:g} to {expected.high:g} "
-        f"({expected.source.value})"
+        f"({expected.source.value}); if the final validation score is clearly above it, this "
+        "approval also covers training one comparison model without the column that explains "
+        "it and recommending it as the final model"
     )
 
 
 __all__ = [
     "APPROVALS_DIR",
+    "COVERED_PREFIX",
     "DEFENSE_OFF_NOTE",
     "ApprovalGate",
     "DecisionExists",

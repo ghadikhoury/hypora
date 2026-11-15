@@ -2,14 +2,14 @@
 
 - Two confirmed columns, the second comparison out of room: the final model leaves out the first
   column only, and the report says plainly that it still uses the second.
-- The exclusion plan denied, or the new contract failing after approval: the run keeps its final
-  model (the candidate) under its own approval, and the report says it still uses the column.
+- The exclusion plan not covered (S4.2d), or the new contract failing after approval: the run
+  keeps its final model (the candidate) under its own approval, and the report says it still
+  uses the column.
 - A very long column name cannot make the investigation fail.
 Synthetic tables built with the dev case's planting function (D-015 allows them in tests).
 """
 
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
@@ -18,7 +18,7 @@ import pytest
 
 from hypora.core.config.run_config import RunConfig
 from hypora.core.controller import controller as controller_module
-from hypora.core.controller.controller import PlanDenied, _Run
+from hypora.core.controller.controller import _Run
 from hypora.core.controller.states import DONE
 from hypora.core.roles.reporter import Report
 from hypora.core.schemas.leakage import LeakageOutcome
@@ -86,7 +86,7 @@ async def test_two_confirmed_columns_with_the_second_comparison_out_of_room(
     assert f"still uses {kept[0].column}" in note and f"leaves out {dropped[0].column}" in note
 
 
-@pytest.mark.parametrize("failure", ["denied", "broken"])
+@pytest.mark.parametrize("failure", ["uncovered", "broken"])
 async def test_an_exclusion_that_does_not_happen_keeps_the_candidate_and_says_so(
     make_controller: ControllerFactory,
     database: Database,
@@ -96,13 +96,16 @@ async def test_an_exclusion_that_does_not_happen_keeps_the_candidate_and_says_so
     monkeypatch: pytest.MonkeyPatch,
     failure: str,
 ) -> None:
+    # S4.2d: the plan that leaves out the one covered comparison's column is never put to the
+    # gate, so it cannot be denied; it can fail when no approval covers it or its contract fails.
     scripted_sandbox.install(monkeypatch)
-    if failure == "denied":
+    if failure == "uncovered":
+        real_exclude: Any = _Run._exclude_covered
 
-        async def denied(self: Any, *args: Any) -> Any:
-            raise PlanDenied(SimpleNamespace(reason="denied in the test"))  # type: ignore[arg-type]
+        def uncovered(self: Any, *args: Any) -> Any:
+            return real_exclude(self, *args[:-1], None)
 
-        monkeypatch.setattr(_Run, "_excluding_contract", denied)
+        monkeypatch.setattr(_Run, "_exclude_covered", uncovered)
     else:
         real = partition.load_verified_partition
 
@@ -124,15 +127,11 @@ async def test_an_exclusion_that_does_not_happen_keeps_the_candidate_and_says_so
     assert _steps(database, run_id)[-1] == ("decision", "recommend_with")
     report = Report.model_validate_json(result.report_json.read_text())
     assert report.leakage is not None
-    expected = (
-        LeakageOutcome.EXCLUSION_DENIED if failure == "denied" else LeakageOutcome.EXCLUSION_FAILED
-    )
-    assert report.leakage.exclusion is expected
+    assert report.leakage.exclusion is LeakageOutcome.EXCLUSION_FAILED
     assert report.leakage.columns[0].in_final_model is True
     markdown = result.report_md.read_text()
     assert f"still uses `{LEAK}`" in markdown and "STILL USES it" in markdown
-    assert ("was denied" in markdown) is (failure == "denied")
-    assert ("could not be applied" in markdown) is (failure == "broken")
+    assert "was denied" not in markdown and "could not be applied" in markdown
 
 
 async def test_a_very_long_column_name_is_flagged_not_a_failure(
