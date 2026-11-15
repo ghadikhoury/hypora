@@ -96,8 +96,8 @@ Found by the reviewer of PR #47; no live run involved, all fixes are covered by 
 | 2 | A code line imitating `[platform: ...]` was labelled as source only if it started exactly with the marker; indentation, tabs or case escaped the label | `imitates_marker` (`hypora/core/controller/code_review.py`) matches fully folded text, with any opening bracket or guillemet read as `[`, after any leading whitespace, comment sign, quote or invisible character. It also covers `platform` followed by `]` or `-`, look-alike colons, `[line withheld by`, `[withheld by` and `[...` |
 | 3 | `next_step` was exempt from the injection screen by key name at any depth and in every screened tool | Exempt only at the top level of `get_experiment_status` results (`PLATFORM_FIELDS`), the one place the platform writes it; `screen_value` exempts nothing by default, so text blocks that are not the structured result are screened in full |
 
-PR #48's first version folded the cells as strongly as the lines. Its review found two problems
-(both fixed before merge):
+PR #48's first version folded the cells as strongly as the lines. Its reviews found these
+problems (all fixed before merge):
 
 - **B1:** cells containing full-width brackets or commas (`東京（本社）`-style CJK values) no
   longer matched, because the cell key kept the folded `(` while the line was split on it. Cells
@@ -107,6 +107,14 @@ PR #48's first version folded the cells as strongly as the lines. Its review fou
   baseline` against a cell `Naïve`, `max: 0.93` against a Cyrillic cell). Cells are now keyed
   under the light fold only, so an ASCII word never matches a non-ASCII cell that would only
   equal it after folding.
+- **B3 (second review):** after B1, a rare dirty variant of a frequent value (`Yes.`, `(no)`,
+  `'Male'`, `>50K.`) had the frequent value's key and was indexed as distinctive, so lines such
+  as `answer: yes` or `label <=50K` were withheld. Rows are now grouped by key, frequent rows
+  included, before the frequent-value exclusion and the `max_rows_per_value` limit apply.
+- Also from the second review: a number written in native digits is counted once, not once per
+  fold. Folding uses cached per-character `str.translate` tables, and n-grams are built only
+  from tokens that start a text key. A 1 MiB line of non-ASCII tokens is screened in about
+  0.4 s, the same as an ASCII line; a single 4,000,000-character non-ASCII run takes about 1.2 s.
 
 Effect on false positives: ASCII text is only case-folded under both folds, exactly as before,
 so the training-log, profile, `describe()` and methodology-corpus tests are unchanged. The
@@ -127,6 +135,10 @@ Residual risks (not fixed here):
 - A non-ASCII cell is matched only under the light fold. A copy of it with its accents stripped
   or its letters transliterated is not withheld; that is the price of B2.
 - A forged marker in the middle of a code line (`print("[platform: ...]")`) is not labelled; the
-  platform's markers always occupy a whole line, and such a line reads as code.
+  platform's markers always occupy a whole line, and such a line reads as code. Minor variants
+  such as `[platform note: ...]`, `[platform's verdict: ...]`, `[plat form: ...]` and
+  `[platform.: ...]` are not labelled either. Some ordinary lines are labelled (`[platform]`,
+  `<platform>`, `{platform: 1}`, `[..., 0]`); a label only prefixes `(source text)`, so that is
+  harmless.
 - The evaluation guard on hidden rows (`hypora/evaluation/runner/guard.py`) keeps its own
   tokenizer. Changing it is grading/hidden-split work (trigger 4), so it was left as it is.

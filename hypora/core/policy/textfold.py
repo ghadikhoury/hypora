@@ -44,6 +44,7 @@ not folded. Those residual risks are listed in `docs/notes/live-run-hardening.md
 """
 
 import unicodedata
+from collections.abc import Callable
 from typing import Final
 
 _DROPPED_CATEGORIES: Final = frozenset({"Cf", "Mn", "Me"})
@@ -150,9 +151,7 @@ def light_fold(text: str) -> str:
     """
     if text.isascii():
         return text.casefold()
-    composed = unicodedata.normalize("NFC", text)
-    narrowed = "".join(_width(char) for char in composed)
-    visible = "".join(char for char in narrowed if not _is_invisible(char))
+    visible = unicodedata.normalize("NFC", text).translate(_LIGHT_MAP)
     return unicodedata.normalize("NFC", visible.casefold())
 
 
@@ -199,12 +198,40 @@ def fold_text(text: str) -> str:
     """
     if text.isascii():
         return text.casefold()
-    decomposed = "".join(_decompose(char) for char in text).casefold()
+    decomposed = text.translate(_DECOMPOSE_MAP).casefold()
     # casefold can produce new compatibility or combining characters (for example from U+0130),
     # and per-character decomposition skips canonical reordering: decompose the whole once more.
     decomposed = unicodedata.normalize("NFKD", decomposed)
-    folded = "".join(_fold_char(char) for char in decomposed)
-    return unicodedata.normalize("NFKC", folded)
+    return unicodedata.normalize("NFKC", decomposed.translate(_FOLD_MAP))
+
+
+class _CharMap(dict[int, str]):
+    """A `str.translate` table filled on first use: each code point is computed once.
+
+    `str.translate` looks known code points up in C, so a long line costs one Python call per
+    *distinct* character, not per character (review of PR #48: a 4M-character line). Cleared when
+    it grows past `limit` so adversarial text cannot grow it without bound.
+    """
+
+    def __init__(self, function: Callable[[str], str], limit: int = 1 << 16) -> None:
+        super().__init__()
+        self._function = function
+        self._limit = limit
+
+    def __missing__(self, code: int) -> str:
+        if len(self) >= self._limit:
+            self.clear()
+        value = self[code] = self._function(chr(code))
+        return value
+
+
+def _light_char(char: str) -> str:
+    return "" if _is_invisible(char) else _width(char)
+
+
+_LIGHT_MAP: Final = _CharMap(_light_char)
+_DECOMPOSE_MAP: Final = _CharMap(_decompose)
+_FOLD_MAP: Final = _CharMap(_fold_char)
 
 
 __all__ = ["fold_text", "light_fold"]

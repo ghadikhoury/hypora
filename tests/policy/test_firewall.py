@@ -272,6 +272,42 @@ def test_an_ascii_line_never_matches_a_non_ascii_cell_only_equal_after_folding(c
     assert firewall.screen_untrusted([f"row {cell} end"])[0] == [None]
 
 
+def test_a_dirty_variant_of_a_frequent_value_is_not_distinctive():
+    """Review of PR #48, B3: a rare `Yes.` or `>50K.` shares the key of the frequent `yes` or
+    `>50K`, so lines naming the frequent value pass, as on main."""
+    frequent = [name for name in ("yes", "no", "Male", "Female", ">50K") for _ in range(8)]
+    dirty = ["Yes.", "(no)", "'Male'", ">50K.", " Female "]
+    frame = pd.DataFrame({"answer": [*frequent, *dirty, "Zebra-17", "Quokka-42"]})
+    firewall = DataFirewall([frame])
+    ordinary = [
+        "yes",
+        "answer: yes",
+        "sex Male coefficient 0.12",
+        "class >50K precision 0.71",
+        "label <=50K",
+        "Female share 0.33",
+    ]
+    assert firewall.screen_untrusted(ordinary) == (ordinary, {})
+    assert not firewall.check_lines(ordinary).blocked
+    # Genuinely rare values in the same column are still distinctive.
+    assert firewall.screen_untrusted(["row zebra-17"])[0] == [None]
+
+
+def test_a_number_in_native_digits_counts_once():
+    """Review of PR #48: a number seen by both folds (native digits, then ASCII digits) is one
+    printed cell, so column thresholds are not halved."""
+    fillers = [100.5 + i for i in range(5) for _ in range(3)]  # the five most frequent values
+    x = [*np.linspace(10.125, 49.875, 40), *fillers]
+    frame = pd.DataFrame({"x": x, "tag": [f"t{i % 2}" for i in range(len(x))]})
+    firewall = DataFirewall([frame])
+    values = [f"{value:.3f}" for value in frame["x"].iloc[20:22]]
+    for line in (" ".join(values), _digits(" ".join(values), 0x0660)):
+        assert firewall.screen_untrusted([line]) == ([line], {}), line
+    four = _digits(" ".join(f"{value:.3f}" for value in frame["x"].iloc[20:24]), 0x0660)
+    assert firewall.screen_untrusted([four])[1] == {"column_on_line": 1}
+    assert not firewall.check_lines([four]).blocked
+
+
 def test_ordinary_lines_pass_a_dataset_of_non_ascii_cells():
     """False-positive check with French, Russian and Greek cells (not only ASCII ones)."""
     cells = [

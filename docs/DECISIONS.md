@@ -1209,8 +1209,9 @@ Details and residual risks: `docs/notes/live-run-hardening.md` ("Screen hardenin
   disguises: compatibility forms (full-width, circled, parenthesized and mathematical letters and
   digits), combining marks, decimal digits of any script, dashes, look-alike colons, and common
   Cyrillic, Greek and IPA look-alikes of Latin letters.
-- The data firewall keys each cell under the light fold, split with the line tokenizer. It checks
-  each line under both folds. So `patient-0005` written with full-width digits (or any disguise
+- The data firewall keys each cell under the light fold, split with the line tokenizer, and
+  decides distinctiveness per key after grouping every row (so `Yes.` is as common as `yes`). It
+  checks each line under both folds. So `patient-0005` written with full-width digits (or any disguise
   above) is withheld like the plain value on every path: trial output and logs, error messages,
   MCP tool results, A's code excerpt and role text. A verbatim non-ASCII cell, including one with
   full-width brackets or commas, is withheld too. An ordinary ASCII line never matches a

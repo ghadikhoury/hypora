@@ -207,6 +207,8 @@ class DataFirewall:
         self._n_columns: list[int] = [len(frame.columns) for frame in frames]
         self._numeric: list[_NumericColumn] = []
         self._text: dict[str, list[tuple[int, int, np.ndarray]]] = defaultdict(list)
+        self._first_tokens: set[str] = set()
+        """The first token of every text key: n-grams are built only from these starts."""
         for frame_number, frame in enumerate(frames):
             for column_number, name in enumerate(frame.columns):
                 self._index_column(frame_number, column_number, frame[name])
@@ -234,18 +236,28 @@ class DataFirewall:
         present = series.dropna()
         if present.empty:
             return
-        frequent = set(present.value_counts().head(self.config.excluded_top_values).index)
+        # Every row is grouped by its key first, frequent rows included, and distinctiveness is
+        # decided per key (review of PR #48, B3): a rare dirty variant of a frequent value
+        # (`Yes.`, `(no)`, `'Male'`, `>50K.`) has the frequent value's key, so it shares its
+        # many rows and is never indexed as distinctive.
+        key_of: dict[str, str] = {}
         keys: dict[str, list[int]] = defaultdict(list)
         for row, value in present.items():
-            if value in frequent:
-                continue
-            tokens = _cell_tokens(str(value))
-            if len(" ".join(tokens)) < self.config.min_text_chars:
-                continue
-            keys[" ".join(tokens[: self.config.max_ngram])].append(int(row))
+            text = str(value)
+            key = key_of.get(text)
+            if key is None:
+                tokens = _cell_tokens(text)
+                short = len(" ".join(tokens)) < self.config.min_text_chars
+                key = key_of[text] = "" if short else " ".join(tokens[: self.config.max_ngram])
+            keys[key].append(int(row))
+        top = self.config.excluded_top_values
+        common = {""}  # too short to show anything
+        common.update(key_of[str(value)] for value in present.value_counts().head(top).index)
+        common.update(sorted(keys, key=lambda name: len(keys[name]), reverse=True)[:top])
         for key, rows in keys.items():
-            if len(rows) <= self.config.max_rows_per_value:
+            if key not in common and len(rows) <= self.config.max_rows_per_value:
                 self._text[key].append((frame, column, np.asarray(rows)))
+                self._first_tokens.add(key.split(" ", 1)[0])
 
     # --- matching ---------------------------------------------------------------------------------
 
@@ -253,8 +265,11 @@ class DataFirewall:
         found = _LineMatches()
         token_lists = _line_tokens(line)
         token_ids: dict[str, int] = {}
+        first_tokens = self._first_tokens
         for tokens in token_lists:
-            for start in range(len(tokens)):
+            for start, first in enumerate(tokens):
+                if first not in first_tokens:
+                    continue  # no text key starts here: skip building its n-grams
                 for size in range(1, self.config.max_ngram + 1):
                     if start + size > len(tokens):
                         break
@@ -265,11 +280,15 @@ class DataFirewall:
                     for frame, column, rows in self._text.get(key, ()):
                         found.text_cells += len(rows)
                         found.cells.update((token_id, frame, int(row), column) for row in rows)
+        # One printed number is one token even when both folds spell it (native digits under the
+        # light fold, ASCII digits under the full fold): dedupe by parsed value and precision.
+        numbers: set[tuple[float, float]] = set()
         for token in dict.fromkeys(token for tokens in token_lists for token in tokens):
             number = _numeric_token(token, self.config.min_significant_digits)
-            if number is None:
+            if number is None or (number.value, number.tolerance) in numbers:
                 continue
-            token_id = token_ids[token]
+            numbers.add((number.value, number.tolerance))
+            token_id = token_ids.setdefault(token, len(token_ids))
             for numeric in self._numeric:
                 values = numeric.values
                 low = int(np.searchsorted(values, number.value - number.tolerance, side="left"))
