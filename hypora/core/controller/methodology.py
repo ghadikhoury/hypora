@@ -26,6 +26,9 @@ ASSUMPTION_REASON: Final = (
 )
 """The fixed `reason` of every exclusion made for a conservative assumption."""
 
+NO_FEATURE_LEFT: Final = "no allowed feature remains after the conservative assumptions"
+"""The refusal when answering the open questions conservatively would exclude every feature."""
+
 ASSUMPTION_PREFIX: Final = "Assumption (no user present): "
 """Every assumption escalation summary starts with this; the report lists those summaries."""
 
@@ -39,13 +42,15 @@ class Assumption:
     """One open question turned into its conservative answer (S4.2c, D-052).
 
     `columns` are the allowed features the question names; the platform excludes each of them,
-    cited by the matching entry of `refs`. A question that names no column changes nothing and is
-    reported as an open risk. The question text itself is screened before anything stores it.
+    cited by the matching entry of `refs`. `already` are named columns that were excluded before
+    it. A question that names no column changes nothing and is reported as an open risk. The
+    question text itself is screened before anything stores it.
     """
 
     question: str
     columns: tuple[str, ...]
     refs: tuple[str, ...]
+    already: tuple[str, ...] = ()
 
 
 def _words(text: str) -> str:
@@ -81,6 +86,7 @@ def assume_conservatively(
     assumptions = []
     for question in proposal.open_questions:
         named = columns_named(question, allowed)
+        already = columns_named(question, [item.name for item in excluded])
         refs = []
         for column in named:
             ref = f"{ASSUMPTION_KIND}:{tag}_{len(evidence) + 1}"
@@ -88,9 +94,9 @@ def assume_conservatively(
             excluded.append(ExcludedFeature(name=column, reason=ASSUMPTION_REASON, evidence=ref))
             allowed.remove(column)
             refs.append(ref)
-        assumptions.append(Assumption(question, tuple(named), tuple(refs)))
+        assumptions.append(Assumption(question, tuple(named), tuple(refs), tuple(already)))
     if not allowed:
-        raise MethodologyError("no allowed feature remains after the conservative assumptions")
+        raise MethodologyError(NO_FEATURE_LEFT)
     converted = proposal.model_copy(
         update={
             "allowed_features": tuple(allowed),
@@ -115,7 +121,7 @@ def keep_assumed_exclusions(
     if not back:
         return proposal
     if len(back) == len(proposal.allowed_features):
-        raise MethodologyError("no allowed feature remains after the conservative assumptions")
+        raise MethodologyError(NO_FEATURE_LEFT)
     return proposal.model_copy(
         update={
             "allowed_features": tuple(c for c in proposal.allowed_features if c not in assumed),

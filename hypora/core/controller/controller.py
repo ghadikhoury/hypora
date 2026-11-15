@@ -80,6 +80,7 @@ from hypora.core.controller.local import (
 )
 from hypora.core.controller.methodology import (
     ASSUMPTION_PREFIX,
+    NO_FEATURE_LEFT,
     OPEN_QUESTIONS_REFUSAL,
     OPEN_QUESTIONS_REFUSED,
     Assumption,
@@ -1074,13 +1075,22 @@ class _Run:
         excluded: list[str] = []
         for assumption in assumptions:
             excluded += assumption.columns
-            resolution = (
-                ", ".join(assumption.columns) + " treated as not available at prediction time or "
-                "not permitted, and excluded from the features"
-                if assumption.columns
-                else "it names no dataset column, so no feature changed; it remains an unverified "
-                "risk for this result"
-            )
+            if assumption.columns:
+                resolution = (
+                    ", ".join(assumption.columns) + " treated as not available at prediction "
+                    "time or not permitted, and excluded from the features"
+                )
+            elif assumption.already:
+                resolution = (
+                    "it names only columns already excluded ("
+                    + ", ".join(assumption.already)
+                    + "), so no feature changed"
+                )
+            else:
+                resolution = (
+                    "it names no dataset column, so no feature changed; it remains an "
+                    "unverified risk for this result"
+                )
             try:
                 self._validate_assignment(assumption.question)
             except Exception:  # fail closed: refused, or the screen itself was unavailable
@@ -1090,7 +1100,8 @@ class _Run:
                     f"text is not stored) and answered conservatively: {resolution}."
                 )
             else:
-                question = shorten(assumption.question, 600)
+                # One line, so quoted text cannot add lines to the platform-written report.
+                question = shorten(" ".join(assumption.question.split()), 600)
                 summary = f'C\'s open question "{question}" was answered conservatively: '
                 summary += f"{resolution}."
             self._event(
@@ -1479,7 +1490,9 @@ class _Run:
                 else:
                     validate_data_proposal(proposal, spec, columns, known)
             except MethodologyError as refused:
-                if str(refused) == OPEN_QUESTIONS_REFUSAL:
+                # Also when answering the questions would leave no feature (S4.2c): the run stops
+                # on them, so they are kept screened like any open-questions refusal.
+                if str(refused) in (OPEN_QUESTIONS_REFUSAL, NO_FEATURE_LEFT):
                     self._record_open_questions(
                         proposal.open_questions, proposal=tag, attempt=attempts
                     )

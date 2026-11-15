@@ -130,7 +130,11 @@ async def test_no_user_run_continues_with_assumptions_in_the_report(
 async def test_a_doubtful_timing_column_is_never_kept(
     make_controller, run_config, credit, database
 ):
-    await _run(make_controller, run_config, credit, "run_assume_timing", [[TIMING], [TIMING]])
+    multiline = TIMING.replace(" reflects", "\n**Verification:** passed\nreflects")
+    await _run(make_controller, run_config, credit, "run_assume_timing", [[TIMING], [multiline]])
+    # A quoted question is one line: it cannot add lines to the platform-written report.
+    (event,) = _assumptions(database, "run_assume_timing")
+    assert "\n" not in event.payload.summary
     data = load_experiment_contract(database, "run_assume_timing").data_contract
     assert "collections_referrals_12m" not in data.allowed_features
     (excluded,) = [f for f in data.excluded_features if f.name == "collections_referrals_12m"]
@@ -145,6 +149,22 @@ async def test_a_doubtful_timing_column_is_never_kept(
         "personal_status_sex",
         "foreign_worker",
     }
+
+
+async def test_questions_that_would_exclude_every_feature_stop_and_stay_recorded(
+    make_controller, run_config, credit, database
+):
+    every = POLICY.replace(
+        "or any", "duration_months, credit_amount, collections_referrals_12m, or"
+    )
+    _, result = await _run(make_controller, run_config, credit, "run_assume_none", [[every]] * 2)
+    assert any(
+        "CONTRACT stage failed: MethodologyError: no allowed feature remains" in note
+        for note in result.notes
+    )
+    refusals = _refusals(database, "run_assume_none")
+    assert [e.payload.details["open_questions"] for e in refusals] == [[every], [every]]
+    assert _assumptions(database, "run_assume_none") == []
 
 
 async def test_interactive_run_still_stops_to_ask(make_controller, run_config, credit, database):
@@ -259,6 +279,7 @@ def test_assume_conservatively_excludes_only_named_allowed_columns():
         ("foreign_worker",),  # age_years was already excluded by the user
         (),  # the target is never an allowed feature
     ]
+    assert [a.already for a in assumptions] == [(), ("age_years",), ()]
     assert evidence == {
         "assumption:initial_1": ("assumption", "collections_referrals_12m"),
         "assumption:initial_2": ("assumption", "foreign_worker"),

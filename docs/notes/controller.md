@@ -85,8 +85,14 @@ after C's correction still stop the run for the user. With no user:
   prediction time or not permitted, and excluded with the fixed `ASSUMPTION_REASON` and evidence
   `assumption:<initial|reconcile>_<n>`, so the existing validator checks it like diagnostic
   evidence. A question that names no column changes nothing and is reported as an unverified
-  risk. The model never picks the answer, so it cannot take the convenient one. A false name
-  match only excludes a column. If no feature would remain, the run stops as before.
+  risk; one that names only already-excluded columns says so. The model never picks the answer,
+  so it cannot take the convenient one. A false name match only excludes a column, but common-word
+  names (`time`, `age`, `id`) match ordinary wording and can over-exclude. If no feature would
+  remain, the run stops as before and the questions are kept screened on an S4.2b refusal event.
+  Known limit: a paraphrase ("the referrals count") does not match `collections_referrals_12m`,
+  and a name with no ASCII letters or digits never matches, so such a column stays a feature and
+  the question is reported as an unverified risk. The correction hint therefore asks C to name each
+  column exactly as in the dataset. A quoted question is collapsed to one line.
 - The questions are answered before the proposal is forwarded to A, stored or put through the
   payload checks, so the contract keeps no raw question (`open_questions` is empty). After the
   split is locked, `keep_assumed_exclusions` keeps every assumed exclusion even if C's reconcile
