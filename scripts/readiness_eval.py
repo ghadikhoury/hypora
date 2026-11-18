@@ -93,9 +93,7 @@ SYSTEMS: Final = ("agent", "baseline")
 
 
 def current_lock() -> dict[str, Any]:
-    """What S4.2 locked (D-051) and S4.2f re-locks (D-053): the eval models and retry policy,
-    both configs' flags and limits, the default budgets, every runtime prompt's version and
-    SHA-256, and the MCP tool contract.
+    """Describe the configuration pending S4.2j verification and identify the prior evidence.
 
     Hardware-derived resource pools are left out, so the lock reads the same on every machine.
     """
@@ -115,8 +113,13 @@ def current_lock() -> dict[str, Any]:
         for path in sorted(PROMPTS_DIR.glob("*.md"))
     }
     return {
-        "step": "S4.2f",
-        "decision": "D-053",
+        "step": "S4.2j",
+        "verification": "pending",
+        "previous_recorded_evidence": {
+            "step": "S4.2f",
+            "decision": "D-053",
+            "commit": "47c387f9ad361da1dd803027380a911ab57af210",
+        },
         "eval_profile": settings.models.eval.model_dump(mode="json"),
         "retry": settings.models.retry.model_dump(mode="json"),
         "configs": configs,
@@ -127,7 +130,7 @@ def current_lock() -> dict[str, Any]:
 
 
 def write_lock() -> Path:
-    """Record the lock beside the readiness results."""
+    """Record the current configuration lock beside the historical readiness evidence."""
     LOCK.parent.mkdir(parents=True, exist_ok=True)
     LOCK.write_text(json.dumps(current_lock(), indent=2, sort_keys=True) + "\n")
     return LOCK
