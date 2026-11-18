@@ -136,6 +136,14 @@ Two changes, no-user runs only:
   refused, and the conversion never allows a column. Interactive runs and every other validator
   rule are unchanged.
 
+### Diagnostic evidence on a corrected proposal (S4.2h)
+
+C can use the diagnostic turns it has left before its one contract correction when
+validation found missing evidence for an exclusion or split key. It uses the same
+MCP session, diagnostic phase, budgets and evidence checks. Initial inspection can
+justify group and time keys. Reconciliation can gather feature predictiveness on the
+locked diagnostic partition. Retrying the proposal does not reopen the locked split.
+
 ## Plan approval gate (S3.5, D-044; spec §10)
 
 `_Run._approve` runs for every plan version (v1, and v2 after C's feature revision: a changed

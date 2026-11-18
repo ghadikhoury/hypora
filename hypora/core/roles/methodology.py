@@ -22,12 +22,12 @@ _CORRECTION_HINTS = {
         "will stop for the user. "
     ),
     "a proposed exclusion lacks matching diagnostic evidence": (
-        "Every exclusion must cite a diagnostic_id a tool returned for that same column; "
-        "otherwise allow the column. "
+        "Cite an existing diagnostic_id for that same column, or obtain one with an authorized "
+        "diagnostic if available. Keep the column when no evidence supports an exclusion. "
     ),
     "the proposed split key lacks matching diagnostic evidence": (
-        "A split key needs a matching group or time diagnostic; otherwise use a random or "
-        "stratified split. "
+        "A split key needs a group or time diagnostic for that same column. Check the proposed "
+        "key with the available diagnostic before choosing a split consistent with deployment. "
     ),
 }
 """Guidance for the refusals models met live, keyed by the validator's fixed messages."""
@@ -46,6 +46,11 @@ _NO_USER_HINTS = {
 }
 """The same guidance when no user can answer (S4.2c): a kept question becomes an assumption,
 and C keeps it rather than excluding its columns itself (F1)."""
+
+_DIAGNOSTIC_REFUSALS = {
+    "a proposed exclusion lacks matching diagnostic evidence",
+    "the proposed split key lacks matching diagnostic evidence",
+}
 
 ProposalValidator = Callable[[DataContract, dict[str, tuple[str, str]]], None]
 """Raises ValueError (with fixed platform text) when a proposal must be refused."""
@@ -78,43 +83,54 @@ async def propose_data_contract(
     )
     messages = [Message.system(prompt.text), Message.user(context)]
     evidence: dict[str, tuple[str, str]] = {}
-    for _ in range(max_turns):
-        guard.before_model_call()
-        try:
-            response = await adapter.complete(
-                messages, tier=ModelTier.LEAD, context=call_context, tools=tools
-            )
-        except LLMError as exc:
-            guard.after_model_error(exc)
-            raise
-        guard.after_model_call(response)
-        messages.append(response.message)
-        if not response.tool_calls:
-            break
-        for call in response.tool_calls:
-            if call.arguments_error:
-                messages.append(Message.tool_result(call, "Invalid tool arguments.", is_error=True))
-                continue
-            failed, result = await call_tool(channel, guard, call.name, call.arguments, recovery)
-            if not failed:
-                try:
-                    content = json.loads(result)
-                    diagnostic_id = content.get("diagnostic_id")
-                    kind = content.get("diagnostic")
-                    column = content.get("column")
-                    if all(isinstance(item, str) for item in (diagnostic_id, kind, column)):
-                        evidence[diagnostic_id] = (kind, column)
-                except (ValueError, AttributeError):
-                    pass
-            messages.append(Message.tool_result(call, result, is_error=failed))
-        revised = revised_plan_message(recovery)
-        if revised is not None:
-            messages.append(revised)
-        if recovery is not None and recovery.stopped:
-            break
-    else:
+    diagnostic_turns = iter(range(max_turns))
+    final_request = Message.user("Return the complete proposed DataContract now.")
+
+    async def diagnose() -> bool:
+        """Collect evidence in the current phase and share one turn allowance across attempts."""
+        for _ in diagnostic_turns:
+            guard.before_model_call()
+            try:
+                response = await adapter.complete(
+                    messages, tier=ModelTier.LEAD, context=call_context, tools=tools
+                )
+            except LLMError as exc:
+                guard.after_model_error(exc)
+                raise
+            guard.after_model_call(response)
+            messages.append(response.message)
+            if not response.tool_calls:
+                return True
+            for call in response.tool_calls:
+                if call.arguments_error:
+                    messages.append(
+                        Message.tool_result(call, "Invalid tool arguments.", is_error=True)
+                    )
+                    continue
+                failed, result = await call_tool(
+                    channel, guard, call.name, call.arguments, recovery
+                )
+                if not failed:
+                    try:
+                        content = json.loads(result)
+                        diagnostic_id = content.get("diagnostic_id")
+                        kind = content.get("diagnostic")
+                        column = content.get("column")
+                        if all(isinstance(item, str) for item in (diagnostic_id, kind, column)):
+                            evidence[diagnostic_id] = (kind, column)
+                    except (ValueError, AttributeError):
+                        pass
+                messages.append(Message.tool_result(call, result, is_error=failed))
+            revised = revised_plan_message(recovery)
+            if revised is not None:
+                messages.append(revised)
+            if recovery is not None and recovery.stopped:
+                return True
+        return False
+
+    if not await diagnose():
         raise ValueError("data methodology exceeded its bounded model turns")
-    final_messages = [*messages, Message.user("Return the complete proposed DataContract now.")]
+    final_messages = [*messages, final_request]
     for attempt in range(1, MAX_PROPOSAL_ATTEMPTS + 1):
         guard.before_model_call()
         try:
@@ -139,15 +155,31 @@ async def propose_data_contract(
                 raise
             # The validator's messages are fixed platform text naming the rule that failed,
             # never proposal content, so the correction request carries no data forward.
-            hint = (_NO_USER_HINTS if no_user else _CORRECTION_HINTS).get(str(refused), "")
-            final_messages = [
-                *final_messages,
-                response.message,
-                Message.user(
-                    f"The platform refused that DataContract: {refused}. {hint}Return a "
-                    "corrected complete DataContract."
-                ),
-            ]
+            reason = str(refused)
+            hint = (_NO_USER_HINTS if no_user else _CORRECTION_HINTS).get(reason, "")
+            correction = f"The platform refused that DataContract: {reason}. {hint}"
+            if (
+                tools
+                and reason in _DIAGNOSTIC_REFUSALS
+                and (recovery is None or not recovery.stopped)
+            ):
+                messages = [
+                    *final_messages,
+                    response.message,
+                    Message.user(
+                        correction
+                        + "Use remaining tool turns to gather matching evidence if needed, within "
+                        "the diagnostic permissions of the current phase."
+                    ),
+                ]
+                await diagnose()
+                final_messages = [*messages, final_request]
+            else:
+                final_messages = [
+                    *final_messages,
+                    response.message,
+                    Message.user(correction + "Return a corrected complete DataContract."),
+                ]
             continue
         return response.parsed, evidence
     raise ValueError("data methodology returned no valid contract")  # unreachable
