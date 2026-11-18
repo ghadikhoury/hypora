@@ -268,13 +268,17 @@ scripted coverage proves submission and recovery with a small trial budget and t
 workers can still contribute when the budget permits.
 
 #### S4.2j — Verify the hardened workflow
+**PR** `s4.2j-readiness-verification` for recorded evidence · `→ SERIAL`
 **Depends on** S4.2g–S4.2i · **Spec** §§17, 19.5
 
 Use scripted regressions first, then targeted free development runs when live model
-behavior remains uncertain. Verify all six unchanged cases against the integrated
-commit with a single predeclared evaluation. A new paid recorded collection requires
-separate scope and budget authorization under the live-run rules. A 6/6 development
-result is evidence on these cases. The frozen Stage 5 test set measures generalization.
+behavior remains uncertain. Verify all six unchanged cases on one integrated commit
+with one predeclared run of the multi-agent `default` configuration on the pinned
+`eval` profile. A new paid recorded collection requires separate scope and budget
+authorization under the live-run rules. Report every case and any incomplete run.
+Done when all six cases pass under the existing graders and limits with reproducible
+run identity and evidence. Investigate any regression under the existing stop rules.
+The frozen Stage 5 test set measures generalization.
 
 ### S4.3 — Usable release and documentation
 **PR:** `s4.3-release` · `→ SERIAL` · Depends on S4.2
@@ -291,7 +295,7 @@ runs, not the instructor's requirements. Changes to claimed features need owner/
 where required by D-028. Check the actual handout before making submission claims.
 
 ### S5.1 — Test set and freeze
-**PR:** `s5.1-test-set` · `→ SERIAL` · Depends on S4.3 · **Spec:** §19
+**PR:** `s5.1-test-set` · `→ SERIAL` · Depends on S4.3 and S4.2j · **Spec:** §19
 `🔍 REVIEW FOCUS` — Case validity and hidden data.
 Build ≥25 held-out cases distinct from dev, covering implemented and claimed behaviors: leakage,
 groups, temporal order, imbalance, research/reuse, bounded experiments and faults. Include a family
