@@ -338,7 +338,7 @@ async def test_the_contract_c_chose_is_what_the_baseline_and_candidate_run_under
     if isinstance(trap, TargetLeakageTrap | ClassImbalanceTrap):
         assert split.strategy.value == "stratified"
         if isinstance(trap, ClassImbalanceTrap):
-            assert contract.primary_metric.name in trap.acceptable_metrics
+            assert contract.primary_metric in trap.acceptable_metrics
     else:
         grouped = isinstance(trap, GroupedRowsTrap)
         assert split.strategy.value == ("group" if grouped else "temporal")
