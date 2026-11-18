@@ -251,7 +251,7 @@ existing approval flow. Preserve advice, reuse, genuine blockers and approval de
 Done when scripted coverage exercises the training route and legitimate stop paths.
 
 #### S4.2h — Validate methodology after the readiness fixes
-**PR** `s4.2h-methodology` · `⇉ PARALLEL · readiness-hardening` · **Spec** §§5.4, 7.2, 8.5, 19.2
+**PR** `s4.2h-methodology` · `⇉ PARALLEL · readiness-hardening` · **Spec** §§5.4, 7.2, 8.6, 19.2
 
 Exercise the merged assumption and overlap fixes. Diagnose remaining refusals in
 imbalance, leakage, grouped and temporal cases. Fix reproduced methodology failures
