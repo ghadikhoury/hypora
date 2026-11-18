@@ -527,12 +527,26 @@ async def test_worker_allocation_leaves_room_for_submission_and_retry(
     wrap, ledger = _fault_wrapper(
         database, run_id, {**TRANSIENT_INSPECT, "tool": "submit_experiment"}
     )
+
+    submissions = []
+
+    def observe_submissions(inner, role):
+        if role is not ActorRole.AGENT_C:
+            return inner
+        channel = wrap(inner, role)
+
+        class RecordingChannel:
+            async def call(self, name, arguments):
+                if name == "submit_experiment":
+                    submissions.append(dict(arguments))
+                return await channel.call(name, arguments)
+
+        return RecordingChannel()
+
     controller = make_controller(
         script,
         worker_factory=scripted_sandbox.ThreadWorker,
-        tool_channel_wrapper=lambda inner, role: (
-            wrap(inner, role) if role is ActorRole.AGENT_C else inner
-        ),
+        tool_channel_wrapper=observe_submissions,
     )
     enable(controller, run_config)
     flags = controller.run_config.flags.model_copy(update={"planning": Toggle.ON})
@@ -548,6 +562,9 @@ async def test_worker_allocation_leaves_room_for_submission_and_retry(
     assert len(facts["denials"]) == 2 - worker_trials
     assert f"New trial slots available now: {max_trials - worker_trials}." in script.c_context
     assert count_trials(database, run_id) == worker_trials + 2
+    assert len(submissions) == 3
+    assert submissions[0] == submissions[1]
+    assert submissions[0]["idempotency_key"] != submissions[2]["idempotency_key"]
     statuses = [
         event.payload.status.value
         for event in EventLog(database).read(run_id)

@@ -29,7 +29,8 @@ Work in this order:
    (design kind `candidate`), for example `HistGradientBoostingClassifier` or
    `HistGradientBoostingRegressor`. Creating a trial requires `write_trial_files` WITHOUT
    `trial_id`. Keep room for the required baseline and candidate; submit each as soon as it
-   is written. If a submission returns a transient retryable error, retry the exact submission
+   is written. Follow any recovery direction supplied by the platform. If a submission instead
+   returns a transient retryable error without a recovery direction, retry the exact submission
    once with the same arguments and key before writing another trial.
 4. Then call `get_experiment_status` for each job until `finished` is true. Jobs run one after
    another and take a minute or more each. Each call waits on the server and returns as soon as
