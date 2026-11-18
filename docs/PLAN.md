@@ -236,6 +236,46 @@ Done when: the per-case records are committed, and a new decision records model 
 cost, per-case results and limitations; no advantage over the baseline is claimed unless the paired
 interval supports it.
 
+### Readiness hardening after S4.2f
+
+The owner assigned these follow-ups after the S4.2f rerun and fixes #60–#62.
+Use the existing six development cases, graders, hidden splits, and run limits.
+Apply fixes to supported workflows based on observable inputs and runtime state.
+The three implementation steps below can proceed independently from the merged fixes.
+
+#### S4.2g — Continue explicit training after contract acceptance
+**PR** `s4.2g-training-route` · `⇉ PARALLEL · readiness-hardening` · **Spec** §§5.3, 6.2, 8.6, 10
+
+Give A a clear path from a viable contract for an explicit training request to the
+existing approval flow. Preserve advice, reuse, genuine blockers and approval decisions.
+Done when scripted coverage exercises the training route and legitimate stop paths.
+
+#### S4.2h — Validate methodology after the readiness fixes
+**PR** `s4.2h-methodology` · `⇉ PARALLEL · readiness-hardening` · **Spec** §§5.4, 7.2, 8.5, 19.2
+
+Exercise the merged assumption and overlap fixes. Diagnose remaining refusals in
+imbalance, leakage, grouped and temporal cases. Fix reproduced methodology failures
+within the existing evidence and approval boundaries. Use metadata, allowed diagnostics
+and training-side evidence. Done when affected regressions cover evidence-backed
+exclusions, metric choice and propagation of group/time requirements to the harness.
+
+#### S4.2i — Preserve trial capacity for execution and recovery
+**PR** `s4.2i-trial-capacity` · `⇉ PARALLEL · readiness-hardening` · **Spec** §§6.8, 8, 9, 17
+
+Keep enough of the existing trial allocation for C to submit a baseline and recover
+from a transient failure before workers can use the remaining capacity. Done when
+scripted coverage proves submission and recovery with a small trial budget and that
+workers can still contribute when the budget permits.
+
+#### S4.2j — Verify the hardened workflow
+**Depends on** S4.2g–S4.2i · **Spec** §§17, 19.5
+
+Use scripted regressions first, then targeted free development runs when live model
+behavior remains uncertain. Verify all six unchanged cases against the integrated
+commit with a single predeclared evaluation. A new paid recorded collection requires
+separate scope and budget authorization under the live-run rules. A 6/6 development
+result is evidence on these cases. The frozen Stage 5 test set measures generalization.
+
 ### S4.3 — Usable release and documentation
 **PR:** `s4.3-release` · `→ SERIAL` · Depends on S4.2
 Build one documented CLI path to run a task and one to evaluate it, fresh-clone setup verification,
