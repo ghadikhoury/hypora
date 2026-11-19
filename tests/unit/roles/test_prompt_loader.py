@@ -60,3 +60,25 @@ def test_role_code_loads_its_prompts_instead_of_inlining_them() -> None:
         source = (ROLES_DIR / module).read_text()
         assert "load_prompt(" in source
         assert "You are" not in source and "Return your final answer" not in source
+
+
+def test_agent_c_methodology_distinguishes_risks_from_open_questions() -> None:
+    prompt = load_prompt("agent_c_methodology")
+    assert prompt.version == 5
+    lower = prompt.text.lower()
+    assert "ordinary input features" in lower and "`risks`" in prompt.text
+    assert "`open_questions`" in prompt.text
+    assert "post-outcome" in lower
+    assert "feature_predictiveness" in prompt.text
+
+
+def test_agent_c_includes_imbalanced_classification_guidance() -> None:
+    prompt = load_prompt("agent_c")
+    assert prompt.version == 7
+    lower = prompt.text.lower()
+    assert "class imbalance" in lower
+    assert "HistGradientBoostingClassifier" in prompt.text
+    assert "LightGBM" in prompt.text
+    assert "XGBoost" in prompt.text
+    assert "threshold calibration" in lower
+    assert "inside `fit`" in prompt.text
