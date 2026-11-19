@@ -74,7 +74,7 @@ def test_agent_c_methodology_distinguishes_risks_from_open_questions() -> None:
 
 def test_agent_c_includes_imbalanced_classification_guidance() -> None:
     prompt = load_prompt("agent_c")
-    assert prompt.version == 7
+    assert prompt.version == 8
     lower = prompt.text.lower()
     assert "class imbalance" in lower
     assert "HistGradientBoostingClassifier" in prompt.text
@@ -82,3 +82,27 @@ def test_agent_c_includes_imbalanced_classification_guidance() -> None:
     assert "XGBoost" in prompt.text
     assert "threshold calibration" in lower
     assert "inside `fit`" in prompt.text
+
+
+def test_agent_c_workers_includes_multi_turn_budget_and_small_trial_guidance() -> None:
+    prompt = load_prompt("agent_c_workers")
+    assert prompt.version == 2
+    lower = prompt.text.lower()
+    assert "60000" in prompt.text and "80000" in prompt.text
+    assert "24000" in prompt.text
+    assert "max_trials <= 4" in prompt.text
+    assert "mid-draft" in lower
+
+
+def test_agent_c_includes_draft_recovery_and_mae_regression_guidance() -> None:
+    prompt = load_prompt("agent_c")
+    assert prompt.version == 8
+    lower = prompt.text.lower()
+    assert "unsubmitted `draft` trial" in lower
+    assert "via its `trial_id`" in prompt.text
+    assert "`mae`" in lower
+    assert 'loss="absolute_error"' in prompt.text
+    assert "l2_regularization" in prompt.text
+    assert "min_samples_leaf" in prompt.text
+    assert "HuberRegressor" in prompt.text
+    assert "Ridge" in prompt.text and "Lasso" in prompt.text
