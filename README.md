@@ -106,11 +106,14 @@ without model calls.
 
 ```bash
 make snapshot SOURCE=openml ID=46954
-make eval CASES=dev SYSTEMS=baseline CONFIG=default PROFILE=dev ARGS='--only dev_clean_control'
+make eval CASES=dev SYSTEMS=baseline CONFIG=default PROFILE=dev \
+  ARGS='--only dev_clean_control --results-root runs/release-smoke/results --work-root runs/release-smoke/work'
 ```
 
 Read the path printed after `Results:` and open its `summary.md`. Check the per-case grade
-there. An evaluator can complete successfully while a system fails a case.
+there. An evaluator can complete successfully while a system fails a case. The smoke check
+stores its outputs under git-ignored `runs/release-smoke/` so it can coexist with a later
+comparison.
 
 To compare the A/B/C agent and the fixed pipeline across all six development cases, first
 [fetch the required snapshots and build the planted cases](hypora/evaluation/cases/dev/README.md).
