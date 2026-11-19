@@ -95,3 +95,32 @@ async def test_correction_may_diagnose_only_with_available_tool_and_turn(
     assert provider.remaining == 0
     assert guard.model_calls == 3 + can_diagnose
     assert sum(request.output_schema_name == "DataContract" for request in provider.requests) == 2
+
+
+async def test_missing_column_refusal_sends_accounting_correction_hint() -> None:
+    task, columns = spec(), ["x", "group", "y"]
+    complete = build_data_contract(task, columns)
+    incomplete = complete.model_copy(update={"allowed_features": ("x",)})
+    llm, provider = adapter(
+        [text_result("Proposal ready."), json_result(incomplete), json_result(complete)]
+    )
+    guard, channel = RecordingGuard(), DiagnosticChannel()
+
+    def validate(draft: DataContract, evidence: dict[str, tuple[str, str]]) -> None:
+        validate_data_proposal(draft, task, columns, evidence)
+
+    result, _ = await propose_data_contract(
+        llm,
+        guard,
+        channel,
+        [],
+        run_id="run_hint",
+        role=ActorRole.AGENT_C,
+        context="Propose a complete contract.",
+        max_turns=2,
+        validate=validate,
+    )
+    assert result == complete
+    correction = provider.requests[-1].messages[-1].content
+    assert "every non-target column must be accounted for" in correction
+    assert "Include every non-target column from the dataset metadata" in correction

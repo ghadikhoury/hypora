@@ -29,6 +29,10 @@ _CORRECTION_HINTS = {
         "A split key needs a group or time diagnostic for that same column. Check the proposed "
         "key with the available diagnostic before choosing a split consistent with deployment. "
     ),
+    "every non-target column must be accounted for": (
+        "Include every non-target column from the dataset metadata in either allowed_features or "
+        "excluded_features, with no missing columns and no unknown column names. "
+    ),
 }
 """Guidance for the refusals models met live, keyed by the validator's fixed messages."""
 

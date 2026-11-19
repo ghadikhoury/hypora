@@ -187,23 +187,28 @@ def keep_assumed_exclusions(
     """`proposal` with every column an earlier assumption excluded still excluded.
 
     After the split is locked C may change exclusions; a column excluded for a conservative
-    assumption stays excluded (cited by the same evidence), so no later proposal can quietly
-    take the convenient answer back.
+    assumption stays excluded (cited by the same evidence), whether C moved it back to
+    `allowed_features` or omitted it from both lists, so no later proposal can quietly take the
+    convenient answer back or drop a settled exclusion. Non-assumed columns are never touched.
     """
     assumed = {column: ref for ref, (kind, column) in evidence.items() if kind == ASSUMPTION_KIND}
-    back = [column for column in proposal.allowed_features if column in assumed]
-    if not back:
+    if not assumed:
         return proposal
-    if len(back) == len(proposal.allowed_features):
+    excluded = {item.name for item in proposal.excluded_features}
+    restore = [column for column in assumed if column not in excluded]
+    allowed = tuple(column for column in proposal.allowed_features if column not in assumed)
+    if not restore and len(allowed) == len(proposal.allowed_features):
+        return proposal
+    if not allowed:
         raise MethodologyError(NO_FEATURE_LEFT)
     return proposal.model_copy(
         update={
-            "allowed_features": tuple(c for c in proposal.allowed_features if c not in assumed),
+            "allowed_features": allowed,
             "excluded_features": (
                 *proposal.excluded_features,
                 *(
                     ExcludedFeature(name=c, reason=ASSUMPTION_REASON, evidence=assumed[c])
-                    for c in back
+                    for c in restore
                 ),
             ),
         }
