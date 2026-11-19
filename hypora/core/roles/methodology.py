@@ -40,12 +40,18 @@ _NO_USER_HINTS = {
     **_CORRECTION_HINTS,
     "unresolved methodology questions require escalation": (
         "Remove questions the platform settles itself (see its guarantees) and record residual "
-        "risks in risks. No user is present in this run: keep each question only the user "
-        "could answer in open_questions; the platform records it as an assumption with its "
-        "conservative answer and itself excludes every dataset column a kept question names. "
-        "Do not exclude a column yourself because of a question: an exclusion still needs a "
-        "diagnostic_id a tool returned for that column. Name each column a kept question is "
-        "about exactly as it appears in the dataset, in backticks. "
+        "risks in risks. General deployment-timing or domain-context uncertainty about ordinary "
+        "input features belongs in risks, not open_questions: do not invent column-specific "
+        "questions for ordinary features without a concrete post-outcome or leakage reason, "
+        "because keeping a column-naming question in open_questions causes the platform to "
+        "exclude that column. No user is present in this run: keep in open_questions only a "
+        "concrete blocker that only the user could answer; the platform records it as an "
+        "assumption with its conservative answer and itself excludes every dataset column a kept "
+        "question names. Do not exclude a column yourself because of a question: an exclusion "
+        "still needs a diagnostic_id a tool returned for that column. Prior exclusions already "
+        "recorded in a current contract (including assumption:... entries) stay excluded: keep "
+        "them in excluded_features and account for every non-target column. Name each column a "
+        "kept question is about exactly as it appears in the dataset, in backticks. "
     ),
 }
 """The same guidance when no user can answer (S4.2c): a kept question becomes an assumption,

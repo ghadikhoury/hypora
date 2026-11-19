@@ -124,3 +124,44 @@ async def test_missing_column_refusal_sends_accounting_correction_hint() -> None
     correction = provider.requests[-1].messages[-1].content
     assert "every non-target column must be accounted for" in correction
     assert "Include every non-target column from the dataset metadata" in correction
+
+
+@pytest.mark.parametrize("no_user", [True, False])
+async def test_open_questions_refusal_uses_no_user_or_interactive_hint(no_user: bool) -> None:
+    task, columns = spec(), ["x", "y"]
+    first = build_data_contract(task, columns).model_copy(
+        update={"open_questions": ("Are all features available at decision time?",)}
+    )
+    corrected = build_data_contract(task, columns).model_copy(
+        update={"risks": ("Assumes all listed input features are available at decision time.",)}
+    )
+    llm, provider = adapter([text_result("Ready."), json_result(first), json_result(corrected)])
+    guard, channel = RecordingGuard(), DiagnosticChannel()
+
+    def validate(draft: DataContract, evidence: dict[str, tuple[str, str]]) -> None:
+        validate_data_proposal(draft, task, columns, evidence)
+
+    result, _ = await propose_data_contract(
+        llm,
+        guard,
+        channel,
+        [],
+        run_id="run_q",
+        role=ActorRole.AGENT_C,
+        context="Propose a contract.",
+        max_turns=1,
+        validate=validate,
+        no_user=no_user,
+    )
+    assert result == corrected
+    correction_message = provider.requests[2].messages[-1].content
+    assert "unresolved methodology questions require escalation" in correction_message
+    if no_user:
+        assert "ordinary input features belongs in risks, not open_questions" in correction_message
+        assert "do not invent column-specific questions for ordinary features" in correction_message
+        assert "assumption:..." in correction_message
+        assert "keep them in excluded_features" in correction_message
+        assert "Do not exclude a column yourself" in correction_message
+    else:
+        assert "the run will stop for the user" in correction_message
+        assert "Do not exclude a column yourself" not in correction_message
