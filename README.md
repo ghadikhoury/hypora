@@ -4,20 +4,21 @@ An agent-powered ML engineering platform for research datasets (CIS 1990 final p
 Provide a dataset, objective and constraints; Hypora runs bounded experiments and returns measured
 results with reproducible artifacts and limitations.
 
-**Implemented through PR #42:** the A/B/C workflow (A leads, B researches read-only, C does data
-methodology and code with up to two workers), plan approval, sandboxed tabular experiments, and the
-evaluation harness. The single-agent configuration remains the F3 comparison. The recorded S2.6 dev
-results (agent 3/6 vs fixed baseline 2/6 on each profile, inconclusive) predate Stage 3; S4.2
-records the next readiness run.
+**Release status.** The supported path is the local CLI for tabular classification and
+regression. It includes the A/B/C workflow, plan approval, sandboxed experiments, a verified
+result when one can be produced, and an inspectable trace. The single-agent and fixed-pipeline
+systems remain available for evaluation. The [readiness records](docs/notes/readiness.md)
+describe earlier development runs. Integrated post-hardening verification and the frozen
+held-out evaluation are tracked in [the plan](docs/PLAN.md).
 
-**Architecture (D-036):** A leads planning, delegation, review and reporting; B performs
-read-only research, usually first; C owns data and coding and alone may request workers. Code enforces
-approvals, budgets, isolation, splits and scoring. A can justify independent B/C overlap. The
-single-agent configuration (`CONFIG=single_agent`) remains the comparison system.
+**Architecture.** The CLI hands the user objective and dataset reference to the controller.
+A leads planning, delegation, and review. B gathers read-only research. C proposes data
+methodology and writes trial code, optionally with bounded workers. The controller checks
+approvals and budgets. Platform code locks splits and computes scores through the experiment
+harness. The report and event log support review through `hypora status` and `hypora trace`.
 
-Read [the spec](docs/PROJECT_SPEC.md) for behavior, [the plan](docs/PLAN.md) for the remaining steps
-and their dependencies, and [AGENTS.md](AGENTS.md) for how the repository is worked on. Component guides
-live under `docs/notes/`; historical notes and results describe the version that produced them.
+See [the spec](docs/PROJECT_SPEC.md) for behavior and [AGENTS.md](AGENTS.md) for repository
+workflow. Component guides live under [docs/notes/](docs/notes/).
 
 ## Requirements
 
@@ -52,8 +53,9 @@ The first time, this downloads the demo dataset (OpenML 46918, credit-g, CC BY 4
 `data/snapshots/` and builds the sandbox image (about 2 minutes). It then runs the demo task
 ("predict whether a loan applicant is a good or bad credit risk") on the `dev` profile
 (`gemini-3.5-flash-lite`, free tier). Progress prints as the run goes. The run ends with its
-status, the final trial, and the path of its report (`runs/<run_id>/report.md`). The exit code is
-0 when the final model was verified, 1 otherwise. A run takes a few minutes.
+status, the final trial, and the path of its report (`runs/<run_id>/report.md`). The CLI exits
+0 when the final model was verified, 1 when the run finishes without a verified model, and 2
+when preflight fails. A run can take several minutes.
 
 The run pauses at the plan gate and asks you to approve its plan and budget (or use
 `uv run hypora approve <run_id>` from another terminal). For unattended runs add
@@ -78,7 +80,8 @@ uv run hypora cancel <run_id>                # clean stop: cancels jobs, writes 
 uv run hypora --help
 ```
 
-Details: [docs/notes/cli.md](docs/notes/cli.md).
+To keep a local copy of a completed report and rendered trace, follow the
+[artifact export procedure](docs/notes/cli.md#local-artifact-export).
 
 ## Real datasets
 
@@ -97,16 +100,35 @@ Only datasets with a clearly named license are stored. Many older OpenML uploads
 
 ## Run the evaluation
 
+For a release smoke check, fetch the pinned OpenML fish-toxicity dataset and grade the fixed
+pipeline on the clean control. This command uses the sandbox and the same grader as a comparison,
+without model calls.
+
 ```bash
-make eval CASES=dev SYSTEMS=agent,baseline CONFIG=single_agent PROFILE=dev
+make snapshot SOURCE=openml ID=46954
+make eval CASES=dev SYSTEMS=baseline CONFIG=default PROFILE=dev \
+  ARGS='--only dev_clean_control --results-root runs/release-smoke/results --work-root runs/release-smoke/work'
 ```
 
-The runner writes one primary result per case/system, a Markdown report with 95% intervals,
-and newly failing cases compared with the nearest parent results for the same config. Named
-configs live in `configs/eval/`; `PROFILE` overrides their model profile. `CASES` also accepts a
-case directory. The tree must be clean for recorded results. See
-[the runner guide](docs/notes/eval-runner.md) for bounded parallelism, resume, and repeat samples.
-Six dev cases live in `hypora/evaluation/cases/dev/`; an empty case set is refused before any call.
+Read the path printed after `Results:` and open its `summary.md`. Check the per-case grade
+there. An evaluator can complete successfully while a system fails a case. The smoke check
+stores its outputs under git-ignored `runs/release-smoke/` so it can coexist with a later
+comparison.
+
+To compare the A/B/C agent and the fixed pipeline across all six development cases, first
+[fetch the required snapshots and build the planted cases](hypora/evaluation/cases/dev/README.md).
+Then run:
+
+```bash
+make eval CASES=dev SYSTEMS=agent,baseline CONFIG=default PROFILE=dev
+```
+
+The runner saves one primary result per case and system, a summary with confidence intervals
+when applicable, and regression flags when compatible prior results exist. Run from a clean
+checkout for commit-attributed records. An uncommitted development run can pass `--allow-dirty`
+through `ARGS`, with results in `results/raw/`. This development check uses the free provider
+profile. The [runner guide](docs/notes/eval-runner.md) covers paid profiles, bounded parallelism,
+resume, and repeat samples.
 
 ## The Docker Compose stack (Mode 1)
 
