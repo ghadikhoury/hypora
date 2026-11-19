@@ -100,6 +100,30 @@ again before acting on it (run, approval ID, a `user:` approver, and the hash pe
 decision for an older hash is ignored and logged as `APPROVAL_STALE`). A denial ends the run
 `CANCELLED` with its report. See `docs/notes/threat-model.md` for what this does not defend.
 
+## Local artifact export
+
+After a run finishes, use the run ID printed by `hypora run` or shown by `hypora status`.
+Substitute it for `run_...` below. This copies the user-visible report and renders the CLI
+trace into a new private local directory. A failed run can have a report and trace too, so
+check its status before treating the bundle as evidence of a verified model.
+
+```bash
+run_id=run_...
+(
+  set -eu
+  umask 077
+  export_dir="$(mktemp -d "$HOME/hypora-run.XXXXXX")"
+  cp -- "runs/$run_id/report.md" "$export_dir/report.md"
+  uv run --locked hypora trace "$run_id" > "$export_dir/trace.txt"
+  printf '%s\n' "$export_dir"
+)
+```
+
+The bundle contains report and trace text. Datasets, the run database, raw model calls, and
+worker-local model files stay in their original locations. Review the two files before
+sharing them. This procedure is a user action on files already available locally.
+Agent-initiated export and sample sharing still require approval under spec §10.
+
 ## Tests
 
 `tests/cli/`: trace rows, durations, filters, rendering, totals, and every event type's detail
