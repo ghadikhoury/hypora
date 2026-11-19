@@ -22,6 +22,7 @@ from hypora.core.controller.methodology import (
     columns_named,
     keep_assumed_exclusions,
     unsupported_exclusions,
+    validate_data_proposal,
 )
 from hypora.core.llm.providers.fake import json_result
 from hypora.core.schemas import (
@@ -578,15 +579,213 @@ def test_assume_conservatively_adopts_only_question_named_unsupported_exclusions
 
 def test_a_later_proposal_cannot_take_an_assumed_exclusion_back():
     evidence = {"assumption:initial_1": ("assumption", "collections_referrals_12m")}
-    later = _contract(["duration_months", "collections_referrals_12m"])
-    kept = keep_assumed_exclusions(later, evidence)
-    assert kept.allowed_features == ("duration_months",)
-    assert kept.excluded_features == (
+    expected = (
         ExcludedFeature(
             name="collections_referrals_12m",
             reason=ASSUMPTION_REASON,
             evidence="assumption:initial_1",
         ),
     )
-    unchanged = _contract(["duration_months"])
+    # Moved back to allowed_features: removed from allowed and restored to excluded.
+    moved_back = _contract(["duration_months", "collections_referrals_12m"])
+    kept = keep_assumed_exclusions(moved_back, evidence)
+    assert kept.allowed_features == ("duration_months",)
+    assert kept.excluded_features == expected
+    # Omitted from both allowed_features and excluded_features: restored to excluded.
+    omitted = _contract(["duration_months"])
+    restored = keep_assumed_exclusions(omitted, evidence)
+    assert restored.allowed_features == ("duration_months",)
+    assert restored.excluded_features == expected
+    # Already excluded: returned directly without copying.
+    unchanged = _contract(["duration_months"], expected)
     assert keep_assumed_exclusions(unchanged, evidence) is unchanged
+    # Removing an assumed column that leaves no allowed feature still fails closed.
+    with pytest.raises(MethodologyError, match="no allowed feature remains"):
+        keep_assumed_exclusions(_contract(["collections_referrals_12m"]), evidence)
+
+
+def test_keep_assumed_exclusions_never_hides_a_missing_non_assumed_column():
+    task = TaskSpecification(
+        run_id="run_keep_unit",
+        version=1,
+        objective="Predict target",
+        target="target",
+        task_type=TaskType.BINARY_CLASSIFICATION,
+        primary_metric=MetricName.ROC_AUC,
+        requested_actions=[RequestedAction.TRAIN],
+        budget=Budget(max_usd=1.0),
+    )
+    evidence = {"assumption:initial_1": ("assumption", "collections_referrals_12m")}
+    # Both collections_referrals_12m (assumed) and credit_amount (non-assumed) are omitted.
+    proposal = _contract(["duration_months"])
+    kept = keep_assumed_exclusions(proposal, evidence)
+    assert [item.name for item in kept.excluded_features] == ["collections_referrals_12m"]
+    with pytest.raises(MethodologyError, match="every non-target column must be accounted for"):
+        validate_data_proposal(
+            kept,
+            task,
+            ["duration_months", "credit_amount", "collections_referrals_12m", "target"],
+            evidence,
+        )
+
+
+# --- Reconciliation with prior conservative assumptions -------------------------------------
+
+
+class ReconcileC(QuestioningC):
+    """Script each DataContract answer across initial and post-split-lock reconcile phases.
+
+    Each step is `(questions, omit, move_to_allowed)`:
+    - `questions`: open questions to place on the proposal.
+    - `omit`: columns to drop from both `allowed_features` and `excluded_features`.
+    - `move_to_allowed`: columns to move out of `excluded_features` back into `allowed_features`.
+    When `Current contract: ` is present (reconcile), starts from that contract so settled
+    exclusions are preserved unless the step explicitly omits or moves them.
+    """
+
+    def __init__(
+        self,
+        run_id: str,
+        steps: list[tuple[list[str], list[str], list[str]]],
+    ) -> None:
+        super().__init__(run_id, [])
+        self.steps = list(steps)
+
+    async def generate(self, request):
+        result = await super().generate(request)
+        if request.output_schema_name == "DataContract" and self.steps:
+            questions, omit, move_to_allowed = self.steps.pop(0)
+            context = request.messages[1].content
+            if "Current contract: " in context:
+                payload = json.JSONDecoder().raw_decode(context.split("Current contract: ", 1)[1])[
+                    0
+                ]
+            else:
+                payload = json.loads(result.text)
+            payload["open_questions"] = questions
+            drop = set(omit)
+            payload["allowed_features"] = [c for c in payload["allowed_features"] if c not in drop]
+            payload["excluded_features"] = [
+                item for item in payload["excluded_features"] if item["name"] not in drop
+            ]
+            for column in move_to_allowed:
+                payload["excluded_features"] = [
+                    item for item in payload["excluded_features"] if item["name"] != column
+                ]
+                if column not in payload["allowed_features"]:
+                    payload["allowed_features"].append(column)
+            return json_result(payload)
+        return result
+
+
+async def _run_reconcile(
+    make_controller,
+    run_config,
+    dataset,
+    run_id,
+    steps,
+    *,
+    planning: Toggle = Toggle.OFF,
+):
+    script = ReconcileC(run_id, steps)
+    controller = make_controller(script, worker_factory=NoWorker)
+    flags = run_config.flags.model_copy(
+        update={"agent_mode": AgentMode.MULTI, "planning": planning}
+    )
+    controller.run_config = run_config.model_copy(update={"flags": flags})
+    result = await controller.run(RunRequest(dataset=dataset, goal="Predict target", run_id=run_id))
+    return script, result
+
+
+async def test_reconcile_restores_assumed_exclusion_omitted_on_attempt_two(
+    make_controller, run_config, credit, database
+):
+    # Reproduces the dev_grouped_rows readiness failure: initial proposal excludes a column via
+    # assumption:initial_1; on reconcile attempt 1 C re-asks the question, then on attempt 2 drops
+    # the question and omits the assumed column from both allowed_features and excluded_features.
+    script, result = await _run_reconcile(
+        make_controller,
+        run_config,
+        credit,
+        "run_reconcile_omit_assumed",
+        [
+            ([TIMING], [], []),
+            ([TIMING], [], []),
+            ([TIMING], [], []),
+            ([], ["collections_referrals_12m"], []),
+        ],
+    )
+    assert not any("CONTRACT stage failed" in note for note in result.notes)
+    excluded = _assumed(database, "run_reconcile_omit_assumed", "collections_referrals_12m")
+    assert excluded.reason == ASSUMPTION_REASON
+    assert excluded.evidence == "assumption:initial_1"
+    # Reconcile context reminds C that settled exclusions stay in excluded_features.
+    reconcile_contexts = [
+        req.messages[1].content
+        for req in script.requests
+        if req.output_schema_name == "DataContract"
+        and "Current contract: " in req.messages[1].content
+    ]
+    assert reconcile_contexts
+    assert "remain settled" in reconcile_contexts[0]
+
+
+async def test_reconcile_reasked_question_preserves_initial_assumption_and_avoids_re_research(
+    make_controller, run_config, credit, database
+):
+    # On reconcile, C re-asks the open question about an already-assumed-excluded column and
+    # even moves it back to allowed_features. keep_assumed_exclusions runs before
+    # assume_conservatively, so assumption:initial_1 is preserved, no duplicate
+    # assumption:reconcile_1 is created, revised == draft, and Agent B does not re-research.
+    script, result = await _run_reconcile(
+        make_controller,
+        run_config,
+        credit,
+        "run_reconcile_reask",
+        [
+            ([TIMING], [], []),
+            ([TIMING], [], []),
+            ([TIMING], [], ["collections_referrals_12m"]),
+            ([TIMING], [], ["collections_referrals_12m"]),
+        ],
+        planning=Toggle.ON,
+    )
+    assert not any("CONTRACT stage failed" in note for note in result.notes)
+    excluded = _assumed(database, "run_reconcile_reask", "collections_referrals_12m")
+    assert excluded.reason == ASSUMPTION_REASON
+    assert excluded.evidence == "assumption:initial_1"
+    stored = json.dumps(
+        [e.model_dump(mode="json") for e in EventLog(database).read("run_reconcile_reask")]
+    )
+    assert "assumption:reconcile_1" not in stored
+    assert not any("A asked B to revise its research" in note for note in result.notes)
+    b_calls = [req for req in script.requests if req.output_schema_name == "ResearchObservation"]
+    assert len(b_calls) == 1
+
+
+async def test_reconcile_still_fails_closed_when_non_assumed_column_is_omitted(
+    make_controller, run_config, credit, database
+):
+    script, result = await _run_reconcile(
+        make_controller,
+        run_config,
+        credit,
+        "run_reconcile_omit_other",
+        [
+            ([TIMING], [], []),
+            ([TIMING], [], []),
+            ([], ["duration_months"], []),
+            ([], ["duration_months"], []),
+        ],
+    )
+    assert any(
+        "CONTRACT stage failed: MethodologyError: every non-target column must be accounted for"
+        in note
+        for note in result.notes
+    )
+    corrections = _c_corrections(script)
+    assert any(
+        "every non-target column must be accounted for" in text
+        and "Include every non-target column from the dataset metadata" in text
+        for text in corrections
+    )

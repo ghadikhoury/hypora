@@ -1486,7 +1486,11 @@ class _Run:
             context += (
                 "\nThe split is now locked. You may run feature_predictiveness only on the "
                 "platform's diagnostic-only partition. You may propose feature exclusions with "
-                "diagnostic evidence; preserve target, task, split and non-learned fixes exactly."
+                "diagnostic evidence; preserve target, task, split and non-learned fixes exactly. "
+                "Exclusions already recorded in Current contract (including assumption:... "
+                "exclusions) remain settled: keep them in excluded_features with their existing "
+                "evidence, do not re-ask their open questions, and account for every non-target "
+                "column in either allowed_features or excluded_features."
                 "\nCurrent contract: " + previous.model_dump_json()
             )
         else:
@@ -1514,17 +1518,22 @@ class _Run:
             earlier = asked[-1] if asked else ()
             asked.append(tuple(proposal.open_questions))
             try:
+                effective = (
+                    keep_assumed_exclusions(proposal, prior_evidence)
+                    if prior_evidence
+                    else proposal
+                )
                 if self._no_user:
                     assumed, extra, _ = assume_conservatively(
-                        proposal,
+                        effective,
                         tag=tag,
-                        unsupported=unsupported_exclusions(proposal, spec, known),
+                        unsupported=unsupported_exclusions(effective, spec, known),
                         earlier=earlier,
                         answer=attempts >= MAX_PROPOSAL_ATTEMPTS,
                     )
                     validate_data_proposal(assumed, spec, columns, {**known, **extra})
                 else:
-                    validate_data_proposal(proposal, spec, columns, known)
+                    validate_data_proposal(effective, spec, columns, known)
             except MethodologyError as refused:
                 # Also when answering the questions would leave no feature (S4.2c): the run stops
                 # on them, so they are kept screened like any open-questions refusal.
@@ -1601,6 +1610,11 @@ class _Run:
             raise failure
         if proposal.open_questions and not self._no_user:
             raise MethodologyError(OPEN_QUESTIONS_REFUSAL)
+        if prior_evidence:
+            # A column excluded for an assumption stays excluded after the split is locked;
+            # apply before conservative assumptions so a re-asked question sees it as already
+            # excluded instead of creating a duplicate assumption ref.
+            proposal = keep_assumed_exclusions(proposal, prior_evidence)
         if self._no_user:
             # Only `check`'s no-user path accepts open questions (S4.2c) or an exclusion that
             # one of C's questions accounts for (F1). Answer them exactly as `check` did, before
@@ -1616,9 +1630,6 @@ class _Run:
             evidence.update(extra)
             if assumptions:
                 self._record_assumptions(assumptions, proposal=tag)
-        if prior_evidence:
-            # A column excluded for an assumption stays excluded after the split is locked.
-            proposal = keep_assumed_exclusions(proposal, prior_evidence)
         # Model-generated strings must pass both existing secret and dataset-value boundaries
         # before forwarding to A or persisting any proposed methodology.
         payload = proposal.model_dump(mode="json")
