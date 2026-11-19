@@ -1646,10 +1646,22 @@ class _Run:
         )
         self.methodology_draft = None
         validate_data_proposal(draft, spec, columns, evidence)
-        if self._multi and not await self._lead_decision(
-            "Review C's proposed data methodology alongside B's evidence. Report on conflict or "
-            "ambiguity; otherwise continue. "
+        review_context = (
+            "The task requests work on the user's data. Continue with the requested work if C's "
+            "proposal supports a defensible evaluation. Choose report for a concrete conflict or "
+            "ambiguity that prevents valid work, and identify it in your reason. Distinguish "
+            "uncertainty about row provenance from evidence of a shared group that would "
+            "invalidate the proposed split. Keep unresolved risks explicit. "
             + PLATFORM_GUARANTEES
+            + "\nTask specification: "
+            + spec.model_dump_json(exclude={"run_id", "dataset_ref"})
+        )
+        if self._multi and not await self._lead_decision(
+            "Review C's proposed data methodology alongside B's evidence. C's draft passed "
+            "platform validation of the proposal. Continue sends the plan to the existing "
+            "approval gate, then the platform checks data integrity and locks the split before "
+            "C runs any target-aware diagnostics. No experiment is authorized by this review. "
+            + review_context
             + "\nC proposal: "
             + draft.model_dump_json()
             + "\nB evidence: "
@@ -1705,9 +1717,11 @@ class _Run:
                 await self._research(spec, profile, finding=finding)
             ).model_dump_json()
         if self._multi and not await self._lead_decision(
-            "Reconcile B's evidence and C's locked-split diagnostics. Report on conflict or "
-            "ambiguity; otherwise continue. "
-            + PLATFORM_GUARANTEES
+            "Reconcile B's evidence and C's locked-split diagnostics. C's revised proposal "
+            "passed platform validation and retains the locked split. Continue moves toward "
+            "the requested experiment under the existing approval rules, including new approval "
+            "if the artifact changed. "
+            + review_context
             + "\nC proposal: "
             + revised.model_dump_json()
             + "\nB evidence: "

@@ -44,6 +44,15 @@ not in the table is refused. Each applied row updates `runs.status` and appends 
 `stage_transition` event in one transaction. Any failure before the report is an `error` event and
 a `fail` row into `REPORT`, so every run still gets a report that says what happened. S3.1 introduces the A/B/C loop; S3.3 adds methodology decisions and S3.5 adds the plan gate below.
 
+### Agent A's methodology reviews (S4.2g)
+
+Each review starts a new role call. The controller includes the task specification and names the
+next step so A can judge the proposal against the work the user requested. On C's first validated
+draft, continuing sends the plan to approval before data integrity checks and split locking. On
+reconciliation, the split is already locked and an artifact change requires a new approval. A can
+still stop on a conflict that prevents valid evaluation. Uncertain row provenance is a risk to
+describe, while evidence of dependent rows crossing fold boundaries can invalidate the split.
+
 ## Default data contract (D-019 1a)
 
 The fixed baseline and tests still use the code-built contract: every column except the target and

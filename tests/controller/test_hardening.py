@@ -38,7 +38,7 @@ from hypora.evaluation.graders import ProgrammaticGrader
 from hypora.evaluation.runner.agent import FaultInjectingChannel, FaultLedger
 from hypora.evaluation.system import CheckStatus, SystemRun
 from hypora.storage.events import EventLog
-from hypora.storage.records import run_jobs
+from hypora.storage.records import load_task_spec, run_jobs
 from tests.controller.conftest import NoWorker
 from tests.controller.test_multi_loop import ScriptedMulti, cited_strategy_fixture
 from tests.unit.evaluation.grader_helpers import check_of, failures
@@ -164,6 +164,95 @@ async def test_reuse_advice_on_an_advice_only_request_is_reported(
     )
     assert any("B recommended reuse_pretrained" in note for note in result.notes)
     assert ActorRole.AGENT_C not in _roles(_events(database, "run_reuse_advice"))
+
+
+@pytest.mark.parametrize("material_conflict", [False, True])
+async def test_methodology_review_uses_training_intent_and_keeps_approval(
+    make_controller, database, dataset, run_config, material_conflict
+):
+    confirmed_dependency = "The cohort protocol confirms that rows repeat the same subjects."
+    requires_disjoint_groups = "Evaluation must hold out unseen subjects."
+    provenance_risk = "Some similar rows have unresolved provenance."
+
+    class ReviewTraining(ScriptedMulti):
+        async def generate(self, request):
+            context = request.messages[1].content
+            if request.output_schema_name == "ResearchObservation" and material_conflict:
+                self.requests.append(request)
+                return json_result(
+                    {
+                        "summary": f"{confirmed_dependency} {requires_disjoint_groups}",
+                        "strategy_report": cited_strategy_fixture(self.run_id, self.evidence),
+                    }
+                )
+            if (
+                request.output_schema_name == "LeadAction"
+                and context.startswith("Review C's proposed data methodology")
+                and confirmed_dependency in context
+                and requires_disjoint_groups in context
+            ):
+                review = json.JSONDecoder().raw_decode(context.split("C proposal: ", 1)[1])[0]
+                assert review["split"]["strategy"] == "stratified"
+                assert review["split"]["group_key"] is None
+                self.requests.append(request)
+                return json_result(
+                    {"action": "report", "reason": "A row-wise split cannot hold subjects apart"}
+                )
+            response = await super().generate(request)
+            if request.output_schema_name == "DataContract":
+                proposal = json.loads(response.text)
+                proposal["risks"].append(provenance_risk)
+                return json_result(proposal)
+            return response
+
+    run_id = "run_training_review"
+    goal = "Train a classifier for future independent observations"
+    script = ReviewTraining(run_id)
+    controller = _multi(make_controller, run_config, script)
+    result = await controller.run(
+        RunRequest(
+            dataset=dataset,
+            goal=goal,
+            run_id=run_id,
+            requested_actions=(RequestedAction.TRAIN,),
+        )
+    )
+
+    events = _events(database, run_id)
+    approval_requested = [e for e in events if e.type.value == "approval_requested"]
+    approval_granted = [e for e in events if e.type.value == "approval_granted"]
+    phase_b_calls = [r for r in script.requests if "You are Agent C" in r.messages[0].content]
+    reviews = [
+        r.messages[1].content
+        for r in script.requests
+        if r.output_schema_name == "LeadAction"
+        and r.messages[1].content.startswith(
+            ("Review C's proposed data methodology", "Reconcile B's evidence")
+        )
+    ]
+    assert len(reviews) == (1 if material_conflict else 2)
+    for context in reviews:
+        assert "defensible evaluation" in context
+        assert "uncertainty about row provenance" in context
+        assert "concrete conflict or ambiguity" in context
+        spec = json.JSONDecoder().raw_decode(context.split("Task specification: ", 1)[1])[0]
+        assert spec["requested_actions"] == ["train"]
+        assert spec["objective"] == load_task_spec(database, run_id).objective
+        proposal = json.JSONDecoder().raw_decode(context.split("C proposal: ", 1)[1])[0]
+        assert proposal["split"]["strategy"] == "stratified"
+        assert proposal["split"]["group_key"] is None
+        assert provenance_risk in proposal["risks"]
+        assert (confirmed_dependency in context) is material_conflict
+    assert "approval gate" in reviews[0]
+    assert "No experiment is authorized by this review" in reviews[0]
+    if material_conflict:
+        assert any("Agent A decision: report" in note for note in result.notes)
+        assert not approval_requested and not approval_granted and not phase_b_calls
+    else:
+        assert "retains the locked split" in reviews[1]
+        assert len(approval_requested) == len(approval_granted) == 1
+        assert approval_requested[0].seq < approval_granted[0].seq
+        assert phase_b_calls
 
 
 # --- Research failure ----------------------------------------------------------------------------
