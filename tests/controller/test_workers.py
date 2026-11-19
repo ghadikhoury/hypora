@@ -470,3 +470,107 @@ async def test_rejected_worker_report_text_never_reaches_c_or_disk(
         assert stored["status"] == "failed" and stored["confidence"] == 0.0
         assert stored["claims"] == [] and stored["open_questions"] == []
         assert "Zanzibar" not in path.read_text()
+
+
+class BaselineAfterWorkers(ScriptedWorkers):
+    """Offer two worker trials before C writes its own baseline and candidate."""
+
+    def __init__(self, run_id):
+        super().__init__(run_id)
+        self.compare = True
+
+    async def generate(self, request):
+        from tests.controller.scripted import DESIGN, LINEAR, ScriptedRun
+
+        if request.output_schema_name == "WorkerProposal":
+            result = await super().generate(request)
+            payload = json.loads(result.text)
+            for worker in payload["workers"]:
+                worker["allowed_tools"] = ["write_trial_files"]
+            return json_result(payload)
+        if request.output_schema_name is None and "You are a bounded trial worker" in (
+            request.messages[0].content
+        ):
+            self.requests.append(request)
+            brief = json.JSONDecoder().raw_decode(request.messages[1].content[7:])[0]
+            key = brief["brief_id"]
+            self.started.add(key)
+            if request.messages[-1].role.value != "tool":
+                return self._call(
+                    "write_trial_files",
+                    design=DESIGN,
+                    pipeline_py=LINEAR,
+                    idempotency_key=f"{self.run_id}:{key}_write",
+                )
+            assert not request.messages[-1].is_error
+            return text_result("Trial draft is ready for C.")
+        if request.output_schema_name is None and "You are Agent C" in request.messages[0].content:
+            self.c_context = request.messages[1].content
+            self.requests.append(request)
+            return await ScriptedRun._agent_turn(self, request)
+        return await super().generate(request)
+
+
+@pytest.mark.parametrize(("max_trials", "worker_trials"), [(2, 0), (4, 1)])
+async def test_worker_allocation_leaves_room_for_submission_and_retry(
+    make_controller, database, dataset, run_config, monkeypatch, max_trials, worker_trials
+):
+    from hypora.core.schemas import ActorRole
+    from hypora.core.schemas.events import ToolResultEvent
+    from hypora.storage.records import count_trials
+    from tests.controller import scripted_sandbox
+    from tests.controller.test_hardening import TRANSIENT_INSPECT, _fault_wrapper
+
+    run_id = f"run_trial_reserve_{max_trials}"
+    script = BaselineAfterWorkers(run_id)
+    scripted_sandbox.install(monkeypatch)
+    wrap, ledger = _fault_wrapper(
+        database, run_id, {**TRANSIENT_INSPECT, "tool": "submit_experiment"}
+    )
+
+    submissions = []
+
+    def observe_submissions(inner, role):
+        if role is not ActorRole.AGENT_C:
+            return inner
+        channel = wrap(inner, role)
+
+        class RecordingChannel:
+            async def call(self, name, arguments):
+                if name == "submit_experiment":
+                    submissions.append(dict(arguments))
+                return await channel.call(name, arguments)
+
+        return RecordingChannel()
+
+    controller = make_controller(
+        script,
+        worker_factory=scripted_sandbox.ThreadWorker,
+        tool_channel_wrapper=observe_submissions,
+    )
+    enable(controller, run_config)
+    flags = controller.run_config.flags.model_copy(update={"planning": Toggle.ON})
+    controller.run_config = controller.run_config.model_copy(update={"flags": flags})
+    budget = run_config.budgets.run.model_copy(update={"max_trials": max_trials})
+    with anyio.fail_after(60):
+        result = await controller.run(
+            RunRequest(dataset=dataset, goal="Predict target", run_id=run_id, budget=budget)
+        )
+
+    facts, _ = worker_blocks(script.c_context)
+    assert len(script.started) == len(facts["findings"]) == worker_trials
+    assert len(facts["denials"]) == 2 - worker_trials
+    assert f"New trial slots available now: {max_trials - worker_trials}." in script.c_context
+    assert count_trials(database, run_id) == worker_trials + 2
+    assert len(submissions) == 3
+    assert submissions[0] == submissions[1]
+    assert submissions[0]["idempotency_key"] != submissions[2]["idempotency_key"]
+    statuses = [
+        event.payload.status.value
+        for event in EventLog(database).read(run_id)
+        if isinstance(event, ToolResultEvent)
+        and event.actor_role is ActorRole.AGENT_C
+        and event.payload.tool == "submit_experiment"
+    ]
+    assert len(ledger.fired) == 1 and statuses == ["error", "ok", "ok"]
+    assert result.verified

@@ -2075,6 +2075,10 @@ class _Run:
                         )
                 outcome: AgentOutcome | None = None
                 if stale is None:
+                    if self._multi and self.budget.max_trials is not None:
+                        used = count_trials(self.database, self.run_id)
+                        remaining = max(0, self.budget.max_trials - used)
+                        context += f"\nNew trial slots available now: {remaining}."
                     outcome = await run_single_agent(
                         c.adapter,
                         self.guard,

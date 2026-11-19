@@ -18,6 +18,10 @@ WorkerGuard charges actuals to RunGuard once and releases only unused reservatio
 do not enter run limits_fired. Model attempts reserve a conservative text request envelope and
 bounded output before dispatch, including retries/fallbacks; exceeding actual caps blocks success.
 The adapter's existing run-level USD/compute and wall-clock controls remain authoritative.
+A worker with trial writing enabled reserves one slot only if it leaves C three slots for a
+baseline, a candidate and one replacement. Workers without trial writing still reserve tokens
+and steps. After workers return, C sees the actual remaining trial count. A transient submission
+retry can reuse the same trial and idempotency key without creating another trial.
 
 Workers receive only their brief and requested records, never A/B/C transcripts. Findings contain
 code-populated trial/job/outcome/result references; text does not supply measured values. The

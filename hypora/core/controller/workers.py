@@ -26,6 +26,9 @@ from hypora.core.schemas.events import (
 )
 from hypora.storage.records import count_trials
 
+# C needs a baseline and a candidate, plus space to replace one unusable trial.
+_C_TRIAL_RESERVE = 3
+
 
 @dataclass
 class Reservation:
@@ -46,21 +49,25 @@ class WorkerReservations:
         self._lock = threading.RLock()
 
     def reserve(self, key: str, request: WorkerRequest) -> bool:
-        """Claim one worker slot and its maximum remaining tokens, steps and trial."""
+        """Claim one worker slot and its maximum remaining tokens, steps and trial writes."""
         with self._lock:
             if len(self.active) >= self.ceiling or key in self.active:
                 return False
-            wanted = Reservation(request.budget.max_tokens, 2 * request.budget.max_tool_calls + 3)
+            wanted = Reservation(
+                request.budget.max_tokens,
+                2 * request.budget.max_tool_calls + 3,
+                trials=int(ToolName.WRITE_TRIAL_FILES in request.allowed_tools),
+            )
             b = self.guard.budget
             dimensions = (
                 (b.max_llm_tokens, self.guard.tokens, "tokens", wanted.tokens, 2048),
                 (b.max_steps, self.guard.steps, "steps", wanted.steps, 8),
                 (
-                    b.max_trials,
+                    b.max_trials if wanted.trials else None,
                     count_trials(self.guard.database, self.guard.run_id),
                     "trials",
-                    1,
-                    1,
+                    wanted.trials,
+                    _C_TRIAL_RESERVE,
                 ),
             )
             for maximum, used, name, amount, lead in dimensions:

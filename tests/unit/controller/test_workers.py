@@ -78,7 +78,7 @@ def test_atomic_slot_and_aggregate_reservation(database, tmp_path: Path) -> None
             tmp_path,
             max_llm_tokens=5048,
             max_steps=41,
-            max_trials=4,
+            max_trials=5,
         ),
         2,
     )
@@ -110,6 +110,9 @@ def test_worker_cap_does_not_poison_run_and_spent_tokens_stay_charged(database, 
 def test_lead_reserve_and_per_case_tools_preserved(database, tmp_path):
     reservations = WorkerReservations(guard(database, tmp_path, max_trials=1), 2)
     assert authorize(reservations)[0] is None
+    brief, reason = authorize(reservations, proposal=request(allowed_tools=["inspect_dataset"]))
+    assert brief is not None and reason is None
+    assert reservations.active[brief.brief_id].trials == 0
     reservations = WorkerReservations(guard(database, tmp_path), 2)
     brief, reason = authorize_worker(
         ActorRole.AGENT_C,
