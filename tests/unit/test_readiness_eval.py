@@ -29,14 +29,16 @@ def test_both_configs_use_the_pinned_eval_profile_without_fallback(
 
 
 def test_the_committed_readiness_lock_matches_the_code() -> None:
-    """S4.2 locked the eval model, limits, flags and prompts its evidence describes (D-051).
-
-    If this fails, a locked input changed: the readiness results no longer describe the code.
-    Record why in the PR, rerun the affected evidence when behavior changed, then regenerate
-    the lock with `uv run --locked python -m scripts.readiness_eval lock`.
-    """
+    """Drift in a locked input requires regenerating the pending configuration."""
     committed = json.loads(readiness.LOCK.read_text())
     assert readiness.current_lock() == committed
+    assert committed["step"] == "S4.2j"
+    assert committed["verification"] == "pending"
+    assert committed["previous_recorded_evidence"] == {
+        "step": "S4.2f",
+        "decision": "D-053",
+        "commit": "47c387f9ad361da1dd803027380a911ab57af210",
+    }
 
 
 def test_each_collection_has_its_own_journal_audit_and_cap() -> None:

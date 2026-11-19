@@ -217,7 +217,8 @@ async def test_a_fix_on_the_target_stops_the_run_before_review_lock_or_contract(
         )
     )
     proposals = [r for r in script.requests if r.output_schema_name == "DataContract"]
-    assert len(proposals) == 1  # C did propose it; nothing after validation happened
+    assert len(proposals) == 2  # The attempted correction kept the forbidden target fix.
+    assert "must not change the target column" in proposals[1].messages[-1].content
     assert not reached and not result.verified
     assert any("CONTRACT stage failed: MethodologyError" in note for note in result.notes)
     assert not any(
@@ -316,7 +317,10 @@ async def test_split_change_after_supervised_diagnostic_fails_closed(
         )
     )
     assert not reached
-    assert any("split-affecting methodology changes" in note for note in result.notes)
+    assert any(
+        "after the split is locked only feature exclusions may change" in note
+        for note in result.notes
+    )
     assert any(item["diagnostic"] == "feature_predictiveness" for item in script.diagnostics)
     assert (controller.runs_root / "run_changed" / "partition-lock.json").exists()
     assert load_experiment_contract(database, "run_changed").version == 1

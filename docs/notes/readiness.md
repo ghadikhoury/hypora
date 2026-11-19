@@ -6,8 +6,9 @@ comparison point (`configs/eval/single_agent.yaml`), each against the fixed base
 cases are development controls, not held-out test results (S5).
 
 S4.2 collected it once (D-051, sections below the S4.2f one). S4.2b–S4.2e then changed behavior
-that evidence measured, so S4.2f reran it once (D-052, D-053). **The S4.2f rerun is the current
-readiness evidence;** the S4.2 sections are kept as the record of the first collection.
+that evidence measured, so S4.2f reran it once (D-052, D-053). **S4.2f is the latest recorded
+readiness run.** The S4.2 sections are the record of the first collection. Post-readiness fixes
+change the workflow and await the S4.2j verification.
 
 ## S4.2f rerun (D-053)
 
@@ -50,8 +51,9 @@ infrastructure rerun and no resumed run. Every model call was `openai/gpt-6-luna
 Same as S4.2 except the commit and the case files: run config hashes `63286a1d…` (`default`) and
 `8efbe27b…` (`single_agent`), tool contract `1518dfe4…`, sandbox image
 `hypora-sandbox-tabular:f50772e217853fa1`, Python 3.12.14, the same retry policy and prices.
-`results/readiness/lock.json` was regenerated in the run commit; only its `step` and `decision`
-changed (no prompt, flag, budget, model or tool contract changed between S4.2 and S4.2f).
+The [lock in the S4.2f run commit](https://github.com/ghadikhoury/hypora/blob/47c387f9ad361da1dd803027380a911ab57af210/results/readiness/lock.json)
+changed only its `step` and `decision` from S4.2. The prompts, flags, budgets, models and tool
+contract were the same for those two collections.
 
 ### Results
 
@@ -355,7 +357,7 @@ have changed any grade.
 
 ## Locked configuration
 
-`results/readiness/lock.json` locks:
+The S4.2 and S4.2f run locks record:
 - the eval models and retry policy;
 - both configs' flags;
 - `configs/budgets.yaml`;
@@ -365,10 +367,10 @@ have changed any grade.
   `single_agent@v3`, `single_agent_context@v1`, `single_agent_final@v1`);
 - the tool contract hash.
 
-`tests/unit/test_readiness_eval.py` fails when any of them changes. Regenerate the lock only
-together with new evidence, or with a stated reason that the change cannot affect behavior.
-S4.2f re-locked it (`step: S4.2f`, `decision: D-053`) in its run commit; every locked value was
-unchanged, and the S4.2f evidence above is what the lock now describes.
+`results/readiness/lock.json` on the current branch records the configuration for S4.2j with
+`verification: pending`. The S4.2h methodology prompt and correction behavior differ from S4.2f.
+`tests/unit/test_readiness_eval.py` checks that the pending lock matches the current configuration.
+The S4.2f scores above remain tied to the configuration in the historical run commit.
 
 ### Limits and their source
 

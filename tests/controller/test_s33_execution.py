@@ -1,4 +1,4 @@
-"""S3.3 on the real leakage, group and time dev cases, through execution (review of PR #37).
+"""S3.3 on the real methodology development cases, through execution (review of PR #37).
 
 Two things are scripted: the model (`ExecutionScript`) and the container launch
 (`scripted_sandbox`). The rest is the run as `hypora run` makes it: C proposes the data contract
@@ -25,7 +25,12 @@ from hypora.core.llm.providers.fake import json_result, text_result
 from hypora.core.llm.types import MessageRole
 from hypora.core.roles.reporter import metric_summary
 from hypora.core.schemas import JobState, MetricDirection
-from hypora.evaluation.case import GroupedRowsTrap, TargetLeakageTrap, TemporalOrderTrap
+from hypora.evaluation.case import (
+    ClassImbalanceTrap,
+    GroupedRowsTrap,
+    TargetLeakageTrap,
+    TemporalOrderTrap,
+)
 from hypora.evaluation.runner.agent import bounded_run_config
 from hypora.execution.harness.partition import LOCK_FILE, load_verified_partition
 from hypora.execution.harness.runner import load_tabular
@@ -73,6 +78,8 @@ def _choices(case):
     (trap,) = case.traps
     if isinstance(trap, TargetLeakageTrap):
         return "random", None, trap.columns
+    if isinstance(trap, ClassImbalanceTrap):
+        return "stratified", None, ()
     if isinstance(trap, GroupedRowsTrap):
         return "group", trap.group_key, ()
     assert isinstance(trap, TemporalOrderTrap)
@@ -143,6 +150,45 @@ class ExecutionScript(MethodologyScript):
             if self.kind == "baseline":  # the candidate follows the measured baseline
                 return self._write("candidate")
         return text_result("The candidate is the stronger trial.")
+
+
+class LateDiagnosticExecution(ExecutionScript):
+    """C mistakenly proposes a contract before it has matching diagnostic evidence."""
+
+    def __init__(self, case):
+        super().__init__(case)
+        self.omitted = False
+
+    async def generate(self, request):
+        context = request.messages[1].content
+        methodology = "You are Hypora's data and implementation specialist" in (
+            request.messages[0].content
+        )
+        locked = "Current contract: " in context
+        needs_diagnostic = bool(self.leakage) if locked else self.split_key is not None
+        if methodology and needs_diagnostic:
+            if request.output_schema_name is None and not self.omitted:
+                self.requests.append(request)
+                self.omitted = True
+                return text_result("Submit my proposal.")
+            if request.output_schema_name == "DataContract" and locked:
+                missing = self._undiagnosed()
+                if missing:
+                    self.requests.append(request)
+                    payload = json.JSONDecoder().raw_decode(
+                        context.split("Current contract: ", 1)[1]
+                    )[0]
+                    for column in missing:
+                        payload["allowed_features"].remove(column)
+                        payload["excluded_features"].append(
+                            {
+                                "name": column,
+                                "reason": "Suspected leakage",
+                                "evidence": "diag_missing",
+                            }
+                        )
+                    return json_result(payload)
+        return await super().generate(request)
 
 
 @pytest.fixture
@@ -250,13 +296,23 @@ def _mean(database, trial_id, metric):
     return mean
 
 
-@pytest.mark.parametrize("case_id", CASE_IDS)
+@pytest.mark.parametrize(
+    ("case_id", "script_type"),
+    [
+        *(
+            pytest.param(case_id, script, id=f"{case_id}-{script.__name__}")
+            for case_id in CASE_IDS
+            for script in (ExecutionScript, LateDiagnosticExecution)
+        ),
+        pytest.param("dev_class_imbalance", ExecutionScript, id="dev_class_imbalance"),
+    ],
+)
 async def test_the_contract_c_chose_is_what_the_baseline_and_candidate_run_under(
-    case_id, tmp_path, make_controller, run_config, database, runs_root, stages
+    case_id, script_type, tmp_path, make_controller, run_config, database, runs_root, stages
 ):
     case = CASES[case_id]
     dataset = _write_visible_case(case, tmp_path)
-    script = ExecutionScript(case)
+    script = script_type(case)
     controller = _controller(make_controller, run_config, script, case)
 
     result = await controller.run(_request(case, dataset))
@@ -279,13 +335,21 @@ async def test_the_contract_c_chose_is_what_the_baseline_and_candidate_run_under
             and found["column"] == item.name
             for found in script.diagnostics
         )
-    if isinstance(trap, TargetLeakageTrap):
+    if isinstance(trap, TargetLeakageTrap | ClassImbalanceTrap):
         assert split.strategy.value == "stratified"
+        if isinstance(trap, ClassImbalanceTrap):
+            assert contract.primary_metric in trap.acceptable_metrics
     else:
         grouped = isinstance(trap, GroupedRowsTrap)
         assert split.strategy.value == ("group" if grouped else "temporal")
         assert key == (split.group_key if grouped else split.time_key)
         assert any(found["column"] == key for found in script.diagnostics)
+    if isinstance(script, LateDiagnosticExecution):
+        proposals = [
+            request for request in script.requests if request.output_schema_name == "DataContract"
+        ]
+        assert len(proposals) == 3  # one correction across the two methodology phases
+
     # The locked split holds out what the case says must be held out.
     for train, held_out in _boundaries(prepared):
         if split.group_key:

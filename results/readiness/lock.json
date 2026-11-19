@@ -95,7 +95,6 @@
       "model_profile": "eval"
     }
   },
-  "decision": "D-053",
   "eval_profile": {
     "description": "Pinned eval model, gpt-6-luna on every tier (D-051, resolving D-033); no fallback.",
     "fallback": {
@@ -121,6 +120,11 @@
       }
     }
   },
+  "previous_recorded_evidence": {
+    "commit": "47c387f9ad361da1dd803027380a911ab57af210",
+    "decision": "D-053",
+    "step": "S4.2f"
+  },
   "prompts": {
     "agent_a_decide": {
       "sha256": "2ca2abe6d16b3171cde93f8d6bc2ddba51984bcad44866b8db44860a148dbe55",
@@ -143,8 +147,8 @@
       "version": 5
     },
     "agent_c_methodology": {
-      "sha256": "cc6e7382f414c230adca0ba40a5a8e8d21163dd1e2b14a1b4335e54dc0e355dd",
-      "version": 3
+      "sha256": "387e3da6675428d6f40ef52a8e5a10a7a110754a9efa9c882e09069b4207598d",
+      "version": 4
     },
     "agent_c_workers": {
       "sha256": "6cf01e249f46aa0fde219a90b6bc36a50882755c9ec8abfe28483517fa6cd8fb",
@@ -189,6 +193,7 @@
     "max_retries": 3,
     "request_timeout_s": 240.0
   },
-  "step": "S4.2f",
-  "tools_contract_sha256": "1518dfe40ff96fbe0c7eb1dc94f8df685d2c706e17355910899b58d0ccea12e9"
+  "step": "S4.2j",
+  "tools_contract_sha256": "1518dfe40ff96fbe0c7eb1dc94f8df685d2c706e17355910899b58d0ccea12e9",
+  "verification": "pending"
 }
