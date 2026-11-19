@@ -14,8 +14,8 @@ held-out evaluation are tracked in [the plan](docs/PLAN.md).
 **Architecture.** The CLI hands the user objective and dataset reference to the controller.
 A leads planning, delegation, and review. B gathers read-only research. C proposes data
 methodology and writes trial code, optionally with bounded workers. The controller checks
-approvals and budgets. The sandboxed harness owns splits and scores. The final report and
-event log record what happened and support review through `hypora status` and `hypora trace`.
+approvals and budgets. Platform code locks splits and computes scores through the experiment
+harness. The report and event log support review through `hypora status` and `hypora trace`.
 
 See [the spec](docs/PROJECT_SPEC.md) for behavior and [AGENTS.md](AGENTS.md) for repository
 workflow. Component guides live under [docs/notes/](docs/notes/).
@@ -113,7 +113,7 @@ Read the path printed after `Results:` and open its `summary.md`. Check the per-
 there. An evaluator can complete successfully while a system fails a case.
 
 To compare the A/B/C agent and the fixed pipeline across all six development cases, first
-[fingerprint the required snapshots and build the planted cases](hypora/evaluation/cases/dev/README.md).
+[fetch the required snapshots and build the planted cases](hypora/evaluation/cases/dev/README.md).
 Then run:
 
 ```bash
