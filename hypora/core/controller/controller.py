@@ -61,9 +61,12 @@ from hypora.core.controller.contract import (
     build_plan,
 )
 from hypora.core.controller.leakage import (
+    DiagnosticTrigger,
     column_outcomes,
     column_scores,
     confirm_columns,
+    diagnostic_fallback_trigger,
+    diagnostic_trigger_check,
     display_name,
     known_at_prediction,
     permutation_drops,
@@ -198,6 +201,7 @@ from hypora.core.schemas.events import (
     PolicyRule,
     RoleStartedPayload,
     StageTransitionPayload,
+    ToolResultEvent,
 )
 from hypora.core.schemas.findings import FindingStatus, TrialFinding, TrialOutcome
 from hypora.core.schemas.leakage import (
@@ -225,7 +229,7 @@ from hypora.profiling.integrity import (
 )
 from hypora.profiling.tabular import leakage_screen_summary, profile_tabular
 from hypora.storage.database import Database
-from hypora.storage.events import EventLog
+from hypora.storage.events import EventFilters, EventLog
 from hypora.storage.jobs import (
     TERMINAL_STATES,
     InvalidJobTransition,
@@ -341,9 +345,11 @@ MAX_ROLE_TEXT_ATTEMPTS: Final = 2
 EXPECTED_RANGE_REQUEST: Final = (
     "\nAlso record expected_score_range for the primary metric {metric}: the score a good model "
     "typically reaches on similar problems. Choose source research to adopt the typical range B "
-    "cited (its typical_score_range), estimate to give your own low and high from the task type "
-    "and the profile, or unknown when no credible range exists; never invent precision. The "
-    "platform uses it only to notice a result that is too good for this kind of problem."
+    "cited (its typical_score_range). When B cites no typical_score_range, give a broad, honest "
+    "source estimate (low and high) from the task type and profile for well-known tabular problem "
+    "families and bounded metrics (such as roc_auc, f1, or r2), and reserve source unknown for "
+    "genuinely unbounded or unfamiliar error scales; never invent precision. The platform uses it "
+    "only to notice a result that is too good for this kind of problem."
 )
 """Added to A's C-assignment decision with the leakage_flag on (D-046 part 1): no extra call."""
 
@@ -2741,6 +2747,26 @@ class _Run:
         result = load_result(self.database, trial_id, "validation")
         folds = _metric_folds(result.metrics if result else {}, metric)
         trigger = trigger_check(expected, folds, config)
+        diag_trigger: DiagnosticTrigger | None = None
+        trigger_reason: str | None = None
+        if expected.source is ScoreRangeSource.UNKNOWN and folds:
+            tool_events = EventLog(self.database).read(
+                self.run_id, EventFilters(types=(EventType.TOOL_RESULT,))
+            )
+            tool_results = [
+                event.payload for event in tool_events if isinstance(event, ToolResultEvent)
+            ]
+            diag_trigger = diagnostic_trigger_check(
+                tool_results, contract.data_contract.allowed_features
+            )
+            if diag_trigger is not None:
+                trigger = diagnostic_fallback_trigger(metric, folds, config)
+                trigger_reason = (
+                    f"locked-split feature_predictiveness diagnostic {diag_trigger.diagnostic_id} "
+                    f"reported {diag_trigger.metric}={diag_trigger.score:.4f} "
+                    f"(>= {diag_trigger.threshold:g}) on kept column "
+                    f"{display_name(diag_trigger.column)}"
+                )
         self._leakage_event(
             LeakageStep.TRIGGER,
             trigger.outcome,
@@ -2748,17 +2774,27 @@ class _Run:
             score_mean=_rounded(trigger.mean),
             score_noise=_rounded(trigger.noise),
             margin=_rounded(trigger.margin),
+            reason=trigger_reason,
         )
         if trigger.outcome is not LeakageOutcome.FIRED:
             return trial_id, job_id, contract
-        assert trigger.excess is not None and trigger.noise is not None
-        assert trigger.mean is not None and expected.low is not None and expected.high is not None
-        self.notes.append(
-            f"The final candidate's validation {metric.value} ({trigger.mean:.4f}) is above the "
-            f"expected range ({expected.low:g} to {expected.high:g}, {expected.source.value}) by "
-            "more than the fold noise plus the margin; the platform checked which column explains "
-            "it (no model call, no test rows)."
-        )
+        assert trigger.excess is not None and trigger.noise is not None and trigger.mean is not None
+        if diag_trigger is not None:
+            self.notes.append(
+                f"No expected score range was available, but locked-split diagnostic "
+                f"{diag_trigger.diagnostic_id} reported {diag_trigger.metric}="
+                f"{diag_trigger.score:.4f} on kept column {display_name(diag_trigger.column)} "
+                f"(final validation {metric.value} {trigger.mean:.4f}); the platform checked "
+                "which column explains it (no model call, no test rows)."
+            )
+        else:
+            assert expected.low is not None and expected.high is not None
+            self.notes.append(
+                f"The final candidate's validation {metric.value} ({trigger.mean:.4f}) is above "
+                f"the expected range ({expected.low:g} to {expected.high:g}, "
+                f"{expected.source.value}) by more than the fold noise plus the margin; the "
+                "platform checked which column explains it (no model call, no test rows)."
+            )
         # 1. The single-column screen, on the locked training (development) rows only.
         from hypora.execution.harness.partition import load_verified_partition
 
@@ -2863,10 +2899,16 @@ class _Run:
             columns=column_scores(names, screen, drops, confirmed_map),
         )
         if not confirmed:
-            self.notes.append(
-                "Shuffling no single candidate column removed most of the score's excess over "
-                "the expected range, so no column was flagged."
-            )
+            if diag_trigger is not None:
+                self.notes.append(
+                    "Shuffling no single candidate column produced a dominant drop in the "
+                    "validation score, so no column was flagged."
+                )
+            else:
+                self.notes.append(
+                    "Shuffling no single candidate column removed most of the score's excess over "
+                    "the expected range, so no column was flagged."
+                )
             return trial_id, job_id, contract
         # 3. One comparison model in total is covered by the plan approval that authorized the
         # candidate (S4.2d, D-052): its code and settings without the top confirmed column the
@@ -2935,10 +2977,18 @@ class _Run:
         )
         section = LeakageSection(
             metric=metric,
-            expected_low=expected.low,
-            expected_high=expected.high,
+            expected_low=expected.low if expected.low is not None else 0.0,
+            expected_high=(
+                expected.high
+                if expected.high is not None
+                else (diag_trigger.threshold if diag_trigger is not None else 0.0)
+            ),
             expected_source=expected.source,
-            expected_citation=expected.source_url or expected.citation_ref or expected.basis,
+            expected_citation=(
+                trigger_reason
+                if diag_trigger is not None
+                else (expected.source_url or expected.citation_ref or expected.basis)
+            ),
             columns=column_scores(confirmed, screen, drops, confirmed_map, outcomes),
             next_best_column=display_name(rest.column) if rest is not None else None,
             next_best_score=_rounded(rest.score) if rest is not None else None,

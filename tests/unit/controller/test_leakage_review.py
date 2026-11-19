@@ -4,24 +4,37 @@ report.md, nothing model-facing is cut silently, and the verifier's withheld-col
 """
 
 import itertools
+from datetime import UTC, datetime
 
 import pytest
 
+from hypora.core.config.flags import LeakageCheckConfig
 from hypora.core.controller.leakage import (
+    DIAGNOSTIC_UNCHECKED_LIMITATION,
+    DIAGNOSTIC_UNEXPLAINED_LIMITATION,
     column_outcomes,
+    diagnostic_fallback_trigger,
+    diagnostic_trigger_check,
     display_name,
     known_at_prediction,
 )
 from hypora.core.roles.multi import ResearchObservationWithRange
-from hypora.core.roles.reporter import render_leakage
+from hypora.core.roles.reporter import _leakage_limitations, _Timeline, render_leakage
 from hypora.core.roles.research_agent import checked_typical_range
-from hypora.core.schemas import CheckStatus, MetricName
+from hypora.core.schemas import ActorRole, CheckStatus, ErrorClass, MetricName, ToolError
+from hypora.core.schemas.events import (
+    LeakageCheckEvent,
+    LeakageCheckPayload,
+    ToolResultPayload,
+    ToolResultStatus,
+)
 from hypora.core.schemas.findings import VerificationCheck
 from hypora.core.schemas.leakage import (
     LeakageColumnScore,
     LeakageModel,
     LeakageOutcome,
     LeakageSection,
+    LeakageStep,
     ScoreRangeSource,
 )
 from hypora.core.verification.verifier import FinalEvidence, verify_final
@@ -270,3 +283,128 @@ def test_a_withheld_column_must_be_absent_and_must_be_an_allowed_feature() -> No
     assert status is CheckStatus.FAILED
     status, _ = _allowed(replace(base, feature_columns=("a", "b"), withheld_columns=("leak",)))
     assert status is CheckStatus.FAILED
+
+
+# --- S4.2j: diagnostic fallback trigger when expected_score_range is unknown ----------------------
+
+
+def _diag_result(
+    *,
+    diagnostic_id: str = "diag_abc123",
+    diagnostic: str = "feature_predictiveness",
+    column: str = "leak_col",
+    metric: str = "roc_auc",
+    score: float | None = 0.9648,
+    partition_sha256: str | None = "a" * 64,
+    status: ToolResultStatus = ToolResultStatus.OK,
+) -> ToolResultPayload:
+    return ToolResultPayload(
+        call_id="call_1",
+        tool="run_diagnostic",
+        status=status,
+        result_summary={
+            "diagnostic_id": diagnostic_id,
+            "diagnostic": diagnostic,
+            "column": column,
+            "metric": metric,
+            "score": score,
+            "partition_sha256": partition_sha256,
+        },
+        error=None
+        if status is ToolResultStatus.OK
+        else ToolError(
+            code="ERR",
+            error_class=ErrorClass.INVALID_ARGUMENTS,
+            message="failed",
+            retryable=False,
+        ),
+        latency_ms=10.0,
+    )
+
+
+def test_diagnostic_trigger_check_respects_thresholds_lock_and_allowed_features() -> None:
+    allowed = ["x", "leak_col", "y"]
+    # Extreme roc_auc (>= 0.90) on locked split for kept column fires.
+    hit = diagnostic_trigger_check([_diag_result(metric="roc_auc", score=0.90)], allowed)
+    assert hit is not None and hit.diagnostic_id == "diag_abc123" and hit.score == 0.90
+    # Extreme r2 (>= 0.85) on locked split for kept column fires.
+    hit_r2 = diagnostic_trigger_check([_diag_result(metric="r2", score=0.85)], allowed)
+    assert hit_r2 is not None and hit_r2.metric == "r2" and hit_r2.threshold == 0.85
+    # Modest scores do not fire.
+    assert diagnostic_trigger_check([_diag_result(metric="r2", score=0.0856)], allowed) is None
+    assert diagnostic_trigger_check([_diag_result(metric="roc_auc", score=0.8999)], allowed) is None
+    # Unlocked diagnostic (partition_sha256 is None) never fires.
+    assert diagnostic_trigger_check([_diag_result(partition_sha256=None)], allowed) is None
+    # Excluded column (not in allowed_features) never fires.
+    assert diagnostic_trigger_check([_diag_result(column="dropped_col")], allowed) is None
+    # Non-predictiveness diagnostic or failed tool call never fires.
+    assert diagnostic_trigger_check([_diag_result(diagnostic="group_overlap")], allowed) is None
+    assert diagnostic_trigger_check([_diag_result(status=ToolResultStatus.ERROR)], allowed) is None
+    # Highest score wins when multiple extreme diagnostics exist.
+    best = diagnostic_trigger_check(
+        [
+            _diag_result(diagnostic_id="diag_low", score=0.91),
+            _diag_result(diagnostic_id="diag_high", score=0.97),
+        ],
+        allowed,
+    )
+    assert best is not None and best.diagnostic_id == "diag_high"
+
+
+def test_diagnostic_fallback_trigger_handles_maximize_minimize_and_empty_folds() -> None:
+    config = LeakageCheckConfig()
+    max_res = diagnostic_fallback_trigger(MetricName.ROC_AUC, [0.97, 0.98], config)
+    assert max_res.outcome is Out.FIRED and max_res.excess == config.score_margin
+    min_res = diagnostic_fallback_trigger(MetricName.RMSE, [10.0, 12.0], config)
+    assert min_res.outcome is Out.FIRED and min_res.excess == pytest.approx(
+        config.relative_margin * 11.0
+    )
+    empty = diagnostic_fallback_trigger(MetricName.ROC_AUC, [], config)
+    assert empty.outcome is Out.UNKNOWN_RANGE
+
+
+def test_render_leakage_and_limitations_handle_unknown_range_diagnostic_trigger() -> None:
+    section = _section(["a"], [], [Out.TRAINED], Out.EXCLUDED).model_copy(
+        update={
+            "expected_low": 0.0,
+            "expected_high": 0.9,
+            "expected_source": ScoreRangeSource.UNKNOWN,
+            "expected_citation": "locked-split feature_predictiveness diagnostic diag_1 "
+            "(roc_auc=0.9648 >= 0.9 on a)",
+        }
+    )
+    text = "\n".join(render_leakage(section))
+    assert "locked-split diagnostic flagged an extreme single-feature score" in text
+    assert "diag_1" in text and "0.9648" in text
+    assert "well above the expected range" not in text
+    assert "None" not in text
+
+    now = datetime.now(UTC)
+    trigger_event = LeakageCheckEvent(
+        run_id="run_x",
+        seq=1,
+        created_at=now,
+        actor_role=ActorRole.CONTROLLER,
+        payload=LeakageCheckPayload(
+            step=LeakageStep.TRIGGER,
+            outcome=Out.FIRED,
+            metric=MetricName.ROC_AUC,
+            expected_source=ScoreRangeSource.UNKNOWN,
+            reason="locked-split diagnostic diag_1",
+        ),
+    )
+    assert _leakage_limitations(_Timeline([trigger_event])) == [DIAGNOSTIC_UNEXPLAINED_LIMITATION]
+    unavailable = LeakageCheckEvent(
+        run_id="run_x",
+        seq=2,
+        created_at=now,
+        actor_role=ActorRole.CONTROLLER,
+        payload=LeakageCheckPayload(
+            step=LeakageStep.CONFIRMATION,
+            outcome=Out.UNAVAILABLE,
+            columns=[LeakageColumnScore(column="a")],
+        ),
+    )
+    assert _leakage_limitations(_Timeline([trigger_event, unavailable])) == [
+        DIAGNOSTIC_UNCHECKED_LIMITATION.format(suspects=" (screened candidates: a)")
+    ]

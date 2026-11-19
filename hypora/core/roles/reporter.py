@@ -33,6 +33,8 @@ from pydantic import Field, model_validator
 
 from hypora.core.controller.approval_gate import COVERED_PREFIX
 from hypora.core.controller.leakage import (
+    DIAGNOSTIC_UNCHECKED_LIMITATION,
+    DIAGNOSTIC_UNEXPLAINED_LIMITATION,
     UNCHECKED_LIMITATION,
     UNEXPLAINED_LIMITATION,
     UNKNOWN_RANGE_LIMITATION,
@@ -80,6 +82,7 @@ from hypora.core.schemas.leakage import (
     LeakageOutcome,
     LeakageSection,
     LeakageStep,
+    ScoreRangeSource,
 )
 from hypora.execution.protocol import experiments as protocol
 from hypora.profiling.tabular import leakage_screen_summary
@@ -551,6 +554,11 @@ def _leakage_limitations(timeline: _Timeline) -> list[str]:
     p = trigger.payload
     if p.outcome is LeakageOutcome.FIRED and not decided:
         source = p.expected_source.value if p.expected_source else "unknown source"
+        unknown_range = (
+            p.expected_source is ScoreRangeSource.UNKNOWN
+            or p.expected_low is None
+            or p.expected_high is None
+        )
         unchecked = next(
             (e for e in events if e.payload.outcome is LeakageOutcome.UNAVAILABLE), None
         )
@@ -560,11 +568,15 @@ def _leakage_limitations(timeline: _Timeline) -> list[str]:
             named = [e for e in events if e.payload.columns and e.seq <= unchecked.seq]
             names = [c.column for c in named[-1].payload.columns] if named else []
             suspects = f" (screened candidates: {', '.join(names)})" if names else ""
+            if unknown_range:
+                return [DIAGNOSTIC_UNCHECKED_LIMITATION.format(suspects=suspects)]
             return [
                 UNCHECKED_LIMITATION.format(
                     low=p.expected_low, high=p.expected_high, source=source, suspects=suspects
                 )
             ]
+        if unknown_range:
+            return [DIAGNOSTIC_UNEXPLAINED_LIMITATION]
         return [
             UNEXPLAINED_LIMITATION.format(low=p.expected_low, high=p.expected_high, source=source)
         ]
@@ -907,12 +919,26 @@ def render_leakage(section: LeakageSection | None) -> list[str]:
     source = section.expected_source.value
     cited = f": {' '.join(section.expected_citation.split())}" if section.expected_citation else ""
     with_model = section.with_columns
+    if section.expected_source is ScoreRangeSource.UNKNOWN:
+        detail = (
+            f" ({' '.join(section.expected_citation.split())})" if section.expected_citation else ""
+        )
+        lead = (
+            f"The final candidate's validation {metric} was {_number(with_model.validation_mean)}. "
+            "No expected score range was available, but a locked-split diagnostic flagged an "
+            f"extreme single-feature score{detail}. The platform checked which column explains "
+            "it, using the training and validation rows only."
+        )
+    else:
+        lead = (
+            f"The final candidate's validation {metric} was {_number(with_model.validation_mean)}, "
+            f"well above the expected range for this kind of problem, {section.expected_low:g} to "
+            f"{section.expected_high:g} ({source}{cited}). The platform checked which column "
+            "explains it, using the training and validation rows only."
+        )
     lines = [
         "## A column may be recorded after the outcome",
-        f"The final candidate's validation {metric} was {_number(with_model.validation_mean)}, "
-        f"well above the expected range for this kind of problem, {section.expected_low:g} to "
-        f"{section.expected_high:g} ({source}{cited}). The platform checked which column explains "
-        "it, using the training and validation rows only.",
+        lead,
         "",
     ]
     for column in section.columns:

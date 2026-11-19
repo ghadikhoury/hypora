@@ -8,11 +8,13 @@ Synthetic tables built with the dev case's planting function (D-015 allows them 
 real planted credit-g file runs where the OpenML 46918 snapshot is stored.
 """
 
+import json
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import anyio
+import numpy as np
 import pandas as pd  # type: ignore[import-untyped]
 import pytest
 
@@ -26,8 +28,11 @@ from hypora.core.controller.approval_gate import (
     write_decision,
 )
 from hypora.core.controller.controller import RunController, RunRequest
+from hypora.core.controller.leakage import UNKNOWN_RANGE_LIMITATION
 from hypora.core.controller.states import DONE
-from hypora.core.roles.reporter import Report
+from hypora.core.llm.providers.fake import json_result
+from hypora.core.llm.types import MessageRole
+from hypora.core.roles.reporter import Report, build_report
 from hypora.core.schemas import ApprovalPolicy
 from hypora.core.schemas.events import (
     ApprovalGrantedEvent,
@@ -35,14 +40,15 @@ from hypora.core.schemas.events import (
     LeakageCheckEvent,
 )
 from hypora.core.schemas.leakage import LeakageOutcome, LeakageStep
-from hypora.evaluation.cases.dev.plant_target_leakage import LEAK, plant
+from hypora.evaluation.cases.dev.plant_target_leakage import LEAK, TARGET, plant
 from hypora.execution.protocol import experiments as protocol
 from hypora.storage.database import Database
 from hypora.storage.events import EventLog
 from hypora.storage.records import list_trials, load_experiment_contract, run_jobs
 from tests.controller import scripted_sandbox
 from tests.controller.conftest import ControllerFactory
-from tests.controller.test_integrity import _multi
+from tests.controller.scripted import DESIGN, LINEAR
+from tests.controller.test_integrity import MultiWithTrials, _multi
 from tests.controller.test_leakage_flag import (
     CREDIT_SNAPSHOT,
     HANG_GUARD,
@@ -363,3 +369,185 @@ async def test_the_real_planted_credit_g_file_is_compared_without_a_second_promp
             assert _steps(database, run_id) == [("trigger", "not_fired")]
             assert len(list_trials(database, run_id)) == 2 and gate == [1]
             assert len(_events(database, run_id, ApprovalRequestedEvent)) == 1
+
+
+class _UnknownRangeDiagnosticScript(MultiWithTrials):
+    """B cites no typical_score_range, A records expected_score_range=unknown, and C runs
+    locked-split feature_predictiveness on `diag_column` before training while keeping it."""
+
+    def __init__(
+        self,
+        run_id: str,
+        *,
+        diag_column: str,
+        target: str = TARGET,
+        task_type: str = "binary_classification",
+        primary_metric: str = "roc_auc",
+    ) -> None:
+        super().__init__(run_id, pipeline_py=LINEAR, final_action="continue")
+        self.diag_column = diag_column
+        self.diag_target = target
+        self.diag_task_type = task_type
+        self.primary_metric = primary_metric
+        self.diagnostic: dict[str, Any] | None = None
+
+    async def generate(self, request: Any) -> Any:
+        schema = request.output_schema_name
+        if schema == "IntakeDraft":
+            self.requests.append(request)
+            return json_result(
+                {
+                    "objective": f"Predict {self.diag_target} from tabular features",
+                    "target": self.diag_target,
+                    "task_type": self.diag_task_type,
+                    "primary_metric": self.primary_metric,
+                }
+            )
+        if schema == "LeadAction" and "expected_score_range" in request.messages[1].content:
+            self.requests.append(request)
+            return json_result(
+                {
+                    "action": "continue",
+                    "reason": "Proceed within scope",
+                    "assignment": self.assignment,
+                    "expected_score_range": {"source": "unknown"},
+                }
+            )
+        return await super().generate(request)
+
+    async def _agent_turn(self, request: Any) -> Any:
+        last = request.messages[-1]
+        if last.role is MessageRole.TOOL and not last.is_error:
+            if last.tool_name == "inspect_dataset" and self.diagnostic is None:
+                return self._call(
+                    "run_diagnostic",
+                    diagnostic="feature_predictiveness",
+                    column=self.diag_column,
+                    target=self.diag_target,
+                    task_type=self.diag_task_type,
+                )
+            if last.tool_name == "run_diagnostic":
+                self.diagnostic = json.loads(last.content)
+                return self._call(
+                    "write_trial_files",
+                    idempotency_key=f"{self.run_id}:write_1",
+                    design=DESIGN,
+                    pipeline_py=self.pipeline_py,
+                )
+        return await super()._agent_turn(request)
+
+
+async def test_unknown_range_with_extreme_locked_split_diagnostic_triggers_covered_comparison(
+    make_controller: ControllerFactory,
+    database: Database,
+    runs_root: Path,
+    run_config: RunConfig,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scripted_sandbox.install(monkeypatch)
+    gate = _count_gate_decisions(monkeypatch)
+    frame = _credit_like(rows=600, seed=1)
+    rng = np.random.default_rng(1)
+    bad = frame[TARGET] == "bad"
+    flip = rng.random(len(frame)) < 0.03
+    frame[LEAK] = np.where(
+        bad ^ flip, rng.integers(3, 8, len(frame)), rng.integers(0, 2, len(frame))
+    )
+    dataset = _write(tmp_path, frame, "planted_unknown.csv")
+    run_id = "run_leak_unknown_diag_trigger"
+    script = _UnknownRangeDiagnosticScript(run_id, diag_column=LEAK)
+    controller = make_controller(script, worker_factory=scripted_sandbox.ThreadWorker)
+    _interactive(controller, run_config)
+
+    async def user() -> None:
+        await _answer(database, runs_root, run_id, 1, ok=True)
+
+    result = await _run_as_user(controller, dataset, run_id, user)
+    assert result.state == DONE and result.verified, result.notes
+    assert script.diagnostic is not None
+    assert script.diagnostic["partition_sha256"]
+    assert script.diagnostic["metric"] == "roc_auc" and script.diagnostic["score"] >= 0.90
+    plan = json.loads((runs_root / run_id / "approved_plan.json").read_text())
+    assert plan["expected_score_range"]["source"] == "unknown"
+    # Triggered via diagnostic fallback, confirmed, compared with no second prompt.
+    assert gate == [1]
+    assert _steps(database, run_id) == [
+        ("trigger", "fired"),
+        ("screen", "candidates"),
+        ("confirmation", "confirmed"),
+        ("comparison", "submitted"),
+        ("comparison", "trained"),
+        ("decision", "recommend_without"),
+    ]
+    leak_events = _events(database, run_id, LeakageCheckEvent)
+    trigger_event = leak_events[0].payload
+    assert trigger_event.reason is not None
+    assert script.diagnostic["diagnostic_id"] in trigger_event.reason
+    assert f"{script.diagnostic['score']:.4f}" in trigger_event.reason
+    decision = leak_events[-1].payload.section
+    assert decision is not None and decision.without_columns is not None
+    comparison = decision.without_columns.trial_id
+    assert decision.without_columns.without_columns == [LEAK]
+    assert result.final_trial_id == decision.recommended_trial_id == comparison
+    assert _finals(runs_root, database, run_id) == [comparison]
+    contract = load_experiment_contract(database, run_id)
+    assert contract.version == 2 and LEAK not in contract.data_contract.allowed_features
+    report = Report.model_validate_json(result.report_json.read_text())
+    assert report.leakage == decision
+    assert UNKNOWN_RANGE_LIMITATION not in report.limitations
+    markdown = result.report_md.read_text()
+    assert "## A column may be recorded after the outcome" in markdown
+    assert "locked-split diagnostic flagged an extreme single-feature score" in markdown
+    assert script.diagnostic["diagnostic_id"] in markdown
+    assert "well above the expected range" not in markdown
+    assert "use the model without it" in markdown
+    again = build_report(
+        database, run_id, final_trial_id=comparison, notes=report.notes, runs_root=runs_root
+    )
+    assert again.leakage == report.leakage and again.limitations == report.limitations
+
+
+async def test_unknown_range_with_modest_locked_split_diagnostic_does_not_trigger(
+    make_controller: ControllerFactory,
+    database: Database,
+    runs_root: Path,
+    run_config: RunConfig,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scripted_sandbox.install(monkeypatch)
+    gate = _count_gate_decisions(monkeypatch)
+    rng = np.random.default_rng(7)
+    rows = 400
+    x = rng.normal(0.0, 1.0, rows)
+    z = rng.normal(0.0, 1.0, rows)
+    y = 0.35 * x + 0.2 * z + rng.normal(0.0, 1.0, rows)
+    dataset = _write(tmp_path, pd.DataFrame({"x": x, "z": z, "y": y}), "modest_reg.csv")
+    run_id = "run_leak_unknown_diag_control"
+    script = _UnknownRangeDiagnosticScript(
+        run_id,
+        diag_column="x",
+        target="y",
+        task_type="regression",
+        primary_metric="r2",
+    )
+    controller = make_controller(script, worker_factory=scripted_sandbox.ThreadWorker)
+    _interactive(controller, run_config)
+
+    async def user() -> None:
+        await _answer(database, runs_root, run_id, 1, ok=True)
+
+    result = await _run_as_user(controller, dataset, run_id, user)
+    assert result.state == DONE and result.verified, result.notes
+    assert script.diagnostic is not None
+    assert script.diagnostic["partition_sha256"]
+    assert script.diagnostic["metric"] == "r2" and script.diagnostic["score"] < 0.85
+    # Trigger must NOT fire; no comparison model trained.
+    assert _steps(database, run_id) == [("trigger", "unknown_range")]
+    assert gate == [1] and len(list_trials(database, run_id)) == 2
+    assert len(_events(database, run_id, ApprovalRequestedEvent)) == 1
+    assert result.final_trial_id == script.trial_id
+    report = Report.model_validate_json(result.report_json.read_text())
+    assert report.leakage is None
+    assert UNKNOWN_RANGE_LIMITATION in report.limitations
