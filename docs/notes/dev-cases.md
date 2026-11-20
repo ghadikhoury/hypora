@@ -36,7 +36,7 @@ Separate actual baseline acceptance below exercises those boundaries.
 | Case | Fixed pipeline hidden score | Appropriate-split GBT | Appropriate-split linear | Initial bar |
 |---|---:|---:|---:|---:|
 | Leakage (ROC-AUC) | 0.9597 (leak included) | 0.7225 | 0.7275 | >= 0.65 |
-| Grouped (MAE) | 11.1819 | 12.7363 | 6.8417 | <= 7.5 |
+| Grouped (MAE) | 11.1819 | 12.7363 | 6.8417 | <= 7.5 (now <= 8.0, D-055) |
 | Temporal (MAE) | 4.3952 (future counts included) | 75.8924 | 141.1033 | <= 146 |
 | Imbalance (macro-F1) | 0.8191 | 0.8199 | 0.7417 | >= 0.71 |
 | Clean control (MAE) | 0.6813 | 0.6813 | 0.6592 | <= 0.76 |
@@ -47,7 +47,8 @@ because unavailable features remain; feature/split checks still fail. Correct gr
 is necessary but insufficient: default GBT generalizes poorly to new patients and fails quality;
 linear reaches the bar. The 7.5 grouped MAE bar is below both development-mean and median constants
 (7.6330 and 7.6314). The earlier uncommitted 17.0 bar was discarded because it accepts worse quality
-than a constant predictor.
+than a constant predictor. (D-055 later set the grouped bar to 8.0 and changed the imbalance request;
+see "D-055 revision" below.)
 
 Report/hidden tolerances are 0.12 ROC-AUC (leak), 6.0 MAE (group), 21.0 MAE (temporal), 0.04 macro-F1
 (imbalance), 0.15 MAE (control), and 0.11 ROC-AUC (tool data). Calibration resamples whole patients or
@@ -61,6 +62,33 @@ The imbalance request concerns identifying purchasing sessions, so legitimate ra
 metrics including ROC-AUC are accepted. Fixed pipeline passes honestly. Accuracy-primary
 calibration with the same learner/data fails the metric-choice trap. Majority macro-F1 is 0.4581,
 well below 0.71.
+
+## D-055 revision (2026-11-19, after readiness results)
+
+These changes were made after seeing the S4.2/S4.2f readiness runs, so the dev set no longer gives
+an unbiased reading; the frozen Stage 5 test set, built later, measures generalization.
+
+- **Limits.** Every case: `max_trials` 4 -> 6, `max_steps` 100 -> 200; dollars, tokens, compute
+  and wall time unchanged. Only steps ever bound (grouped 102/100 with three validated trials and
+  no final model; leakage 92; a passing temporal run 84). Cost stayed <= $0.048 of $0.60, tokens
+  <= 570k of 2M, wall <= 775 of 1,800 s. One cancelled trial used one of four trial slots.
+- **Grouped rows bar: 7.5 -> 8.0 MAE.** The old bar sat 1.7% below the constant (mean) predictor's
+  hidden MAE, 7.633. Under the platform's own patient-grouped cross-validation in the readiness
+  runs the constant was the best candidate (about 12.1 vs Ridge 13.6 and trees 14.2-14.5), while on the ten hidden
+  patients linear happens to score 6.84: passing required choosing a model that validation says
+  is worse. The bar is now the constant's hidden MAE x 1.05 (8.01), rounded down to 8.0. The 5%
+  margin is about half the hidden block-bootstrap standard error (0.68), so a constant-quality
+  model with correct grouping passes and a clearly worse one (grouped trees, 12.74) fails. A
+  shuffled split still fails three ways: group overlap, report/hidden honesty (gap ~10) and the
+  bar (hidden ~11.1). `test_the_grouped_bar_lets_an_honest_constant_pass_but_not_a_shuffled_split`
+  pins the relation to the constant on the real data.
+- **Imbalance request states the prediction moment.** The old request did not say when a
+  prediction is made, so whether `PageValues` (a Google Analytics page metric) is usable was
+  debatable, yet the 0.71 macro-F1 bar is reachable only with it (hidden macro-F1 with/without
+  it: GBT 0.820/0.551, linear 0.742/0.466). The request now says each prediction is made once a
+  session's browsing is complete, from everything recorded for that session, and names the page
+  metrics as available. Metric, bar and accepted metrics are unchanged: accuracy-primary still
+  fails the metric check and the majority predictor (0.458) still fails the bar.
 
 ## Profiling follow-up
 

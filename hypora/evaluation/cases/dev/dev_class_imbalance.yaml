@@ -1,7 +1,8 @@
 # Class imbalance: 15.5% of real sessions end in a purchase. Nothing planted. No primary metric is given: choosing one is the test.
+# D-055: the request states the prediction moment, so whether a field (e.g. page value) may be used is decidable.
 id: dev_class_imbalance
 split: dev
-request: Identify which website sessions will end in a purchase, so that the marketing team can act on them.
+request: "Identify which website sessions will end in a purchase, so that the marketing team can act on them. Each prediction is made once a session's browsing is complete, from everything recorded for that session: its page counts and time on pages, its visit details, and the Google Analytics bounce rate, exit rate and page value of the pages it visited. All of these are available when the prediction is made; whether the session ends in a purchase is not."
 constraints:
   target: Revenue
   task_type: binary_classification
@@ -23,8 +24,8 @@ budget: &budget
   max_usd: 0.6
   max_compute_seconds: 600
   max_llm_tokens: 2000000
-  max_trials: 4
-  max_steps: 100
+  max_trials: 6
+  max_steps: 200
   max_wall_clock_seconds: 1800
 approval_policy: auto_within_contract
 contract_bounds:

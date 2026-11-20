@@ -1497,3 +1497,46 @@ follow-up).
   Earlier ledger entries are not rewritten.
 - No schema, event type, MCP tool, fit/predict interface, dependency, sandbox, firewall, policy,
   eval case, grading rule or hidden split change.
+
+## D-055 — Fair dev-case grading and realistic run limits for readiness (2026-11-19)
+
+Ghadi approved on 2026-11-19 changing the merged dev cases, their grading and their run limits
+where a case is unfair or a limit too small (normally stop-and-ask trigger 4), aiming at a broad
+system rather than one tuned to six cases. **These changes were made after seeing the readiness
+results** (S4.2, S4.2f and later paid Luna runs on `db9034a`), so the dev cases are no longer an
+unbiased measurement; the frozen Stage 5 test set, built later, measures generalization. Details
+and measurements: `docs/notes/dev-cases.md` ("D-055 revision").
+
+- **Run limits, all six cases:** `max_steps` 100 -> 200 and `max_trials` 4 -> 6, in `budget` and
+  `contract_bounds.max_budget`. Dollars ($0.60), tokens (2M), compute (600 s) and wall time
+  (1,800 s) are unchanged. Why: steps were the only limit that ever bound (grouped stopped at
+  102/100 with three validated trials and no final model; leakage used 92; a passing temporal run
+  84), while cost stayed <= $0.048, tokens <= 570k and wall <= 775 s; four trials left no room for
+  a cancelled or failed trial. `configs/budgets.yaml` run defaults (200 steps, 12 trials) are
+  unchanged, so `results/readiness/lock.json`, which records those defaults and not case budgets,
+  is unaffected. Worker admission (`WorkerReservations`) and C's trial reserve read the case
+  budget and only gain headroom.
+- **`dev_grouped_rows`: hidden MAE bar 7.5 -> 8.0.** The old bar was 1.7% below the constant
+  predictor's hidden MAE (7.633), yet under correct patient-grouped validation no model beats the
+  constant (readiness runs: constant ~12.1, Ridge 13.6, trees 14.2-14.5). With about ten hidden
+  patients the outcome was mostly the patient draw, and passing required picking a model the
+  validation said was worse. Rule: bar = the constant's hidden MAE on the same hidden split x 1.05,
+  rounded down (8.01 -> 8.0); 5% is about half the hidden block-bootstrap standard error. Kept
+  as a fixed threshold (the split is deterministic), with a real-data test pinning
+  `constant <= threshold <= constant x 1.05`. Honest grouping with a constant-quality model now
+  passes; a shuffled split still fails the group-overlap check, the honesty check (gap ~10 MAE)
+  and the bar (~11.1); grouped trees (12.7) still fail the bar. Principle for future cases: when
+  correct methodology leaves no model clearly better than a constant, the quality bar is the
+  constant's hidden score plus a margin below its sampling error, never a bar below the constant.
+- **`dev_class_imbalance`: the request now states the prediction moment.** It says each
+  prediction is made once a session's browsing is complete, from everything recorded for that
+  session, and names the Google Analytics bounce rate, exit rate and page value as available.
+  Before, whether `PageValues` was legitimate was debatable, yet the 0.71 macro-F1 bar is reachable
+  only with it (hidden macro-F1 with/without: GBT 0.820/0.551, linear 0.742/0.466). Chosen over
+  regrading with another metric because the ambiguity was about feature availability, not the
+  metric; macro-F1, its 0.71 bar, the accepted primary metrics and the beats-constant check are
+  unchanged, so accuracy-primary and majority-class shortcuts are still caught.
+- `dev_clean_control`, `dev_temporal_order`, `dev_target_leakage` and `dev_tool_failure` keep their
+  bars, requests and hidden splits; only their limits changed. No hidden split, dataset, planted
+  file, grader code, schema, event type, MCP tool, prompt, flag or model profile changed. PLAN
+  S4.2j now verifies the cases as revised here.

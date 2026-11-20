@@ -24,8 +24,8 @@ budget: &budget
   max_usd: 0.6
   max_compute_seconds: 600
   max_llm_tokens: 2000000
-  max_trials: 4
-  max_steps: 100
+  max_trials: 6
+  max_steps: 200
   max_wall_clock_seconds: 1800
 approval_policy: auto_within_contract
 contract_bounds:
