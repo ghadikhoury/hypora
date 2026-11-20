@@ -1241,6 +1241,55 @@ def test_unexecuted_cancellation_needs_explicit_durable_proof(world: World, proo
     )
 
 
+@pytest.mark.parametrize("ran", [False, True])
+def test_two_step_cancellation_of_a_never_run_job(world: World, ran: bool) -> None:
+    folder = add_job(world, "job_cancelled", "fit", "CANCELLED")
+    raw = json.loads(_final_job_file(world, "request.json").read_text())
+    (folder / "request.json").write_text(json.dumps(raw))
+    fields = {"operation": "fit", "trial_id": TRIAL_ID}
+    with world.database.write() as connection:
+        connection.execute(update(Job).where(Job.id == "job_cancelled").values(attempts=0))
+    world.job_event(
+        "job_cancelled",
+        "CANCEL_REQUESTED",
+        expected_prior_state="QUEUED",
+        attempt=0,
+        **fields,
+    )
+    if ran:
+        # It ran, so the cancel request alone is not a boundary: attempts and stage evidence differ.
+        with world.database.write() as connection:
+            connection.execute(update(Job).where(Job.id == "job_cancelled").values(attempts=1))
+        append_stage_log(folder, _stage(1.0))
+    world.job_event(
+        "job_cancelled",
+        "CANCELLED",
+        expected_prior_state="CANCEL_REQUESTED",
+        attempt=0,
+        **fields,
+    )
+    assert check_of(grade(world), POLICY).status is (
+        CheckStatus.FAILED if ran else CheckStatus.PASSED
+    )
+
+
+def test_cancel_requested_from_running_is_not_a_boundary(world: World) -> None:
+    folder = add_job(world, "job_cancelled", "fit", "CANCELLED")
+    raw = json.loads(_final_job_file(world, "request.json").read_text())
+    (folder / "request.json").write_text(json.dumps(raw))
+    with world.database.write() as connection:
+        connection.execute(update(Job).where(Job.id == "job_cancelled").values(attempts=0))
+    world.job_event(
+        "job_cancelled",
+        "CANCEL_REQUESTED",
+        expected_prior_state="RUNNING",
+        operation="fit",
+        trial_id=TRIAL_ID,
+        attempt=0,
+    )
+    assert check_of(grade(world), POLICY).status is CheckStatus.FAILED
+
+
 def test_safe_failure_report_with_unrelated_notes_does_not_acknowledge_fault(
     tmp_path: Path,
 ) -> None:
