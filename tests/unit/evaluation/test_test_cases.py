@@ -36,7 +36,11 @@ from hypora.evaluation.cases.dev.calibrate import (
     visible_and_hidden,
 )
 from hypora.evaluation.cases.test import plantings
-from hypora.evaluation.cases.test.thresholds import apply_rule, load_derivations
+from hypora.evaluation.cases.test.thresholds import (
+    apply_rule,
+    calendar_features,
+    load_derivations,
+)
 from hypora.evaluation.graders.outcomes import GRADED_FAULTS, RECOVERY_UNGRADED
 from hypora.evaluation.hidden_split import (
     HiddenLeakError,
@@ -123,7 +127,7 @@ def test_every_implemented_family_is_covered_with_clean_controls() -> None:
     for kind, at_least in (
         ("target_leakage", 5),
         ("grouped_rows", 3),
-        ("temporal_order", 4),
+        ("temporal_order", 3),
         ("class_imbalance", 6),
     ):
         assert kinds.count(kind) >= at_least, kind
@@ -272,6 +276,34 @@ def test_the_rule_sits_halfway_and_rounds_toward_the_constant() -> None:
     )
 
 
+@pytest.mark.parametrize("case", GRADED, ids=lambda case: case.id)
+def test_a_simple_learner_beats_the_constant_on_every_case(case: Case) -> None:
+    """A case whose bar a constant predictor could reach measures nothing about quality, so no
+    case uses the rule's no-learner fallback (wine quality and any such case were dropped)."""
+    derivation = DERIVATIONS[case.id]
+    if derivation.direction == "maximize":
+        assert derivation.reference > derivation.constant
+        assert derivation.threshold > derivation.constant
+    else:
+        assert derivation.reference < derivation.constant
+        assert derivation.threshold < derivation.constant
+
+
+def test_calendar_features_are_per_row_and_only_for_temporal_cases() -> None:
+    temporal = next(case for case in CASES if "temporal_order" in _kinds(case))
+    trap = next(t for t in temporal.traps if isinstance(t, TemporalOrderTrap))
+    frame = pd.DataFrame({trap.time_key: ["2017-01-02 13:10:00", "2017-07-09 00:00:00"]})
+    added = calendar_features(frame, temporal)
+    assert added[f"{trap.time_key}__hour"].tolist() == [13, 0]
+    assert added[f"{trap.time_key}__day_of_week"].tolist() == [0, 6]
+    assert added[f"{trap.time_key}__month"].tolist() == [1, 7]
+    # One row alone gives the same values: nothing depends on other rows.
+    alone = calendar_features(frame.iloc[[1]], temporal)
+    assert alone[f"{trap.time_key}__hour"].tolist() == [0]
+    clean = next(case for case in CASES if not case.traps)
+    pd.testing.assert_frame_equal(calendar_features(frame, clean), frame)
+
+
 def test_the_derivation_records_no_hidden_value() -> None:
     """Only visible-row statistics and the hidden row count are recorded."""
     fields = set(next(iter(DERIVATIONS.values())).__dict__)
@@ -348,17 +380,16 @@ TRAP_CHECKS = {
     "temporal_order": {"trap_temporal_order_split"},
     "class_imbalance": set(),  # the fixed pipeline's ROC-AUC is an acceptable metric
 }
-CONSTANT_MAY_PASS = {
-    "test_time_appliances": "no learner beats the mean under walk-forward validation (D-055 rule)",
-}
-"""Cases where the bar is the constant's own level, so a constant-quality model may pass."""
 
 
 @_real(GRADED)
 def test_shortcuts_fail_and_an_honest_simple_model_passes(case: Case, tmp_path: Path) -> None:
     """Real fits with the grader's own checks: the fixed pipeline fails exactly the trap, a sound
-    approach passes every check and the bar, and the constant predictor misses the bar."""
+    approach passes every check and the bar, and the constant predictor misses the bar.
+
+    Temporal cases get the same per-row calendar features the bars were derived with."""
     _, visible, hidden = visible_and_hidden(case, planted_dir=_planted_dir(case, tmp_path))
+    visible, hidden = calendar_features(visible, case), calendar_features(hidden, case)
     results = {
         approach.name: run_approach(case, approach, visible, hidden, resamples=2)
         for approach in approaches_for(case)
@@ -375,8 +406,7 @@ def test_shortcuts_fail_and_an_honest_simple_model_passes(case: Case, tmp_path: 
     constant = constant_score(case, visible, hidden)
     maximize = metric.name.direction.value == "maximize"
     constant_passes = constant >= metric.threshold if maximize else constant <= metric.threshold
-    if case.id not in CONSTANT_MAY_PASS:
-        assert not constant_passes, (constant, metric.threshold)
+    assert not constant_passes, (constant, metric.threshold)
 
 
 # --- The generation scripts, on small synthetic tables (unit tests only, D-015) -------------------
@@ -394,12 +424,6 @@ def test_group_ids_number_each_combination_by_first_appearance() -> None:
 
 
 def test_time_keys_become_unambiguous_iso_text() -> None:
-    appliances = plantings.plant_appliances(
-        pd.DataFrame({"date": ["2016-01-1117:00:00"], "x": [1]})
-    )
-    assert appliances["date"].tolist() == ["2016-01-11 17:00:00"]
-    with pytest.raises(ValueError):
-        plantings.plant_appliances(pd.DataFrame({"date": ["2016-01-11 17:00:00"]}))
     garment = plantings.plant_garment(pd.DataFrame({"date": ["1/13/2015", "3/1/2015"]}))
     assert garment["date"].tolist() == ["2015-01-13", "2015-03-01"]
     tetouan = plantings.plant_tetouan(

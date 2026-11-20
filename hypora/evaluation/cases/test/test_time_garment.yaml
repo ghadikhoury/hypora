@@ -45,12 +45,12 @@ hidden_split:
   seed: 20261120
   time_key: "date"
 grading:
-  # Derived from visible rows only (thresholds.py): constant 0.1477, linear 0.1049 (3-fold CV);
+  # Derived from visible rows only (thresholds.py): constant 0.1477, linear 0.1087 (3-fold CV);
   # bar = constant + 0.5 x gap; tolerance = 3 x combined standard error.
   hidden_metric:
     name: mae
-    threshold: 0.127
-    reported_tolerance: 0.038
+    threshold: 0.129
+    reported_tolerance: 0.03
 traps:
   - kind: temporal_order
     planted: true

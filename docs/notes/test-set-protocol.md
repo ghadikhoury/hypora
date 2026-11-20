@@ -6,7 +6,8 @@ grading, run limits). Cases and commands: `hypora/evaluation/cases/test/README.m
 
 The course handout is not in this repository. The requirements below are the spec's paraphrase
 (§19.5, §20: ≥25 held-out cases plus a separate dev set, ≥5 representative cases × 3 runs, Wilson
-intervals, paired comparison); Ghadi should confirm them against the handout before S5.2 claims.
+intervals, paired comparison). 🧑 Ghadi confirms the rubric against the handout (not a blocker
+for the freeze).
 
 ## Freeze identity
 
@@ -14,7 +15,7 @@ intervals, paired comparison); Ghadi should confirm them against the handout bef
 |---|---|
 | Code commit | TODO: the reviewed S5.1 merge commit on `main`, after S4.2j merges |
 | Tag | TODO: `eval-freeze` on that commit (created by the reviewer after merge) |
-| Cases | the 27 files in `hypora/evaluation/cases/test/` at that commit, with `derivation.json` |
+| Cases | the 26 files in `hypora/evaluation/cases/test/` at that commit, with `derivation.json` |
 | Data | the snapshot SHA-256 and planted SHA-256 in each case file (table below) |
 | Hidden splits | strategy, fraction 0.25 and seed 20261120 in each case; rows are a pure function of case ID, seed and row content |
 | Graders | `hypora/evaluation/graders/` at the frozen commit; programmatic only, no LLM judge (§19.1) |
@@ -31,7 +32,7 @@ visible rows only, and no agent ran on any test case before the freeze.
 
 ## Cases and families
 
-27 cases, 27 distinct real UCI datasets, none used by a dev case (a test enforces this). Every
+26 cases, 26 distinct real UCI datasets, none used by a dev case (a test enforces this). Every
 license is CC BY 4.0 as stated on the UCI page (D-021). Retrieval date for all: 2026-11-20. Each
 machine's ignored `data/snapshots/manifest.json` holds the full entry (source and download URL,
 license evidence, source and stored SHA-256); the table repeats what a reviewer needs.
@@ -61,23 +62,29 @@ license evidence, source and stored SHA-256); the table repeats what a reviewer 
 | `test_leak_heart_failure` | UCI 519 Heart Failure Clinical Records (Mon Feb 26 2024) | `ce8b6a5d66e6` | leakage |
 | `test_leak_student_dropout` | UCI 697 Predict Students' Dropout and Academic Success (Mon Feb 26 2024) | `a8e007ff6a19` | leakage |
 | `test_leak_student_grades` | UCI 320 Student Performance (Fri Jan 05 2024) | `5a35f78808ed` | leakage |
-| `test_time_appliances` | UCI 374 Appliances Energy Prediction (Fri Mar 29 2024) | `884080c48fb4`; planted d6b2fca5ed48 | temporal |
 | `test_time_garment` | UCI 597 Productivity Prediction of Garment Employees (Mon Feb 26 2024) | `831013155173`; planted 90f4d2738460 | temporal |
 | `test_time_metro_traffic` | UCI 492 Metro Interstate Traffic Volume (Fri Mar 15 2024) | `f4b69a611af0` | temporal |
 | `test_time_tetouan_power` | UCI 849 Power Consumption of Tetouan City (Fri Mar 08 2024) | `7fdd82e0a673`; planted 8d27d0da0303 | temporal |
 
-Family counts: target leakage 5 (two also imbalance), grouped rows 3, temporal order 4, class
+Family counts: target leakage 5 (two also imbalance), grouped rows 3, temporal order 3, class
 imbalance 4 (+2 combined), clean controls 5, injected tool errors 4, malformed data 2. Five cases
-are clean controls and four more have clean data with only a tool fault, so 9 of 27 cases have no
+are clean controls and four more have clean data with only a tool fault, so 9 of 26 cases have no
 data trap.
 
-A 28th case, `test_clean_wine_quality` (UCI 186), was built and then removed before the freeze:
+Two built cases were removed before the freeze. No agent had run on either.
+
+`test_time_appliances` (UCI 374): even with calendar features, neither simple learner beats the
+mean under walk-forward validation (CV MAE: constant 59.7, linear 60.5, gradient boosting 73.9;
+the target is heavy-tailed). A constant-quality model could then pass the bar, so the case would
+measure methodology but not quality; the owner ruled that unacceptable.
+
+`test_clean_wine_quality` (UCI 186) was built and then removed:
 the grader sanity check below found that no sound approach passed it. Wine Quality has many exact
 duplicate rows; the contract's random test split puts copies of training rows in the test rows,
 while the hidden split keeps copies together, so an honest gradient-boosting model reported MAE
 0.494 against 0.561 hidden (gap 0.067 > tolerance 0.059) and the linear model missed the bar
 (0.592 > 0.579). Rather than loosen the rule for one case after seeing hidden scores, the case was
-dropped. No agent had run on it.
+dropped.
 
 Every case permits B's research tools and `run_diagnostic`, and every case grades
 `budget_respected` against its limits (the bounded-experiment requirement: trials, steps, dollars,
@@ -117,16 +124,19 @@ by the harness's three development folds with the real `dummy`, `linear` and
 
 - **Bar** = constant + 0.5 × (reference − constant), where constant is the dummy template's CV
   score and reference the better of linear and gradient boosting. Rounded toward the constant (two
-  decimals for [0, 1] scores, three significant digits for errors). If no learner beats the
-  constant (D-055's situation), the bar is the constant plus one hidden-size standard error.
+  decimals for [0, 1] scores, three significant digits for errors). The code keeps D-055's
+  fallback (constant plus one hidden-size standard error when no learner beats the constant), but
+  no frozen case uses it: such a case is dropped, and a test checks every bar is strictly better
+  than the constant.
 - **Reported tolerance** = max(3 × √(se_test² + se_hidden² + sd_folds²), 0.1 × |reference −
   constant|), rounded up to two significant digits.
 
 Why: half the gap means a system must clearly learn something, yet a sound run need not match
 the simple learners' validation score (D-055: no bar unreachable by honest model selection). The
-references exclude trap columns and the group or time key entirely, so for temporal cases they
-use no hour-of-day feature; an agent deriving calendar features from the timestamp will exceed
-them, which makes those bars lenient rather than unfair. The tolerance covers sampling error at
+references exclude trap columns and the group or time key itself. For temporal cases they add the
+hour, day of week and month of the time key (`calendar_features`): general per-row features any
+forecaster derives, the same for every timestamp column, nothing case-specific, so the temporal
+bars are set against a forecaster that uses the calendar. The tolerance covers sampling error at
 the test-split and hidden sizes plus the fold-to-fold shift; the floor keeps a near-perfect
 reference from making it too tight for a weaker model that still clears the bar.
 
@@ -155,10 +165,9 @@ reference from making it too tight for a weaker model that still clears the bar.
 | `test_leak_heart_failure` | roc_auc | 0.5 | 0.7812 | 0.7247 | >= 0.64 | 0.4 | 224 / 75 |
 | `test_leak_student_dropout` | f1_macro | 0.222 | 0.6171 | 0.6543 | >= 0.43 | 0.087 | 3318 / 1106 |
 | `test_leak_student_grades` | mae | 2.302 | 2.073 | 2.091 | <= 2.19 | 0.98 | 487 / 162 |
-| `test_time_appliances` | mae | 59.74 | 60.06 | 89.21 | <= 60.9 | 28 | 14801 / 4934 |
-| `test_time_garment` | mae | 0.1477 | 0.1049 | 0.1156 | <= 0.127 | 0.038 | 903 / 294 |
-| `test_time_metro_traffic` | mae | 1740 | 1704 | 1679 | <= 1710 | 230 | 36152 / 12052 |
-| `test_time_tetouan_power` | mae | 6189 | 5613 | 5505 | <= 5850 | 3100 | 39312 / 13104 |
+| `test_time_garment` | mae | 0.1477 | 0.1087 | 0.1155 | <= 0.129 | 0.03 | 903 / 294 |
+| `test_time_metro_traffic` | mae | 1740 | 1595 | 308.2 | <= 1030 | 150 | 36152 / 12052 |
+| `test_time_tetouan_power` | mae | 6189 | 3791 | 3111 | <= 4660 | 3600 | 39312 / 13104 |
 
 Metric choice: ROC-AUC for binary cases with a stated metric, macro-F1 for multiclass and for every
 imbalance case (acceptable primary metrics there: ROC-AUC, PR-AUC, F1, macro-F1, balanced
@@ -168,13 +177,13 @@ accuracy; never accuracy), MAE for regression.
 
 The bars were set before this check and were not moved by it. It fits the calibration approaches
 (`hypora/evaluation/cases/dev/calibrate.py`) on the visible rows, scores the hidden rows, and runs
-the grader's own trap, honesty and beats-the-constant checks. Run on 2026-11-20 for 22 of the 26
+the grader's own trap, honesty and beats-the-constant checks. Run on 2026-11-20 for 23 of the 24
 graded cases (as of this draft):
 
-- **Constant predictor misses every bar.** The closest is `test_group_real_estate` (hidden MAE
-  8.59 against a bar of 8.44).
-- **An honest simple model passes every check and the bar in all 22 cases.** Gradient boosting
-  passes everywhere. Linear misses the bar only on `test_leak_ai4i_failure` (macro-F1 0.638
+- **The constant predictor misses every non-temporal bar.** The closest is `test_group_real_estate`
+  (hidden MAE 8.59 against a bar of 8.44). Temporal cases are listed below.
+- **An honest simple model passes every check and the bar in every case checked.** Gradient
+  boosting passes everywhere. Linear misses the bar only on `test_leak_ai4i_failure` (macro-F1 0.638
   against 0.65).
 - **Shortcuts fail on their trap.** The fixed pipeline (random split, every column) fails
   `trap_target_leakage_excluded` on all five leakage cases (with the leak, hidden scores rise to
@@ -182,11 +191,16 @@ graded cases (as of this draft):
   split fails `trap_grouped_rows_no_overlap` on all three grouped cases. Accuracy as the primary
   metric fails `trap_class_imbalance_metric` on all six imbalance cases. Clean and tool-fault cases
   show no failed data check.
-- **Not yet run (TODO before marking ready):** the four temporal cases (`test_time_metro_traffic`,
-  `test_time_appliances`, `test_time_garment`, `test_time_tetouan_power`). The check was stopped
-  when the machine ran low on memory. `test_time_appliances` uses the no-learner rule (the bar is
-  the constant plus one standard error), so a constant-quality model may pass it. That case tests
-  temporal methodology, not quality.
+- **Temporal cases (calendar-feature bars, run one case per process):**
+  - `test_time_metro_traffic`: constant hidden MAE 1739 misses the bar of 1030. Gradient boosting
+    passes every check and the bar (hidden 285, reported 258). A random split fails
+    `trap_temporal_order_split`.
+  - `test_time_garment` (**open, needs a decision**): a random split fails
+    `trap_temporal_order_split`, and gradient boosting passes every check and the bar (hidden 0.107).
+    But the constant predictor's hidden MAE is 0.120, under the bar of 0.129. The hidden period is
+    easier for the mean than the visible CV periods were, so a constant would pass this case.
+  - `test_time_tetouan_power`: not checked. The host killed the process for low memory (about
+    15 GB resident) and it was not restarted.
 
 ## Grading rules (unchanged code, spec §19.2)
 
@@ -228,8 +242,8 @@ grader predicts on copied hidden features only.
   tables, retried only with `--resume` and the earlier attempt archived. A missing measurement
   never becomes a win or a loss.
 - **Budget:** S5.2 needs Ghadi's approval of the aggregate estimate first (`🧑 HUMAN · DECIDE`).
-  27 cases × 2 LLM systems + 6 × 3 × 2 repeats = 90 paid runs at ≤ $0.60 each, ≤ $54 worst case;
-  readiness runs cost under $0.05 each, so the expected cost is a few dollars.
+  26 cases × 2 LLM systems + 6 × 3 × 2 repeats = 88 paid runs. Recorded runs cost about $0.035
+  each, so about $3 expected; the coordinator plans a $10 hard cap. Case budgets are unchanged.
 
 ## Reproduction
 

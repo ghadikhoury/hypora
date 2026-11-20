@@ -12,7 +12,9 @@ For each case with a graded metric:
 
 1. The reference methodology is the one its traps call for (`calibrate.approaches_for`, "sound"):
    stratified folds for classification, group folds on a group trap's key, walk-forward folds on a
-   temporal trap's key, and no trap column, group key or time key among the features.
+   temporal trap's key, and no trap column, group key or time key among the features. For a
+   temporal case the reference also gets the hour, day of week and month of the time key
+   (`calendar_features`): general, per-row features any forecaster derives, nothing case-specific.
 2. `constant` is the dummy template's cross-validated score (mean or majority class) and
    `reference` is the better cross-validated score of the linear and gradient-boosting templates:
    what honest model selection between two simple learners reaches.
@@ -46,7 +48,7 @@ import pandas as pd  # type: ignore[import-untyped]
 
 from hypora.core.controller.contract import SEED
 from hypora.core.schemas import MetricDirection
-from hypora.evaluation.case import CASES_DIR, Case, load_case_set
+from hypora.evaluation.case import CASES_DIR, Case, TemporalOrderTrap, load_case_set
 from hypora.evaluation.case_data import load_case_dataset
 from hypora.evaluation.cases.dev.calibrate import (
     Approach,
@@ -58,7 +60,7 @@ from hypora.evaluation.cases.dev.calibrate import (
     _template,
     approaches_for,
 )
-from hypora.evaluation.hidden_split import select_hidden_rows
+from hypora.evaluation.hidden_split import select_hidden_rows, time_values
 from hypora.execution.harness import runtime
 from hypora.execution.harness.data import prepare_data
 
@@ -99,11 +101,33 @@ def reference_approaches(case: Case) -> dict[str, Approach]:
     return {name: replace(sound, name=f"reference_{name}", template=name) for name in TEMPLATES}
 
 
+CALENDAR_PARTS: Final = ("hour", "day_of_week", "month")
+
+
+def calendar_features(frame: pd.DataFrame, case: Case) -> pd.DataFrame:
+    """The frame plus standard calendar features of a temporal trap's time key, row by row.
+
+    The time key itself stays excluded from the features (`approaches_for`), so without these a
+    reference model for a timestamped case would ignore the hour, weekday and season that any
+    honest forecaster derives first. Each value depends only on its own row's timestamp, so nothing
+    is learned across rows or across the split. Cases without a temporal trap are unchanged."""
+    trap = next((t for t in case.traps if isinstance(t, TemporalOrderTrap)), None)
+    if trap is None:
+        return frame
+    times = time_values(frame[trap.time_key])
+    added = frame.copy()
+    for part in CALENDAR_PARTS:
+        added[f"{trap.time_key}__{part}"] = getattr(times.dt, part).astype("int64").to_numpy()
+    return added
+
+
 def visible_rows(case: Case) -> tuple[pd.DataFrame, int]:
-    """The rows a system receives, and how many the case holds out (the count only)."""
+    """The rows a system receives (with calendar features for temporal cases), and how many the
+    case holds out (the count only)."""
     frame = load_case_dataset(case).table()
     mask = select_hidden_rows(frame, case)
-    return frame.loc[~mask].reset_index(drop=True), int(mask.sum())
+    visible = frame.loc[~mask].reset_index(drop=True)
+    return calendar_features(visible, case), int(mask.sum())
 
 
 def cross_validate(
@@ -248,7 +272,8 @@ def load_derivations(path: Path = DERIVATION_FILE) -> dict[str, Derivation]:
 def main(argv: Sequence[str]) -> None:
     """Print one JSON record per graded case and whether the case file matches it.
 
-    `--write` also records every derivation in derivation.json (all cases, so name none)."""
+    `--write` also records the derivations in derivation.json, replacing the named cases' entries
+    (or every entry when no case is named)."""
     write = "--write" in argv
     wanted = set(argv) - {"--write"}
     derivations = []
@@ -264,8 +289,11 @@ def main(argv: Sequence[str]) -> None:
             and metric.reported_tolerance == derivation.reported_tolerance
         )
         print(json.dumps(asdict(derivation) | {"case_file_matches": matches}), flush=True)
-    if write and not wanted:
-        DERIVATION_FILE.write_text(json.dumps(derivations, indent=1) + "\n", encoding="utf-8")
+    if write:
+        merged = {} if not wanted else {k: asdict(v) for k, v in load_derivations().items()}
+        merged |= {record["case"]: record for record in derivations}
+        ordered = [merged[case.id] for case in graded_cases() if case.id in merged]
+        DERIVATION_FILE.write_text(json.dumps(ordered, indent=1) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":
