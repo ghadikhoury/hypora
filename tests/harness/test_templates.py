@@ -139,3 +139,33 @@ def test_datetime_normalization_and_encoding_do_not_depend_on_batch(
         rtol=0,
         atol=1e-12,
     )
+
+
+@pytest.mark.parametrize("template", ["dummy", "linear", "gradient_boosting"])
+def test_a_near_unique_text_column_does_not_get_one_column_per_row(template, monkeypatch):
+    """S5.1 regression: a raw timestamp string kept as a feature (the fixed baseline keeps every
+    column) was one-hot encoded densely with one column per training row, so memory grew with
+    rows squared and a 52k-row case needed about 15 GB. The vocabulary is now capped; levels
+    below the cap keep their own columns, and unseen levels share the infrequent column."""
+    monkeypatch.setitem(sys.modules, "runtime", runtime)
+    spec = importlib.util.spec_from_file_location("template", TEMPLATES / template / "pipeline.py")
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    rows = 3000
+    X = pd.DataFrame(
+        {
+            "x": np.arange(rows, dtype=float),
+            "stamp": [f"2017-01-01 {i:06d}" for i in range(rows)],
+            "few": ["a", "b", "c"] * (rows // 3),
+        }
+    )
+    model = module.fit(
+        TrainData(X, pd.Series([0, 1] * (rows // 2))), TrialContext(314, "binary_classification")
+    )
+    width = model["preparation"].transform(X.iloc[:2]).shape[1]
+    assert width <= 1 + module.MAX_CATEGORIES + 3
+    categorical = model["preparation"].named_transformers_["categorical"]["encode"]
+    assert list(categorical.categories_[1]) == ["a", "b", "c"]
+    unseen = pd.DataFrame({"x": [1.0], "stamp": ["2030-01-01"], "few": ["z"]})
+    assert module.predict(model, unseen).values.shape == (1,)

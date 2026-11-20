@@ -98,6 +98,17 @@ timezone-aware, and nanosecond timestamps and compare real-container predictions
 same serialized model. Separate unit and real-Docker regressions
 cover nullable strings with pd.NA and a datetime-only categorical branch for every template.
 
+Text columns get at most 64 one-hot columns each (`max_categories=64`,
+`handle_unknown="infrequent_if_exist"`); rarer and unseen levels share one "infrequent" column.
+Without the cap, a near-unique text column such as a raw timestamp string or an ID, which the
+fixed baseline keeps because it uses every column, was encoded densely with one column per
+training row, so memory grew with rows squared. On UCI 849 subsamples (built for the S5.1 test
+set) a baseline fit on 2,000, 4,000 and 8,000 training rows had encoded widths of 2,005, 4,005 and
+8,005 and peak memory of 547 MB, 974 MB and 1,995 MB; the full 31k rows needed about 15 GB. With
+the cap the 8,000-row fit is 69 columns wide and peaks at 329 MB. Features with at most 64 levels
+encode exactly as before. Regression:
+`tests/harness/test_templates.py::test_a_near_unique_text_column_does_not_get_one_column_per_row`.
+
 Validation predictions.parquet contains fold, row_id, prediction, and classification p_N columns.
 Platform code reads that saved file back to recompute each fold's metrics. metrics.json contains
 per-fold results; test-predictions.parquet and test-metrics.json retain final-test evidence separately.
