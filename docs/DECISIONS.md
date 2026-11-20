@@ -1540,3 +1540,80 @@ and measurements: `docs/notes/dev-cases.md` ("D-055 revision").
   bars, requests and hidden splits; only their limits changed. No hidden split, dataset, planted
   file, grader code, schema, event type, MCP tool, prompt, flag or model profile changed. PLAN
   S4.2j now verifies the cases as revised here.
+
+## D-056 — Controller robustness: revise instead of stop, evidence before exclusion, graceful finish, tool caps (2026-11-20)
+
+Ghadi approved, for tonight, whatever fixes the orchestrator judges necessary for the six-case dev
+evaluation to pass reliably on the pinned `openai/gpt-6-luna` eval profile, as long as the fixes
+are general (dataset-agnostic) and never tuned to the six cases. This decision records the five
+structural fixes made under that approval (S4.2j readiness hardening follow-up). Details are in
+`docs/notes/controller-robustness.md`. All five are enforced in code; prompt text only explains
+them.
+
+- **A's methodology concern goes back to C instead of ending the run.** Before, when A answered
+  `report` at either data-methodology review (before the split lock, or the reconciliation after
+  it), the run stopped. Now A's reason (screened like any role text) goes back to C as revision
+  feedback, C writes a normal new proposal (same validation, budgets and limits), and A reviews it
+  again, at most `robustness.lead_revision_rounds` = 2 times. The run stops only when A marks the
+  problem a blocker (a new optional `blocker` field on A's review decision, same `LeadAction`
+  schema name) or when the concern persists after the last round. Each round is a
+  `LEAD_REVISION_REQUESTED` error event and a stop is `LEAD_REVIEW_STOPPED` (component
+  `lead_review`, so graders do not read them as controller failures). Every other stop is
+  unchanged: A's decision before research, A's final pre-verification review, plan denials, policy
+  refusals, run limits, user cancel, integrity stops and the data firewall.
+- **With no user present, a questioned column is excluded only on evidence.** Before (D-052
+  S4.2c and the F1 fixes), every column named in an open question C kept was excluded as a
+  conservative assumption, which dropped ordinary features in both class-imbalance failures. Now,
+  with `robustness.evidence_before_exclusion` on (the default, so also in eval) and no user
+  present, such a column is excluded only when a locked-split `feature_predictiveness` diagnostic
+  of this run flags it at the existing too-good thresholds (ROC-AUC >= 0.90 or R² >= 0.85, the
+  S4.2j diagnostic trigger), citing that diagnostic. Otherwise it stays a feature, the question is
+  recorded as an assumption that names the kept column as an unverified risk in the report, and the
+  post-validation too-good-score check (S4.1b) still guards it. The same rule covers a column C
+  dropped itself without evidence: on C's final attempt it is kept (or excluded on a flag) instead
+  of the whole proposal being refused. After the split locks, C is told which questioned columns
+  were kept so it can test them. Interactive runs are unchanged (open questions still stop for the
+  user), and the switch off restores D-052's exclusion behavior. Scripted tests show a strongly leaky column is
+  still excluded on its diagnostic, and that one kept without a diagnostic is still caught by the
+  too-good-score check and the model without it is recommended.
+- **Hitting a limit no longer throws away validated work.** While C (and its workers) experiment,
+  the run keeps back a finishing reserve: `robustness.finish_reserve_steps` = 12 steps (at most a
+  quarter of `max_steps`) and `finish_reserve_seconds` = 240 s (at most 15% of the wall-clock
+  limit). When exploration reaches the reserve it stops (one `FINISH_RESERVE_REACHED` event, not a
+  run limit), and the run continues through the normal path: A's final review, the platform's
+  choice of the best validated trial (code, by validation metric, as before), the too-good-score
+  check, the final job and verifier, and the report. The same finish follows the trial cap.
+  The report notes say the run finished early due to limits. Jobs that have not started are
+  cancelled; running jobs get at most `finish_reserve_seconds` to complete (none when time was
+  the reason). C is told how many steps it has before the reserve.
+- **Diagnostic and research tool use is capped in code.** Each C session may make at most
+  `robustness.max_diagnostics_per_session` = 8 `run_diagnostic` calls (each methodology proposal
+  and the experiment session count separately), and each B research session at most
+  `max_research_tool_calls` = 16 tool calls. In the recorded runs, successful sessions used at most
+  3 diagnostics and 12 research calls; one failing run made 19 diagnostics in a single proposal. A
+  call over the cap is refused before it reaches the MCP server with a structured
+  `TOOL_CAP_REACHED` quota error that tells the role to proceed with the evidence it has, recorded
+  as a tool call, a `deny` policy decision (rule `budget`) and a denied tool result.
+- **B's research report no longer fails validation in every run.** In all seven db9034a B
+  sessions, B's first report broke the citation rule (it rated options without a cited source, for
+  example a hosted API's privacy as poor because the task is local-only), and its correction then
+  failed schema validation because it copied the model catalog's bare entry reference
+  (`catalog_<hex>`) instead of that source's `citation_ref` (`catalog:catalog_<hex>`), and a
+  retrieval timestamp where a date belongs; the adapter's repair call then recovered it. Root-cause
+  fixes: (1) a rating no cited source supports is set to unknown instead of refusing the report
+  (exactly what the rule requires; nothing is ever upgraded, the count is a platform uncertainty);
+  (2) those two exact copies of tool output are read as the value the tool gives for that field
+  (only a `catalog_` + 24-hex reference and an ISO datetime's date part; every citation is still
+  checked against what the tools returned); (3) the instructions name `citation_ref` and the date
+  format. The prompt is `agent_b@v3`.
+- **Prompts and lock.** `agent_b` v2 -> v3 and `agent_a_decide` v5 -> v6; C's no-user correction
+  hint has an evidence-mode version. `configs/flags.yaml` gains the `robustness` group, so
+  `results/readiness/lock.json` was regenerated.
+- **Frozen contracts and security.** No change to `hypora/core/schemas/`, the MCP tool contract,
+  event types, the trial `fit`/`predict` interface, the sandbox, the data firewall or
+  `hypora/core/policy/`. The new events reuse existing types (`error`, `tool_call`,
+  `policy_decision`, `tool_result`, `escalation`). The tool caps live in a new controller-side
+  channel wrapper, not in the policy engine.
+- **Limitations.** Scripted evidence only; no live run was made. Whether the pinned model now
+  passes each case about 97% of the time is for the next authorized readiness run to measure. C
+  workers have still never started in a live run; nothing here forces them.

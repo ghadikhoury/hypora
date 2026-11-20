@@ -65,6 +65,29 @@ _NO_USER_HINTS = {
 """The same guidance when no user can answer (S4.2c): a kept question becomes an assumption,
 and C keeps it rather than excluding its columns itself (F1)."""
 
+_EVIDENCE_HINTS = {
+    **_CORRECTION_HINTS,
+    "unresolved methodology questions require escalation": (
+        "Remove questions the platform settles itself (see its guarantees) and record residual "
+        "risks in risks. General deployment-timing or domain-context uncertainty about ordinary "
+        "input features belongs in risks, not open_questions. No user is present in this run: "
+        "keep in open_questions only a concrete concern that only the user could settle. The "
+        "platform records each kept question as an assumption in the report. It excludes a "
+        "column a kept question names only when a locked-split feature_predictiveness diagnostic "
+        "flags that column as predicting the target almost by itself; otherwise the column stays "
+        "a feature, your concern is recorded as a risk, and the platform's post-validation "
+        "too-good-score check still runs. Do not exclude a column yourself because of a "
+        "question: an exclusion needs a diagnostic_id a tool returned for that column, and an "
+        "exclusion without one is undone. After the split is locked, run feature_predictiveness "
+        "on a column you suspect is derived from the target or recorded after the outcome. Prior "
+        "exclusions already recorded in a current contract stay excluded: keep them in "
+        "excluded_features and account for every non-target column. Name each column a kept "
+        "question is about exactly as it appears in the dataset, in backticks. "
+    ),
+}
+"""The guidance with evidence before exclusion (D-056): a questioned column is excluded only on
+a locked-split diagnostic's evidence, never for the question alone."""
+
 _DIAGNOSTIC_REFUSALS = {
     "a proposed exclusion lacks matching diagnostic evidence",
     "the proposed split key lacks matching diagnostic evidence",
@@ -87,11 +110,13 @@ async def propose_data_contract(
     recovery: RecoverySession | None = None,
     validate: ProposalValidator | None = None,
     no_user: bool = False,
+    evidence_mode: bool = False,
 ) -> tuple[DataContract, dict[str, tuple[str, str]]]:
     """Collect tool evidence and a structured proposal; never persist raw model output. With
     `recovery`, tool failures are retried, replanned, clarified or stopped. With `validate`, a
     refused proposal is returned to C once with the refusal reason before the run stops. With
-    `no_user` (no person can answer, S4.2c), the open-questions correction says so."""
+    `no_user` (no person can answer, S4.2c), the open-questions correction says so, and with
+    `evidence_mode` (D-056) it says a questioned column is excluded only on diagnostic evidence."""
     prompt = load_prompt("agent_c_methodology")
     call_context = CallContext(
         run_id=run_id,
@@ -174,7 +199,14 @@ async def propose_data_contract(
             # The validator's messages are fixed platform text naming the rule that failed,
             # never proposal content, so the correction request carries no data forward.
             reason = str(refused)
-            hint = (_NO_USER_HINTS if no_user else _CORRECTION_HINTS).get(reason, "")
+            hints = (
+                _EVIDENCE_HINTS
+                if no_user and evidence_mode
+                else _NO_USER_HINTS
+                if no_user
+                else _CORRECTION_HINTS
+            )
+            hint = hints.get(reason, "")
             correction = f"The platform refused that DataContract: {reason}. {hint}"
             if (
                 tools

@@ -68,6 +68,17 @@ SENSITIVE = ["age_years", "personal_status_sex", "foreign_worker"]
 
 
 @pytest.fixture
+def run_config(run_config):
+    """These tests pin the D-052 conservative assumptions, so D-056's evidence before exclusion
+    (on by default; tests/controller/test_robustness.py) is switched off here."""
+    robust = run_config.flags.robustness.model_copy(
+        update={"evidence_before_exclusion": Toggle.OFF}
+    )
+    flags = run_config.flags.model_copy(update={"robustness": robust})
+    return run_config.model_copy(update={"flags": flags})
+
+
+@pytest.fixture
 def credit(tmp_path: Path) -> Path:
     """A synthetic credit table (unit tests only, PLAN.md §0.4) with the probe's column names."""
     rng = np.random.default_rng(7)

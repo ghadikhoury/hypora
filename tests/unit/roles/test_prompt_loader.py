@@ -64,7 +64,12 @@ def test_role_code_loads_its_prompts_instead_of_inlining_them() -> None:
 
 def test_agent_a_decide_includes_methodology_review_guidance() -> None:
     prompt = load_prompt("agent_a_decide")
-    assert prompt.version == 5
+    assert prompt.version == 6
+    lower_text = prompt.text.lower()
+    # D-056: report at a methodology review goes back to C; blocker stops at once.
+    assert "report sends your reason back to c" in lower_text
+    assert "a bounded number of times" in lower_text
+    assert "set blocker to true only when no revision of the data contract" in lower_text
     lower = prompt.text.lower()
     assert "explicit training request" in lower
     assert "defensible evaluation" in lower

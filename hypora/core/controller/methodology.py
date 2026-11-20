@@ -32,6 +32,16 @@ NO_FEATURE_LEFT: Final = "no allowed feature remains after the conservative assu
 ASSUMPTION_PREFIX: Final = "Assumption (no user present): "
 """Every assumption escalation summary starts with this; the report lists those summaries."""
 
+FLAGGED_REASON: Final = (
+    "a locked-split feature_predictiveness diagnostic flagged it as predicting the target almost "
+    "by itself (possible leakage), and C's concern about it could not be put to a user because "
+    "no user is present (D-056)"
+)
+"""The fixed `reason` of an exclusion the platform made because a diagnostic flagged the column."""
+
+FEATURE_PREDICTIVENESS: Final = "feature_predictiveness"
+"""Evidence kind of a flagged column's diagnostic (the `run_diagnostic` kind it came from)."""
+
 
 class MethodologyError(ValueError):
     """A proposed methodology is inconsistent with the task or its evidence."""
@@ -46,12 +56,21 @@ class Assumption:
     matching entry of `refs`. `already` are named columns that were excluded before
     it. A question that names no column changes nothing and is reported as an open risk. The
     question text itself is screened before anything stores it.
+
+    With evidence before exclusion (D-056), `columns` are only the named columns a locked-split
+    diagnostic flags (each cited by that diagnostic in `refs`), and `kept` are the named columns
+    nothing flags, which stay features with the concern recorded as a risk.
     """
 
     question: str
     columns: tuple[str, ...]
     refs: tuple[str, ...]
     already: tuple[str, ...] = ()
+    kept: tuple[str, ...] = ()
+    """Evidence before exclusion (D-056): named columns no diagnostic flags, kept as features."""
+    unasked: bool = False
+    """Not a question: C's own exclusions without evidence that no question names (D-056). With
+    no user to confirm them, each is kept, or excluded citing the diagnostic that flags it."""
 
 
 def _words(text: str) -> str:
@@ -110,14 +129,17 @@ def assume_conservatively(
     unsupported: Sequence[str] = (),
     earlier: Sequence[str] = (),
     answer: bool = True,
+    flagged: Mapping[str, str] | None = None,
 ) -> tuple[DataContract, dict[str, tuple[str, str]], list[Assumption]]:
     """Turn each open question into its conservative answer; platform code, no model call.
 
-    The conservative answer to a question about a column (is it known at prediction time, may it
+    With `flagged` None (the D-052 behavior, `robustness.evidence_before_exclusion` off), the
+    conservative answer to a question about a column (is it known at prediction time, may it
     be used) is that it is not available: every allowed feature a question names is excluded,
-    never kept. The contract comes back with no open questions, the new exclusions cite
-    `assumption:<tag>_<n>` evidence (returned for the validator) and nothing else changes.
-    Raises MethodologyError when no allowed feature would remain.
+    never kept, and the new exclusions cite `assumption:<tag>_<n>` evidence (returned for the
+    validator). With `flagged` set, see below. Either way the contract comes back with no open
+    questions (when `answer`), and nothing else changes. Raises MethodologyError when no
+    allowed feature would remain.
 
     `unsupported` (no user present only, F1): columns C excluded itself without diagnostic
     evidence. One a question names, from this proposal or from `earlier` (C's questions on its
@@ -127,6 +149,14 @@ def assume_conservatively(
     no column is ever allowed by this. An earlier question is reported only when it accounts
     for such an exclusion. With `answer=False` only those exclusions are converted: the
     proposal's own questions stay open and no allowed feature is excluded.
+
+    `flagged` turns on evidence before exclusion (D-056; no user present, the
+    `robustness.evidence_before_exclusion` flag): it maps each column a locked-split diagnostic
+    flags to that diagnostic's ID. A column a question names (or that C excluded for it) is then
+    excluded only when flagged, citing the diagnostic; otherwise it stays an allowed feature and
+    the question is reported as a risk (`Assumption.kept`). With `answer`, C's remaining
+    unsupported exclusions that no question names get the same rule (`Assumption.unasked`), so a
+    final proposal is never refused only because C dropped a column without evidence.
     """
     allowed = list(proposal.allowed_features)
     excluded = list(proposal.excluded_features)
@@ -141,6 +171,21 @@ def assume_conservatively(
         evidence[ref] = (ASSUMPTION_KIND, column)
         return ref
 
+    def cite(column: str) -> str:
+        assert flagged is not None
+        ref = flagged[column]
+        evidence[ref] = (FEATURE_PREDICTIVENESS, column)
+        return ref
+
+    def replace(column: str, new: ExcludedFeature) -> None:
+        nonlocal excluded
+        excluded = [new if item.name == column else item for item in excluded]
+
+    def restore(column: str) -> None:
+        nonlocal excluded
+        excluded = [item for item in excluded if item.name != column]
+        allowed.append(column)
+
     for index, question in enumerate(questions):
         own = index < len(current)
         adopted = columns_named(question, pending)
@@ -152,23 +197,59 @@ def assume_conservatively(
             for column in columns_named(question, [item.name for item in excluded])
             if column not in adopted
         ]
-        refs = []
+        refs: list[str] = []
+        dropped: list[str] = []
+        kept: list[str] = []
         for column in adopted:
-            ref = assume(column)
-            excluded = [
-                ExcludedFeature(name=column, reason=ASSUMPTION_REASON, evidence=ref)
-                if item.name == column
-                else item
-                for item in excluded
-            ]
             pending.remove(column)
+            if flagged is None:
+                ref = assume(column)
+                replace(
+                    column, ExcludedFeature(name=column, reason=ASSUMPTION_REASON, evidence=ref)
+                )
+            elif column in flagged:
+                ref = cite(column)
+                replace(column, ExcludedFeature(name=column, reason=FLAGGED_REASON, evidence=ref))
+            else:
+                restore(column)
+                kept.append(column)
+                continue
+            dropped.append(column)
             refs.append(ref)
         for column in named:
-            ref = assume(column)
-            excluded.append(ExcludedFeature(name=column, reason=ASSUMPTION_REASON, evidence=ref))
+            if flagged is not None and column not in flagged:
+                kept.append(column)
+                continue
+            if flagged is None:
+                ref = assume(column)
+                item = ExcludedFeature(name=column, reason=ASSUMPTION_REASON, evidence=ref)
+            else:
+                ref = cite(column)
+                item = ExcludedFeature(name=column, reason=FLAGGED_REASON, evidence=ref)
+            excluded.append(item)
             allowed.remove(column)
+            dropped.append(column)
             refs.append(ref)
-        assumptions.append(Assumption(question, (*adopted, *named), tuple(refs), tuple(already)))
+        assumptions.append(
+            Assumption(question, tuple(dropped), tuple(refs), tuple(already), tuple(kept))
+        )
+    if flagged is not None and answer and pending:
+        # C's own exclusions with no diagnostic evidence and no question: no user can confirm
+        # them, so the same rule applies. An allowed column never becomes excluded here.
+        refs, dropped, kept = [], [], []
+        for column in list(pending):
+            pending.remove(column)
+            if column in flagged:
+                ref = cite(column)
+                replace(column, ExcludedFeature(name=column, reason=FLAGGED_REASON, evidence=ref))
+                dropped.append(column)
+                refs.append(ref)
+            else:
+                restore(column)
+                kept.append(column)
+        assumptions.append(
+            Assumption("", tuple(dropped), tuple(refs), kept=tuple(kept), unasked=True)
+        )
     if not allowed:
         raise MethodologyError(NO_FEATURE_LEFT)
     converted = proposal.model_copy(

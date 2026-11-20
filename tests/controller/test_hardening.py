@@ -230,7 +230,8 @@ async def test_methodology_review_uses_training_intent_and_keeps_approval(
             ("Review C's proposed data methodology", "Reconcile B's evidence")
         )
     ]
-    assert len(reviews) == (1 if material_conflict else 2)
+    # D-056: a persistent concern goes back to C twice (three reviews) before the run stops.
+    assert len(reviews) == (3 if material_conflict else 2)
     for context in reviews:
         assert "defensible evaluation" in context
         assert "uncertainty about row provenance" in context
@@ -247,6 +248,7 @@ async def test_methodology_review_uses_training_intent_and_keeps_approval(
     assert "No experiment is authorized by this review" in reviews[0]
     if material_conflict:
         assert any("Agent A decision: report" in note for note in result.notes)
+        assert any("persisted after 2 revision(s)" in note for note in result.notes)
         assert not approval_requested and not approval_granted and not phase_b_calls
     else:
         assert "retains the locked split" in reviews[1]
@@ -634,4 +636,6 @@ async def test_phase_contexts_surface_targeted_diagnostics_linear_baseline_and_s
     ]
     assert c_requests
     assert "New trial slots available now: 4." in c_requests[0]
-    assert "Run steps remaining: " in c_requests[0] and " of 50." in c_requests[0]
+    # D-056: C sees the steps left before the finishing reserve (12 of 50 are kept back).
+    assert "Run steps remaining for your experiments: " in c_requests[0]
+    assert " of 50 (the platform keeps 12 for review" in c_requests[0]

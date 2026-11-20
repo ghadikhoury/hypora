@@ -11,10 +11,17 @@ counts.
 User cancel (spec §6.8) is checked at the same points: a `CANCEL` file in the run's folder
 (`runs/<run_id>/CANCEL`, written by whoever cancels) stops the next call with `RunCancelled`,
 recorded once as `RUN_CANCELLED`.
+
+The finishing reserve (D-056): while C explores (`RunGuard.exploration`), a few steps and seconds
+of the run's budget are kept back, so exploration stops early with `FinishReserveReached`
+(recorded once as `FINISH_RESERVE_REACHED`, not as a run limit) and the run can still review,
+verify and report its best validated trial within its real limits.
 """
 
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
+from dataclasses import dataclass
 from decimal import Decimal
 from enum import StrEnum
 from pathlib import Path
@@ -35,6 +42,28 @@ from hypora.storage.records import count_trials, run_jobs
 
 CANCEL_FILE: Final = "CANCEL"
 """Its presence in `runs/<run_id>/` asks the controller to cancel the run."""
+
+FINISH_RESERVE_REACHED: Final = "FINISH_RESERVE_REACHED"
+"""Error code of the event that records exploration stopping at the finishing reserve."""
+RESERVE_STEP_SHARE: Final = 4
+"""The step reserve is at most `max_steps // RESERVE_STEP_SHARE`: a small budget still explores."""
+RESERVE_TIME_SHARE: Final = 0.15
+"""The time reserve is at most this share of `max_wall_clock_seconds`."""
+
+
+@dataclass
+class FinishReserveReached(RunLimitReached):
+    """Exploration used the part of a limit that comes before the finishing reserve (D-056).
+
+    `maximum` is the usable amount (the real limit minus the reserve). It stops the exploring role
+    like a run limit, but the run itself is not out of budget: it goes on to finish.
+    """
+
+    def __str__(self) -> str:
+        return (
+            f"the finishing reserve of {self.limit} was reached ({self.used:g} of "
+            f"{self.maximum:g} usable before the reserve)"
+        )
 
 
 class Limit(StrEnum):
@@ -83,6 +112,80 @@ class RunGuard:
         self._charged_token_calls: set[str] = set()
         self.fired: dict[str, RunLimitReached] = {}
         """Each limit that stopped a call, in order; its event was recorded once."""
+        self._reserve: tuple[int, float] | None = None
+        self.reserve_fired: FinishReserveReached | None = None
+        """The first finishing-reserve stop (D-056); its event was recorded once."""
+
+    # --- the finishing reserve (D-056) ------------------------------------------------------------
+
+    def reserve_for(self, steps: int, seconds: float) -> tuple[int, float]:
+        """The (steps, seconds) actually kept back: each capped by its share of the limit, and 0
+        when the run has no such limit."""
+        b = self.budget
+        kept_steps = (
+            0 if b.max_steps is None else max(0, min(steps, b.max_steps // RESERVE_STEP_SHARE))
+        )
+        kept_seconds = (
+            0.0
+            if b.max_wall_clock_seconds is None
+            else max(0.0, min(seconds, RESERVE_TIME_SHARE * b.max_wall_clock_seconds))
+        )
+        return kept_steps, kept_seconds
+
+    @contextmanager
+    def exploration(self, *, steps: int, seconds: float) -> Iterator[None]:
+        """Within this block every call check also keeps the finishing reserve back."""
+        previous = self._reserve
+        self._reserve = self.reserve_for(steps, seconds)
+        try:
+            yield
+        finally:
+            self._reserve = previous
+
+    def _check_reserve(self, limits: tuple[Limit, ...]) -> None:
+        if self._reserve is None:
+            return
+        reserve_steps, reserve_seconds = self._reserve
+        b = self.budget
+        if Limit.MAX_STEPS in limits and b.max_steps is not None and reserve_steps:
+            usable = b.max_steps - reserve_steps
+            if self.steps >= usable:
+                raise self._reserve_stop(Limit.MAX_STEPS, self.steps, usable, reserve_steps)
+        if Limit.MAX_WALL_CLOCK in limits and b.max_wall_clock_seconds is not None:
+            usable_s = b.max_wall_clock_seconds - reserve_seconds
+            if reserve_seconds and self.elapsed() >= usable_s:
+                raise self._reserve_stop(
+                    Limit.MAX_WALL_CLOCK, self.elapsed(), usable_s, reserve_seconds
+                )
+
+    def _reserve_stop(
+        self, limit: Limit, used: float, usable: float, reserve: float
+    ) -> FinishReserveReached:
+        reached = FinishReserveReached(limit.value, float(used), float(usable))
+        if self.reserve_fired is not None:
+            return reached
+        self.reserve_fired = reached
+        self.events.append(
+            self.run_id,
+            EventType.ERROR,
+            ActorRole.CONTROLLER,
+            ErrorPayload(
+                # Not "controller": the graders read a controller error as a failed run.
+                component="run_guard",
+                code=FINISH_RESERVE_REACHED,
+                message=f"exploration stopped: {reached}; the run finishes with what it has",
+                error_class=ErrorClass.POLICY_QUOTA,
+                retryable=False,
+                details={
+                    "limit": limit.value,
+                    "used": round(float(used), 6),
+                    "usable": round(float(usable), 6),
+                    "reserve": round(float(reserve), 6),
+                    "steps": self.steps,
+                },
+            ).model_dump(mode="json"),
+        )
+        return reached
 
     # --- accounting -------------------------------------------------------------------------------
 
@@ -134,6 +237,7 @@ class RunGuard:
             used, maximum = usage[limit]
             if maximum is not None and used >= maximum:
                 raise self.stop(limit.value, used, maximum)
+        self._check_reserve(limits)
 
     def before_job(self) -> None:
         """Raise RunLimitReached if the controller may not queue another sandbox job."""

@@ -53,6 +53,16 @@ RANGE_DROPPED = (
     "[Platform] The typical score range was left out: {reason}. A records its own estimate or "
     "an unknown range instead."
 )
+UNCITED_DOWNGRADED = (
+    "[Platform] {count} tradeoff rating(s) that no cited source supported were set to unknown."
+)
+"""B's extra uncertainty when the platform drops uncited ratings (D-056)."""
+CITATION_FORMAT = (
+    " A citation's ref is the citation_ref a tool returned for that source (for a passage, the "
+    "passage's ref), copied exactly, and its retrieved_on is only the date part (YYYY-MM-DD) of "
+    "the source's retrieval time. Rate a tradeoff unknown unless a cited source supports it."
+)
+"""How B copies citations (D-056): live, B copied the catalog entry's bare ref and a timestamp."""
 
 
 @dataclass(frozen=True)
@@ -138,6 +148,44 @@ def _validate_observation(
             used.update(cell.evidence_refs)
     if not used.issubset(declared):
         raise ValueError("strategy contains unresolved evidence references")
+
+
+def drop_uncited_ratings(result: ResearchObservation) -> tuple[ResearchObservation, int]:
+    """Set every tradeoff rating no cited source supports to unknown; return how many (D-056).
+
+    The rule `_validate_observation` enforces is unchanged: a rating needs evidence, and an
+    option without evidence can only be unassessed. Live, B's first report broke it in every run
+    (for example rating a hosted API's privacy poor from the task's local-only constraint), and
+    the correction it then wrote failed schema validation, so two calls were spent recovering. A
+    rating without evidence is not a claim the report may make, so it becomes unknown, which is
+    exactly what the rule asks for; the count is reported as a platform uncertainty. Nothing is
+    ever upgraded, and citations, recommendations and plans are still checked as before.
+    """
+    if result.strategy_report is None:
+        return result, 0
+    result = result.model_copy(deep=True)
+    report = result.strategy_report
+    assert report is not None
+    count = 0
+    for option in report.options:
+        for name in _TRADEOFF_FIELDS:
+            cell = getattr(option.tradeoffs, name)
+            if cell.rating is Assessment.UNKNOWN:
+                continue
+            if not option.evidence_refs or not cell.evidence_refs:
+                cell.rating = Assessment.UNKNOWN
+                count += 1
+    return result, count
+
+
+def with_platform_note(result: ResearchObservation, note: str) -> ResearchObservation:
+    """`result` with one platform note as its last uncertainty, never dropping one silently."""
+    kept = list(result.uncertainties)
+    if len(kept) >= MAX_UNCERTAINTIES:
+        left_out = len(kept) - (MAX_UNCERTAINTIES - 1)
+        kept = kept[: MAX_UNCERTAINTIES - 1]
+        note += f" ({left_out} more research uncertainty item(s) not shown for space.)"
+    return result.model_copy(update={"uncertainties": [*kept, note]})
 
 
 def checked_typical_range(
@@ -296,6 +344,7 @@ async def run_research_agent(
                 + run_id
                 + ". Compare all four paths, explicitly state unknowns, and cite only returned "
                 "source references, URLs, and exact revisions."
+                + CITATION_FORMAT
                 + (
                     ""
                     if typical_range_metric is None
@@ -315,6 +364,7 @@ async def run_research_agent(
             result = response.parsed
             if response.tool_calls or not isinstance(result, schema):
                 raise ValueError("invalid final research response")
+            result, downgraded = drop_uncited_ratings(result)
             try:
                 _validate_observation(result, run_id, references)
             except ValueError as refused:
@@ -330,19 +380,23 @@ async def run_research_agent(
                     previous,
                     Message.user(
                         f"That report was not accepted: {refused}. Return the corrected "
-                        "ResearchObservation. Every citation must copy the ref, source_url and "
-                        "revision of a tool result exactly; an option's evidence_refs must be "
-                        "declared citations; rate a tradeoff unknown when no returned source "
-                        "supports it, and rate every tradeoff of an option unknown when no "
-                        "returned source covers that path."
+                        "ResearchObservation. Every citation must copy the citation_ref (for a "
+                        "passage, the ref), source_url and revision of a tool result exactly; an "
+                        "option's evidence_refs must be declared citations; rate a tradeoff "
+                        "unknown when no returned source supports it, and rate every tradeoff of "
+                        "an option unknown when no returned source covers that path."
+                        + CITATION_FORMAT
                     ),
                 ]
                 continue
             # Labelled first, so the platform's note about a dropped range is the only unlabelled
             # uncertainty and no model text can pose as it.
-            return ResearchOutcome(
-                checked_typical_range(_mark_unverified(result), typical_range_metric)
-            )
+            observation = checked_typical_range(_mark_unverified(result), typical_range_metric)
+            if downgraded:
+                observation = with_platform_note(
+                    observation, UNCITED_DOWNGRADED.format(count=downgraded)
+                )
+            return ResearchOutcome(observation)
         raise ValueError("invalid final research response")  # unreachable: the loop returns
     except RunLimitReached as exc:
         return ResearchOutcome(None, f"Research stopped at a run limit: {exc}")
