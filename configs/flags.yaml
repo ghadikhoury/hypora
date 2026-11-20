@@ -37,3 +37,12 @@ flags:
     confirm_fraction: 0.5      # shuffling removes at least this share of the excess
     dominance_ratio: 2.0       # and drops this many times more than other candidates
     max_confirmed: 2
+  # Controller robustness (D-056, docs/notes/controller-robustness.md). Caps sit above the most
+  # any successful live run used (B: 12 research tool calls; C: 3 diagnostics per session).
+  robustness:
+    lead_revision_rounds: 2          # A's report at the methodology review -> C revises (0 = stop)
+    evidence_before_exclusion: "on"  # on | off: no user -> exclude a questioned column on evidence only
+    finish_reserve_steps: 12         # steps kept for A's final review, the final job and the report
+    finish_reserve_seconds: 240      # wall-clock seconds kept the same way
+    max_diagnostics_per_session: 8   # run_diagnostic calls per C session (proposal or experiments)
+    max_research_tool_calls: 16      # tool calls per B research session

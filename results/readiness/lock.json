@@ -51,7 +51,15 @@
         "parallel_mode": "on",
         "phase_a_mode": "parallel",
         "planning": "on",
-        "retrieval_mode": "hybrid"
+        "retrieval_mode": "hybrid",
+        "robustness": {
+          "evidence_before_exclusion": "on",
+          "finish_reserve_seconds": 240.0,
+          "finish_reserve_steps": 12,
+          "lead_revision_rounds": 2,
+          "max_diagnostics_per_session": 8,
+          "max_research_tool_calls": 16
+        }
       },
       "model_profile": "eval"
     },
@@ -90,7 +98,15 @@
         "parallel_mode": "on",
         "phase_a_mode": "parallel",
         "planning": "on",
-        "retrieval_mode": "hybrid"
+        "retrieval_mode": "hybrid",
+        "robustness": {
+          "evidence_before_exclusion": "on",
+          "finish_reserve_seconds": 240.0,
+          "finish_reserve_steps": 12,
+          "lead_revision_rounds": 2,
+          "max_diagnostics_per_session": 8,
+          "max_research_tool_calls": 16
+        }
       },
       "model_profile": "eval"
     }
@@ -127,8 +143,8 @@
   },
   "prompts": {
     "agent_a_decide": {
-      "sha256": "4ca86bae0eb0b74ba8a71ba3ce1ce56061c6b2999f7c521189b0a7e8744264ac",
-      "version": 5
+      "sha256": "a95bb62d66cd01267a0d6af185fabc23a96ed76def349cddc988cfce351cf9fa",
+      "version": 6
     },
     "agent_a_intake": {
       "sha256": "7c030aac729f5b1b8717cd1d10506308e20c192001dddaa470c12ea8100d698b",
@@ -139,8 +155,8 @@
       "version": 2
     },
     "agent_b": {
-      "sha256": "543fa1ed29859af2cfa3c6ee0395efa7de56a2ee3314e823585571580dbf4769",
-      "version": 2
+      "sha256": "2531ddc3ba5a30ce294b18e8f18be2cb3edc520e3dd13f41cc2bce31cd902142",
+      "version": 3
     },
     "agent_c": {
       "sha256": "0a1ea53b34c8e947b8ab1d6a0babb42909c5a638036748797a0c5abbcd285cbc",

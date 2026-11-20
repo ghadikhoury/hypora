@@ -95,6 +95,32 @@ class LeakageCheckConfig(FrozenModel):
     max_confirmed: int = Field(2, ge=1, le=2)
 
 
+class RobustnessConfig(FrozenModel):
+    """Controller robustness switches and caps (D-056; docs/notes/controller-robustness.md).
+
+    `evidence_before_exclusion` is the comparison switch; the other fields are bounds. Each
+    bound has headroom over what successful live runs used, so it binds only on runaway use.
+    """
+
+    lead_revision_rounds: int = Field(2, ge=0, le=3)
+    """When A's pre-training methodology review answers report, its reason goes back to C as
+    revision feedback this many times before the run stops (0: stop at once, as before)."""
+    evidence_before_exclusion: OnOff = Toggle.ON
+    """With no user present, a column named in C's unresolved open question is excluded only when
+    a locked-split diagnostic flags it; otherwise it stays a feature and the concern is recorded
+    as a risk (off: every named column is excluded as a conservative assumption, D-052)."""
+    finish_reserve_steps: int = Field(12, ge=0)
+    """Run steps kept back from C's experiments (and its workers) for A's final review, the final
+    job and the report; capped at a quarter of `max_steps`."""
+    finish_reserve_seconds: NonNegativeFloat = 240.0
+    """Wall-clock seconds kept back the same way; capped at 15% of `max_wall_clock_seconds`."""
+    max_diagnostics_per_session: PositiveInt = 8
+    """`run_diagnostic` calls one C session (one methodology proposal, or the experiment session)
+    may make; later calls are refused with an instruction to proceed."""
+    max_research_tool_calls: PositiveInt = 16
+    """Tool calls one Agent B research session may make; later calls are refused the same way."""
+
+
 class FeatureFlags(FrozenModel):
     """All comparison switches (spec §19.4) plus the parallelism limits of spec §9.5.
 
@@ -117,3 +143,5 @@ class FeatureFlags(FrozenModel):
     leakage_flag: OnOff = Toggle.ON
     """D-046/D-050: investigate a validation score far above the plan's expected range."""
     leakage_check: LeakageCheckConfig = LeakageCheckConfig()
+    robustness: RobustnessConfig = RobustnessConfig()
+    """D-056: revision instead of stop, evidence before exclusion, graceful finish, tool caps."""

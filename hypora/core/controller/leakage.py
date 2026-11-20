@@ -326,6 +326,37 @@ def diagnostic_trigger_check(
     """
     allowed = set(allowed_features)
     best: DiagnosticTrigger | None = None
+    for candidate in extreme_diagnostics(tool_results):
+        if candidate.column not in allowed:
+            continue
+        if best is None or (candidate.score, candidate.diagnostic_id) > (
+            best.score,
+            best.diagnostic_id,
+        ):
+            best = candidate
+    return best
+
+
+def flagged_columns(tool_results: Sequence[ToolResultPayload]) -> dict[str, str]:
+    """Each column an extreme locked-split diagnostic flags, with that diagnostic's ID (D-056).
+
+    The same rule as `diagnostic_trigger_check`, for every column: the highest-scoring flag per
+    column wins (ties by diagnostic ID), so the result does not depend on call order.
+    """
+    best: dict[str, DiagnosticTrigger] = {}
+    for candidate in extreme_diagnostics(tool_results):
+        held = best.get(candidate.column)
+        if held is None or (candidate.score, candidate.diagnostic_id) > (
+            held.score,
+            held.diagnostic_id,
+        ):
+            best[candidate.column] = candidate
+    return {column: trigger.diagnostic_id for column, trigger in sorted(best.items())}
+
+
+def extreme_diagnostics(tool_results: Sequence[ToolResultPayload]) -> list[DiagnosticTrigger]:
+    """Every successful locked-split `feature_predictiveness` result at or above its threshold."""
+    found: list[DiagnosticTrigger] = []
     for result in tool_results:
         if result.tool != ToolName.RUN_DIAGNOSTIC.value or result.status is not ToolResultStatus.OK:
             continue
@@ -336,7 +367,7 @@ def diagnostic_trigger_check(
         if not isinstance(partition, str) or not partition:
             continue
         column = summary.get("column")
-        if not isinstance(column, str) or column not in allowed:
+        if not isinstance(column, str):
             continue
         diagnostic_id = summary.get("diagnostic_id")
         if not isinstance(diagnostic_id, str) or not diagnostic_id:
@@ -355,19 +386,16 @@ def diagnostic_trigger_check(
         threshold = DIAGNOSTIC_TRIGGER_THRESHOLDS[metric]
         if score < threshold:
             continue
-        candidate = DiagnosticTrigger(
-            diagnostic_id=diagnostic_id,
-            column=column,
-            metric=metric,
-            score=score,
-            threshold=threshold,
+        found.append(
+            DiagnosticTrigger(
+                diagnostic_id=diagnostic_id,
+                column=column,
+                metric=metric,
+                score=score,
+                threshold=threshold,
+            )
         )
-        if best is None or (candidate.score, candidate.diagnostic_id) > (
-            best.score,
-            best.diagnostic_id,
-        ):
-            best = candidate
-    return best
+    return found
 
 
 def diagnostic_fallback_trigger(

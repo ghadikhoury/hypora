@@ -1,10 +1,11 @@
 """Small structured main-role calls. The controller alone executes their decisions."""
 
 import json
+import re
 from collections.abc import Callable
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import Field, create_model
+from pydantic import Field, create_model, model_validator
 
 from hypora.core.llm.adapter import LLMAdapter
 from hypora.core.llm.errors import LLMError
@@ -50,12 +51,77 @@ LeadActionWithRange = create_model(
 )
 
 
+LeadReviewAction = create_model(
+    "LeadAction",
+    __base__=LeadAction,
+    __doc__=(
+        "A bounded decision about whether the runtime may continue, for A's review of C's data "
+        "methodology (D-056). report sends A's reason back to C for a revision, a bounded number "
+        "of times; blocker true means no revision of the data contract could resolve it, so the "
+        "run stops at once. It keeps LeadAction's schema name."
+    ),
+    blocker=(bool | None, None),
+)
+
+
+_BARE_CATALOG_REF = re.compile(r"^catalog_[0-9a-f]{24}$")
+"""The model catalog's opaque entry reference; its citation reference is `catalog:` + it."""
+_DATETIME_DATE = re.compile(r"^(\d{4}-\d{2}-\d{2})[T ]\d{2}:\d{2}")
+"""An ISO datetime, whose date part is what a `retrieved_on` date field means."""
+
+
+def _normalize_refs(value: Any) -> Any:
+    """`value` with every bare catalog entry reference written as its citation reference."""
+    if isinstance(value, str):
+        return "catalog:" + value if _BARE_CATALOG_REF.match(value) else value
+    if isinstance(value, list):
+        return [_normalize_refs(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _normalize_refs(item) for key, item in value.items()}
+    return value
+
+
+def _normalize_dates(report: dict[str, Any]) -> None:
+    """Shorten a full ISO datetime in a citation's or price's `retrieved_on` to its date."""
+    holders: list[Any] = list(report.get("citations") or [])
+    for option in report.get("options") or []:
+        if isinstance(option, dict) and isinstance(option.get("tradeoffs"), dict):
+            holders.append(option["tradeoffs"].get("price"))
+    for holder in holders:
+        if isinstance(holder, dict) and isinstance(holder.get("retrieved_on"), str):
+            match = _DATETIME_DATE.match(holder["retrieved_on"])
+            if match:
+                holder["retrieved_on"] = match[1]
+
+
 class ResearchObservation(StrictModel):
     """A research observation and its optional structured, cited strategy report."""
 
     summary: str = Field(min_length=1, max_length=2000)
     uncertainties: list[str] = Field(default_factory=list, max_length=10)
     strategy_report: StrategyReport | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _harmless_deviations(cls, data: Any) -> Any:
+        """Accept two exact copies of tool output that only the field format refused (D-056).
+
+        Live, B's corrected report failed schema validation in every db9034a run because it
+        copied what a tool returned: the catalog's bare entry reference (`catalog_<hex>`) where
+        a citation reference belongs (the tool's own `citation_ref` for it is
+        `catalog:catalog_<hex>`), and a source's retrieval timestamp where a retrieval date
+        belongs. Both are rewritten to the value the tool itself gives for that field. Nothing
+        else changes, and the platform still checks every citation against what its tools
+        returned.
+        """
+        if not isinstance(data, dict) or not isinstance(data.get("strategy_report"), dict):
+            return data
+        report = _normalize_refs(data["strategy_report"])
+        _normalize_dates(report)
+        updated = {**data, "strategy_report": report}
+        if isinstance(data.get("typical_score_range"), dict):
+            updated["typical_score_range"] = _normalize_refs(data["typical_score_range"])
+        return updated
 
 
 class TypicalScoreRange(StrictModel):
@@ -122,6 +188,9 @@ async def main_role_call(
                 "assignment": decision.assignment,
                 "overlap_reason": decision.overlap_reason,
             }
+            blocker = getattr(decision, "blocker", None)
+            if blocker is not None:
+                logged["blocker"] = blocker
             estimate = getattr(decision, "expected_score_range", None)
             if estimate is not None:
                 # Numbers and the source label only: A's free-text basis is screened later.
