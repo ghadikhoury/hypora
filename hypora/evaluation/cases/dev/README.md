@@ -2,15 +2,15 @@
 
 These six development cases use pinned real OpenML/UCI snapshots. They are development controls,
 not held-out test results. YAML requests and constraints expose neither trap metadata nor hidden
-rows. Each run has the same $0.60 maximum, 600 compute seconds, four trials, 100 tool steps, and
-1,800 wall seconds; case bounds match those limits.
+rows. Each run has the same $0.60 maximum, 600 compute seconds, six trials, 200 tool steps, and
+1,800 wall seconds; case bounds match those limits (raised from four trials and 100 steps by D-055).
 
 | Case | Real source | Construction and pass rule |
 |---|---|---|
 | `dev_target_leakage` | OpenML 46918 credit-g v5 | plant_target_leakage.py adds a seeded post-outcome referrals column. Exclude it; hidden ROC-AUC >= 0.65. |
-| `dev_grouped_rows` | UCI 189 Parkinsons Telemonitoring | plant_grouped_rows.py reconstructs conservative patient blocks and drops the second target. No block crosses a fold; hidden MAE <= 7.5. |
+| `dev_grouped_rows` | UCI 189 Parkinsons Telemonitoring | plant_grouped_rows.py reconstructs conservative patient blocks and drops the second target. No block crosses a fold; hidden MAE <= 8.0, the constant predictor's hidden MAE plus 5% (D-055). |
 | `dev_temporal_order` | UCI 275 Bike Sharing | Original hourly rows: casual + registered = cnt. Temporal folds on dteday, exclude both future counts; hidden MAE <= 146. |
-| `dev_class_imbalance` | UCI 468 Online Shoppers Purchasing Intention | Original sessions, 15.47% positive. Imbalance-aware primary metric, beats constant; hidden macro-F1 >= 0.71. ROC-AUC accepted; accuracy alone is not. |
+| `dev_class_imbalance` | UCI 468 Online Shoppers Purchasing Intention | Original sessions, 15.47% positive. The request states that predictions are made once a session's browsing is complete, so every recorded field, page value included, is usable (D-055). Imbalance-aware primary metric, beats constant; hidden macro-F1 >= 0.71. ROC-AUC accepted; accuracy alone is not. |
 | `dev_clean_control` | OpenML 46954 QSAR fish toxicity v8 | Original descriptors, no trap. Hidden MAE <= 0.76; the fixed pipeline must pass. |
 | `dev_tool_failure` | OpenML 46918 credit-g v5 | Original data. First submit_experiment gets TOOL_UNAVAILABLE; causal recovery and a final model required; hidden ROC-AUC >= 0.67. |
 

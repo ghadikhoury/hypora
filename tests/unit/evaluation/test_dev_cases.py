@@ -28,7 +28,12 @@ from hypora.evaluation.case import (
 )
 from hypora.evaluation.case_validator import validate_case
 from hypora.evaluation.cases.dev import plant_grouped_rows, plant_target_leakage
-from hypora.evaluation.cases.dev.calibrate import approaches_for, run_approach, visible_and_hidden
+from hypora.evaluation.cases.dev.calibrate import (
+    approaches_for,
+    constant_score,
+    run_approach,
+    visible_and_hidden,
+)
 from hypora.evaluation.cases.dev.planting import Planting, PlantingError
 from hypora.evaluation.hidden_split import select_hidden_rows
 from hypora.storage.snapshots import REPO_ROOT, SNAPSHOTS_DIR, load_manifest, verify_entry
@@ -171,6 +176,21 @@ def test_an_imbalance_case_accepts_valid_ranking_metrics_but_not_accuracy() -> N
     assert "accuracy" not in {metric.value for metric in trap.acceptable_metrics}
     metric = case.grading.hidden_metric
     assert metric is not None and metric.name.value == "f1_macro"
+
+
+def test_the_imbalance_request_states_when_the_prediction_is_made() -> None:
+    """D-055: with the prediction moment stated, whether page value may be used is decidable."""
+    request = BY_ID["dev_class_imbalance"].request
+    assert "once a session's browsing is complete" in request
+    assert "page value" in request
+    assert "available when the prediction is made" in request
+
+
+@every_case
+def test_run_limits_leave_room_for_recovery(case: Case) -> None:
+    """D-055: readiness runs hit 100 steps and 4 trials; every case now allows 200 and 6."""
+    assert case.budget.max_steps == 200
+    assert case.budget.max_trials == 6
 
 
 @every_case
@@ -346,6 +366,27 @@ def test_a_random_split_really_flatters_grouped_rows(tmp_path: Path) -> None:
     grouped = run_approach(case, by_name["sound_gb"], visible, hidden, resamples=2)
     assert shuffled["reported"] * 3 < grouped["reported"]
     assert shuffled["reported"] * 3 < shuffled["hidden"]
+
+
+@pytest.mark.skipif(
+    not _has_snapshot(BY_ID["dev_grouped_rows"]), reason="the snapshot is not stored"
+)
+def test_the_grouped_bar_lets_an_honest_constant_pass_but_not_a_shuffled_split(
+    tmp_path: Path,
+) -> None:
+    """D-055: under patient-grouped validation no model clearly beats the constant, so the bar is
+    the constant's own hidden MAE plus at most 5%. Correct grouping with a constant-quality model
+    passes; a shuffled split still fails the overlap and honesty checks and the bar."""
+    case = BY_ID["dev_grouped_rows"]
+    metric = case.grading.hidden_metric
+    assert metric is not None
+    _, visible, hidden = visible_and_hidden(case, planted_dir=_planted_dir(case, tmp_path))
+    constant = constant_score(case, visible, hidden)
+    assert constant <= metric.threshold <= constant * 1.05
+    by_name = {a.name: a for a in approaches_for(case)}
+    shuffled = run_approach(case, by_name["random_split_only"], visible, hidden, resamples=2)
+    assert {"trap_grouped_rows_no_overlap", "reported_metric_honesty"} <= _failed(shuffled)
+    assert not shuffled["meets_threshold"]
 
 
 @pytest.mark.skipif(

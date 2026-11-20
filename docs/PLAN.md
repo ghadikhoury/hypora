@@ -272,7 +272,7 @@ workers can still contribute when the budget permits.
 **Depends on** S4.2g–S4.2i · **Spec** §§17, 19.5
 
 Use scripted regressions first, then targeted free development runs when live model
-behavior remains uncertain. Verify all six unchanged cases on one integrated commit
+behavior remains uncertain. Verify all six cases (as revised by D-055) on one integrated commit
 with one predeclared run of the multi-agent `default` configuration on the pinned
 `eval` profile. A new paid recorded collection requires separate scope and budget
 authorization under the live-run rules. Report every case and any incomplete run.

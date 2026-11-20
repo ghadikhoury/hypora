@@ -321,7 +321,8 @@ def run_approach(
     }
 
 
-def _constant_score(case: Case, visible: pd.DataFrame, hidden: pd.DataFrame) -> float:
+def constant_score(case: Case, visible: pd.DataFrame, hidden: pd.DataFrame) -> float:
+    """The hidden score of the grader's constant predictor (visible mean or majority class)."""
     metric = case.grading.hidden_metric
     assert metric is not None
     target = case.constraints.target
@@ -426,7 +427,7 @@ def calibrate(case: Case) -> dict[str, Any]:
         "metric": metric.name.value,
         "threshold": metric.threshold,
         "tolerance": metric.reported_tolerance,
-        "constant": round(_constant_score(case, visible, hidden), 4),
+        "constant": round(constant_score(case, visible, hidden), 4),
         "facts": _trap_facts(case, frame, visible, hidden),
         "approaches": [run_approach(case, a, visible, hidden) for a in approaches_for(case)],
     }
