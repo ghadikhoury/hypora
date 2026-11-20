@@ -20,6 +20,20 @@ def _categorical_strings(X):
     return X.map(str).astype(object).where(X.notna(), np.nan)
 
 
+MAX_CATEGORIES = 64
+
+
+def _one_hot():
+    """A dense one-hot encoder with at most MAX_CATEGORIES columns per feature.
+
+    Rarer levels share one "infrequent" column. Without the cap, a near-unique text column (a raw
+    timestamp, an ID) gets one dense column per training row: memory grows with rows squared
+    (about 25 GB at 31k rows). An unseen level maps to the infrequent column when there is one."""
+    return OneHotEncoder(
+        handle_unknown="infrequent_if_exist", max_categories=MAX_CATEGORIES, sparse_output=False
+    )
+
+
 def fit(train: TrainData, ctx: TrialContext):
     """Fit all learned transforms and the estimator using train.X/train.y only."""
 
@@ -49,7 +63,7 @@ def fit(train: TrainData, ctx: TrialContext):
                             "impute",
                             SimpleImputer(strategy="most_frequent", keep_empty_features=True),
                         ),
-                        ("encode", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
+                        ("encode", _one_hot()),
                     ]
                 ),
                 categorical,
