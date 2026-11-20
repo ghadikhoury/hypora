@@ -55,13 +55,19 @@ mkdir -p data && cp -a ~/hypora-s5.1/data/. data/
 # Put OPENAI_API_KEY in ~/hypora-final/.env yourself (never paste it in chat).
 ```
 
-If `scripts/final_eval.py` is part of the freeze commit, use `F="uv run --locked python -m
-scripts.final_eval"`. Otherwise run the collector from outside the checkout, so the tree stays
-clean and records name the freeze commit:
+The collector is merged before S5.1, so the freeze commit contains it. Run it from inside the
+freeze checkout:
+
+```bash
+F="uv run --locked python -m scripts.final_eval"
+```
+
+Fallback only (if the freeze commit ever lacks the collector): run a copy from outside the
+checkout, so the tree stays clean and records still name the freeze commit:
 
 ```bash
 mkdir -p ~/s52-tools
-git -C ~/hypora-s5.2 show origin/s5.2-core-eval:scripts/final_eval.py > ~/s52-tools/final_eval.py
+git -C ~/hypora-s5.2 show origin/main:scripts/final_eval.py > ~/s52-tools/final_eval.py
 F="env PYTHONPATH=$PWD uv run --locked python $HOME/s52-tools/final_eval.py"
 ```
 
