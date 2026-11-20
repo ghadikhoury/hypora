@@ -2,7 +2,8 @@
 
 Spec §19 (all), §17 (real data, pinned eval model), §20 (course requirements); PLAN S5.1–S5.4;
 D-015 (real data), D-021 (licenses), D-032 (outcome evidence), D-051 (eval model), D-055 (fair
-grading, run limits). Cases and commands: `hypora/evaluation/cases/test/README.md`.
+grading, run limits), **D-057 (this test set)**. Cases and commands:
+`hypora/evaluation/cases/test/README.md`.
 
 The course handout is not in this repository. The requirements below are the spec's paraphrase
 (§19.5, §20: ≥25 held-out cases plus a separate dev set, ≥5 representative cases × 3 runs, Wilson
@@ -330,9 +331,14 @@ uv run --locked python -m hypora.evaluation.cases.test.thresholds   # visible-on
 uv run --locked pytest tests/unit/evaluation/test_test_cases.py
 ```
 
-## After S4.2j merges (remaining freeze steps)
+## Remaining freeze steps
 
-1. Rebase on `main`; rerun the case tests and the derivation (unchanged unless templates, the
-   harness split or metrics changed; if they did, re-derive and record it here).
-2. Confirm `results/readiness/lock.json` and fill the commit and tag rows above.
-3. Mark the PR ready; the reviewer merges and tags the merge commit `eval-freeze`.
+Done 2026-11-21 on the rebase onto `main` 4663caf (#75, #77, #78, #79):
+- Reran the case tests and the per-case real-data checks.
+- The derivation path changed only by #77's template cap, which is the one the bars were derived
+  with, so the bars are unchanged (spot-checked by re-deriving).
+- The committed readiness lock matches the code.
+
+Still to do:
+1. Once S4.2j has passed, fill in the commit and tag rows above.
+2. Mark the PR ready. The reviewer merges it and tags the merge commit `eval-freeze`.
