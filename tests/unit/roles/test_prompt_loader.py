@@ -64,7 +64,7 @@ def test_role_code_loads_its_prompts_instead_of_inlining_them() -> None:
 
 def test_agent_a_decide_includes_methodology_review_guidance() -> None:
     prompt = load_prompt("agent_a_decide")
-    assert prompt.version == 6
+    assert prompt.version == 7
     lower_text = prompt.text.lower()
     # D-056: report at a methodology review goes back to C; blocker stops at once.
     assert "report sends your reason back to c" in lower_text
@@ -76,11 +76,15 @@ def test_agent_a_decide_includes_methodology_review_guidance() -> None:
     assert "advisory" in lower
     assert "duplicate feature rows without a group-id column" in lower
     assert "indivisible chronological blocks" in lower
+    # D-058: feature-only concerns, the user's own words, and the trial evidence check.
+    assert "feature_concern_columns" in prompt.text
+    assert "user's original request" in lower
+    assert "use_best_validated_trial" in prompt.text
 
 
 def test_agent_c_methodology_distinguishes_risks_from_open_questions() -> None:
     prompt = load_prompt("agent_c_methodology")
-    assert prompt.version == 7
+    assert prompt.version == 8
     lower = prompt.text.lower()
     assert "ordinary input features" in lower and "`risks`" in prompt.text
     assert "`open_questions`" in prompt.text
@@ -89,11 +93,14 @@ def test_agent_c_methodology_distinguishes_risks_from_open_questions() -> None:
     assert "too-good-score check" in lower
     assert "direct target sub-counts" in lower
     assert "at most 1-3 columns" in lower
+    # D-058: target-aware diagnostics are refused before the lock; the user's own words.
+    assert "refused\nuntil the split is locked" in prompt.text
+    assert "user's\noriginal request" in prompt.text
 
 
 def test_agent_c_includes_imbalanced_classification_guidance() -> None:
     prompt = load_prompt("agent_c")
-    assert prompt.version == 10
+    assert prompt.version == 11
     lower = prompt.text.lower()
     assert "class imbalance" in lower
     assert "HistGradientBoostingClassifier" in prompt.text
@@ -115,7 +122,7 @@ def test_agent_c_workers_includes_multi_turn_budget_and_small_trial_guidance() -
 
 def test_agent_c_includes_draft_recovery_and_mae_regression_guidance() -> None:
     prompt = load_prompt("agent_c")
-    assert prompt.version == 10
+    assert prompt.version == 11
     lower = prompt.text.lower()
     assert "unsubmitted `draft` trial" in lower
     assert "via its `trial_id`" in prompt.text
@@ -131,10 +138,26 @@ def test_agent_c_includes_draft_recovery_and_mae_regression_guidance() -> None:
 
 def test_agent_c_includes_step_budget_and_feature_baseline_guidance() -> None:
     prompt = load_prompt("agent_c")
-    assert prompt.version == 10
+    assert prompt.version == 11
     lower = prompt.text.lower()
     assert "run_diagnostic" in prompt.text
     assert "DummyRegressor" in prompt.text and "DummyClassifier" in prompt.text
     assert "max_trials <= 4" in prompt.text
     assert "~12 run steps" in lower
     assert "remaining steps" in lower
+
+
+def test_intake_prompts_keep_prediction_time_statements() -> None:
+    for name in ("intake", "agent_a_intake"):
+        prompt = load_prompt(name)
+        assert prompt.version == 2
+        lower = prompt.text.lower()
+        # D-058: what is available when a prediction is made must survive into the objective.
+        assert "which information is available at that moment" in lower
+        assert "never drop" in lower
+
+
+def test_agent_c_names_the_trial_evidence_check() -> None:
+    lower = load_prompt("agent_c").text.lower()
+    assert "trial evidence check" in lower
+    assert "user's original request" in lower

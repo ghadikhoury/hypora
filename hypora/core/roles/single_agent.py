@@ -241,11 +241,14 @@ async def run_single_agent(
     max_turns: int,
     role: ActorRole = ActorRole.SINGLE_AGENT,
     recovery: RecoverySession | None = None,
+    final_facts: Callable[[], str] | None = None,
 ) -> AgentOutcome:
     """Run the tool loop until the model stops calling tools, a limit fires, or a call fails.
 
     With `recovery` (the `planning` flag on), tool failures are retried, replanned, clarified or
-    stopped by `hypora.core.roles.recovery`; without it the model sees each raw error."""
+    stopped by `hypora.core.roles.recovery`; without it the model sees each raw error. With
+    `final_facts` (C's experiment session, D-058), the platform's facts it returns, computed when
+    the tool loop ends, are shown with the final-answer request, before the nomination."""
     worker = role is ActorRole.TRIAL_WORKER
     tier = ModelTier.WORKER if worker else ModelTier.LEAD
     system = load_prompt(
@@ -302,10 +305,13 @@ async def run_single_agent(
         return AgentOutcome(None, turns, tool_calls, error=f"{type(exc).__name__}: {exc}"[:300])
 
     final_prompt = load_prompt("c_worker_final" if worker else "single_agent_final")
+    final_request = final_prompt.text
+    if final_facts is not None:
+        final_request += "\n\n" + final_facts()
     try:
         guard.before_model_call()
         answer = await adapter.complete(
-            [*messages, Message.user(final_prompt.text)],
+            [*messages, Message.user(final_request)],
             tier=tier,
             context=CallContext(
                 run_id=run_id,

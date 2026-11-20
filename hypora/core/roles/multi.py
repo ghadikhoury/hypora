@@ -3,7 +3,7 @@
 import json
 import re
 from collections.abc import Callable
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import Field, create_model, model_validator
 
@@ -58,9 +58,29 @@ LeadReviewAction = create_model(
         "A bounded decision about whether the runtime may continue, for A's review of C's data "
         "methodology (D-056). report sends A's reason back to C for a revision, a bounded number "
         "of times; blocker true means no revision of the data contract could resolve it, so the "
-        "run stops at once. It keeps LeadAction's schema name."
+        "run stops at once. feature_concern_columns lists the exact feature columns a concern is "
+        "about when it is only about features (D-058): before the split is locked the platform "
+        "then locks it as proposed and tests those columns itself. It keeps LeadAction's schema "
+        "name."
     ),
     blocker=(bool | None, None),
+    feature_concern_columns=(
+        list[Annotated[str, Field(min_length=1, max_length=200)]] | None,
+        Field(default=None, max_length=20),
+    ),
+)
+
+
+LeadFinalReviewAction = create_model(
+    "LeadAction",
+    __base__=LeadAction,
+    __doc__=(
+        "A bounded decision about whether the runtime may continue, for A's review of C's work "
+        "before final verification (D-058). use_best_validated_trial true, with continue, sends "
+        "the validated trial with the best mean primary metric to verification instead of C's "
+        "nomination. It keeps LeadAction's schema name."
+    ),
+    use_best_validated_trial=(bool | None, None),
 )
 
 
@@ -191,6 +211,13 @@ async def main_role_call(
             blocker = getattr(decision, "blocker", None)
             if blocker is not None:
                 logged["blocker"] = blocker
+            concern_columns = getattr(decision, "feature_concern_columns", None)
+            if concern_columns is not None:
+                # A count only: the names are model text, matched to the header in code later.
+                logged["feature_concern_columns"] = len(concern_columns)
+            best = getattr(decision, "use_best_validated_trial", None)
+            if best is not None:
+                logged["use_best_validated_trial"] = best
             estimate = getattr(decision, "expected_score_range", None)
             if estimate is not None:
                 # Numbers and the source label only: A's free-text basis is screened later.
