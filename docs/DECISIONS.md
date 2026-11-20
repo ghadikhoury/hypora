@@ -1583,8 +1583,9 @@ them.
   run limit), and the run continues through the normal path: A's final review, the platform's
   choice of the best validated trial (code, by validation metric, as before), the too-good-score
   check, the final job and verifier, and the report. The same finish follows the trial cap.
-  The report notes say the run finished early due to limits. Jobs already running may complete
-  unless time was the reason. C is told how many steps it has before the reserve.
+  The report notes say the run finished early due to limits. Jobs that have not started are
+  cancelled; running jobs get at most `finish_reserve_seconds` to complete (none when time was
+  the reason). C is told how many steps it has before the reserve.
 - **Diagnostic and research tool use is capped in code.** Each C session may make at most
   `robustness.max_diagnostics_per_session` = 8 `run_diagnostic` calls (each methodology proposal
   and the experiment session count separately), and each B research session at most

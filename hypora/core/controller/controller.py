@@ -2315,7 +2315,11 @@ class _Run:
             assert stop is not None
             self.notes.append(FINISH_NOTE.format(reason=str(stop)))
         cancel = stop is not None and not (finishing and stop.limit != Limit.MAX_WALL_CLOCK.value)
-        self.notes += await self._drain(cancel=cancel, contract=contract)
+        self.notes += await self._drain(
+            cancel=cancel,
+            contract=contract,
+            grace=self._robustness.finish_reserve_seconds if finishing else None,
+        )
         nominated = outcome.final.final_trial_id if outcome.final else None
         if self._multi and not await self._lead_decision(
             "Review C's completed work and decide whether to continue to independent final "
@@ -2932,9 +2936,18 @@ class _Run:
         )
 
     async def _drain(
-        self, *, cancel: bool, contract: ExperimentContract | None = None
+        self,
+        *,
+        cancel: bool,
+        contract: ExperimentContract | None = None,
+        grace: float | None = None,
     ) -> list[str]:
-        """Wait for the run's unfinished jobs (bounded), or cancel them when a limit fired."""
+        """Wait for the run's unfinished jobs (bounded), or cancel them when a limit fired.
+
+        With `grace` (the graceful finish, D-056), jobs that have not started are cancelled at
+        once and running jobs get at most `grace` seconds to complete: a queued job no worker
+        picks up must not hold the finish for the whole drain bound.
+        """
         remaining = self.guard.remaining_wall_clock()
         # A validation job may legitimately run for every fold's fit and predict at the job
         # limit; the run's own wall clock still bounds the wait (D-047).
@@ -2945,9 +2958,23 @@ class _Run:
                 contract.default_job_limits.max_wall_seconds * 2 * validation_folds(contract),
             )
         wait = bound if remaining is None else min(bound, remaining)
+        notes: list[str] = []
+        if grace is not None and not cancel:
+            wait = min(wait, max(0.0, grace))
+            unstarted = [
+                job
+                for job in run_jobs(self.database, self.run_id)
+                if job.status not in TERMINAL_STATES
+                and job.status not in (JobState.LEASED, JobState.RUNNING)
+            ]
+            for job in unstarted:
+                self._cancel(job.job_id, "the run is finishing and the job had not started")
+            if unstarted:
+                notes.append(
+                    f"Cancelled {len(unstarted)} job(s) that had not started: the run is finishing."
+                )
         deadline = anyio.current_time() + wait
         cancelled = False
-        notes: list[str] = []
         stop_reason = None
         while True:
             if not cancelled:

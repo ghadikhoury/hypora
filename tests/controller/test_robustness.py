@@ -480,6 +480,43 @@ async def test_the_trial_cap_stops_exploration_and_the_run_still_finishes(
     assert any("finished early due to limits" in note for note in result.notes)
 
 
+async def test_a_job_that_never_starts_does_not_hold_the_finish(
+    make_controller, dataset, database, monkeypatch
+):
+    """Regression (CI hang): the reserve stops a model polling a job no worker ever picks up.
+    The graceful finish cancels the unstarted job at once instead of waiting the whole drain
+    bound (hours with no wall-clock limit)."""
+    from functools import partial
+
+    from hypora.core.controller import controller as controller_module
+    from hypora.core.controller.local import write_session
+    from hypora.core.schemas import Budget, JobState
+    from hypora.storage.records import run_jobs
+    from tests.controller.scripted import ScriptedRun
+
+    monkeypatch.setattr(
+        controller_module,
+        "write_session",
+        partial(write_session, status_wait_seconds=0.2, status_wait_cap_seconds=0.2),
+    )
+    script = ScriptedRun("run_stuck_finish", poll_seconds=0)
+    controller = make_controller(script, worker_factory=NoWorker)  # the job stays QUEUED
+    with anyio.fail_after(120):
+        result = await controller.run(
+            RunRequest(
+                dataset=dataset,
+                goal="x",
+                target="target",
+                budget=Budget(max_steps=30),
+                run_id="run_stuck_finish",
+            )
+        )
+    assert result.limits_fired == ()
+    assert len(_errors(database, "run_stuck_finish", FINISH_RESERVE_REACHED)) == 1
+    assert run_jobs(database, "run_stuck_finish")[0].status is JobState.CANCELLED
+    assert any("had not started" in note for note in result.notes)
+
+
 # --- D: code-enforced tool caps -----------------------------------------------------------------
 
 

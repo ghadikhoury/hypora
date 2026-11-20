@@ -66,7 +66,9 @@ once as `FINISH_RESERVE_REACHED` (component `run_guard`) and is not added to `gu
 `limits_fired` and `RUN_LIMIT_REACHED` keep meaning "the run ran out".
 
 `_experiments` then treats a reserve stop or a `max_trials` stop as finishing: it notes that the
-run finished early due to limits, lets running jobs complete (unless time was the reason), and
+run finished early due to limits, cancels jobs that have not started, gives running jobs at most
+`finish_reserve_seconds` to complete (none when time was the reason; a queued job no worker
+picks up once hung CI for the whole drain bound), and
 continues through the normal path (A's final review, `select_final`, the too-good-score check, the
 final job, the report). A real hard limit still stops as before.
 

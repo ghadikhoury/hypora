@@ -287,6 +287,13 @@ async def test_turn_limits_still_stop_a_model_waiting_on_a_stuck_job(
     run_id = f"run_{limit}"
     script = ScriptedRun(run_id, poll_seconds=0)
     controller = make_controller(script, worker_factory=NoWorker)  # the job never leaves QUEUED
+    # The hard limit itself is under test: no finishing reserve (D-056) stops exploration first.
+    # test_robustness.py covers the reserve with the same stuck job.
+    flags = controller.run_config.flags
+    robust = flags.robustness.model_copy(update={"finish_reserve_steps": 0})
+    controller.run_config = controller.run_config.model_copy(
+        update={"flags": flags.model_copy(update={"robustness": robust})}
+    )
     result = await controller.run(
         RunRequest(
             dataset=dataset, goal="x", target="target", budget=Budget(**budget), run_id=run_id
