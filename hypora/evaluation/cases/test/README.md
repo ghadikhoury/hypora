@@ -1,6 +1,6 @@
 # Held-out test cases v1 (S5.1)
 
-27 tabular cases on pinned real UCI snapshots, none shared with the dev set. They are the frozen
+26 tabular cases on pinned real UCI snapshots, none shared with the dev set. They are the frozen
 Stage 5 measurement; the protocol, thresholds, exclusions and freeze identity are in
 [the test-set protocol](../../../../docs/notes/test-set-protocol.md). YAML requests and constraints
 expose neither trap metadata nor hidden rows. Every case has the dev set's D-055 limits: $0.60,
@@ -19,7 +19,6 @@ contract bounds; hidden split 25%, seed 20261120.
 | `test_group_real_estate` | UCI 477 Real Estate Valuation | Groups | plantings.py: `location_id` from latitude and longitude (259 locations). |
 | `test_time_metro_traffic` | UCI 492 Metro Interstate Traffic Volume | Temporal | Original hourly rows; hidden rows are the latest timestamps. |
 | `test_time_beijing_pm25` | UCI 381 Beijing PM2.5 | Temporal | plantings.py: ISO `timestamp` from the clock columns; hours with no reading dropped. |
-| `test_time_air_quality` | UCI 360 Air Quality | Temporal | plantings.py: -200 read as missing, ISO `timestamp`, unlabeled hours and the other reference-analyzer columns dropped. |
 | `test_time_tetouan_power` | UCI 849 Power Consumption of Tetouan City | Temporal | plantings.py: ISO `DateTime`; zones 2 and 3 (other targets) dropped. |
 | `test_imb_htru2` | UCI 372 HTRU2 | Imbalance | 9.2% pulsars; no primary metric given. |
 | `test_imb_bankruptcy` | UCI 572 Taiwanese Bankruptcy Prediction | Imbalance | 3.2% bankrupt; no primary metric given. |
@@ -45,7 +44,7 @@ pinned case hash and needs investigation, never substitution.
 Fetch the snapshots, then regenerate and validate every case:
 
 ~~~bash
-for id in 1 17 94 146 159 165 222 267 291 294 320 350 360 372 381 464 477 492 519 545 563 \
+for id in 1 17 94 146 159 165 222 267 291 294 320 350 372 381 464 477 492 519 545 563 \
           572 601 602 697 849 863; do make snapshot SOURCE=uci ID=$id; done
 uv run --locked python -m hypora.evaluation.cases.test.generate
 ~~~

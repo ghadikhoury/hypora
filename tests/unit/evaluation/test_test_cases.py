@@ -440,24 +440,6 @@ def test_beijing_rows_without_a_reading_are_dropped_and_the_clock_becomes_iso() 
     assert planted["pm2.5"].tolist() == [129.0, 22.0]
 
 
-def test_air_quality_reads_the_documented_marker_and_keeps_only_the_benzene_reference() -> None:
-    frame = pd.DataFrame(
-        {
-            "Date": ["3/10/2004", "3/10/2004", "3/11/2004"],
-            "Time": ["18:00:00", "19:00:00", "00:00:00"],
-            **{name: [1.0, 2.0, 3.0] for name in plantings.AIR_OTHER_REFERENCES},
-            "C6H6(GT)": [11.9, -200.0, 9.0],
-            "PT08.S1(CO)": [1360, 1292, -200],
-            "T": [13.6, 13.3, 11.9],
-        }
-    )
-    planted = plantings.plant_air_quality(frame)
-    assert list(planted.columns) == ["timestamp", "C6H6(GT)", "PT08.S1(CO)", "T"]
-    assert planted["timestamp"].tolist() == ["2004-03-10 18:00:00", "2004-03-11 00:00:00"]
-    assert planted["C6H6(GT)"].tolist() == [11.9, 9.0]
-    assert planted["PT08.S1(CO)"].isna().tolist() == [False, True]
-
-
 def test_time_keys_become_unambiguous_iso_text() -> None:
     tetouan = plantings.plant_tetouan(
         pd.DataFrame(

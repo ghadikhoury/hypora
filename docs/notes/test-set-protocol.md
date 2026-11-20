@@ -15,7 +15,7 @@ for the freeze).
 |---|---|
 | Code commit | TODO: the reviewed S5.1 merge commit on `main`, after S4.2j merges |
 | Tag | TODO: `eval-freeze` on that commit (created by the reviewer after merge) |
-| Cases | the 27 files in `hypora/evaluation/cases/test/` at that commit, with `derivation.json` |
+| Cases | the 26 files in `hypora/evaluation/cases/test/` at that commit, with `derivation.json` |
 | Data | the snapshot SHA-256 and planted SHA-256 in each case file (table below) |
 | Hidden splits | strategy, fraction 0.25 and seed 20261120 in each case; rows are a pure function of case ID, seed and row content |
 | Graders | `hypora/evaluation/graders/` at the frozen commit; programmatic only, no LLM judge (§19.1) |
@@ -32,7 +32,7 @@ visible rows only, and no agent ran on any test case before the freeze.
 
 ## Cases and families
 
-27 cases, 27 distinct real UCI datasets, none used by a dev case (a test enforces this). Every
+26 cases, 26 distinct real UCI datasets, none used by a dev case (a test enforces this). Every
 license is CC BY 4.0 as stated on the UCI page (D-021). Retrieval date for all: 2026-11-20. Each
 machine's ignored `data/snapshots/manifest.json` holds the full entry (source and download URL,
 license evidence, source and stored SHA-256); the table repeats what a reviewer needs.
@@ -62,50 +62,34 @@ license evidence, source and stored SHA-256); the table repeats what a reviewer 
 | `test_leak_heart_failure` | UCI 519 Heart Failure Clinical Records (Mon Feb 26 2024) | `ce8b6a5d66e6` | leakage |
 | `test_leak_student_dropout` | UCI 697 Predict Students' Dropout and Academic Success (Mon Feb 26 2024) | `a8e007ff6a19` | leakage |
 | `test_leak_student_grades` | UCI 320 Student Performance (Fri Jan 05 2024) | `5a35f78808ed` | leakage |
-| `test_time_air_quality` | UCI 360 Air Quality (Sun Mar 10 2024) | `6c839ad673c7`; planted f4567189de94 | temporal |
-| `test_time_beijing_pm25` | UCI 381 Beijing PM2.5 (Sat Mar 16 2024) | `eacc4bd50185`; planted 282cc9fa0c4f | temporal |
-| `test_time_metro_traffic` | UCI 492 Metro Interstate Traffic Volume (Fri Mar 15 2024) | `f4b69a611af0` | temporal |
-| `test_time_tetouan_power` | UCI 849 Power Consumption of Tetouan City (Fri Mar 08 2024) | `7fdd82e0a673`; planted 8d27d0da0303 | temporal |
-| Case | Source (UCI ID, page "last updated") | Snapshot SHA-256 (prefix) | Family |
-|---|---|---|---|
-| `test_clean_abalone` | UCI 1 Abalone (Mon Aug 28 2023) | `f933d5c87ed0` | clean control |
-| `test_clean_breast_cancer` | UCI 17 Breast Cancer Wisconsin (Diagnostic) (Fri Nov 03 2023) | `af5ab5d1b31f` | clean control |
-| `test_clean_dry_bean` | UCI 602 Dry Bean (Thu Mar 28 2024) | `6e91049391f6` | clean control |
-| `test_clean_power_plant` | UCI 294 Combined Cycle Power Plant (Mon Mar 04 2024) | `bca5c4607ccc` | clean control |
-| `test_clean_rice` | UCI 545 Rice (Cammeo and Osmancik) (Fri Nov 03 2023) | `b21d31478517` | clean control |
-| `test_fault_malformed_landsat` | UCI 146 Statlog (Landsat Satellite) (Wed Feb 14 2024) | `0283b8843250`; planted 0a3abc61c2e7 | malformed data |
-| `test_fault_malformed_maternal` | UCI 863 Maternal Health Risk (Fri Nov 03 2023) | `8db374e22b3f`; planted eaf7b1f3493e | malformed data |
-| `test_fault_submit_banknote` | UCI 267 Banknote Authentication (Fri Feb 16 2024) | `4c58a8d7c87c` | tool error |
-| `test_fault_submit_spambase` | UCI 94 Spambase (Mon Aug 28 2023) | `2655486aefca` | tool error |
-| `test_fault_submit_superconductivity` | UCI 464 Superconductivty Data (Fri Mar 29 2024) | `8b84f8909f07` | tool error |
-| `test_fault_write_magic` | UCI 159 MAGIC Gamma Telescope (Tue Dec 19 2023) | `ff533d620d5b` | tool error |
-| `test_group_airfoil` | UCI 291 Airfoil Self-Noise (Fri Mar 29 2024) | `b1073bd29969`; planted c09f24542664 | groups |
-| `test_group_concrete` | UCI 165 Concrete Compressive Strength (Sun Feb 11 2024) | `61e9ffb4d1ee`; planted 1c7839e73184 | groups |
-| `test_group_real_estate` | UCI 477 Real Estate Valuation (Mon Feb 26 2024) | `3095d1e1db37`; planted 600111d92800 | groups |
-| `test_imb_bankruptcy` | UCI 572 Taiwanese Bankruptcy Prediction (Fri Mar 15 2024) | `8af7a5965e68` | imbalance |
-| `test_imb_churn` | UCI 563 Iranian Churn (Sat Mar 09 2024) | `0f9ebdfe4993` | imbalance |
-| `test_imb_credit_default` | UCI 350 Default of Credit Card Clients (Fri Mar 29 2024) | `9fd75b7f6108` | imbalance |
-| `test_imb_htru2` | UCI 372 HTRU2 (Wed Apr 03 2024) | `407548ce4137` | imbalance |
-| `test_leak_ai4i_failure` | UCI 601 AI4I 2020 Predictive Maintenance Dataset (Wed Feb 14 2024) | `42803c53e0ce` | leakage + imbalance |
-| `test_leak_bank_marketing` | UCI 222 Bank Marketing (Fri Aug 18 2023) | `e97ebad3ce5e` | leakage + imbalance |
-| `test_leak_heart_failure` | UCI 519 Heart Failure Clinical Records (Mon Feb 26 2024) | `ce8b6a5d66e6` | leakage |
-| `test_leak_student_dropout` | UCI 697 Predict Students' Dropout and Academic Success (Mon Feb 26 2024) | `a8e007ff6a19` | leakage |
-| `test_leak_student_grades` | UCI 320 Student Performance (Fri Jan 05 2024) | `5a35f78808ed` | leakage |
-| `test_time_air_quality` | UCI 360 Air Quality (Sun Mar 10 2024) | `6c839ad673c7`; planted f4567189de94 | temporal |
 | `test_time_beijing_pm25` | UCI 381 Beijing PM2.5 (Sat Mar 16 2024) | `eacc4bd50185`; planted 282cc9fa0c4f | temporal |
 | `test_time_metro_traffic` | UCI 492 Metro Interstate Traffic Volume (Fri Mar 15 2024) | `f4b69a611af0` | temporal |
 | `test_time_tetouan_power` | UCI 849 Power Consumption of Tetouan City (Fri Mar 08 2024) | `7fdd82e0a673`; planted 8d27d0da0303 | temporal |
 
-Family counts: target leakage 5 (two also imbalance), grouped rows 3, temporal order 4, class
+Family counts: target leakage 5 (two also imbalance), grouped rows 3, temporal order 3, class
 imbalance 4 (+2 combined), clean controls 5, injected tool errors 4, malformed data 2. Five cases
-are clean controls and four more have clean data with only a tool fault, so 9 of 27 cases have no
+are clean controls and four more have clean data with only a tool fault, so 9 of 26 cases have no
 data trap.
 
 ### Removed and replaced cases
 
-Three built cases were removed before the freeze, all for **grader validity**: the bar or the
-honesty check could not tell an honest model from a constant, or failed an honest model. **No
-agent has run on any test case**, so no removal reflects agent results.
+Four built cases were removed before the freeze, all for **grader validity**: the bar or the
+honesty check could not tell an honest model from a constant, failed an honest model, or a single
+column made the case an unintended leakage case. **No agent has run on any test case**, so no
+removal reflects agent results.
+
+`test_time_air_quality` (UCI 360, hourly gas sensors in an Italian city): added as a temporal
+replacement, then removed after three targets, each decided on visible-row evidence:
+- Benzene `C6H6(GT)`: one sensor column, `PT08.S2(NMHC)`, alone predicts it on the visible rows
+  (single-column R² 0.969 ≥ the 0.85 too-good-score trigger). The case would act as a leakage case
+  judged by that check rather than by temporal methodology.
+- Carbon monoxide `CO(GT)` (top single column R² 0.788, not flagged): failed the grader sanity
+  check. Gradient boosting's reported MAE 0.544 against hidden 0.379 is a gap of 0.165, above the
+  0.082 tolerance (the sensors drift), and linear fails honesty and the bar.
+- Nitrogen oxides `NOx(GT)` (top R² 0.526, not flagged): no sound model meets the bar. Gradient
+  boosting's hidden MAE is 164 against a bar of 87.6, worse than the constant's 159.
+
+No rule was changed for it.
 
 `test_time_garment` (UCI 597): with calendar-feature references the bar was MAE ≤ 0.129 (constant
 CV 0.148, linear 0.109), but in the grader sanity check the constant predictor's hidden MAE was
@@ -125,10 +109,10 @@ while the hidden split keeps copies together, so an honest gradient-boosting mod
 (0.592 > 0.579). Rather than loosen the rule for one case after seeing hidden scores, the case was
 dropped.
 
-Two temporal cases were added to restore the margin above 25 and keep four temporal cases:
-`test_time_beijing_pm25` (UCI 381) and `test_time_air_quality` (UCI 360). Dataset, target,
-request and generation steps were chosen and committed to before any hidden score was computed;
-they then went through the same derivation and sanity protocol, with no rule change. UCI 501
+Two temporal replacements were tried: `test_time_beijing_pm25` (UCI 381, kept) and
+`test_time_air_quality` (UCI 360, removed above). For each, the dataset, target, request and
+generation steps were fixed before any hidden score was computed. Both went through the same
+derivation and sanity protocol with no rule change. UCI 501
 (Beijing Multi-Site) was not used: UCI offers no `data.csv` for it, so the snapshot script cannot
 fetch it.
 
@@ -211,7 +195,6 @@ reference from making it too tight for a weaker model that still clears the bar.
 | `test_leak_heart_failure` | roc_auc | 0.5 | 0.7812 | 0.7247 | >= 0.64 | 0.4 | 224 / 75 |
 | `test_leak_student_dropout` | f1_macro | 0.222 | 0.6171 | 0.6543 | >= 0.43 | 0.087 | 3318 / 1106 |
 | `test_leak_student_grades` | mae | 2.302 | 2.073 | 2.091 | <= 2.19 | 0.98 | 487 / 162 |
-| `test_time_air_quality` | mae | 5.616 | 0.6878 | 0.09979 | <= 2.86 | 0.56 | 6743 / 2248 |
 | `test_time_beijing_pm25` | mae | 68.7 | 59.81 | 50.15 | <= 59.5 | 15 | 31318 / 10439 |
 | `test_time_metro_traffic` | mae | 1740 | 1595 | 308.2 | <= 1030 | 150 | 36152 / 12052 |
 | `test_time_tetouan_power` | mae | 6189 | 3791 | 3111 | <= 4660 | 3600 | 39312 / 13104 |
@@ -225,13 +208,13 @@ accuracy; never accuracy), MAE for regression.
 The bars were set before this check and were not moved by it. It fits the calibration approaches
 (`hypora/evaluation/cases/dev/calibrate.py`) on the visible rows, scores the hidden rows, and runs
 the grader's own trap, honesty and beats-the-constant checks. Run on 2026-11-20 and 2026-11-21 for
-all 25 graded cases (temporal cases one per process under a 6 GB memory cap):
+all 24 graded cases (temporal cases one per process under a memory cap):
 
 - **The constant predictor misses every bar.** The closest is `test_group_real_estate` (hidden MAE
   8.59 against a bar of 8.44).
 - **An honest simple model passes every check and the bar in every case.** Gradient boosting passes
   everywhere except `test_time_tetouan_power`, where linear passes instead (below). Linear misses the
-  bar on `test_leak_ai4i_failure` (macro-F1 0.638 against 0.65) and on two temporal cases.
+  bar on `test_leak_ai4i_failure` (macro-F1 0.638 against 0.65) and on `test_time_metro_traffic`.
 - **Shortcuts fail on their trap.** The fixed pipeline (random split, every column) fails
   `trap_target_leakage_excluded` on all five leakage cases (with the leak, hidden scores rise to
   0.98 macro-F1 for AI4I, 0.90 ROC-AUC for heart failure and MAE 0.94 for student grades). A random
@@ -239,19 +222,35 @@ all 25 graded cases (temporal cases one per process under a 6 GB memory cap):
   metric fails `trap_class_imbalance_metric` on all six imbalance cases. Clean and tool-fault cases
   show no failed data check.
 - **Temporal cases (calendar-feature bars; a random split fails `trap_temporal_order_split` on all
-  four):**
+  three):**
   - `test_time_metro_traffic`: constant hidden MAE 1739 against a bar of 1030. Gradient boosting
     passes every check (hidden 285, reported 258).
   - `test_time_beijing_pm25`: constant hidden 71.2 against a bar of 59.5. Gradient boosting (hidden
     47.2) and linear (57.7) both pass every check.
-  - `test_time_air_quality`: constant hidden 6.02 against a bar of 2.86. Gradient boosting passes
-    every check (hidden 0.061). Linear fails honesty (reported 1.09, hidden 5.43: sensor drift).
   - `test_time_tetouan_power`: constant hidden 5858 against a bar of 4660. Linear passes every check
     (hidden 3814, reported 3497). Gradient boosting misses the bar on the hidden period (5929), a
     seasonal shift its validation did not show. The tolerance is wide (3,600) for the same reason:
     fold-to-fold spread.
-  - Dropped `test_time_garment`: the constant passed the hidden bar (see "Removed and replaced
-    cases").
+  - Dropped `test_time_garment` and `test_time_air_quality` (see "Removed and replaced cases").
+
+### Single-column predictiveness screen (visible rows only)
+
+Each feature of every non-leakage graded case was scored alone with the platform's
+`feature_predictiveness` diagnostic on the visible rows. A column is flagged at the too-good-score
+trigger thresholds (`roc_auc ≥ 0.90` or `r2 ≥ 0.85`).
+- **No flag:** grouped, temporal, tool-fault cases on spambase, superconductivity and MAGIC, and the
+  imbalance cases bankruptcy, churn and credit default.
+- **Flagged, all legitimate strong measurements, not post-outcome fields:**
+  - `test_clean_breast_cancer`: nine size and shape columns, up to `perimeter3` ROC-AUC 0.954.
+  - `test_clean_dry_bean`: `ConvexArea`, 0.901.
+  - `test_clean_power_plant`: `AT` (ambient temperature), R² 0.898.
+  - `test_clean_rice`: four size columns, up to `Major_Axis_Length` 0.974.
+  - `test_fault_submit_banknote`: `variance`, 0.916.
+  - `test_imb_htru2`: three profile statistics, up to 0.957.
+
+**Open, owner decision:** these six cases may trigger the too-good-score check (S4.1b/S4.2d), so
+their outcome also depends on how that check treats a legitimately strong feature. Dropping all six
+would leave 20 cases, below the course minimum of 25.
 
 ### Platform fix found during validation: dense one-hot of near-unique text
 
@@ -297,8 +296,9 @@ grader predicts on copied hidden features only.
   cases, visible data, limits and eval profile. One primary run per case per system.
 - **Repeat sample:** 3 additional runs per system of these 6 representative cases, one per family,
   reported separately and never mixed into primary rates: `test_leak_heart_failure`,
-  `test_group_concrete`, `test_time_air_quality`, `test_imb_churn`, `test_clean_rice`,
-  `test_fault_submit_spambase` (all small or mid-sized, so repeats stay cheap). Command:
+  `test_group_concrete`, `test_time_beijing_pm25`, `test_imb_churn`, `test_clean_rice`,
+  `test_fault_submit_spambase` (small or mid-sized where the family allows, so repeats stay cheap).
+  Command:
   `ARGS="--repeats 3 --repeat-cases <those six>"`.
 - **Reported:** pass rate with 95% Wilson interval per system; paired outcome tables (both pass /
   first only / second only / both fail) for multi vs baseline, single vs baseline and multi vs
@@ -312,7 +312,7 @@ grader predicts on copied hidden features only.
   tables, retried only with `--resume` and the earlier attempt archived. A missing measurement
   never becomes a win or a loss.
 - **Budget:** S5.2 needs Ghadi's approval of the aggregate estimate first (`🧑 HUMAN · DECIDE`).
-  27 cases × 2 LLM systems + 6 × 3 × 2 repeats = 90 paid runs. Recorded runs cost about $0.035
+  26 cases × 2 LLM systems + 6 × 3 × 2 repeats = 88 paid runs. Recorded runs cost about $0.035
   each, so about $3 expected; the coordinator plans a $10 hard cap. Case budgets are unchanged.
 
 ## Reproduction

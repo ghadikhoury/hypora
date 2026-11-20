@@ -378,24 +378,6 @@
   "reported_tolerance": 0.98
  },
  {
-  "case": "test_time_air_quality",
-  "metric": "mae",
-  "direction": "minimize",
-  "n_visible": 6743,
-  "n_test": 1349,
-  "n_hidden": 2248,
-  "constant": 5.616409,
-  "linear": 0.687828,
-  "gradient_boosting": 0.099788,
-  "reference_template": "gradient_boosting",
-  "reference": 0.099788,
-  "sd_folds": 0.076192,
-  "se_test": 0.010623,
-  "se_hidden": 0.008229,
-  "threshold": 2.86,
-  "reported_tolerance": 0.56
- },
- {
   "case": "test_time_beijing_pm25",
   "metric": "mae",
   "direction": "minimize",
