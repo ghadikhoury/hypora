@@ -100,3 +100,60 @@ correction failed schema validation (bare `catalog_<hex>` instead of the tool's 
   checked against the references the tools returned.
 - The final request, the correction message and `agent_b@v3` name `citation_ref` and the date
   format.
+
+# D-058 follow-ups (S4.2j readiness, after the 4/6 run on 2d7b1bf)
+
+## F. The user's own request after intake (`user_request.py`)
+
+`_Run._user_request_block()` builds, once per run, a labelled block of the user's original request
+(`RunRequest.goal`, which in eval runs is the case request plus its structured constraints) and
+appends it to every A decision (`_lead_decision`), to every C methodology proposal
+(`_propose_methodology`) and to the experiment session (`_agent`, both configurations). Screening:
+each full line passes `DataFirewall.screen_untrusted` (always), `classify_line` (with
+`defenses.injection_filter`) and `redact_for_log`, then whole lines are dropped from the end past
+8,000 characters behind one counted marker. A line imitating a platform marker or the block's
+delimiters is labelled `(user text)`. Two `policy_decision` events (tool `user_request_context`,
+no call ID) record the counts; if the firewall cannot be built the block says the request is not
+shown. Intake prompts v2 keep prediction-moment statements in the objective.
+
+## G. Pre-lock feature concerns settled after the lock
+
+`_methodology_review(..., defer=...)` is given `_feature_only_concern` at the pre-lock review when
+`_platform_can_diagnose()` (the case permits `run_diagnostic`). On a non-blocker `report`, the
+columns are A's `feature_concern_columns` (each must be an exact header name) or, if none, the
+columns `columns_named` finds in A's reason when `_NON_FEATURE_CONCERN` (split, folds,
+validation scheme, stratification, group/time key, primary metric, task type, test set, holdout)
+does not match. All must be allowed features of the proposal, not the target or a split key, and
+at most `robustness.max_diagnostics_per_session`. Then: `LEAD_CONCERN_DEFERRED` (component
+`lead_review`, retryable; details: stage, revisions, columns, whether the reason was relayed; never
+A's text), the proposal is accepted, the split locks, and `_platform_diagnostics` calls
+`HyporaTools.run_diagnostic` in-process on a controller session for each column, recording
+`tool_call` / `policy_decision` (allow, `contract_scope`) / `tool_result` with actor `controller`.
+The returned diagnostic IDs join the evidence C may cite, and the recorded results feed
+`flagged_columns`, so D-056's rule sees them too. C's reconciliation (and any reconcile revision)
+and A's reconciliation review get `DEFERRED_CONCERN`: A's screened reason, the results (column,
+diagnostic ID, metric, score, threshold, flagged) and what each role may do. Everything else stays
+on the D-056 path.
+
+## H. Trial evidence check (`trial_facts.py`, `_trial_check`)
+
+For every trial with a completed job and a validation score: rank by the contract's primary metric
+(mean over folds, `select_final`'s data), gap to the best, other reported means, and
+`feature_use(pipeline.py, allowed, trial config)`: allowed features removed by name (`drop(columns=
+...)` or `axis=1`, `.difference(...)`, set subtraction, `if c not in [...]`, a `"drop"`
+ColumnTransformer entry) or never selected by a ColumnTransformer that names all its columns with
+the default `remainder="drop"` (or `if c in [...]`). Names resolve through literal assignments,
+concatenation and `ctx.config[...]`/`.get(...)`. Data-derived column lists (`select_dtypes`, as in
+the templates) are not removals; an unresolvable `drop`/`difference` argument is listed under
+`unresolved_column_code`. JSON bounded at 12,000 characters, trials dropped whole from the bottom
+and counted. Shown to C with the final-answer request (`run_single_agent(final_facts=...)`, multi
+only) and in A's final review, where `LeadFinalReviewAction.use_best_validated_trial` with
+continue makes `select_final` ignore C's nomination.
+
+## I. Stop cause
+
+`derive_outcome_evidence` names `lead_review_stopped` (the last `LEAD_REVIEW_STOPPED` event) when
+no final job completed, no limit or cancel fired and no controller error exists.
+
+Tests: `tests/controller/test_request_context.py` (scripted, end to end) and
+`tests/unit/controller/test_request_and_trial_facts.py`.

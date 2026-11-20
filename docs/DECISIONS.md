@@ -1617,3 +1617,76 @@ them.
 - **Limitations.** Scripted evidence only; no live run was made. Whether the pinned model now
   passes each case about 97% of the time is for the next authorized readiness run to measure. C
   workers have still never started in a live run; nothing here forces them.
+
+## D-058 — Carry the user's request to every role; settle pre-lock feature concerns with platform evidence (2026-11-20)
+
+Ghadi approved, under the same terms as D-056, fixes on the orchestrator's judgment so the six-case
+dev evaluation passes reliably on the pinned `openai/gpt-6-luna` eval profile with a broad,
+dataset-agnostic system. Nothing here names a dataset, column or case-specific number. (D-057 is
+reserved for the S5.1 test set.) Evidence: the paid S4.2j verification run on `2d7b1bf` passed 4
+of 6 cases. Details are in `docs/notes/controller-robustness.md` ("D-058").
+
+- **The user's own words now reach every later role.** In `dev_class_imbalance`
+  (`run_f8f3054c80e0`) the request said certain features "are available when the prediction is
+  made". Intake shortened the request to a one-sentence objective and dropped that sentence, so no
+  later role ever saw it: A twice asked to drop the strongest features as possibly unavailable,
+  C's trials left them out even after A accepted a contract that allowed them, and the nominated
+  trial scored far below an all-feature trial (hidden 0.516 against the 0.71 bar). Now the
+  controller adds the user's original request, clearly labelled as the user's words, to every A
+  decision after intake (research, C assignment, both methodology reviews, final review), to C's
+  methodology proposals and to C's (and the single agent's) experiment session. It comes from the
+  run's inputs, so the task specification schema is unchanged. Because it is user text, every full
+  line first passes the data firewall's strict untrusted-text rule, the injection screen (when that
+  defense is on) and credential redaction, like candidate code before A reads it; a line that fails
+  is replaced by a marker, nothing is cut mid-line, and a request over 8,000 characters loses whole
+  lines from its end behind a counted marker. The screens are recorded as two `policy_decision`
+  events. Before this change, user text reached only the intake model, unscreened. Both intake
+  prompts now also say to keep statements about the prediction moment and available information in
+  the objective.
+- **A pre-lock concern about feature columns only no longer deadlocks.** In `dev_temporal_order`
+  (`run_8e0edd3ee50c`) C noted two columns that look like parts of the target. With no user present
+  (D-056) a column is excluded only on a locked-split diagnostic, but such diagnostics are refused
+  before the split is locked, so A's requests to exclude them or show evidence could not be met:
+  three rounds, then `LEAD_REVIEW_STOPPED` and no model. Now, at the pre-lock review, when A's
+  concern is not a blocker and is only about named feature columns (listed in a new optional
+  `feature_concern_columns` field of A's review decision, or, if A lists none, named in its reason
+  with no split, validation, metric or task-type term), and the case permits diagnostics, the
+  platform accepts the proposal as it is (`LEAD_CONCERN_DEFERRED` event), locks the split, and runs
+  the existing `feature_predictiveness` diagnostic itself on those columns with the existing
+  thresholds. Each run is recorded as a `tool_call`, `policy_decision` and `tool_result` with actor
+  `controller`. C's reconciliation proposal and A's reconciliation review both see A's screened
+  concern and the results; C may exclude a column citing the platform's diagnostic, so the
+  exclusion is evidence-backed, or keep it and say why. Genuine blockers, concerns that touch the
+  split, target, validation or metric, columns that are not allowed features (or are split keys),
+  more columns than the diagnostic cap, and cases without diagnostics keep the D-056 revision and
+  stop path. C's methodology prompt and context now say target-aware diagnostics are refused before
+  the lock (C wasted six such calls in that run).
+- **Trial evidence check.** For every validated trial the platform now computes its rank by the
+  contract's primary metric (mean over validation folds; never test data), the gap to the best, the
+  other reported validation means, and which contract-allowed features its `pipeline.py` removes or
+  never selects by name. The last is a static reading of the code (it is never run), so column
+  lists built from the data are not counted and unresolvable column code is listed. C sees the
+  check with its final-answer request, before it nominates; A's final review sees it too. Prompts
+  say a nomination that is clearly worse on the primary metric, or that drops allowed features
+  without diagnostic evidence, needs an explicit evidence-based reason, and that A should question
+  it. A's final-review decision has a new optional `use_best_validated_trial` field: with continue,
+  the platform sends the validated trial with the best mean primary metric to verification instead
+  of C's nomination (the same code rule `select_final` already uses when there is no valid
+  nomination). Nothing forces a choice in code; the roles decide.
+- **The lead-review stop is the report's stop cause.** A run ended by `LEAD_REVIEW_STOPPED` now
+  has `evidence.stop = {cause: "lead_review_stopped", event_seqs: [...]}` in its report (it was
+  null). Fault outcomes are unchanged.
+- **Prompts and lock.** `agent_a_decide` v6 -> v7, `agent_a_intake` v1 -> v2, `intake` v1 -> v2,
+  `agent_c_methodology` v7 -> v8, `agent_c` v10 -> v11; `results/readiness/lock.json` regenerated.
+- **Frozen contracts and security.** No change to `hypora/core/schemas/`, `docs/schemas/`, the
+  MCP tool contract, event types, the trial interface, the sandbox, `hypora/core/policy/` or the
+  data firewall's rules. The new fields live on A's role-output models in
+  `hypora/core/roles/multi.py`, which keep the `LeadAction` schema name, like D-056's `blocker`;
+  `SafeStop.cause` (report evidence, `hypora/core/roles/outcome_evidence.py`) gains one value.
+  The platform diagnostic calls the MCP tool's own implementation in-process with a controller
+  session, as the fixed-pipeline baseline does, and only in cases whose permitted tools include
+  `run_diagnostic`. The eval graders were not changed.
+- **Limitations.** Scripted evidence only; no live run was made. The static feature reading can
+  miss removals written in ways it does not model (for example a dtype selection that leaves out
+  categorical features). When A asks for the best validated trial, the code A reviewed was C's
+  candidate's, not necessarily that trial's.

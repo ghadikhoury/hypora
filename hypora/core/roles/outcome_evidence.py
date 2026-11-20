@@ -55,6 +55,9 @@ CANDIDATE_TOOLS: Final = frozenset(
 )
 """The tools a candidate attempt goes through: their failures are failures of that attempt."""
 CONTROLLER_COMPONENT: Final = "controller"
+LEAD_REVIEW_COMPONENT: Final = "lead_review"
+LEAD_REVIEW_STOPPED: Final = "LEAD_REVIEW_STOPPED"
+"""The controller's record that A's methodology concern ended the run (D-056, D-058)."""
 AMBIGUOUS_STOP_CODES: Final = frozenset({"RUN_LIMIT_REACHED", "RUN_CANCELLED"})
 """A limit or a user cancel also ends a run, so a fault beside one can't be named as the cause."""
 FAILED_STATES: Final = frozenset({JobState.FAILED, JobState.FAILED_TERMINAL})
@@ -89,9 +92,13 @@ class DecisionEvidence(StrictModel):
 
 
 class SafeStop(StrictModel):
-    """The deterministic reason a run ended without a model, when one can be named."""
+    """The deterministic reason a run ended without a model, when one can be named.
 
-    cause: Literal["controller_error", "all_candidates_failed"]
+    `lead_review_stopped` (D-058): A's concern at a data-methodology review ended the run (A
+    marked it a blocker, or it persisted after the last revision), recorded by the controller's
+    `LEAD_REVIEW_STOPPED` event of the `lead_review` component."""
+
+    cause: Literal["controller_error", "all_candidates_failed", "lead_review_stopped"]
     event_seqs: list[int]
 
 
@@ -316,6 +323,14 @@ def _safe_stop(records: _Records) -> SafeStop | None:
     controller = [e for e in errors if e.payload.component == CONTROLLER_COMPONENT]
     if controller:
         return SafeStop(cause="controller_error", event_seqs=[controller[-1].seq])
+    # A lead-review stop raises at once, so nothing runs after it (D-058): it is the cause.
+    lead = [
+        e
+        for e in errors
+        if e.payload.component == LEAD_REVIEW_COMPONENT and e.payload.code == LEAD_REVIEW_STOPPED
+    ]
+    if lead:
+        return SafeStop(cause="lead_review_stopped", event_seqs=[lead[-1].seq])
     return _all_candidates_failed(records) if _agent_finished_by_itself(records.events) else None
 
 
