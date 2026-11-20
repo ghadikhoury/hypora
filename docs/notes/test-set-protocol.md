@@ -248,9 +248,16 @@ trigger thresholds (`roc_auc ≥ 0.90` or `r2 ≥ 0.85`).
   - `test_fault_submit_banknote`: `variance`, 0.916.
   - `test_imb_htru2`: three profile statistics, up to 0.957.
 
-**Open, owner decision:** these six cases may trigger the too-good-score check (S4.1b/S4.2d), so
-their outcome also depends on how that check treats a legitimately strong feature. Dropping all six
-would leave 20 cases, below the course minimum of 25.
+**Decision: the six cases are kept.** The orchestrator decided this under Ghadi's overnight
+authorization.
+- The flagged columns are legitimate measurements of the thing being predicted (size, shape,
+  temperature, signal statistics), not values recorded after the outcome.
+- The flags were found on visible rows, before any agent run.
+- These cases therefore also test the too-good-score check (S4.1b/S4.2d) for false alarms. A system
+  that wrongly excludes a legitimate strong feature, or recommends the comparison model without it,
+  should lose score, and the bars allow for that.
+- S5.2 and S5.4 analysis must report how often the too-good-score check fired on non-leakage cases,
+  which column it named, and what it recommended.
 
 ### Platform fix found during validation: dense one-hot of near-unique text
 
