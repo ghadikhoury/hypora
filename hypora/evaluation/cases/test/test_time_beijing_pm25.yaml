@@ -1,18 +1,18 @@
-# Temporal order: daily team productivity over three months. plantings.py only rewrites the day as ISO text.
-id: test_time_garment
+# Temporal order: hourly PM2.5 in Beijing, 2010-2014. plantings.py builds an ISO timestamp from the clock columns and drops hours with no reading.
+id: test_time_beijing_pm25
 split: test
-request: "Predict the actual productivity (0 to 1) of each garment-factory team for coming working days, from the team's targeted productivity, workload, overtime, incentives and staffing, so that managers can plan production."
+request: "Predict the hourly PM2.5 concentration (ug/m3) at the US embassy in Beijing for coming periods, from the calendar and the weather (dew point, temperature, pressure, wind direction and speed, and hours of snow and rain), so that residents can be warned ahead of polluted hours."
 constraints:
-  target: "actual_productivity"
+  target: "pm2.5"
   task_type: regression
   primary_metric: mae
 dataset:
-  snapshot: uci-597-productivity-prediction-of-garment-employees
-  sha256: "8310131551737fd5382006461229ed5b82ba46121a345f9a139aeb68f9171a8e"
+  snapshot: uci-381-beijing-pm2-5
+  sha256: "eacc4bd50185d661eae9d86f1dff4a8a26d7262986df2fb7f56dbce35e47ba26"
   planted:
     script: hypora/evaluation/cases/test/plantings.py
-    file: test_time_garment.parquet
-    sha256: "90f4d27384608a86269b8170dc1ecbf0c507ff5a6b047c782699a1b880d611b9"
+    file: test_time_beijing_pm25.parquet
+    sha256: "282cc9fa0c4f4f07fa8ba364b34bb4c3596189d7d7142647bfc17f80daaf6917"
 family: tabular
 permitted_tools:
   - inspect_dataset
@@ -43,16 +43,16 @@ hidden_split:
   strategy: temporal
   fraction: 0.25
   seed: 20261120
-  time_key: "date"
+  time_key: "timestamp"
 grading:
-  # Derived from visible rows only (thresholds.py): constant 0.1477, linear 0.1087 (3-fold CV);
+  # Derived from visible rows only (thresholds.py): constant 68.7, gradient_boosting 50.15 (3-fold CV);
   # bar = constant + 0.5 x gap; tolerance = 3 x combined standard error.
   hidden_metric:
     name: mae
-    threshold: 0.129
-    reported_tolerance: 0.03
+    threshold: 59.5
+    reported_tolerance: 15.0
 traps:
   - kind: temporal_order
     planted: true
-    time_key: date
+    time_key: timestamp
 expected_decision_class: train
