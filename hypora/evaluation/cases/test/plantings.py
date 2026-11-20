@@ -3,11 +3,12 @@
     uv run --locked python -m hypora.evaluation.cases.test.plantings
 
 Every change here is to real rows and real labels (D-015): recovering a group key the rows already
-share, rewriting a timestamp into an unambiguous ISO form, dropping a second target, or, for the two
-malformed-data fault cases, blanking a seeded handful of labels. No value is invented except those
-blanks. Each function is pure (no clock, no global random state), and the Parquet writer is the
-snapshots' own, so the bytes reproduce for given library versions and the case file's SHA-256 can
-vouch for them. `data/` is git-ignored, so each machine regenerates the files.
+share, rewriting a timestamp into an unambiguous ISO form, dropping co-measured second targets,
+dropping rows that have no label, reading a dataset's documented missing marker as missing, or,
+for the two malformed-data fault cases, blanking a seeded handful of labels. No value is invented
+except those blanks. Each function is pure (no clock, no global random state), and the Parquet
+writer is the snapshots' own, so the bytes reproduce for given library versions and the case
+file's SHA-256 can vouch for them. `data/` is git-ignored, so each machine regenerates the files.
 """
 
 from typing import Final
@@ -78,12 +79,41 @@ def plant_real_estate(frame: pd.DataFrame) -> pd.DataFrame:
 # --- Temporal order: an unambiguous time key ------------------------------------------------------
 
 
-def plant_garment(frame: pd.DataFrame) -> pd.DataFrame:
-    """UCI 597: `date` is month/day/year ('1/13/2015'); rewritten as ISO '2015-01-13'."""
-    planted = frame.copy()
-    parsed = pd.to_datetime(frame["date"], format="%m/%d/%Y")
-    planted["date"] = parsed.dt.strftime("%Y-%m-%d")
-    return planted
+BEIJING_TARGET: Final = "pm2.5"
+BEIJING_CLOCK: Final = ["year", "month", "day", "hour"]
+
+
+def plant_beijing(frame: pd.DataFrame) -> pd.DataFrame:
+    """UCI 381: hourly PM2.5 at the US embassy in Beijing, 2010-2014.
+
+    The four clock columns become one ISO `timestamp` ('2010-01-02 00:00:00'), placed first. The
+    2,067 hours with no PM2.5 reading are dropped: a row without a label can be neither learned nor
+    scored (the hidden split refuses missing targets). Nothing else changes."""
+    stamps = pd.to_datetime(frame[BEIJING_CLOCK])
+    planted = frame.drop(columns=BEIJING_CLOCK)
+    planted.insert(0, "timestamp", stamps.dt.strftime("%Y-%m-%d %H:%M:%S"))
+    return planted.loc[frame[BEIJING_TARGET].notna()].reset_index(drop=True)
+
+
+AIR_TARGET: Final = "C6H6(GT)"
+AIR_OTHER_REFERENCES: Final = ["CO(GT)", "NMHC(GT)", "NOx(GT)", "NO2(GT)"]
+AIR_MISSING: Final = -200
+
+
+def plant_air_quality(frame: pd.DataFrame) -> pd.DataFrame:
+    """UCI 360: hourly gas-sensor responses and a reference analyzer in an Italian city, 2004-2005.
+
+    The dataset marks missing values as -200 (its documentation); they become missing. Hours with
+    no benzene reference reading, the target, are dropped (no label). The other reference-analyzer
+    columns are measured at the same hour as the target, so they are dropped, like the Tetouan
+    zones. `Date` (month/day/year) and `Time` become one ISO `timestamp`, placed first."""
+    numeric = frame.select_dtypes(include="number").columns
+    cleaned = frame.copy()
+    cleaned[numeric] = cleaned[numeric].mask(cleaned[numeric] == AIR_MISSING)
+    stamps = pd.to_datetime(frame["Date"] + " " + frame["Time"], format="%m/%d/%Y %H:%M:%S")
+    planted = cleaned.drop(columns=["Date", "Time", *AIR_OTHER_REFERENCES])
+    planted.insert(0, "timestamp", stamps.dt.strftime("%Y-%m-%d %H:%M:%S"))
+    return planted.loc[planted[AIR_TARGET].notna()].reset_index(drop=True)
 
 
 TETOUAN_TARGET: Final = "Zone 1 Power Consumption"
@@ -141,10 +171,11 @@ PLANTINGS: Final = {
     "test_group_real_estate": Planting(
         "uci-477-real-estate-valuation", "test_group_real_estate.parquet", plant_real_estate
     ),
-    "test_time_garment": Planting(
-        "uci-597-productivity-prediction-of-garment-employees",
-        "test_time_garment.parquet",
-        plant_garment,
+    "test_time_beijing_pm25": Planting(
+        "uci-381-beijing-pm2-5", "test_time_beijing_pm25.parquet", plant_beijing
+    ),
+    "test_time_air_quality": Planting(
+        "uci-360-air-quality", "test_time_air_quality.parquet", plant_air_quality
     ),
     "test_time_tetouan_power": Planting(
         "uci-849-power-consumption-of-tetouan-city",
