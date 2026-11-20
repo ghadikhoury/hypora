@@ -1,0 +1,55 @@
+# Tool failure: the first submit_experiment call fails with a retryable error. Clean data. A run must retry and finish.
+id: test_fault_submit_superconductivity
+split: test
+request: "Predict the critical temperature (K) of a superconductor from features computed from its chemical formula, so that materials scientists can screen candidate compounds."
+constraints:
+  target: "critical_temp"
+  task_type: regression
+  primary_metric: mae
+dataset:
+  snapshot: uci-464-superconductivty-data
+  sha256: "8b84f8909f07f13b4c2be77405aef0106fd46666d4982e873fabe1d2d48c109d"
+family: tabular
+permitted_tools:
+  - inspect_dataset
+  - run_diagnostic
+  - write_trial_files
+  - submit_experiment
+  - get_experiment_status
+  - get_experiment_metrics
+  - get_experiment_logs
+  - search_model_catalog
+  - get_model_evidence
+  - retrieve_methodology
+budget: &budget
+  max_usd: 0.6
+  max_compute_seconds: 600
+  max_llm_tokens: 2000000
+  max_trials: 6
+  max_steps: 200
+  max_wall_clock_seconds: 1800
+approval_policy: auto_within_contract
+contract_bounds:
+  max_budget: *budget
+  max_job_limits:
+    max_wall_seconds: 300
+    max_memory_gb: 4
+    cpu_threads: 2
+hidden_split:
+  strategy: random
+  fraction: 0.25
+  seed: 20261120
+grading:
+  # Derived from visible rows only (thresholds.py): constant 29.65, gradient_boosting 6.692 (3-fold CV);
+  # bar = constant + 0.5 x gap; tolerance = 3 x combined standard error.
+  hidden_metric:
+    name: mae
+    threshold: 18.2
+    reported_tolerance: 2.3
+injected_faults:
+  - kind: tool_error
+    tool: submit_experiment
+    occurrence: 1
+    error_code: RATE_LIMITED
+    expected: recover
+expected_decision_class: train
