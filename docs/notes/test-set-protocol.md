@@ -334,11 +334,15 @@ uv run --locked pytest tests/unit/evaluation/test_test_cases.py
 ## Remaining freeze steps
 
 Done 2026-11-21 on the rebase onto `main` 4663caf (#75, #77, #78, #79):
-- Reran the case tests and the per-case real-data checks.
+- All 26 cases regenerate with matching hashes and validate.
+- The case-format, coverage and rule tests pass.
 - The derivation path changed only by #77's template cap, which is the one the bars were derived
-  with, so the bars are unchanged (spot-checked by re-deriving).
+  with. Re-deriving three cases (heart failure, real estate, Beijing PM2.5) gave the recorded bars.
 - The committed readiness lock matches the code.
 
 Still to do:
-1. Once S4.2j has passed, fill in the commit and tag rows above.
-2. Mark the PR ready. The reviewer merges it and tags the merge commit `eval-freeze`.
+1. Rerun the per-case real-data checks (shortcuts, hidden data, validation) on the rebased code.
+   Only two cases were rerun before the host stopped the job for low memory. Run one case per
+   process.
+2. Once S4.2j has passed, fill in the commit and tag rows above.
+3. Mark the PR ready. The reviewer merges it and tags the merge commit `eval-freeze`.
