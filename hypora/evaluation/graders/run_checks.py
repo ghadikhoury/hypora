@@ -255,10 +255,12 @@ def _execution_boundary(
             )
         return first
     record = JobQueue(log.database).get(job_id)
+    # A cancel request reaches CANCELLED through CANCEL_REQUESTED, so a job that never ran may show
+    # the pre-run state on either the request or the final transition.
+    pre_run = {JobState.DRAFT, JobState.VALIDATING, JobState.AWAITING_APPROVAL, JobState.QUEUED}
     cancelled = any(
-        e.payload.to_state is JobState.CANCELLED
-        and e.payload.expected_prior_state
-        in {JobState.DRAFT, JobState.VALIDATING, JobState.AWAITING_APPROVAL, JobState.QUEUED}
+        e.payload.to_state in {JobState.CANCELLED, JobState.CANCEL_REQUESTED}
+        and e.payload.expected_prior_state in pre_run
         for e in transitions
     )
     folder = protocol.job_dir(context.run.runs_root, context.run.run_id, job_id)
