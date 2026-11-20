@@ -4,9 +4,10 @@ The same real controller, MCP server, worker, sandbox, hidden splits and program
 `make eval`, through the same runner. Spending reuses the S2.6 collector's durable ledger
 (`scripts/stage2_eval.py`): every actual OpenAI SDK attempt, retries included, reserves $0.36
 before dispatch and settles only provider-reported usage, so unknown charges keep their full
-reservation across crashes. Each case run keeps its case budget ($0.60), and each comparison
-refuses to start when its runs could pass $5 at full budgets. No prompts, rows or credentials
-enter the audit.
+reservation across crashes; a definitive HTTP error response with no usage settles at $0, and a
+run refused by the cap or quota is a harness error, not a graded failure (D-054). Each case run
+keeps its case budget ($0.60), and each comparison refuses to start when its runs could pass $5 at
+full budgets. No prompts, rows or credentials enter the audit.
 
 Each owner-approved collection has its own journal, public audit and aggregate cap (`COLLECTIONS`):
 - `s4.2` (D-051, closed): $10 aggregate; no comparison started when its full budgets plus

@@ -16,7 +16,14 @@ from hypora.core.config.resources import DetectedResources, GpuDetection
 from hypora.core.schemas import ModelProfile
 from hypora.evaluation.case import Case
 from hypora.evaluation.hidden_split import HiddenSplit, HiddenStore
-from hypora.evaluation.runner.records import CaseRecord, PendingRun, RunKind, Timings, Usage
+from hypora.evaluation.runner.records import (
+    CaseRecord,
+    PendingRun,
+    RecordStatus,
+    RunKind,
+    Timings,
+    Usage,
+)
 from hypora.evaluation.runner.regression import compare_records
 from hypora.evaluation.runner.report import build_summary, render_markdown
 from hypora.evaluation.runner.runner import EvalPlan, _check_spend, run_eval
@@ -716,7 +723,10 @@ async def test_refused_fallback_is_unrecorded_without_cancelling_other_cases(
 
 
 @pytest.mark.asyncio
-async def test_unknown_paid_exposure_is_never_a_complete_passing_record(tmp_path: Path) -> None:
+async def test_finished_run_with_unknown_paid_exposure_is_graded_with_incomplete_usage(
+    tmp_path: Path,
+) -> None:
+    # D-054: unknown retry exposure is reported, never converted into a harness error.
     class UnknownSpend(System):
         def unobserved_spend_reserved_usd(self, run_id: str) -> float:
             return 0.36
@@ -725,5 +735,28 @@ async def test_unknown_paid_exposure_is_never_a_complete_passing_record(tmp_path
     system = UnknownSpend("agent", {"active": 0, "peak": 0})
     outcome = await run_eval(replace(plan, systems=(system,)), lambda _: None)
     [record] = outcome.recorded
-    assert not outcome.clean and not record.finished and not record.passed
+    assert record.status is RecordStatus.GRADED and record.finished and record.error is None
+    assert record.grade is not None
     assert not record.usage.complete and record.usage.unobserved_spend_reserved_usd == 0.36
+    summary = json.loads((outcome.directory / "summary.json").read_text())
+    assert summary["total_unobserved_spend_reserved_usd"] == pytest.approx(0.36)
+    assert summary["usage_complete"] is False
+
+
+@pytest.mark.asyncio
+async def test_run_that_breaks_with_unknown_exposure_stays_a_harness_error(
+    tmp_path: Path,
+) -> None:
+    class BrokenUnknownSpend(System):
+        def unobserved_spend_reserved_usd(self, run_id: str) -> float:
+            return 0.36
+
+        async def run(self, system_input: SystemInput, context: SystemContext) -> SystemRun:
+            raise RuntimeError("collection cap reached")
+
+    plan = plan_at(tmp_path, count=1)
+    system = BrokenUnknownSpend("agent", {"active": 0, "peak": 0})
+    outcome = await run_eval(replace(plan, systems=(system,)), lambda _: None)
+    [record] = outcome.recorded
+    assert record.status is RecordStatus.HARNESS_ERROR and not record.passed
+    assert record.usage.unobserved_spend_reserved_usd >= 0.36

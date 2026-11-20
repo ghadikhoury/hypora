@@ -31,7 +31,10 @@ Invalid/corrupt or misplaced records are refused. Cancellation preserves a harne
 with the known usage before re-raising the original interruption. An unfinished provider call
 may have an unobserved charge: the remaining case budget is reserved conservatively in the
 aggregate cap, separately from measured spend. Reports label partial usage and measured lower
-bounds, rather than claiming unknown charges were zero.
+bounds, rather than claiming unknown charges were zero. A system's collection-ledger exposure
+(`ReportsUnobservedSpend`) marks a finished run's usage incomplete and is reported separately; the
+run is still graded (D-054). A run the collection cap or provider quota refused is a harness
+error, never a graded failure.
 `ARGS="--allow-dirty"` writes only to ignored `results/raw/`; these scratch records are never a
 regression baseline. Commit code before collecting reportable evidence.
 
