@@ -1573,7 +1573,7 @@ them.
   dropped itself without evidence: on C's final attempt it is kept (or excluded on a flag) instead
   of the whole proposal being refused. After the split locks, C is told which questioned columns
   were kept so it can test them. Interactive runs are unchanged (open questions still stop for the
-  user), and the switch off restores D-052 exactly. Scripted tests show a strongly leaky column is
+  user), and the switch off restores D-052's exclusion behavior. Scripted tests show a strongly leaky column is
   still excluded on its diagnostic, and that one kept without a diagnostic is still caught by the
   too-good-score check and the model without it is recommended.
 - **Hitting a limit no longer throws away validated work.** While C (and its workers) experiment,

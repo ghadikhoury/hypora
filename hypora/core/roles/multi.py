@@ -73,7 +73,7 @@ _DATETIME_DATE = re.compile(r"^(\d{4}-\d{2}-\d{2})[T ]\d{2}:\d{2}")
 def _normalize_refs(value: Any) -> Any:
     """`value` with every bare catalog entry reference written as its citation reference."""
     if isinstance(value, str):
-        return "catalog:" + value if _BARE_CATALOG_REF.match(value) else value
+        return "catalog:" + value if _BARE_CATALOG_REF.fullmatch(value) else value
     if isinstance(value, list):
         return [_normalize_refs(item) for item in value]
     if isinstance(value, dict):

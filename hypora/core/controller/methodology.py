@@ -133,11 +133,13 @@ def assume_conservatively(
 ) -> tuple[DataContract, dict[str, tuple[str, str]], list[Assumption]]:
     """Turn each open question into its conservative answer; platform code, no model call.
 
-    The conservative answer to a question about a column (is it known at prediction time, may it
+    With `flagged` None (the D-052 behavior, `robustness.evidence_before_exclusion` off), the
+    conservative answer to a question about a column (is it known at prediction time, may it
     be used) is that it is not available: every allowed feature a question names is excluded,
-    never kept. The contract comes back with no open questions, the new exclusions cite
-    `assumption:<tag>_<n>` evidence (returned for the validator) and nothing else changes.
-    Raises MethodologyError when no allowed feature would remain.
+    never kept, and the new exclusions cite `assumption:<tag>_<n>` evidence (returned for the
+    validator). With `flagged` set, see below. Either way the contract comes back with no open
+    questions (when `answer`), and nothing else changes. Raises MethodologyError when no
+    allowed feature would remain.
 
     `unsupported` (no user present only, F1): columns C excluded itself without diagnostic
     evidence. One a question names, from this proposal or from `earlier` (C's questions on its
