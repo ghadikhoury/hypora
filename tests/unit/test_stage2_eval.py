@@ -326,3 +326,134 @@ async def test_retained_matching_smoke_preserves_failure_exit_status(
     destination.write_text(json.dumps(record))
     monkeypatch.setattr(collector.smoke, "load_records", lambda variant: [])
     assert await collector.matching_smokes(SpendLedger(tmp_path / "ledger")) == expected
+
+
+class Failing:
+    """An inner client that fails every attempt with one classified provider error."""
+
+    provider = Provider.OPENAI
+
+    def __init__(self, error: ProviderError) -> None:
+        self.error = error
+        self.calls = 0
+
+    async def generate(self, request: ProviderRequest) -> ProviderResult:
+        self.calls += 1
+        raise self.error
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "kind, status",
+    [
+        (ProviderErrorKind.SERVER_ERROR, 500),
+        (ProviderErrorKind.SERVER_ERROR, 503),
+        (ProviderErrorKind.RATE_LIMIT, 429),
+        (ProviderErrorKind.QUOTA, 429),
+        (ProviderErrorKind.INVALID_REQUEST, 400),
+        (ProviderErrorKind.AUTHENTICATION, 401),
+    ],
+)
+async def test_definitive_error_response_without_usage_settles_at_zero(
+    tmp_path: Path, kind: ProviderErrorKind, status: int
+) -> None:
+    # D-054: an outage of 5xx answers must not eat the cap with reservations that never settle.
+    ledger = SpendLedger(tmp_path / "paid.jsonl", cap_usd=0.72)
+    inner = Failing(ProviderError(kind, f"HTTP {status}", status_code=status))
+    client = ReservedClient(inner, ledger, "outage")
+    for _ in range(5):
+        with pytest.raises(ProviderError):
+            await client.generate(REQUEST)
+    assert inner.calls == 5  # far past what 0.72 / 0.36 could admit if they stayed reserved
+    reopened = SpendLedger(ledger.path, cap_usd=0.72).snapshot()
+    assert reopened.measured_usd == 0 and reopened.reserved_usd == 0
+    assert ledger.unobserved("outage") == 0
+    assert all(
+        row["actual_usd"] == 0.0
+        and row["failed_response"] == {"error_code": kind.error_code, "status_code": status}
+        for row in reopened.attempts
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "error",
+    [
+        ProviderError(ProviderErrorKind.TIMEOUT, "request timed out"),
+        ProviderError(ProviderErrorKind.TIMEOUT, "HTTP 504", status_code=504),
+        ProviderError(ProviderErrorKind.TIMEOUT, "HTTP 408", status_code=408),
+        ProviderError(ProviderErrorKind.CONNECTION, "connection dropped"),
+        ProviderError(ProviderErrorKind.SERVER_ERROR, "response failed, no status"),
+        ProviderError(ProviderErrorKind.INVALID_RESPONSE, "usage unreadable"),
+        ProviderError(ProviderErrorKind.UNKNOWN, "HTTP 418", status_code=418),
+    ],
+)
+async def test_unknown_outcome_keeps_full_exposure_on_the_cap(
+    tmp_path: Path, error: ProviderError
+) -> None:
+    ledger = SpendLedger(tmp_path / "paid.jsonl", cap_usd=0.72)
+    inner = Failing(error)
+    client = ReservedClient(inner, ledger, "unknown")
+    for _ in range(3):
+        with pytest.raises(ProviderError):
+            await client.generate(REQUEST)
+    assert inner.calls == 2  # the third attempt is refused by the cap before dispatch
+    assert SpendLedger(ledger.path, cap_usd=0.72).unobserved("unknown") == pytest.approx(0.72)
+    with pytest.raises(SpendError, match="only a definitive"):
+        ledger.settle_failed_response(ledger.snapshot().attempts[0]["id"], error)
+
+
+@pytest.mark.parametrize(
+    "error_code, status",
+    [("PROVIDER_TIMEOUT", 504), ("PROVIDER_SERVER_ERROR", None), ("PROVIDER_SERVER_ERROR", 200)],
+)
+def test_forged_failed_response_event_never_releases_exposure(
+    tmp_path: Path, error_code: str, status: object
+) -> None:
+    ledger = SpendLedger(tmp_path / "paid.jsonl")
+    identifier = ledger.reserve("forged")
+    event = {
+        "kind": "failed_response",
+        "id": identifier,
+        "error_code": error_code,
+        "status_code": status,
+        "at": "x",
+    }
+    with ledger.path.open("a") as stream:
+        stream.write(json.dumps(event) + "\n")
+    with pytest.raises(SpendError, match="malformed paid ledger"):
+        ledger.reserve("another")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source", ["cap", "provider_quota"])
+async def test_cap_or_quota_refusal_is_a_harness_error_not_a_graded_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source: str
+) -> None:
+    from types import SimpleNamespace
+
+    from hypora.evaluation.runner.agent import AgentSystem
+    from scripts.stage2_eval import AccountedAgent, AdapterFactory, CollectionRefused
+
+    ledger = SpendLedger(tmp_path / "paid.jsonl", cap_usd=0.36)
+    if source == "cap":
+        ledger.reserve("earlier_case")  # an unknown outcome that fills the whole cap
+        inner: object = Client()
+    else:
+        inner = Failing(
+            ProviderError(ProviderErrorKind.QUOTA, "insufficient_quota", status_code=429)
+        )
+    client = ReservedClient(inner, ledger, "refused_case")  # type: ignore[arg-type]
+    with pytest.raises(ProviderError) as raised:
+        await client.generate(REQUEST)
+    assert raised.value.kind is ProviderErrorKind.QUOTA
+
+    async def finished(self, system_input, context):
+        return "a failed run the grader would otherwise score"
+
+    monkeypatch.setattr(AgentSystem, "run", finished)
+    agent = AccountedAgent(AdapterFactory(ledger))
+    with pytest.raises(CollectionRefused):
+        await agent.run(None, SimpleNamespace(run_id="refused_case"))  # type: ignore[arg-type]
+    # Another run that was never refused is returned for grading as usual.
+    assert await agent.run(None, SimpleNamespace(run_id="other"))  # type: ignore[arg-type]

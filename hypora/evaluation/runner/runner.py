@@ -490,10 +490,9 @@ class _Eval:
                     if unknown < 0:
                         raise ValueError("unobserved spend reservation must be nonnegative")
                     if unknown:
-                        error = (
-                            error
-                            or "provider billing is uncertain; unknown charges remain reserved"
-                        )
+                        # D-054: uncertain billing is an accounting fact, not a broken run. A run
+                        # that finished is still graded; its usage is marked incomplete and the
+                        # unknown exposure is reported in its own field (and stays on the cap).
                         usage = Usage.model_validate(
                             {
                                 **usage.model_dump(),

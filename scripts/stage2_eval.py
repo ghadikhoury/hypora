@@ -2,7 +2,8 @@
 
 Uses the existing real controller, worker, sandbox and graders. Every paid SDK attempt reserves
 $0.36 in one durable ledger BEFORE dispatch, including retries and both smoke tasks. Unknown
-charges retain their reservation across crashes/resumes. No prompts or credentials enter it.
+charges retain their reservation across crashes/resumes; a definitive HTTP error response with
+no usage settles at $0 (D-054). No prompts or credentials enter it.
 """
 
 import argparse
@@ -35,6 +36,7 @@ from hypora.core.schemas import ApprovalPolicy, ModelProfile, ModelTier, Provide
 from hypora.evaluation.runner.agent import AgentSystem
 from hypora.evaluation.runner.runner import run_eval
 from hypora.evaluation.runner.store import EvalRefused, GitRepo
+from hypora.evaluation.system import SystemContext, SystemInput, SystemRun
 from hypora.storage.database import Database
 from hypora.storage.events import EventLog
 from hypora.storage.snapshots import SNAPSHOTS_DIR
@@ -52,10 +54,42 @@ reserves the whole model limit instead of estimating token counts from character
 reasoning. Model requests, output limits, dev behavior and adapter retry policy are unchanged.
 """
 SMOKE_RUN_BUDGET_USD: Final = 0.45
+UNBILLED_FAILURE_KINDS: Final = frozenset(
+    {
+        ProviderErrorKind.SERVER_ERROR,
+        ProviderErrorKind.RATE_LIMIT,
+        ProviderErrorKind.QUOTA,
+        ProviderErrorKind.INVALID_REQUEST,
+        ProviderErrorKind.AUTHENTICATION,
+        ProviderErrorKind.PERMISSION,
+        ProviderErrorKind.NOT_FOUND,
+    }
+)
+"""D-054: kinds that, with an HTTP error status and no usage, are a definitive provider refusal.
+
+Providers do not bill a request they answered with an error status, so such an attempt settles at
+$0. TIMEOUT (including HTTP 408/504), CONNECTION, INVALID_RESPONSE, UNKNOWN and cancellation are
+genuinely unknown outcomes and keep their full reservation against the cap.
+"""
+UNBILLED_ERROR_CODES: Final = frozenset(kind.error_code for kind in UNBILLED_FAILURE_KINDS)
+
+
+def unbilled_failure(error: ProviderError) -> bool:
+    """True only for a classified HTTP error response that reported no usage (D-054)."""
+    return (
+        error.usage is None
+        and error.kind in UNBILLED_FAILURE_KINDS
+        and type(error.status_code) is int
+        and 400 <= error.status_code < 600
+    )
 
 
 class SpendError(Exception):
     """The paid ledger cannot safely admit another attempt."""
+
+
+class CollectionRefused(Exception):
+    """The collection cap or provider quota stopped a run: a harness error, not a graded failure."""
 
 
 @dataclass(frozen=True)
@@ -76,6 +110,7 @@ class SpendLedger:
         if not math.isfinite(cap_usd) or cap_usd <= 0:
             raise SpendError("invalid aggregate cap")
         self.path, self.cap_usd, self._audit = path, cap_usd, audit
+        self._refused_runs: set[str] = set()
 
     @property
     def audit(self) -> Path:
@@ -152,6 +187,23 @@ class SpendLedger:
                     row["actual_usd"] = actual
                     row["usage"] = event["usage"]
                     row["price"] = event["price"]
+                elif event["kind"] == "failed_response":
+                    if set(event) != {"kind", "id", "error_code", "status_code", "at"}:
+                        raise ValueError("invalid failed-response fields")
+                    row = attempts[event["id"]]
+                    if row["actual_usd"] is not None:
+                        raise ValueError("duplicate settlement")
+                    if (
+                        event["error_code"] not in UNBILLED_ERROR_CODES
+                        or type(event["status_code"]) is not int
+                        or not 400 <= event["status_code"] < 600
+                    ):
+                        raise ValueError("failed response is not a definitive provider refusal")
+                    row["actual_usd"] = 0.0
+                    row["failed_response"] = {
+                        "error_code": event["error_code"],
+                        "status_code": event["status_code"],
+                    }
                 else:
                     raise ValueError("unknown event")
             return attempts
@@ -227,7 +279,10 @@ class SpendLedger:
         usage: dict[str, Any] | None = None,
         price: dict[str, Any] | None = None,
     ) -> None:
-        """Settle only provider-reported usage. Missing/error/cancelled usage remains reserved."""
+        """Settle only provider-reported usage. Missing/cancelled usage remains reserved.
+
+        (A definitive HTTP error response without usage uses `settle_failed_response`.)
+        """
         if not math.isfinite(actual_usd) or actual_usd < 0:
             raise SpendError("invalid reported charge")
         if usage is None or price is None:
@@ -260,6 +315,39 @@ class SpendLedger:
                 raise SpendError(
                     "reported charge exceeded verified model price bound; stop collection"
                 )
+
+    def settle_failed_response(self, identifier: str, error: ProviderError) -> None:
+        """Settle at $0 an attempt the provider definitively refused with an HTTP error (D-054).
+
+        Only `unbilled_failure` errors qualify; anything else keeps its reservation. The event
+        records the classified error code and status, never the provider's message text.
+        """
+        if not unbilled_failure(error):
+            raise SpendError("only a definitive HTTP error response without usage settles at $0")
+        with self._locked() as stream:
+            attempts = self._read(stream)
+            if identifier not in attempts:
+                raise SpendError("settlement has no reservation")
+            if attempts[identifier]["actual_usd"] is not None:
+                raise SpendError("conflicting settlement")
+            self._append(
+                stream,
+                {
+                    "kind": "failed_response",
+                    "id": identifier,
+                    "error_code": error.kind.error_code,
+                    "status_code": error.status_code,
+                    "at": datetime.now(UTC).isoformat(),
+                },
+            )
+
+    def note_refusal(self, run_id: str) -> None:
+        """Remember (in this process) that a run was refused by the cap or provider quota."""
+        self._refused_runs.add(run_id)
+
+    def refused(self, run_id: str) -> bool:
+        """Whether a run was refused for collection spend/quota, not for anything it did."""
+        return run_id in self._refused_runs
 
     def unobserved(self, run_id: str) -> float:
         """Conservative unknown charges for one run, as displayed in its result record."""
@@ -315,16 +403,24 @@ class ReservedClient:
         return Provider.OPENAI
 
     async def generate(self, request: ProviderRequest) -> ProviderResult:
-        """Dispatch only after durable admission; ambiguous failures keep their full exposure."""
+        """Dispatch only after durable admission; ambiguous failures keep their full exposure.
+
+        D-054: a definitive HTTP error response without usage settles at $0. A cap refusal or
+        provider quota error marks the run as refused, so it is recorded as a harness error and
+        never graded as an agent failure.
+        """
         if request.model_id != "gpt-6-luna":
             raise SpendError("the paid reservation bound applies to gpt-6-luna only")
         try:
             identifier = self.ledger.reserve(self.run_id)
         except SpendError as exc:
+            self.ledger.note_refusal(self.run_id)
             raise ProviderError(ProviderErrorKind.QUOTA, str(exc)) from None
         try:
             result = await self.inner.generate(request)
         except ProviderError as exc:
+            if exc.kind is ProviderErrorKind.QUOTA:
+                self.ledger.note_refusal(self.run_id)
             if exc.usage is not None:
                 self.ledger.settle(
                     identifier,
@@ -332,6 +428,8 @@ class ReservedClient:
                     usage=exc.usage.model_dump(mode="json"),
                     price=self.price.model_dump(mode="json"),
                 )
+            elif unbilled_failure(exc):
+                self.ledger.settle_failed_response(identifier, exc)
             raise
         # Cancellation/unknown exceptions deliberately leave the reservation in place.
         self.ledger.settle(
@@ -406,6 +504,15 @@ class AccountedAgent(AgentSystem):
     def __init__(self, factory: AdapterFactory) -> None:
         super().__init__(adapter_factory=factory.for_run)
         self.ledger = factory.ledger
+
+    async def run(self, system_input: SystemInput, context: SystemContext) -> SystemRun:
+        """Run the agent; a run refused by the spend cap or quota is not a measurement (D-054)."""
+        run = await super().run(system_input, context)
+        if self.ledger.refused(context.run_id):
+            raise CollectionRefused(
+                "collection spend cap or provider quota refused a model call; case not measured"
+            )
+        return run
 
     def unobserved_spend_reserved_usd(self, run_id: str) -> float:
         """Unknown provider charges retained by the aggregate collection ledger."""

@@ -1468,3 +1468,32 @@ S4.2f ran the six-case dev evaluation once, as D-052 approved. Details and per-r
   approved. Timing is for one WSL2 machine.
 - No schema, event type, MCP tool, fit/predict interface, dependency, sandbox, firewall, policy,
   eval case, grading rule or hidden split change; the only scanner change is the approved path.
+
+## D-054 — Eval spend ledger: settle failed provider responses, keep cap refusals out of grades (2026-11-19)
+
+Ghadi approved this fix on 2026-11-19 after the 2c2332f paid runs (S4.2j readiness hardening
+follow-up).
+
+- **What was wrong.** The collection ledger (`scripts/stage2_eval.py`) reserves $0.36 before each
+  paid provider attempt and released it only when the provider reported token usage. An attempt
+  answered with an HTTP error (for example a 5xx during an outage) reports no usage, so its
+  reservation stayed forever. In one 20-minute outage, 11 such attempts held $3.96 of the $4 cap;
+  every later case was refused at intake and those refusals were graded as agent failures. The
+  runner also turned any run with an unsettled reservation into `harness_error`, so a finished,
+  verified run (test F1 0.781) was thrown away over $2.16 of retry reservations.
+- **New accounting rule.** An attempt the provider answered with an HTTP error status and a
+  definitive error class (server error, rate limit, quota, invalid request, authentication,
+  permission, not found) and no usage settles at $0: providers do not bill a failed response.
+  The ledger records only the error code and status. Timeouts (including HTTP 408/504), dropped
+  connections, unreadable responses, unknown errors and cancellation keep their full reservation.
+- **Grading.** A run that finished is graded normally; any unknown exposure is reported in its
+  record's `usage.unobserved_spend_reserved_usd` (usage marked incomplete) and in the summary.
+  A run during which the collection cap or a provider quota refused a model call is recorded as
+  `harness_error` (not measured), never as a graded agent failure. Runs that break otherwise stay
+  `harness_error` as before.
+- **Why it is still conservative.** Every attempt still reserves the full worst case before it is
+  sent, so the cap is checked before any call. Only answers that prove no work was billed are
+  released; anything whose outcome is unknown still counts against the cap at its full $0.36.
+  Earlier ledger entries are not rewritten.
+- No schema, event type, MCP tool, fit/predict interface, dependency, sandbox, firewall, policy,
+  eval case, grading rule or hidden split change.
