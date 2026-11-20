@@ -148,7 +148,12 @@ the templates) are not removals; an unresolvable `drop`/`difference` argument is
 `unresolved_column_code`. JSON bounded at 12,000 characters, trials dropped whole from the bottom
 and counted. Shown to C with the final-answer request (`run_single_agent(final_facts=...)`, multi
 only) and in A's final review, where `LeadFinalReviewAction.use_best_validated_trial` with
-continue makes `select_final` ignore C's nomination.
+continue makes `select_final` ignore C's nomination. When the best validated trial is not the one
+whose code A just reviewed, `_review_swapped_trial` first records `LEAD_SWAP_REVIEW` (component
+`lead_review`) and asks A once more with that trial's `_code_evidence` and the plain `LeadAction`;
+report there stops before verification. The platform's diagnostics in G record their
+`policy_decision` with actor `controller` (controller code authorizes them, not the policy
+engine); the MCP server's result summary is the public `summarize_result`.
 
 ## I. Stop cause
 

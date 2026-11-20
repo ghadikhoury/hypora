@@ -446,7 +446,7 @@ class HyporaMCPServer(MCPServer):
         else:
             assert result is not None
             status, outgoing = ToolResultStatus.OK, result
-            summary = _summarize(result.structured_content)
+            summary = summarize_result(result.structured_content)
         await self._emit(
             EventType.TOOL_RESULT,
             self.session.role,
@@ -661,8 +661,9 @@ def _redact(value: Any, depth: int = 0) -> Any:
     return str(value)[:64]
 
 
-def _summarize(content: Any) -> dict[str, Any]:
-    """A compact result summary for the tool_result event: IDs, states, counts."""
+def summarize_result(content: Any) -> dict[str, Any]:
+    """A compact result summary for the tool_result event: IDs, states, counts (also used by
+    the controller for the diagnostics it runs itself, D-058)."""
     if not isinstance(content, dict):
         return {}
     summary: dict[str, Any] = {}

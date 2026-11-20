@@ -19,6 +19,7 @@ from hypora.core.controller.controller import (
     LEAD_CONCERN_DEFERRED,
     LEAD_REVIEW_STOPPED,
     LEAD_REVISION_REQUESTED,
+    LEAD_SWAP_REVIEW,
     RunRequest,
 )
 from hypora.core.controller.user_request import USER_LINE_WITHHELD
@@ -27,10 +28,10 @@ from hypora.core.schemas import ActorRole, ToolName
 from hypora.core.schemas.events import PolicyDecisionEvent, ToolCallEvent, ToolResultEvent
 from hypora.storage.database import Database
 from hypora.storage.events import EventLog
-from hypora.storage.records import load_experiment_contract
+from hypora.storage.records import load_experiment_contract, run_jobs
 from tests.controller import scripted_sandbox
 from tests.controller.conftest import ControllerFactory, NoWorker
-from tests.controller.scripted import LINEAR
+from tests.controller.scripted import LINEAR, TEMPLATES
 from tests.controller.test_integrity import MultiWithTrials
 from tests.controller.test_open_questions import C_PROMPT, _row_dump
 from tests.controller.test_robustness import (
@@ -97,19 +98,48 @@ def _report_json(result: Any) -> dict[str, Any]:
 # --- A: the user's own words reach every later role -------------------------------------------
 
 
-class TrialsWithBest(MultiWithTrials):
-    """Two real trials; A's final review may ask for the best validated trial."""
+DUMMY = (TEMPLATES / "dummy" / "pipeline.py").read_text()
+PROBLEM = "PREPROCESSING_OUTSIDE_FIT = True"
+"""A code line A's scripted review reports when it sees it."""
 
-    def __init__(self, run_id: str, *, pipeline_py: str, use_best: bool = False) -> None:
+
+class TrialsWithBest(MultiWithTrials):
+    """Two real trials; A's final review may ask for the best validated trial. At the extra
+    review of that trial's code (D-058) A reports when the code shows `PROBLEM`. With
+    `candidate_py`, the candidate trial runs that pipeline instead of the baseline's."""
+
+    def __init__(
+        self,
+        run_id: str,
+        *,
+        pipeline_py: str,
+        use_best: bool = False,
+        candidate_py: str | None = None,
+    ) -> None:
         super().__init__(run_id, pipeline_py=pipeline_py, final_action="continue")
         self.use_best = use_best
+        self.candidate_py = candidate_py
+        self.swap_reviews: list[str] = []
+
+    async def _agent_turn(self, request: Any) -> Any:
+        last = request.messages[-1]
+        if (
+            self.candidate_py is not None
+            and not self.compared
+            and getattr(last, "tool_name", None) == "get_experiment_metrics"
+        ):
+            self.pipeline_py = self.candidate_py
+        return await super()._agent_turn(request)
 
     async def generate(self, request: Any) -> Any:
-        if request.output_schema_name == "LeadAction" and "Candidate code" in (
-            request.messages[1].content
-        ):
+        content = request.messages[1].content if len(request.messages) > 1 else ""
+        if request.output_schema_name == "LeadAction" and "Candidate code" in content:
             self.requests.append(request)
-            self.final_review = request.messages[1].content
+            if "That trial's code has not been reviewed yet" in content:
+                self.swap_reviews.append(content)
+                action = "report" if PROBLEM in content else "continue"
+                return json_result({"action": action, "reason": "Reviewed the swapped trial"})
+            self.final_review = content
             answer: dict[str, Any] = {"action": "continue", "reason": "Reviewed the evidence"}
             if self.use_best:
                 answer["use_best_validated_trial"] = True
@@ -189,19 +219,55 @@ async def test_a_can_send_the_best_validated_trial_to_verification(
     make_controller: ControllerFactory,
     run_config: RunConfig,
     dataset: Path,
+    database: Database,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """C nominates a constant candidate; A asks for the best trial (the linear baseline),
+    reviews that trial's code in one extra review, and only then is it verified."""
     scripted_sandbox.install(monkeypatch)
     run_id = "run_use_best"
-    script = TrialsWithBest(run_id, pipeline_py=LINEAR, use_best=True)
+    script = TrialsWithBest(run_id, pipeline_py=LINEAR, use_best=True, candidate_py=DUMMY)
     result = await _run(
         make_controller, run_config, dataset, run_id, script, worker=scripted_sandbox.ThreadWorker
     )
     assert any("instead of C's nomination" in note for note in result.notes)
+    assert len(script.swap_reviews) == 1  # exactly one extra review: no loop
+    assert "def fit" in script.swap_reviews[0] and SENTENCE in script.swap_reviews[0]
+    (swap,) = _errors(database, run_id, LEAD_SWAP_REVIEW)
+    assert swap.payload.component == "lead_review"
+    assert swap.payload.details["best_trial"] != swap.payload.details["reviewed_trial"]
+    assert result.final_trial_id == swap.payload.details["best_trial"]
     assert any(
         note.startswith("Final candidate") and "best mean validation roc_auc" in note
         for note in result.notes
     ), result.notes
+
+
+async def test_a_swapped_trial_with_a_code_problem_is_not_verified(
+    make_controller: ControllerFactory,
+    run_config: RunConfig,
+    dataset: Path,
+    database: Database,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The best validated trial's code has a problem A catches only when it is shown that code:
+    the swap does not reach verification without that review, and A's report stops the run."""
+    scripted_sandbox.install(monkeypatch)
+    run_id = "run_swap_problem"
+    script = TrialsWithBest(
+        run_id, pipeline_py=LINEAR + "\n" + PROBLEM + "\n", use_best=True, candidate_py=DUMMY
+    )
+    result = await _run(
+        make_controller, run_config, dataset, run_id, script, worker=scripted_sandbox.ThreadWorker
+    )
+    assert PROBLEM not in script.final_review  # the first review showed C's candidate only
+    (review,) = script.swap_reviews
+    assert PROBLEM in review
+    assert len(_errors(database, run_id, LEAD_SWAP_REVIEW)) == 1
+    assert not result.verified and result.final_trial_id is None
+    assert not any(note.startswith("Final candidate") for note in result.notes)
+    assert any("after reviewing the best validated trial's code" in n for n in result.notes)
+    assert len(run_jobs(database, run_id)) == 2  # the two trials only: no final job
 
 
 async def test_a_request_line_showing_data_is_withheld_from_every_role(

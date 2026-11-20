@@ -1672,7 +1672,8 @@ of 6 cases. Details are in `docs/notes/controller-robustness.md` ("D-058").
   it. A's final-review decision has a new optional `use_best_validated_trial` field: with continue,
   the platform sends the validated trial with the best mean primary metric to verification instead
   of C's nomination (the same code rule `select_final` already uses when there is no valid
-  nomination). Nothing forces a choice in code; the roles decide.
+  nomination), after A has reviewed that trial's code (see Limitations). Nothing forces a choice
+  in code; the roles decide.
 - **The lead-review stop is the report's stop cause.** A run ended by `LEAD_REVIEW_STOPPED` now
   has `evidence.stop = {cause: "lead_review_stopped", event_seqs: [...]}` in its report (it was
   null). Fault outcomes are unchanged.
@@ -1688,5 +1689,9 @@ of 6 cases. Details are in `docs/notes/controller-robustness.md` ("D-058").
   `run_diagnostic`. The eval graders were not changed.
 - **Limitations.** Scripted evidence only; no live run was made. The static feature reading can
   miss removals written in ways it does not model (for example a dtype selection that leaves out
-  categorical features). When A asks for the best validated trial, the code A reviewed was C's
-  candidate's, not necessarily that trial's.
+  categorical features). When A asks for the best validated trial and that is not the trial
+  whose code it just reviewed, nothing is verified until A has reviewed that trial's screened code
+  in one more final review (plain decision, no swap field, so it cannot repeat; a
+  `LEAD_SWAP_REVIEW` event records it); if A reports there, the run stops before verification as
+  at the first review (review of PR #79). The platform's own diagnostics run synchronously after
+  the lock (at most 8 single-column fits).

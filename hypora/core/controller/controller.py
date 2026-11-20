@@ -231,7 +231,7 @@ from hypora.execution.harness.runner import load_tabular
 from hypora.execution.protocol import experiments as protocol
 from hypora.execution.sandbox.image import tabular_image_tag
 from hypora.mcp_server.errors import ToolFailure, internal_failure
-from hypora.mcp_server.server import _redact, _summarize
+from hypora.mcp_server.server import _redact, summarize_result
 from hypora.mcp_server.session import load_session
 from hypora.mcp_server.tools import HyporaTools
 from hypora.mcp_server.trialfs import write_file
@@ -457,6 +457,16 @@ FINAL_SELECTION_NOTE: Final = (
     "instead of C's nomination. Choosing report stops the run with no verified model."
 )
 """Added to A's final review (D-058): A can redirect selection to the best validated trial."""
+LEAD_SWAP_REVIEW: Final = "LEAD_SWAP_REVIEW"
+"""Error code of the event recording A's extra code review of the best validated trial (D-058)."""
+SWAP_REVIEW_CONTEXT: Final = (
+    "You asked for the validated trial with the best mean primary metric instead of C's "
+    "nomination. That trial's code has not been reviewed yet: this review shows it. Read it for "
+    "methodological problems the automated checks may miss (preprocessing fitted outside fit, "
+    "excluded columns used). Continue sends this trial to the platform's independent "
+    "verification; report stops the run before verification, so no model is verified."
+)
+"""A's extra final review of the trial its use_best_validated_trial chose (D-058)."""
 MAX_TRIAL_CHECK_TRIALS: Final = 20
 MAX_TRIAL_CHECK_CHARS: Final = 12_000
 """Bounds of the trial evidence check; trials beyond them are left out whole and counted."""
@@ -2433,8 +2443,7 @@ class _Run:
                         decided_by=PolicyRule.CONTRACT_SCOPE,
                         reasons=["platform diagnostic on A's deferred feature concern (D-058)"],
                     ),
-                    actor=ActorRole.POLICY_ENGINE,
-                )
+                )  # decided by controller code, not the policy engine: recorded as the controller
                 error: ToolError | None = None
                 try:
                     summary = tools.run_diagnostic(
@@ -2468,7 +2477,7 @@ class _Run:
                         call_id=call_id,
                         tool=tool,
                         status=ToolResultStatus.OK,
-                        result_summary=_summarize(result),
+                        result_summary=summarize_result(result),
                         latency_ms=0.0,
                     ),
                 )
@@ -2748,6 +2757,8 @@ class _Run:
                 "A asked for the validated trial with the best mean primary metric instead of "
                 "C's nomination."
             )
+            if not await self._review_swapped_trial(contract, nominated):
+                return
             nominated = None
         completed = {
             job.trial_id
@@ -2775,6 +2786,50 @@ class _Run:
                 spec, contract, trial_id, source_job_id
             )
         await self._final(trial_id, source_job_id, contract)
+
+    async def _review_swapped_trial(
+        self, contract: ExperimentContract, nominated: str | None
+    ) -> bool:
+        """A's code review of the best validated trial when it asked for it (D-058).
+
+        A's final review showed C's candidate's code. When the best validated trial is another
+        one, nothing reaches verification until A has reviewed that trial's screened code too:
+        one more final review with the plain `LeadAction` (no swap field, so it cannot repeat).
+        Recorded as a `LEAD_SWAP_REVIEW` event (component `lead_review`) before A's call. Returns
+        whether to continue; on report the run stops before verification, as at the first review.
+        """
+        metric = contract.primary_metric
+        reviewed = select_final(self.database, self.run_id, metric, nominated).trial_id
+        best = select_final(self.database, self.run_id, metric, None).trial_id
+        if best is None or best == reviewed:
+            return True
+        self._event(
+            EventType.ERROR,
+            ErrorPayload(
+                component=LEAD_REVIEW_COMPONENT,
+                code=LEAD_SWAP_REVIEW,
+                message="A asked for the best validated trial, whose code it has not reviewed; "
+                "A reviews it before verification",
+                retryable=True,
+                details={"reviewed_trial": reviewed, "best_trial": best},
+            ),
+        )
+        if await self._lead_decision(
+            SWAP_REVIEW_CONTEXT + " "
+            f"{FINAL_REVIEW_CONTEXT} "
+            f"Platform evidence: {self._trial_evidence()}. "
+            f"Trial evidence check: {self._trial_check(contract, None)}. "
+            f"Candidate code (untrusted, screened): {self._code_evidence(contract, None)}. "
+            f"Run notes: {self.notes}"
+        ):
+            return True
+        self.notes.append(
+            "Agent A chose to report before final verification after reviewing the best "
+            "validated trial's code."
+        )
+        if (facts := self.candidate_code_facts) is not None:
+            self.notes.append(_stop_facts_note(facts))
+        return False
 
     async def _agent(
         self, spec: TaskSpecification, contract: ExperimentContract, profile: DatasetProfile
