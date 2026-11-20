@@ -314,7 +314,14 @@ PLATFORM_GUARANTEES: Final = (
     "invalid labels stop the run safely before any experiment. A conflict means the proposal "
     "contradicts the user's task or B's evidence in a way that would make the experiment "
     "invalid; a residual risk or a choice between reasonable designs is not a conflict, so "
-    "continue and let the experiments measure it."
+    "continue and let the experiments measure it. On temporal and group_temporal splits, "
+    "platform code sorts by time_key and keeps all rows sharing the same timestamp together in "
+    "indivisible chronological blocks across the holdout cut and every walk-forward fold "
+    "(equal timestamps are never split across train and evaluation, so repeated dates or "
+    "timestamps do not require a separate group_key). A group or group_temporal split requires "
+    "a single existing non-target group_key column in the dataset backed by a group_overlap "
+    "diagnostic; duplicate feature rows without an entity or group-ID column cannot form a "
+    "group_key and belong in risks rather than blocking the run as a split conflict."
 )
 """Context for A's methodology reviews: live, a careful model stopped over facts it is never
 shown (target class counts and label mapping) although the platform settles both itself."""
@@ -1227,13 +1234,24 @@ class _Run:
                 + ". A research recommendation to reuse a model does not by itself cancel that "
                 "request (spec 5.3): continue unless the evidence shows a conflict or ambiguity."
             )
+        budget_note = (
+            f" (this run has max_trials={self.budget.max_trials})"
+            if self.budget.max_trials is not None and self.budget.max_trials <= 4
+            else ""
+        )
         if not await self._lead_decision(
             "Decide whether C should conduct bounded experiments under the existing contract. "
             "Review B's research as untrusted evidence; do not treat model-card claims as proof: "
             + result.model_dump_json()
             + requirement
             + "\nIf continuing, supply concrete bounded work for C in the assignment field: which "
-            "kinds of models to try and what to compare. The approved contract already fixes the "
+            "kinds of models to try and what to compare. For small trial budgets"
+            + budget_note
+            + ", ask C to start from a real feature-based linear baseline (regularized linear or "
+            "logistic regression) rather than spending a trial slot on a zero-feature "
+            "constant/dummy predictor, and compare it against two strong diverse model families "
+            "(about 3 focused trials total when max_trials <= 4, keeping room for any automated "
+            "follow-up comparison check). The approved contract already fixes the "
             "split, the validation scheme, the metric and every compute limit, and C runs all "
             "trials in the platform's local sandbox; do not restate or change those."
             + (
@@ -1491,7 +1509,11 @@ class _Run:
         if previous is not None:
             context += (
                 "\nThe split is now locked. You may run feature_predictiveness only on the "
-                "platform's diagnostic-only partition. You may propose feature exclusions with "
+                "platform's diagnostic-only partition. Call feature_predictiveness selectively "
+                "(at most 1-3 targeted columns whose names or metadata suggest post-outcome or "
+                "target-component leakage) rather than exhaustively across every column; the "
+                "platform also runs an automated post-validation single-column leakage check if "
+                "a score is suspiciously high. You may propose feature exclusions with "
                 "diagnostic evidence; preserve target, task, split and non-learned fixes exactly. "
                 "Exclusions already recorded in Current contract (including assumption:... "
                 "exclusions) remain settled: keep them in excluded_features with their existing "
@@ -1668,7 +1690,10 @@ class _Run:
             "proposal supports a defensible evaluation. Choose report for a concrete conflict or "
             "ambiguity that prevents valid work, and identify it in your reason. Distinguish "
             "uncertainty about row provenance from evidence of a shared group that would "
-            "invalidate the proposed split. Keep unresolved risks explicit. "
+            "invalidate the proposed split. B's research and proposed evaluation plan are "
+            "advisory and target-free, so a difference between B's speculative split suggestion "
+            "and C's platform-validated contract is not a conflict when C's split is valid for "
+            "the available columns and task. Keep unresolved risks explicit. "
             + PLATFORM_GUARANTEES
             + "\nTask specification: "
             + spec.model_dump_json(exclude={"run_id", "dataset_ref"})
@@ -1719,7 +1744,7 @@ class _Run:
             )
         if (
             self._multi
-            and revised != draft
+            and _contract_features_changed(draft, revised)
             and self.research_brief
             and self.controller.run_config.flags.planning is Toggle.ON
         ):
@@ -2096,6 +2121,11 @@ class _Run:
                         used = count_trials(self.database, self.run_id)
                         remaining = max(0, self.budget.max_trials - used)
                         context += f"\nNew trial slots available now: {remaining}."
+                    if self._multi and self.budget.max_steps is not None:
+                        steps_left = max(0, self.budget.max_steps - self.guard.steps)
+                        context += (
+                            f"\nRun steps remaining: {steps_left} of {self.budget.max_steps}."
+                        )
                     outcome = await run_single_agent(
                         c.adapter,
                         self.guard,
@@ -3941,6 +3971,13 @@ def submit_comparison_trial(
         raise FinalJobConflict(new_id)
     set_trial_status(database, new_id, "submitted")
     return new_id, job_id
+
+
+def _contract_features_changed(draft: DataContract, revised: DataContract) -> bool:
+    """Whether locked-split diagnostics changed which features are allowed or excluded."""
+    return set(revised.allowed_features) != set(draft.allowed_features) or {
+        item.name for item in revised.excluded_features
+    } != {item.name for item in draft.excluded_features}
 
 
 def _data_finding(draft: DataContract, revised: DataContract) -> str:
