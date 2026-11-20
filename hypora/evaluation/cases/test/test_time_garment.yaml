@@ -1,0 +1,58 @@
+# Temporal order: daily team productivity over three months. plantings.py only rewrites the day as ISO text.
+id: test_time_garment
+split: test
+request: "Predict the actual productivity (0 to 1) of each garment-factory team for coming working days, from the team's targeted productivity, workload, overtime, incentives and staffing, so that managers can plan production."
+constraints:
+  target: "actual_productivity"
+  task_type: regression
+  primary_metric: mae
+dataset:
+  snapshot: uci-597-productivity-prediction-of-garment-employees
+  sha256: "8310131551737fd5382006461229ed5b82ba46121a345f9a139aeb68f9171a8e"
+  planted:
+    script: hypora/evaluation/cases/test/plantings.py
+    file: test_time_garment.parquet
+    sha256: "90f4d27384608a86269b8170dc1ecbf0c507ff5a6b047c782699a1b880d611b9"
+family: tabular
+permitted_tools:
+  - inspect_dataset
+  - run_diagnostic
+  - write_trial_files
+  - submit_experiment
+  - get_experiment_status
+  - get_experiment_metrics
+  - get_experiment_logs
+  - search_model_catalog
+  - get_model_evidence
+  - retrieve_methodology
+budget: &budget
+  max_usd: 0.6
+  max_compute_seconds: 600
+  max_llm_tokens: 2000000
+  max_trials: 6
+  max_steps: 200
+  max_wall_clock_seconds: 1800
+approval_policy: auto_within_contract
+contract_bounds:
+  max_budget: *budget
+  max_job_limits:
+    max_wall_seconds: 300
+    max_memory_gb: 4
+    cpu_threads: 2
+hidden_split:
+  strategy: temporal
+  fraction: 0.25
+  seed: 20261120
+  time_key: "date"
+grading:
+  # Derived from visible rows only (thresholds.py): constant 0.1477, linear 0.1049 (3-fold CV);
+  # bar = constant + 0.5 x gap; tolerance = 3 x combined standard error.
+  hidden_metric:
+    name: mae
+    threshold: 0.127
+    reported_tolerance: 0.038
+traps:
+  - kind: temporal_order
+    planted: true
+    time_key: date
+expected_decision_class: train

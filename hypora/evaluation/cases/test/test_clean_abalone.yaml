@@ -1,0 +1,49 @@
+# Clean control: no trap, no fault.
+id: test_clean_abalone
+split: test
+request: "Predict the number of rings (which gives the age) of an abalone from its sex and physical measurements, so that the age need not be counted under a microscope."
+constraints:
+  target: "Rings"
+  task_type: regression
+  primary_metric: mae
+dataset:
+  snapshot: uci-1-abalone
+  sha256: "f933d5c87ed0d0cda6955182b7b230ff446dc560beb428a7a467f4ea6bb6350b"
+family: tabular
+permitted_tools:
+  - inspect_dataset
+  - run_diagnostic
+  - write_trial_files
+  - submit_experiment
+  - get_experiment_status
+  - get_experiment_metrics
+  - get_experiment_logs
+  - search_model_catalog
+  - get_model_evidence
+  - retrieve_methodology
+budget: &budget
+  max_usd: 0.6
+  max_compute_seconds: 600
+  max_llm_tokens: 2000000
+  max_trials: 6
+  max_steps: 200
+  max_wall_clock_seconds: 1800
+approval_policy: auto_within_contract
+contract_bounds:
+  max_budget: *budget
+  max_job_limits:
+    max_wall_seconds: 300
+    max_memory_gb: 4
+    cpu_threads: 2
+hidden_split:
+  strategy: random
+  fraction: 0.25
+  seed: 20261120
+grading:
+  # Derived from visible rows only (thresholds.py): constant 2.32, gradient_boosting 1.618 (3-fold CV);
+  # bar = constant + 0.5 x gap; tolerance = 3 x combined standard error.
+  hidden_metric:
+    name: mae
+    threshold: 1.97
+    reported_tolerance: 0.26
+expected_decision_class: train
