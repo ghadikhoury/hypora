@@ -36,7 +36,7 @@ Separate actual baseline acceptance below exercises those boundaries.
 | Case | Fixed pipeline hidden score | Appropriate-split GBT | Appropriate-split linear | Initial bar |
 |---|---:|---:|---:|---:|
 | Leakage (ROC-AUC) | 0.9597 (leak included) | 0.7225 | 0.7275 | >= 0.65 |
-| Grouped (MAE) | 11.1819 | 12.7363 | 6.8417 | <= 7.5 |
+| Grouped (MAE) | 11.1819 | 12.7363 | 6.8417 | <= 7.5 (now <= 8.0, D-055) |
 | Temporal (MAE) | 4.3952 (future counts included) | 75.8924 | 141.1033 | <= 146 |
 | Imbalance (macro-F1) | 0.8191 | 0.8199 | 0.7417 | >= 0.71 |
 | Clean control (MAE) | 0.6813 | 0.6813 | 0.6592 | <= 0.76 |
