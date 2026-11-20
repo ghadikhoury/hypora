@@ -78,19 +78,6 @@ def plant_real_estate(frame: pd.DataFrame) -> pd.DataFrame:
 # --- Temporal order: an unambiguous time key ------------------------------------------------------
 
 
-def plant_appliances(frame: pd.DataFrame) -> pd.DataFrame:
-    """UCI 374: the snapshot's `date` lost the space between day and time ('2016-01-1117:00:00').
-
-    The value is rewritten as '2016-01-11 17:00:00'. Every value has that one 18-character form
-    (checked here), so nothing else changes."""
-    stamps = frame["date"].astype(str)
-    if not (stamps.str.len() == 18).all():
-        raise ValueError("unexpected date format in the appliances snapshot")
-    planted = frame.copy()
-    planted["date"] = stamps.str.slice(0, 10) + " " + stamps.str.slice(10)
-    return planted
-
-
 def plant_garment(frame: pd.DataFrame) -> pd.DataFrame:
     """UCI 597: `date` is month/day/year ('1/13/2015'); rewritten as ISO '2015-01-13'."""
     planted = frame.copy()
@@ -153,9 +140,6 @@ PLANTINGS: Final = {
     ),
     "test_group_real_estate": Planting(
         "uci-477-real-estate-valuation", "test_group_real_estate.parquet", plant_real_estate
-    ),
-    "test_time_appliances": Planting(
-        "uci-374-appliances-energy-prediction", "test_time_appliances.parquet", plant_appliances
     ),
     "test_time_garment": Planting(
         "uci-597-productivity-prediction-of-garment-employees",
