@@ -13,15 +13,17 @@ range's source are context for the report, never a trigger. Nothing here calls a
 column names and summary scores leave this module.
 """
 
+import math
 import re
 import statistics
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Final
 
 from hypora.core.bounded_text import shorten
 from hypora.core.config.flags import LeakageCheckConfig
-from hypora.core.schemas import MetricDirection, MetricName
+from hypora.core.schemas import MetricDirection, MetricName, ToolName
+from hypora.core.schemas.events import ToolResultPayload, ToolResultStatus
 from hypora.core.schemas.leakage import (
     ExpectedScoreRange,
     LeakageColumnScore,
@@ -93,6 +95,21 @@ UNCHECKED_LIMITATION: Final = (
     "but the check of which column explains it did not complete{suspects}; review the data for "
     "values recorded after the outcome."
 )
+DIAGNOSTIC_UNEXPLAINED_LIMITATION: Final = (
+    "A locked-split diagnostic flagged an extreme single-feature score, but no single column "
+    "explained the validation score; review the data for values recorded after the outcome."
+)
+DIAGNOSTIC_UNCHECKED_LIMITATION: Final = (
+    "A locked-split diagnostic flagged an extreme single-feature score, but the check of which "
+    "column explains it did not complete{suspects}; review the data for values recorded after the "
+    "outcome."
+)
+DIAGNOSTIC_TRIGGER_THRESHOLDS: Final[dict[str, float]] = {
+    "roc_auc": 0.90,
+    "r2": 0.85,
+}
+"""Single-feature locked-split thresholds that trigger the investigation when no expected range
+is available (S4.2j)."""
 
 
 def name_clues(column: str) -> list[str]:
@@ -286,6 +303,92 @@ def trigger_check(
     return TriggerResult(outcome, mean, noise, margin, excess)
 
 
+@dataclass(frozen=True)
+class DiagnosticTrigger:
+    """An extreme locked-split `feature_predictiveness` diagnostic on a kept column."""
+
+    diagnostic_id: str
+    column: str
+    metric: str
+    score: float
+    threshold: float
+
+
+def diagnostic_trigger_check(
+    tool_results: Sequence[ToolResultPayload], allowed_features: Collection[str]
+) -> DiagnosticTrigger | None:
+    """Fallback trigger when `expected_score_range` is unknown: check locked-split diagnostics.
+
+    Scans recorded `run_diagnostic` tool results from this run for a successful
+    `feature_predictiveness` diagnostic with a non-null `partition_sha256` on a column still in
+    `allowed_features` whose score reaches `DIAGNOSTIC_TRIGGER_THRESHOLDS` (`roc_auc >= 0.90` or
+    `r2 >= 0.85`). Returns the highest-scoring match, or None.
+    """
+    allowed = set(allowed_features)
+    best: DiagnosticTrigger | None = None
+    for result in tool_results:
+        if result.tool != ToolName.RUN_DIAGNOSTIC.value or result.status is not ToolResultStatus.OK:
+            continue
+        summary = result.result_summary
+        if summary.get("diagnostic") != "feature_predictiveness":
+            continue
+        partition = summary.get("partition_sha256")
+        if not isinstance(partition, str) or not partition:
+            continue
+        column = summary.get("column")
+        if not isinstance(column, str) or column not in allowed:
+            continue
+        diagnostic_id = summary.get("diagnostic_id")
+        if not isinstance(diagnostic_id, str) or not diagnostic_id:
+            continue
+        metric = summary.get("metric")
+        if not isinstance(metric, str) or metric not in DIAGNOSTIC_TRIGGER_THRESHOLDS:
+            continue
+        raw_score = summary.get("score")
+        if (
+            isinstance(raw_score, bool)
+            or not isinstance(raw_score, int | float)
+            or not math.isfinite(raw_score)
+        ):
+            continue
+        score = float(raw_score)
+        threshold = DIAGNOSTIC_TRIGGER_THRESHOLDS[metric]
+        if score < threshold:
+            continue
+        candidate = DiagnosticTrigger(
+            diagnostic_id=diagnostic_id,
+            column=column,
+            metric=metric,
+            score=score,
+            threshold=threshold,
+        )
+        if best is None or (candidate.score, candidate.diagnostic_id) > (
+            best.score,
+            best.diagnostic_id,
+        ):
+            best = candidate
+    return best
+
+
+def diagnostic_fallback_trigger(
+    metric: MetricName, fold_values: Sequence[float], config: LeakageCheckConfig
+) -> TriggerResult:
+    """Build the fired `TriggerResult` when the diagnostic fallback starts the investigation.
+
+    Uses the configured margin (`score_margin` for maximized metrics, `relative_margin * |mean|`
+    for minimized metrics) as the reference excess for `confirm_columns`.
+    """
+    if not fold_values:
+        return TriggerResult(LeakageOutcome.UNKNOWN_RANGE, None, None, None, None)
+    mean = statistics.fmean(fold_values)
+    noise = statistics.pstdev(fold_values) if len(fold_values) > 1 else 0.0
+    if metric.direction is MetricDirection.MAXIMIZE:
+        margin = config.score_margin
+    else:
+        margin = config.relative_margin * abs(mean)
+    return TriggerResult(LeakageOutcome.FIRED, mean, noise, margin, margin)
+
+
 def permutation_drops(permutation: dict[str, Any], metric: MetricName) -> dict[str, float | None]:
     """Mean loss in `metric` per shuffled column over folds and repeats (positive: worse)."""
     sign = 1.0 if metric.direction is MetricDirection.MAXIMIZE else -1.0
@@ -355,14 +458,21 @@ def _round(value: float | None) -> float | None:
 
 __all__ = [
     "CLUE_WORDS",
+    "DIAGNOSTIC_TRIGGER_THRESHOLDS",
+    "DIAGNOSTIC_UNCHECKED_LIMITATION",
+    "DIAGNOSTIC_UNEXPLAINED_LIMITATION",
     "KNOWN_PHRASES",
+    "UNCHECKED_LIMITATION",
     "UNEXPLAINED_LIMITATION",
     "UNKNOWN_RANGE_LIMITATION",
+    "DiagnosticTrigger",
     "TriggerResult",
     "beyond_range",
     "column_outcomes",
     "column_scores",
     "confirm_columns",
+    "diagnostic_fallback_trigger",
+    "diagnostic_trigger_check",
     "display_name",
     "known_at_prediction",
     "name_clues",

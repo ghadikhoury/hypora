@@ -740,7 +740,11 @@ def _range_text(plan: ApprovedPlan) -> str:
     if expected is None:
         return ""
     if expected.low is None or expected.high is None:
-        return f"expected {expected.metric.value} range unknown (no too-good-score check)"
+        return (
+            f"expected {expected.metric.value} range unknown; if a locked-split diagnostic flags "
+            "an extreme single-feature score, this approval also covers training one comparison "
+            "model without the column that explains it and recommending it as the final model"
+        )
     return (
         f"expected {expected.metric.value} range {expected.low:g} to {expected.high:g} "
         f"({expected.source.value}); if the final validation score is clearly above it, this "
