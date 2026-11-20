@@ -143,12 +143,12 @@
       "version": 2
     },
     "agent_c": {
-      "sha256": "7be3b244ec430d76fb9e775b43fc084d0b54016c3c2224a6034edf46c01c11f7",
-      "version": 9
+      "sha256": "0a1ea53b34c8e947b8ab1d6a0babb42909c5a638036748797a0c5abbcd285cbc",
+      "version": 10
     },
     "agent_c_methodology": {
-      "sha256": "8dbf2102c12eac5f50e07badf206b955353039f415c832d29e19029028d83d64",
-      "version": 6
+      "sha256": "7eab06fd6c95a937b9d4251105ccd72e5611369a6bf8c2381c3c860d86b32416",
+      "version": 7
     },
     "agent_c_workers": {
       "sha256": "69b1111208f0ea2d068624d49dc3b9c101d50b90e0b89e369a4075ae322145a9",
