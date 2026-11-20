@@ -38,7 +38,7 @@ from hypora.evaluation.graders import ProgrammaticGrader
 from hypora.evaluation.runner.agent import FaultInjectingChannel, FaultLedger
 from hypora.evaluation.system import CheckStatus, SystemRun
 from hypora.storage.events import EventLog
-from hypora.storage.records import load_task_spec, run_jobs
+from hypora.storage.records import load_experiment_contract, load_task_spec, run_jobs
 from tests.controller.conftest import NoWorker
 from tests.controller.test_multi_loop import ScriptedMulti, cited_strategy_fixture
 from tests.unit.evaluation.grader_helpers import check_of, failures
@@ -535,3 +535,103 @@ async def test_the_real_integrity_stop_on_a_case_earns_malformed_data_credit(
     regraded = await ProgrammaticGrader(clean.predictor).grade(clean.case, clean.split, run)
     assert not regraded.passed
     assert check_of(regraded, MALFORMED).status is CheckStatus.FAILED
+
+
+# --- S4.2j readiness hardening (guarantees, risk-only revisions, budget guidance) ----------------
+
+
+async def test_risk_only_post_lock_revision_persists_without_re_research(
+    make_controller, database, dataset, run_config, monkeypatch
+):
+    added_risk = "Input feature timing remains undocumented at prediction time."
+
+    async def propose(self, spec, profile, *, previous=None, prior_evidence=None):
+        columns = [c for c in pd.read_csv(dataset, nrows=1).columns]
+        draft = build_data_contract(spec, columns)
+        if previous is None:
+            return draft, {}
+        revised = DataContract.model_validate(
+            {**draft.model_dump(mode="json"), "risks": [*draft.risks, added_risk]}
+        )
+        return revised, {}
+
+    monkeypatch.setattr(controller_module._Run, "_propose_methodology", propose)
+    monkeypatch.setattr(controller_module, "validate_data_proposal", lambda *args: None)
+    script = ScriptedMulti("run_risk_only")
+    controller = _multi(make_controller, run_config, script)
+    result = await controller.run(
+        RunRequest(dataset=dataset, goal="Predict target", run_id="run_risk_only")
+    )
+    events = _events(database, "run_risk_only")
+    b_starts = [e for e in events if isinstance(e, RoleStartedEvent)]
+    assert [e.actor_role for e in b_starts].count(ActorRole.AGENT_B) == 1
+    assert not any("revise its research" in note for note in result.notes)
+    contract = load_experiment_contract(database, "run_risk_only")
+    assert contract.version == 2
+    assert added_risk in contract.data_contract.risks
+
+
+async def test_methodology_review_includes_split_guarantees_and_b_advisory_framing(
+    make_controller, dataset, run_config
+):
+    script = ScriptedMulti("run_review_context")
+    controller = _multi(make_controller, run_config, script)
+    await controller.run(
+        RunRequest(dataset=dataset, goal="Predict target", run_id="run_review_context")
+    )
+    reviews = [
+        r.messages[1].content
+        for r in script.requests
+        if r.output_schema_name == "LeadAction"
+        and r.messages[1].content.startswith(
+            ("Review C's proposed data methodology", "Reconcile B's evidence")
+        )
+    ]
+    assert len(reviews) == 2
+    for context in reviews:
+        assert "indivisible chronological blocks" in context
+        assert "repeated dates or timestamps do not require a separate group_key" in context
+        assert "backed by a group_overlap diagnostic" in context
+        assert "duplicate feature rows without an entity or group-ID column" in context
+        assert "belong in risks rather than blocking the run" in context
+        assert "advisory and target-free" in context
+        assert "speculative split suggestion" in context
+
+
+async def test_phase_contexts_surface_targeted_diagnostics_linear_baseline_and_steps_remaining(
+    make_controller, dataset, run_config
+):
+    script = ScriptedMulti("run_budget_hints")
+    controller = _multi(make_controller, run_config, script)
+    budget = run_config.budgets.run.model_copy(update={"max_trials": 4, "max_steps": 50})
+    await controller.run(
+        RunRequest(dataset=dataset, goal="Predict target", run_id="run_budget_hints", budget=budget)
+    )
+    post_lock_requests = [
+        r.messages[1].content
+        for r in script.requests
+        if r.output_schema_name == "DataContract"
+        and "The split is now locked." in r.messages[1].content
+    ]
+    assert len(post_lock_requests) == 1
+    assert "at most 1-3 targeted columns" in post_lock_requests[0]
+    assert "post-validation single-column leakage check" in post_lock_requests[0]
+
+    assignments = [
+        r.messages[1].content
+        for r in script.requests
+        if r.output_schema_name == "LeadAction" and "Review B's research" in r.messages[1].content
+    ]
+    assert len(assignments) == 1
+    assert "feature-based linear baseline" in assignments[0]
+    assert "constant/dummy predictor" in assignments[0]
+    assert "max_trials=4" in assignments[0]
+
+    c_requests = [
+        r.messages[1].content
+        for r in script.requests
+        if r.output_schema_name is None and "You are Agent C" in r.messages[0].content
+    ]
+    assert c_requests
+    assert "New trial slots available now: 4." in c_requests[0]
+    assert "Run steps remaining: " in c_requests[0] and " of 50." in c_requests[0]

@@ -62,19 +62,33 @@ def test_role_code_loads_its_prompts_instead_of_inlining_them() -> None:
         assert "You are" not in source and "Return your final answer" not in source
 
 
+def test_agent_a_decide_includes_methodology_review_guidance() -> None:
+    prompt = load_prompt("agent_a_decide")
+    assert prompt.version == 5
+    lower = prompt.text.lower()
+    assert "explicit training request" in lower
+    assert "defensible evaluation" in lower
+    assert "advisory" in lower
+    assert "duplicate feature rows without a group-id column" in lower
+    assert "indivisible chronological blocks" in lower
+
+
 def test_agent_c_methodology_distinguishes_risks_from_open_questions() -> None:
     prompt = load_prompt("agent_c_methodology")
-    assert prompt.version == 5
+    assert prompt.version == 7
     lower = prompt.text.lower()
     assert "ordinary input features" in lower and "`risks`" in prompt.text
     assert "`open_questions`" in prompt.text
     assert "post-outcome" in lower
     assert "feature_predictiveness" in prompt.text
+    assert "too-good-score check" in lower
+    assert "direct target sub-counts" in lower
+    assert "at most 1-3 columns" in lower
 
 
 def test_agent_c_includes_imbalanced_classification_guidance() -> None:
     prompt = load_prompt("agent_c")
-    assert prompt.version == 8
+    assert prompt.version == 10
     lower = prompt.text.lower()
     assert "class imbalance" in lower
     assert "HistGradientBoostingClassifier" in prompt.text
@@ -96,7 +110,7 @@ def test_agent_c_workers_includes_multi_turn_budget_and_small_trial_guidance() -
 
 def test_agent_c_includes_draft_recovery_and_mae_regression_guidance() -> None:
     prompt = load_prompt("agent_c")
-    assert prompt.version == 8
+    assert prompt.version == 10
     lower = prompt.text.lower()
     assert "unsubmitted `draft` trial" in lower
     assert "via its `trial_id`" in prompt.text
@@ -106,3 +120,16 @@ def test_agent_c_includes_draft_recovery_and_mae_regression_guidance() -> None:
     assert "min_samples_leaf" in prompt.text
     assert "HuberRegressor" in prompt.text
     assert "Ridge" in prompt.text and "Lasso" in prompt.text
+    assert "ExtraTreesRegressor" in prompt.text
+    assert "inner cv" in lower
+
+
+def test_agent_c_includes_step_budget_and_feature_baseline_guidance() -> None:
+    prompt = load_prompt("agent_c")
+    assert prompt.version == 10
+    lower = prompt.text.lower()
+    assert "run_diagnostic" in prompt.text
+    assert "DummyRegressor" in prompt.text and "DummyClassifier" in prompt.text
+    assert "max_trials <= 4" in prompt.text
+    assert "~12 run steps" in lower
+    assert "remaining steps" in lower
