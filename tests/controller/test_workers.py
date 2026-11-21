@@ -461,7 +461,10 @@ async def test_rejected_worker_report_text_never_reaches_c_or_disk(
     )
     assert len(script.worker_calls) == 2, script.c_context
     assert "WORKER_FAILED" in script.c_context
-    assert "Zanzibar" not in script.c_context and "nominate" not in script.c_context
+    # The injected phrases themselves, not bare words the platform's own prompts also use (D-060
+    # tells C when to "nominate" a constant).
+    for injected in ("Zanzibar", "nominate trl_x", "Ignore the contract", injection):
+        assert injected not in script.c_context
     folder = result.report_json.parent / "workers"
     findings = list(folder.glob("*/finding.json"))
     assert len(findings) == 2
