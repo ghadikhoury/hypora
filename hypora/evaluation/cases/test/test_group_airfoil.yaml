@@ -1,0 +1,58 @@
+# Grouped rows: each wind-tunnel setup is measured over a sweep of frequencies. Key recovered by plantings.py.
+id: test_group_airfoil
+split: test
+request: "Predict the scaled sound pressure level (dB) of an airfoil in a wind tunnel, so that designers can screen airfoil setups before testing them. A setup is one combination of angle of attack, chord length, free-stream velocity and suction-side displacement thickness, each measured at several frequencies. The model will be used on setups that have never been tested."
+constraints:
+  target: "scaled-sound-pressure"
+  task_type: regression
+  primary_metric: mae
+dataset:
+  snapshot: uci-291-airfoil-self-noise
+  sha256: "b1073bd29969ba5003d97a3ca5e52c6d8dec6c22e36502d870c95c3deaea8495"
+  planted:
+    script: hypora/evaluation/cases/test/plantings.py
+    file: test_group_airfoil.parquet
+    sha256: "c09f2454266415ba132a0e1f228247262e040ddd8fb0b48771b18b1a2505d82e"
+family: tabular
+permitted_tools:
+  - inspect_dataset
+  - run_diagnostic
+  - write_trial_files
+  - submit_experiment
+  - get_experiment_status
+  - get_experiment_metrics
+  - get_experiment_logs
+  - search_model_catalog
+  - get_model_evidence
+  - retrieve_methodology
+budget: &budget
+  max_usd: 0.6
+  max_compute_seconds: 1800
+  max_llm_tokens: 2000000
+  max_trials: 6
+  max_steps: 200
+  max_wall_clock_seconds: 3600
+approval_policy: auto_within_contract
+contract_bounds:
+  max_budget: *budget
+  max_job_limits:
+    max_wall_seconds: 300
+    max_memory_gb: 4
+    cpu_threads: 2
+hidden_split:
+  strategy: group
+  fraction: 0.25
+  seed: 20261120
+  group_key: setup_id
+grading:
+  # Derived from visible rows only (thresholds.py): constant 5.708, gradient_boosting 2.404 (3-fold CV);
+  # bar = constant + 0.5 x gap; tolerance = 3 x combined standard error.
+  hidden_metric:
+    name: mae
+    threshold: 4.06
+    reported_tolerance: 1.6
+traps:
+  - kind: grouped_rows
+    planted: true
+    group_key: setup_id
+expected_decision_class: train

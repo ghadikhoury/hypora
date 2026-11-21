@@ -1,0 +1,49 @@
+# Clean control: no trap, no fault.
+id: test_clean_power_plant
+split: test
+request: "Predict the net hourly electrical energy output (MW) of a combined-cycle power plant from the ambient temperature, ambient pressure, relative humidity and exhaust vacuum, so that operators can plan output."
+constraints:
+  target: "PE"
+  task_type: regression
+  primary_metric: mae
+dataset:
+  snapshot: uci-294-combined-cycle-power-plant
+  sha256: "bca5c4607ccc3db6c39f34f3bfd4d35bef943a4bbba4b07479beb40b3697d595"
+family: tabular
+permitted_tools:
+  - inspect_dataset
+  - run_diagnostic
+  - write_trial_files
+  - submit_experiment
+  - get_experiment_status
+  - get_experiment_metrics
+  - get_experiment_logs
+  - search_model_catalog
+  - get_model_evidence
+  - retrieve_methodology
+budget: &budget
+  max_usd: 0.6
+  max_compute_seconds: 1800
+  max_llm_tokens: 2000000
+  max_trials: 6
+  max_steps: 200
+  max_wall_clock_seconds: 3600
+approval_policy: auto_within_contract
+contract_bounds:
+  max_budget: *budget
+  max_job_limits:
+    max_wall_seconds: 300
+    max_memory_gb: 4
+    cpu_threads: 2
+hidden_split:
+  strategy: random
+  fraction: 0.25
+  seed: 20261120
+grading:
+  # Derived from visible rows only (thresholds.py): constant 14.78, gradient_boosting 2.559 (3-fold CV);
+  # bar = constant + 0.5 x gap; tolerance = 3 x combined standard error.
+  hidden_metric:
+    name: mae
+    threshold: 8.67
+    reported_tolerance: 1.3
+expected_decision_class: train

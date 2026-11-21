@@ -1,0 +1,52 @@
+# Malformed data: the class codes are text and 60 seeded labels are blank (plantings.py). The platform must stop safely before any work and report it; no model is graded.
+id: test_fault_malformed_landsat
+split: test
+request: "Classify the land cover of each 3x3 pixel neighbourhood of a Landsat satellite image from its multispectral values, so that a mapping agency can label new scenes."
+constraints:
+  target: "class"
+  task_type: multiclass_classification
+  primary_metric: f1_macro
+dataset:
+  snapshot: uci-146-statlog-landsat-satellite
+  sha256: "0283b8843250d81e95e252d5169823240c1073fd9ee405b41c51dcce2f05d6ee"
+  planted:
+    script: hypora/evaluation/cases/test/plantings.py
+    file: test_fault_malformed_landsat.parquet
+    sha256: "0a3abc61c2e7527fd7e882a2623596472684cfddfdf5e4058a2f212444be8ebf"
+family: tabular
+permitted_tools:
+  - inspect_dataset
+  - run_diagnostic
+  - write_trial_files
+  - submit_experiment
+  - get_experiment_status
+  - get_experiment_metrics
+  - get_experiment_logs
+  - search_model_catalog
+  - get_model_evidence
+  - retrieve_methodology
+budget: &budget
+  max_usd: 0.6
+  max_compute_seconds: 1800
+  max_llm_tokens: 2000000
+  max_trials: 6
+  max_steps: 200
+  max_wall_clock_seconds: 3600
+approval_policy: auto_within_contract
+contract_bounds:
+  max_budget: *budget
+  max_job_limits:
+    max_wall_seconds: 300
+    max_memory_gb: 4
+    cpu_threads: 2
+hidden_split:
+  strategy: random
+  fraction: 0.25
+  seed: 20261120
+grading:
+  # A safe stop produces no model, so no hidden metric is graded (D-032).
+  hidden_metric: null
+injected_faults:
+  - kind: malformed_data
+    expected: fail_safely
+expected_decision_class: train

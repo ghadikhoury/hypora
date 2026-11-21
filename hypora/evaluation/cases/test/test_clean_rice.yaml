@@ -1,0 +1,49 @@
+# Clean control: no trap, no fault.
+id: test_clean_rice
+split: test
+request: "Tell Cammeo from Osmancik rice grains from morphological measurements taken on images of each grain, so that a mill can sort them automatically."
+constraints:
+  target: "Class"
+  task_type: binary_classification
+  primary_metric: roc_auc
+dataset:
+  snapshot: uci-545-rice-cammeo-and-osmancik
+  sha256: "b21d314785173456d699b9d31e43b89e150d50f2ff97b60d6178e35412226634"
+family: tabular
+permitted_tools:
+  - inspect_dataset
+  - run_diagnostic
+  - write_trial_files
+  - submit_experiment
+  - get_experiment_status
+  - get_experiment_metrics
+  - get_experiment_logs
+  - search_model_catalog
+  - get_model_evidence
+  - retrieve_methodology
+budget: &budget
+  max_usd: 0.6
+  max_compute_seconds: 1800
+  max_llm_tokens: 2000000
+  max_trials: 6
+  max_steps: 200
+  max_wall_clock_seconds: 3600
+approval_policy: auto_within_contract
+contract_bounds:
+  max_budget: *budget
+  max_job_limits:
+    max_wall_seconds: 300
+    max_memory_gb: 4
+    cpu_threads: 2
+hidden_split:
+  strategy: stratified
+  fraction: 0.25
+  seed: 20261120
+grading:
+  # Derived from visible rows only (thresholds.py): constant 0.5, linear 0.9768 (3-fold CV);
+  # bar = constant + 0.5 x gap; tolerance = 3 x combined standard error.
+  hidden_metric:
+    name: roc_auc
+    threshold: 0.73
+    reported_tolerance: 0.048
+expected_decision_class: train

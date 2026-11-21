@@ -1,0 +1,54 @@
+# Temporal order: hourly traffic counts, 2012-2018. Nothing planted.
+id: test_time_metro_traffic
+split: test
+request: "Predict the hourly westbound traffic volume on Interstate 94 near Minneapolis-St Paul for coming periods, from the calendar, holidays and the weather, so that the transport agency can plan ahead."
+constraints:
+  target: "traffic_volume"
+  task_type: regression
+  primary_metric: mae
+dataset:
+  snapshot: uci-492-metro-interstate-traffic-volume
+  sha256: "f4b69a611af0b9bef5762f5c1d56b99d02f6f814b8f4761a242bccc514962afe"
+family: tabular
+permitted_tools:
+  - inspect_dataset
+  - run_diagnostic
+  - write_trial_files
+  - submit_experiment
+  - get_experiment_status
+  - get_experiment_metrics
+  - get_experiment_logs
+  - search_model_catalog
+  - get_model_evidence
+  - retrieve_methodology
+budget: &budget
+  max_usd: 0.6
+  max_compute_seconds: 1800
+  max_llm_tokens: 2000000
+  max_trials: 6
+  max_steps: 200
+  max_wall_clock_seconds: 3600
+approval_policy: auto_within_contract
+contract_bounds:
+  max_budget: *budget
+  max_job_limits:
+    max_wall_seconds: 300
+    max_memory_gb: 4
+    cpu_threads: 2
+hidden_split:
+  strategy: temporal
+  fraction: 0.25
+  seed: 20261120
+  time_key: "date_time"
+grading:
+  # Derived from visible rows only (thresholds.py): constant 1740, gradient_boosting 308.2 (3-fold CV);
+  # bar = constant + 0.5 x gap; tolerance = 3 x combined standard error.
+  hidden_metric:
+    name: mae
+    threshold: 1030.0
+    reported_tolerance: 150.0
+traps:
+  - kind: temporal_order
+    planted: false
+    time_key: date_time
+expected_decision_class: train

@@ -1,0 +1,58 @@
+# Grouped rows: the same mixture is tested at several ages. Key recovered by plantings.py.
+id: test_group_concrete
+split: test
+request: "Predict the compressive strength of concrete (MPa) from its mixture proportions and its age, so that engineers can screen new mixture designs before casting them. The model will be used on mixture designs that have never been tested."
+constraints:
+  target: "Concrete compressive strength"
+  task_type: regression
+  primary_metric: mae
+dataset:
+  snapshot: uci-165-concrete-compressive-strength
+  sha256: "61e9ffb4d1eed5d44fc3debfc6a0e29501aeebd1de35f0b29d75db750ebd053e"
+  planted:
+    script: hypora/evaluation/cases/test/plantings.py
+    file: test_group_concrete.parquet
+    sha256: "1c7839e73184e7c7c2c646efd57e5dc8d9165e5e27438805e4a570f4a2b392c0"
+family: tabular
+permitted_tools:
+  - inspect_dataset
+  - run_diagnostic
+  - write_trial_files
+  - submit_experiment
+  - get_experiment_status
+  - get_experiment_metrics
+  - get_experiment_logs
+  - search_model_catalog
+  - get_model_evidence
+  - retrieve_methodology
+budget: &budget
+  max_usd: 0.6
+  max_compute_seconds: 1800
+  max_llm_tokens: 2000000
+  max_trials: 6
+  max_steps: 200
+  max_wall_clock_seconds: 3600
+approval_policy: auto_within_contract
+contract_bounds:
+  max_budget: *budget
+  max_job_limits:
+    max_wall_seconds: 300
+    max_memory_gb: 4
+    cpu_threads: 2
+hidden_split:
+  strategy: group
+  fraction: 0.25
+  seed: 20261120
+  group_key: mix_id
+grading:
+  # Derived from visible rows only (thresholds.py): constant 13.49, gradient_boosting 4.824 (3-fold CV);
+  # bar = constant + 0.5 x gap; tolerance = 3 x combined standard error.
+  hidden_metric:
+    name: mae
+    threshold: 9.16
+    reported_tolerance: 3.0
+traps:
+  - kind: grouped_rows
+    planted: true
+    group_key: mix_id
+expected_decision_class: train

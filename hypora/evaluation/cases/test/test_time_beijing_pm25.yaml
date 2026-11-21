@@ -1,0 +1,58 @@
+# Temporal order: hourly PM2.5 in Beijing, 2010-2014. plantings.py builds an ISO timestamp from the clock columns and drops hours with no reading.
+id: test_time_beijing_pm25
+split: test
+request: "Predict the hourly PM2.5 concentration (ug/m3) at the US embassy in Beijing for coming periods, from the calendar and the weather (dew point, temperature, pressure, wind direction and speed, and hours of snow and rain), so that residents can be warned ahead of polluted hours."
+constraints:
+  target: "pm2.5"
+  task_type: regression
+  primary_metric: mae
+dataset:
+  snapshot: uci-381-beijing-pm2-5
+  sha256: "eacc4bd50185d661eae9d86f1dff4a8a26d7262986df2fb7f56dbce35e47ba26"
+  planted:
+    script: hypora/evaluation/cases/test/plantings.py
+    file: test_time_beijing_pm25.parquet
+    sha256: "282cc9fa0c4f4f07fa8ba364b34bb4c3596189d7d7142647bfc17f80daaf6917"
+family: tabular
+permitted_tools:
+  - inspect_dataset
+  - run_diagnostic
+  - write_trial_files
+  - submit_experiment
+  - get_experiment_status
+  - get_experiment_metrics
+  - get_experiment_logs
+  - search_model_catalog
+  - get_model_evidence
+  - retrieve_methodology
+budget: &budget
+  max_usd: 0.6
+  max_compute_seconds: 1800
+  max_llm_tokens: 2000000
+  max_trials: 6
+  max_steps: 200
+  max_wall_clock_seconds: 3600
+approval_policy: auto_within_contract
+contract_bounds:
+  max_budget: *budget
+  max_job_limits:
+    max_wall_seconds: 300
+    max_memory_gb: 4
+    cpu_threads: 2
+hidden_split:
+  strategy: temporal
+  fraction: 0.25
+  seed: 20261120
+  time_key: "timestamp"
+grading:
+  # Derived from visible rows only (thresholds.py): constant 68.7, gradient_boosting 50.15 (3-fold CV);
+  # bar = constant + 0.5 x gap; tolerance = 3 x combined standard error.
+  hidden_metric:
+    name: mae
+    threshold: 59.5
+    reported_tolerance: 9.3
+traps:
+  - kind: temporal_order
+    planted: true
+    time_key: timestamp
+expected_decision_class: train

@@ -1,0 +1,58 @@
+# Grouped rows: several sales share one location (the same building). Key recovered by plantings.py.
+id: test_group_real_estate
+split: test
+request: "Predict the price per unit area of a house in Sindian District, New Taipei City, so that appraisers can value houses. The model will be used for houses at locations that do not appear in the data."
+constraints:
+  target: "Y house price of unit area"
+  task_type: regression
+  primary_metric: mae
+dataset:
+  snapshot: uci-477-real-estate-valuation
+  sha256: "3095d1e1db37906407ed91d8acd3193b0b7b9f1c73d4d52a15be9f61574a36e8"
+  planted:
+    script: hypora/evaluation/cases/test/plantings.py
+    file: test_group_real_estate.parquet
+    sha256: "600111d92800926ff0c46d8b5849eb59b05ddaa12da9300b0209d3184e395bf1"
+family: tabular
+permitted_tools:
+  - inspect_dataset
+  - run_diagnostic
+  - write_trial_files
+  - submit_experiment
+  - get_experiment_status
+  - get_experiment_metrics
+  - get_experiment_logs
+  - search_model_catalog
+  - get_model_evidence
+  - retrieve_methodology
+budget: &budget
+  max_usd: 0.6
+  max_compute_seconds: 1800
+  max_llm_tokens: 2000000
+  max_trials: 6
+  max_steps: 200
+  max_wall_clock_seconds: 3600
+approval_policy: auto_within_contract
+contract_bounds:
+  max_budget: *budget
+  max_job_limits:
+    max_wall_seconds: 300
+    max_memory_gb: 4
+    cpu_threads: 2
+hidden_split:
+  strategy: group
+  fraction: 0.25
+  seed: 20261120
+  group_key: location_id
+grading:
+  # Derived from visible rows only (thresholds.py): constant 10.72, gradient_boosting 6.157 (3-fold CV);
+  # bar = constant + 0.5 x gap; tolerance = 3 x combined standard error.
+  hidden_metric:
+    name: mae
+    threshold: 8.44
+    reported_tolerance: 2.2
+traps:
+  - kind: grouped_rows
+    planted: true
+    group_key: location_id
+expected_decision_class: train
