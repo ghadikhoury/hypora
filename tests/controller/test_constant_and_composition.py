@@ -120,7 +120,18 @@ async def test_classification_shows_the_reference_but_never_substitutes_a_consta
     assert reference.payload.details["outcome"] == "computed"
     assert reference.payload.details["mean"] == pytest.approx(0.5)
 
-    assert "does not substitute a constant" in experiment[0].messages[1].content
+    # Classification: the reference is context only; C is never told to nominate a constant.
+    c_context = experiment[0].messages[1].content
+    assert "never nominate a constant classifier" in c_context
+    assert "Nominate the best validated feature model" in c_context
+    assert "nominate a constant trial" not in c_context
+    a_assignment = [
+        r.messages[1].content
+        for r in script.requests
+        if r.output_schema_name in ("LeadAction", "LeadActionWithRange")
+        and "assignment field" in r.messages[1].content
+    ]
+    assert a_assignment and "a constant classifier is never the choice" in a_assignment[0]
 
     (rule,) = _errors(database, run_id, CONSTANT_RULE)
     details: Any = rule.payload.details
@@ -215,6 +226,8 @@ async def test_regression_no_trial_beats_the_constant_so_the_platform_validates_
     context = experiment[0].messages[1].content
     assert "Platform constant reference (platform fact" in context
     assert "only while a trial slot" in context
+    assert "For this regression task" in context and "nominate a constant trial" in context
+    assert "never nominate a constant classifier" not in context
     (reference,) = _errors(database, run_id, CONSTANT_REFERENCE)
     assert reference.payload.details["strategy"] == "median"
 
@@ -241,6 +254,10 @@ async def test_regression_no_trial_beats_the_constant_so_the_platform_validates_
     assert nominated == [details["nominated"]]
     assert any("Platform constant-reference rule" in n for n in result.notes)
     assert _final_candidate(result.notes) == constant
+    assert any(
+        n.startswith(f"Final candidate {constant}: substituted by the platform's constant")
+        for n in result.notes
+    )
 
 
 async def test_regression_an_existing_median_trial_is_selected_without_a_new_trial(

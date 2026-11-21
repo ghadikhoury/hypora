@@ -457,20 +457,22 @@ CONSTANT_CONTEXT: Final = (
     "\nPlatform constant reference (platform fact, computed by code on the locked validation "
     "folds): a constant prediction learned from each fold's training rows ({strategy}) scores a "
     "mean {metric} of {mean} over {folds} fold(s). Small, noisy or grouped data can leave feature "
-    "models no better than this. You need not spend a trial measuring it. If no trial beats it by "
-    "more than one paired standard error across folds, a feature model is not supported by the "
-    "evidence: nominate a constant trial. {rule}"
+    "models no better than this. You need not spend a trial measuring it. {rule}"
 )
+"""C's experiment-context line with the reference (D-060); `{rule}` is per task type."""
 CONSTANT_RULE_REGRESSION: Final = (
-    "For this regression task the platform otherwise sends a constant trial to verification "
-    "instead of your nomination, but only while a trial slot and the run's limits remain, so if "
-    "the reference looks competitive and slots are scarce, run the constant trial yourself."
+    "For this regression task, if no trial beats it by more than one paired standard error "
+    "across folds, a feature model is not supported by the evidence: nominate a constant trial. "
+    "Otherwise the platform sends a constant trial to verification instead of your nomination, "
+    "but only while a trial slot and the run's limits remain, so if the reference looks "
+    "competitive and slots are scarce, run the constant trial yourself."
 )
 CONSTANT_RULE_CLASSIFICATION: Final = (
-    "For classification the platform does not substitute a constant itself; weigh the reference "
-    "when you nominate."
+    "For this classification task the reference is context only: never nominate a constant "
+    "classifier (it predicts one class and is not a useful model), and the platform does not "
+    "substitute one. Nominate the best validated feature model, and say plainly when it does "
+    "not clearly beat the class-prior reference."
 )
-"""C's experiment-context line with the reference (D-060)."""
 DEFERRED_ACTION_C: Final = (
     "You may exclude a column by citing its diagnostic_id above as evidence; do not run these "
     "diagnostics again. Keep a column that is not flagged unless you have other evidence or the "
@@ -1627,12 +1629,16 @@ class _Run:
                 " C need not spend a trial slot on a constant/dummy predictor only to measure "
                 "it: the platform scores a training-fold constant on the same locked folds and "
                 "shows it with the trial evidence. A constant can beat feature models on small, "
-                "noisy or grouped data; when no trial beats it by more than one paired standard "
-                "error, a constant trial is the supported choice (for regression the platform "
-                "sends one to verification while a trial slot and the run's limits remain)."
+                "noisy or grouped data. For a regression task, when no trial beats it by more "
+                "than one paired standard error, a constant trial is the supported choice (the "
+                "platform sends one to verification while a trial slot and the run's limits "
+                "remain). For a classification task the reference is context only: a constant "
+                "classifier is never the choice; C nominates the best validated feature model and "
+                "reports honestly when it does not clearly beat the class prior."
                 if self._constant_on
-                else " A zero-feature constant/dummy predictor can beat feature models on small, "
-                "noisy or grouped data; ask C to include one when that seems likely."
+                else " For a regression task, a zero-feature constant/dummy predictor can beat "
+                "feature models on small, noisy or grouped data; ask C to include one when that "
+                "seems likely."
             )
             + " The approved contract already fixes the "
             "split, the validation scheme, the metric and every compute limit, and C runs all "
@@ -2970,7 +2976,11 @@ class _Run:
         if selection.trial_id is None or selection.source_job_id is None:
             self.notes.append(f"No final model: {selection.reason}.")
             return
-        self.notes.append(f"Final candidate {selection.trial_id}: {selection.reason}.")
+        reason = selection.reason
+        if nominated is not None and nominated != c_nominated and selection.trial_id == nominated:
+            # The nomination came from the constant-reference rule, not from C (D-060).
+            reason = "substituted by the platform's constant-reference rule"
+        self.notes.append(f"Final candidate {selection.trial_id}: {reason}.")
         trial_id, source_job_id = selection.trial_id, selection.source_job_id
         if self._leakage_on:
             trial_id, source_job_id, contract = await self._too_good_check(
@@ -4698,7 +4708,12 @@ class _Run:
         )
 
     def _validated_folds(self, metric: MetricName) -> dict[str, list[float | None]]:
-        """Per trial with a completed job and a stored validation result: its fold scores."""
+        """Per trial with a completed job and a stored validation result: its fold scores.
+
+        The scores are paired with the reference by fold position. That is sound because every
+        Phase B job runs under the one experiment contract, whose verified partition lock fixes
+        the fold rows; a future path that validated trials under another contract version (with
+        other folds) would have to filter by contract version first."""
         completed = {
             job.trial_id
             for job in run_jobs(self.database, self.run_id)

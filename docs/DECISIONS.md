@@ -1783,7 +1783,10 @@ hidden split or eval model profile changed.
   legitimate inputs reach; the 0.85 / 0.90 single-column thresholds are unchanged. One
   `TARGET_COMPOSITION` event.
 - **Prompts and spec.** `agent_c` v12 -> v13 replaces the false claim with when to nominate a
-  constant. Removing the false claim is an unconditional bug fix, not behind the flag; only the
+  constant, for regression only; for classification the prompt, C's context and A's assignment
+  text say never to nominate a constant classifier but the best validated feature model,
+  stating honestly when it does not clearly beat the class prior (review of PR #82). Removing
+  the false claim is an unconditional bug fix, not behind the flag; only the
   reference and the rule are. The dummy template reads `ctx.config["strategy"]` (default
   unchanged).
   `docs/PROJECT_SPEC.md` §8.3's mandatory-baseline line notes the platform reference.

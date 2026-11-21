@@ -223,7 +223,10 @@ reviews the chosen trial's code; `use_best_validated_trial` still works. The tri
 `nominated_by_c` keeps naming C's own nomination.
 
 Prompts: `agent_c` v13 drops the false claim that a constant predictor "cannot beat a constant
-baseline" and says when to nominate a constant; A's C-assignment request says the same. Removing
+baseline" and says when to nominate a constant: for regression only. For classification the
+prompt, C's context line (`CONSTANT_RULE_CLASSIFICATION`) and A's C-assignment request all say
+the reference is context only, never to nominate a constant classifier, and to nominate the best
+validated feature model and say plainly when it does not clearly beat the class prior. Removing
 that false claim is an unconditional bug fix: with the flag off the prompt still drops it (and
 defers to the context for what the platform does), so an off/on comparison measures the
 reference and the rule, not the claim. The dummy template reads `ctx.config["strategy"]`

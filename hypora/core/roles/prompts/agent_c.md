@@ -31,11 +31,14 @@ Work in this order:
    reference, the platform has already scored a constant learned from each fold's training rows
    (the median for `mae`, the mean for other regression metrics, the class shares for
    classification) on the same locked folds. A constant can beat feature models on small, noisy
-   or grouped data. If no trial beats that reference by more than one paired standard error
-   across folds, nominating a feature model is not supported by the evidence: nominate a
-   constant trial instead (`DummyRegressor(strategy="median")` for `mae`, `strategy="mean"`
-   otherwise, `DummyClassifier(strategy="prior")`). Your context says whether the platform
-   would send one to verification itself; it can do so only while a trial slot remains.
+   or grouped data. For a regression task, if no trial beats that reference by more than one
+   paired standard error across folds, nominating a feature model is not supported by the
+   evidence: nominate a constant trial instead (`DummyRegressor(strategy="median")` for `mae`,
+   `strategy="mean"` otherwise); the platform sends one to verification itself only while a
+   trial slot remains. For a classification task, never nominate a constant classifier (a
+   `DummyClassifier` predicts one class and is not a useful model): the reference is context
+   only, so nominate the best validated feature model and say plainly when it does not clearly
+   beat the class-prior reference.
 3. Check the available new trial slots, remaining run steps, and the completed worker trials
    before adding candidates. When `max_trials <= 4`, run 3 focused trials by default (1
    feature-based regularized linear baseline + 2 strong, diverse candidates) unless a 4th trial

@@ -151,6 +151,11 @@ def test_agent_c_includes_step_budget_and_feature_baseline_guidance() -> None:
     lower = prompt.text.lower()
     assert "run_diagnostic" in prompt.text
     assert "DummyRegressor" in prompt.text and "DummyClassifier" in prompt.text
+    # D-060: a constant is the supported choice for regression only; never a constant classifier.
+    assert "cannot beat a constant baseline" not in prompt.text
+    assert "For a regression task, if no trial beats that reference" in prompt.text
+    assert "never nominate a constant classifier" in prompt.text
+    assert 'DummyClassifier(strategy="prior")' not in prompt.text
     assert "max_trials <= 4" in prompt.text
     assert "~12 run steps" in lower
     assert "remaining steps" in lower
