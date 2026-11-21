@@ -114,6 +114,10 @@ class RobustnessConfig(FrozenModel):
     job and the report; capped at a quarter of `max_steps`."""
     finish_reserve_seconds: NonNegativeFloat = 240.0
     """Wall-clock seconds kept back the same way; capped at 15% of `max_wall_clock_seconds`."""
+    finish_reserve_compute_seconds: NonNegativeFloat = 60.0
+    """The least sandbox compute kept back for the final job (D-059). The reserve grows to the
+    estimated cost of a final job from the slowest completed job, capped at 35% of
+    `max_compute_seconds`; 0 turns the compute reserve off."""
     max_diagnostics_per_session: PositiveInt = 8
     """`run_diagnostic` calls one C session (one methodology proposal, or the experiment session)
     may make; later calls are refused with an instruction to proceed."""

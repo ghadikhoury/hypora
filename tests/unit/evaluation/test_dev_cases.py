@@ -191,6 +191,9 @@ def test_run_limits_leave_room_for_recovery(case: Case) -> None:
     """D-055: readiness runs hit 100 steps and 4 trials; every case now allows 200 and 6."""
     assert case.budget.max_steps == 200
     assert case.budget.max_trials == 6
+    # D-059: a paid grouped run spent 615 s of 600 and its final job alone took 172 s.
+    assert case.budget.max_compute_seconds == 1800
+    assert case.contract_bounds.max_budget.max_compute_seconds == 1800
 
 
 @every_case

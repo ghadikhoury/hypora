@@ -1695,3 +1695,42 @@ of 6 cases. Details are in `docs/notes/controller-robustness.md` ("D-058").
   `LEAD_SWAP_REVIEW` event records it); if A reports there, the run stops before verification as
   at the first review (review of PR #79). The platform's own diagnostics run synchronously after
   the lock (at most 8 single-column fits).
+
+
+## D-059 — Finish gracefully on the compute budget; realistic compute limits for dev cases (2026-11-20)
+
+Made by the orchestrator under Ghadi's approval of limit and budget fixes on its judgment, aiming
+at a broad, dataset-agnostic system. **These changes were made after seeing readiness results**
+(paid run `run_3aae18d950dd`, `dev_grouped_rows`, on `d9cef81`), so, as with D-055, the dev
+cases are no longer an unbiased measurement; the frozen Stage 5 test set measures generalization.
+
+- **What happened.** The run ended "did not finish (max_compute_seconds)" with no final model at
+  615 s of 600. Exploration used 442 s: two forests with `criterion="absolute_error"` took 173 s
+  and 155 s per five-fold validation job, against 61 s for gradient boosting with an
+  absolute-error loss and 54 s for the linear baseline. The final job (one of those forests) had
+  run 172 s when the hard limit cancelled it. D-056's finishing reserve kept steps and wall time
+  back, not compute. C's prompt had recommended the slow forest.
+- **The finishing reserve now covers compute.** While C and its workers explore, the run keeps
+  back enough sandbox compute for the final job: the slowest completed job's seconds per stage x
+  the final job's stage bound x 1.1, at least `robustness.finish_reserve_compute_seconds` = 60 s,
+  at most 35% of `max_compute_seconds` (0 turns it off). The slowest job is used because any
+  validated trial may become the final one. Reaching it stops exploration (one
+  `FINISH_RESERVE_REACHED` event with `limit: max_compute_seconds`, not a run limit), cancels
+  running jobs at once (they would spend the reserve), and the run finishes through the normal
+  path. After a steps or trial-cap stop, running jobs keep their grace but the drain still holds
+  the compute reserve. C's context states the compute left before the reserve. The hard limit is
+  unchanged: an estimate that falls short, or a batch that jumps past the limit between checks,
+  still stops the run as before.
+- **C's prompt (`agent_c` v11 -> v12)** no longer recommends `criterion="absolute_error"` trees.
+  It says to get a robust loss from a learner that implements it efficiently (gradient
+  boosting's `loss`), that compute is a run limit counting every fold and the final refit, and to
+  prefer a cheaper variant when a job is much slower than the others. `results/readiness/lock.json`
+  regenerated.
+- **Dev-case limits.** `max_compute_seconds` 600 -> 1,800 in all six dev cases (`budget` and, via
+  the YAML anchor, `contract_bounds.max_budget`). About 5 s per sandbox stage is fixed overhead, so
+  a five-fold job costs at least ~50 s and a final job ~65 s before any model work; 600 s left room
+  for only a few honest trials. `configs/budgets.yaml` keeps its 3,600 s run default. The S5.1
+  test cases are not touched here.
+- **Frozen contracts and security.** No change to `hypora/core/schemas/`, the MCP tool contract,
+  event types (the existing error event and code are reused), the trial interface, the sandbox,
+  the policy engine or the graders. Scripted evidence only; no live run was made.

@@ -517,6 +517,63 @@ async def test_a_job_that_never_starts_does_not_hold_the_finish(
     assert any("had not started" in note for note in result.notes)
 
 
+def _charge_per_job(monkeypatch: pytest.MonkeyPatch, seconds: float) -> None:
+    """Make every sandbox job cost `seconds` of compute (its first stage), whatever its stage
+    count, so the test does not depend on the contract's fold count."""
+    import dataclasses
+    import re
+
+    from hypora.execution.sandbox.launcher import SandboxLauncher
+
+    scripted = SandboxLauncher.run
+    seen: set[str] = set()
+
+    def run(self: Any, spec: Any, should_abort: Any = lambda: None) -> Any:
+        result = scripted(self, spec, should_abort)
+        match = re.search(r"jobs/(job_[^/]+)/", spec.mounts.data.as_posix())
+        job = match.group(1) if match else ""
+        first = job not in seen
+        seen.add(job)
+        return dataclasses.replace(result, duration_s=seconds if first else 0.001)
+
+    monkeypatch.setattr(SandboxLauncher, "run", run)
+
+
+async def test_exploration_stops_at_the_compute_reserve_and_the_best_trial_is_verified(
+    make_controller, run_config, dataset, database, monkeypatch
+):
+    """D-059: compute, not steps, runs low. Each job costs 100 s; with 305 s the reserve (35%,
+    106.75 s) stops exploration once the baseline and candidate are done (200 s >= 198.25 s), no
+    further job starts, and the 100 s final job still fits under the hard limit."""
+    from hypora.core.schemas import JobState
+    from hypora.storage.records import run_jobs
+
+    scripted_sandbox.install(monkeypatch)
+    _charge_per_job(monkeypatch, 100.0)
+    run_id = "run_compute_finish"
+    script = ExploresForever(run_id, "read")
+    budget = run_config.budgets.run.model_copy(update={"max_compute_seconds": 305})
+    result = await _multi_run(
+        make_controller,
+        run_config,
+        dataset,
+        run_id,
+        script,
+        worker=scripted_sandbox.ThreadWorker,
+        budget=budget,
+        finish_reserve_compute_seconds=1000,  # floor above the cap: the reserve is the 35% cap
+    )
+    assert result.limits_fired == (), result.notes  # max_compute_seconds never fired
+    assert result.verified and result.final_trial_id is not None, result.notes
+    (stop,) = _errors(database, run_id, FINISH_RESERVE_REACHED)
+    assert stop.payload.details["limit"] == "max_compute_seconds"
+    assert stop.payload.details["reserve"] == pytest.approx(106.75)
+    jobs = run_jobs(database, run_id)
+    assert len(jobs) == 3  # baseline, candidate, final: no exploration job after the stop
+    assert all(job.status is JobState.COMPLETED for job in jobs)
+    assert any("finished early due to limits" in note for note in result.notes)
+
+
 # --- D: code-enforced tool caps -----------------------------------------------------------------
 
 

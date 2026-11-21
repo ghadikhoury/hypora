@@ -281,6 +281,8 @@ MCP_READ_TIMEOUT_S: Final = 300.0
 FINAL_JOB_EXTRA_STAGES: Final = 4
 """Sandbox stages of a final job beyond its validation folds: refit on the development rows,
 predict the test split, load the frozen artifact, and one spare (D-047)."""
+FINAL_COMPUTE_MARGIN: Final = 1.1
+"""Headroom on the final job's compute estimate (D-059); the stage bound already has a spare."""
 EXAMPLE_PIPELINE: Final = "linear/pipeline.py"
 _WORKER_NARRATIVE_FIELDS: Final = ("summary", "claims", "confidence", "open_questions")
 """TrialFinding fields a worker model authors; C receives them as untrusted worker text."""
@@ -2721,19 +2723,31 @@ class _Run:
         # Graceful finish (D-056): exploration that stopped at the finishing reserve or at the
         # trial cap leaves the run inside its real limits, so it goes on to finish with the
         # trials already validated. Jobs already running may complete (they cost no steps)
-        # unless the time reserve was what stopped it.
+        # unless the time or compute reserve was what stopped it: a running job would spend the
+        # very reserve the final job needs (D-059).
         finishing = stop is not None and (
             isinstance(stop, FinishReserveReached) or stop.limit == Limit.MAX_TRIALS.value
         )
         if finishing:
             assert stop is not None
             self.notes.append(FINISH_NOTE.format(reason=str(stop)))
-        cancel = stop is not None and not (finishing and stop.limit != Limit.MAX_WALL_CLOCK.value)
-        self.notes += await self._drain(
-            cancel=cancel,
-            contract=contract,
-            grace=self._robustness.finish_reserve_seconds if finishing else None,
+        cancel = stop is not None and not (
+            finishing and stop.limit not in (Limit.MAX_WALL_CLOCK.value, Limit.MAX_COMPUTE.value)
         )
+        # Running jobs given grace still may not spend the final job's compute (D-059).
+        keep_compute: contextlib.AbstractContextManager[None] = (
+            self.guard.exploration(
+                steps=0, seconds=0.0, compute=lambda: self._final_compute_reserve(contract)
+            )
+            if finishing and not cancel
+            else contextlib.nullcontext()
+        )
+        with keep_compute:
+            self.notes += await self._drain(
+                cancel=cancel,
+                contract=contract,
+                grace=self._robustness.finish_reserve_seconds if finishing else None,
+            )
         nominated = outcome.final.final_trial_id if outcome.final else None
         if self._multi and not await self._lead_decision(
             "Review C's completed work and decide whether to continue to independent final "
@@ -2900,11 +2914,14 @@ class _Run:
                 robust = self._robustness
                 # The finishing reserve (D-056): exploration (workers and C's session) stops a
                 # few steps and seconds early, so A's review, the final job and the report fit.
+                # D-059: sandbox compute is kept back too, enough for the final job.
                 reserve_steps, _ = self.guard.reserve_for(
                     robust.finish_reserve_steps, robust.finish_reserve_seconds
                 )
                 with self.guard.exploration(
-                    steps=robust.finish_reserve_steps, seconds=robust.finish_reserve_seconds
+                    steps=robust.finish_reserve_steps,
+                    seconds=robust.finish_reserve_seconds,
+                    compute=lambda: self._final_compute_reserve(contract),
                 ):
                     if self._multi and c.run_config.flags.max_c_workers:
                         try:
@@ -2938,6 +2955,17 @@ class _Run:
                                 f"{self.budget.max_steps} (the platform keeps {reserve_steps} "
                                 "for review, verification and the report; when yours run out "
                                 "it finishes with your best validated trial)."
+                            )
+                        if self._multi and self.budget.max_compute_seconds is not None:
+                            self.guard.sync_compute()
+                            kept = self._final_compute_reserve(contract)
+                            usable_c = self.budget.max_compute_seconds - kept
+                            compute_left = max(0.0, usable_c - self.guard.compute_s)
+                            context += (
+                                f"\nSandbox compute remaining for your experiments: about "
+                                f"{compute_left:.0f} s of {self.budget.max_compute_seconds:.0f} s "
+                                f"(the platform keeps about {kept:.0f} s for the final job, more "
+                                "if your jobs are slow; every fold's fit counts)."
                             )
                         outcome = await run_single_agent(
                             c.adapter,
@@ -3489,6 +3517,32 @@ class _Run:
     def _cancel(self, job_id: str, reason: str) -> None:
         with contextlib.suppress(InvalidJobTransition, StaleJobState):
             self.queue.request_cancel(job_id, "controller", reason, ActorRole.CONTROLLER)
+
+    def _final_compute_reserve(self, contract: ExperimentContract) -> float:
+        """Compute seconds to keep back for the final job now (D-059).
+
+        Any validated trial may become the final one (C's nomination, A's swap, the platform's
+        choice), so the estimate is the slowest completed job's mean seconds per stage times a
+        final job's stage bound, with `FINAL_COMPUTE_MARGIN` on top. The guard floors it at
+        `finish_reserve_compute_seconds` and caps it at a share of the compute budget.
+        """
+        completed = {
+            job.job_id
+            for job in run_jobs(self.database, self.run_id)
+            if job.status is JobState.COMPLETED
+        }
+        stages = final_job_stages(contract)
+        estimate = max(
+            (
+                seconds / count * stages
+                for job_id, (seconds, count) in self.guard.job_compute.items()
+                if job_id in completed and count > 0
+            ),
+            default=0.0,
+        )
+        return self.guard.compute_reserve_for(
+            self._robustness.finish_reserve_compute_seconds, estimate * FINAL_COMPUTE_MARGIN
+        )
 
     async def _final(self, trial_id: str, source_job_id: str, contract: ExperimentContract) -> None:
         """Queue and await the final job; record the verifier's verdict as its handoff."""

@@ -276,6 +276,63 @@ def test_no_limit_means_no_reserve(database: Database, tmp_path: Path) -> None:
         guard.before_model_call()
 
 
+# --- C: the compute reserve (D-059) -------------------------------------------------------------
+
+
+def test_the_compute_reserve_is_floored_capped_and_never_negative(
+    database: Database, tmp_path: Path
+) -> None:
+    guard = _guard(database, tmp_path, Budget(max_compute_seconds=1800))
+    assert guard.compute_reserve_for(60) == 60.0  # nothing completed yet: the floor
+    assert guard.compute_reserve_for(60, 250.0) == 250.0  # a slow job raises it
+    assert guard.compute_reserve_for(60, 10_000.0) == pytest.approx(630.0)  # 35% cap
+    assert guard.compute_reserve_for(0, 250.0) == 0.0  # the flag at 0 turns it off
+    # Small budgets: the cap keeps most of the budget usable, never zero or negative usable.
+    for maximum in (0.0, 1.0, 10.0, 59.0):
+        small = _guard(database, tmp_path, Budget(max_compute_seconds=maximum))
+        kept = small.compute_reserve_for(60, 1e6)
+        assert 0.0 <= kept <= 0.35 * maximum
+        assert maximum - kept >= 0.65 * maximum
+    assert _guard(database, tmp_path, Budget()).compute_reserve_for(60, 1e6) == 0.0
+
+
+def test_exploration_stops_at_the_compute_reserve_and_the_final_job_still_fits(
+    database: Database, tmp_path: Path
+) -> None:
+    guard = _guard(database, tmp_path, Budget(max_compute_seconds=600))
+    kept = guard.compute_reserve_for(60, 200.0)
+    with guard.exploration(steps=0, seconds=0, compute=lambda: kept):
+        guard.compute_s = 399.0
+        guard.before_job()
+        guard.compute_s = 400.0
+        with pytest.raises(FinishReserveReached) as stopped:
+            guard.before_tool_call("submit_experiment", {})
+        with pytest.raises(FinishReserveReached):
+            guard.before_job()
+    assert (stopped.value.limit, stopped.value.maximum) == ("max_compute_seconds", 400.0)
+    assert guard.fired == {}
+    guard.before_job()  # the final job: only the hard limit applies, with 200 s left
+    errors = [e for e in EventLog(database).read("run_reserve") if isinstance(e, ErrorEvent)]
+    assert [e.payload.code for e in errors] == [FINISH_RESERVE_REACHED]
+    assert errors[0].payload.details["limit"] == "max_compute_seconds"
+    assert errors[0].payload.details["reserve"] == 200.0
+
+
+@pytest.mark.parametrize("floor", [0.0, 60.0])
+def test_the_hard_compute_limit_still_fires_past_the_reserve_or_without_one(
+    database: Database, tmp_path: Path, floor: float
+) -> None:
+    """A jump straight past the limit (or no reserve at all) is a real run limit, as before."""
+    guard = _guard(database, tmp_path, Budget(max_compute_seconds=100))
+    kept = guard.compute_reserve_for(floor, 0.0)
+    with guard.exploration(steps=0, seconds=0, compute=lambda: kept):
+        guard.compute_s = 100.0
+        with pytest.raises(RunLimitReached) as hard:
+            guard.before_model_call()
+    assert not isinstance(hard.value, FinishReserveReached)
+    assert hard.value.limit == "max_compute_seconds" and "max_compute_seconds" in guard.fired
+
+
 # --- D: code-enforced tool caps -----------------------------------------------------------------
 
 

@@ -72,6 +72,22 @@ picks up once hung CI for the whole drain bound), and
 continues through the normal path (A's final review, `select_final`, the too-good-score check, the
 final job, the report). A real hard limit still stops as before.
 
+**Compute reserve (D-059, `finish_reserve_compute_seconds` 60).** The same check also refuses
+once sandbox compute reaches `max_compute_seconds - reserve`. The controller's
+`_final_compute_reserve` sizes the reserve at every check: the slowest completed job's mean
+seconds per stage x `final_job_stages(contract)` x 1.1, at least the flag's 60 s, at most 35% of
+`max_compute_seconds` (`RunGuard.compute_reserve_for`; 0 when the run has no compute limit or the
+flag is 0). The slowest job is used because any validated trial can become the final one. When
+compute is the reason, running jobs are cancelled at once (as for time), since they would spend
+the reserve; when steps or the trial cap stopped exploration, running jobs keep their grace but the
+drain still holds the compute reserve and cancels them if they reach it. After exploration only
+the hard limit applies, so the final job starts with the reserve unspent. The permutation job of
+the too-good-score check (row-capped) is paid from the same reserve. The estimate can still fall
+short (a final job much slower per stage than any validation job, or a parallel batch that jumps
+past the hard limit between two checks); then the hard limit stops the run as before. C's context
+states the compute left before the reserve. Motivating run: `run_3aae18d950dd` spent 442 s of 600
+exploring, then its final job was cancelled by the hard limit at 615 s.
+
 ## D. Tool caps (`max_diagnostics_per_session` 8, `max_research_tool_calls` 16)
 
 `CappedToolChannel` (`hypora/core/controller/tool_caps.py`) wraps a session's tool channel,

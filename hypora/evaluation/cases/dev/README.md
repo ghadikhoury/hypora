@@ -2,8 +2,9 @@
 
 These six development cases use pinned real OpenML/UCI snapshots. They are development controls,
 not held-out test results. YAML requests and constraints expose neither trap metadata nor hidden
-rows. Each run has the same $0.60 maximum, 600 compute seconds, six trials, 200 tool steps, and
-1,800 wall seconds; case bounds match those limits (raised from four trials and 100 steps by D-055).
+rows. Each run has the same $0.60 maximum, 1,800 compute seconds, six trials, 200 tool steps, and
+1,800 wall seconds; case bounds match those limits (raised from four trials and 100 steps by D-055,
+and from 600 compute seconds by D-059).
 
 | Case | Real source | Construction and pass rule |
 |---|---|---|

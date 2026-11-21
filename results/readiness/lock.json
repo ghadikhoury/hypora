@@ -54,6 +54,7 @@
         "retrieval_mode": "hybrid",
         "robustness": {
           "evidence_before_exclusion": "on",
+          "finish_reserve_compute_seconds": 60.0,
           "finish_reserve_seconds": 240.0,
           "finish_reserve_steps": 12,
           "lead_revision_rounds": 2,
@@ -101,6 +102,7 @@
         "retrieval_mode": "hybrid",
         "robustness": {
           "evidence_before_exclusion": "on",
+          "finish_reserve_compute_seconds": 60.0,
           "finish_reserve_seconds": 240.0,
           "finish_reserve_steps": 12,
           "lead_revision_rounds": 2,
@@ -159,8 +161,8 @@
       "version": 3
     },
     "agent_c": {
-      "sha256": "98f801a1ff4f7911993bd6d12ac0051d3ba768af4f28a9ebcd4b1e47b63b6794",
-      "version": 11
+      "sha256": "d2790ab4afb73bf22bba2a4eecbd675638f24cbcc0fd74be45d4531a74bee80f",
+      "version": 12
     },
     "agent_c_methodology": {
       "sha256": "6f9e20c29140ee751799c812461b2a6a6f420765f1aa9d0883ef840aed508081",

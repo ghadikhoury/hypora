@@ -44,5 +44,6 @@ flags:
     evidence_before_exclusion: "on"  # on | off: no user -> exclude a questioned column on evidence only
     finish_reserve_steps: 12         # steps kept for A's final review, the final job and the report
     finish_reserve_seconds: 240      # wall-clock seconds kept the same way
+    finish_reserve_compute_seconds: 60  # least sandbox compute kept for the final job (0 = off)
     max_diagnostics_per_session: 8   # run_diagnostic calls per C session (proposal or experiments)
     max_research_tool_calls: 16      # tool calls per B research session
