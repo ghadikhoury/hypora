@@ -1734,3 +1734,70 @@ cases are no longer an unbiased measurement; the frozen Stage 5 test set measure
 - **Frozen contracts and security.** No change to `hypora/core/schemas/`, the MCP tool contract,
   event types (the existing error event and code are reused), the trial interface, the sandbox,
   the policy engine or the graders. Scripted evidence only; no live run was made.
+
+
+## D-060 — S4.2j verify3 follow-up: platform constant reference and target-composition evidence (2026-11-20)
+
+Made by the orchestrator under Ghadi's standing direction for broad, dataset-agnostic fixes, never
+tuned to the dev cases. **These changes were made after seeing readiness results** (paid verify3
+on `a5d32af`, 4/6), so, as with D-055 and D-059, the dev cases are no longer an unbiased
+measurement; the frozen Stage 5 test set measures generalization. No dev case, grading rule, bar,
+hidden split or eval model profile changed.
+
+- **What failed, and why it is general.** (A) Grouped regression, MAE, grouped 5-fold validation:
+  C's three trials scored mean validation MAE 13.63, 12.83 (nominated) and 14.47, while a
+  training-fold median on the same folds scores 12.09; the hidden result was 8.84 against a
+  constant's 7.63. Nothing measured the constant because `agent_c` v12 and A's assignment
+  request said a constant predictor wastes a slot and "cannot beat a constant baseline", which is
+  false: on small, noisy or grouped data a constant often wins. (B) Temporal regression whose
+  target is the sum of two columns A questioned before the lock: the single-column diagnostic
+  flagged one part (R2 0.915) but not the other (0.517), so evidence before exclusion kept it,
+  and together the two rebuild the target exactly. Single-column tests cannot see a composition.
+- **Platform constant reference (`robustness.constant_reference`, default on).** Platform code
+  scores, on the locked validation folds the trials use, the constant a featureless model learns
+  from each fold's training rows (median for MAE, mean for other regression metrics, class
+  shares and the majority label for classification), in process from the verified partition
+  lock; no trial slot, job or model call. C's context and the trial evidence check (C before
+  nominating, A at its final review) show it, with each trial's mean paired improvement, its
+  standard error and whether it beats the constant.
+- **The rule.** After the drain and before A's final review: when no validated trial beats the
+  constant by more than one paired standard error across folds (any strict improvement with a
+  single fold; exact ties never beat it), a constant trial goes to verification instead of C's
+  nomination: a trial that already scores the reference on every fold, else one the platform
+  submits from the dummy template (`config.strategy`) through the ordinary trial path, counted
+  against the trial cap and run limits, and run inside the finishing reserve so it can never
+  spend the wall clock or compute the final job needs. No room or a failed constant trial leaves
+  C's nomination. **Regression only:** for classification the reference is shown but never
+  substituted (a class-prior constant is not a useful classifier, and the imbalance cases'
+  unchanged grader requires strictly beating it). Deterministic from stored fold scores; recorded
+  as `constant_reference` and `constant_rule` policy decisions. A still reviews the chosen code (the trial
+  check names it as `platform_candidate`) and may still ask for the best validated trial.
+- **Target-composition evidence (`robustness.target_composition`, default on).** Where the
+  platform tests A's questioned columns after the lock (D-058), a regression target also gets a
+  joint test: an ordinary linear fit on the questioned numeric columns on the same locked
+  diagnostic rows; if it reaches R2 >= 0.99 on every held-out part, the smallest subset (up to
+  four columns, at most 200 fits) that does is flagged as target components, like an
+  above-threshold single-column result for exclusion evidence (cited by each column's own
+  diagnostic ID, counted by evidence before exclusion, shown at reconciliation; it does not feed
+  the too-good investigation's diagnostic fallback). 0.99 sits far above what correlated
+  legitimate inputs reach; the 0.85 / 0.90 single-column thresholds are unchanged. One
+  `target_composition` policy decision.
+- **Recording and stopping runs.** The three records are existing `policy_decision` events
+  (allow, no call ID, `key=<json>` reasons), the pattern of `user_request_context`: informational
+  platform facts, never `error` events, so a clean run records no error and stop tests that count
+  one error still see one. None of this work runs once the run is stopping (user cancel or any
+  fired limit except the trial cap's graceful finish).
+- **Prompts and spec.** `agent_c` v12 -> v13 replaces the false claim with when to nominate a
+  constant, for regression only; for classification the prompt, C's context and A's assignment
+  text say never to nominate a constant classifier but the best validated feature model,
+  stating honestly when it does not clearly beat the class prior (review of PR #82). Removing
+  the false claim is an unconditional bug fix, not behind the flag; only the
+  reference and the rule are. The dummy template reads `ctx.config["strategy"]` (default
+  unchanged).
+  `docs/PROJECT_SPEC.md` §8.3's mandatory-baseline line notes the platform reference.
+  `results/readiness/lock.json` regenerated.
+- **Frozen contracts and security.** No change to `hypora/core/schemas/`, `docs/schemas/`, the
+  MCP tool contract, event types (existing `policy_decision` events are reused), the trial
+  `fit`/`predict` interface, the sandbox, `hypora/core/policy/`, eval cases or graders. Only
+  aggregate scores reach a role; no label or row does. Scripted evidence only; no live run was
+  made. Notes: `docs/notes/controller-robustness.md` J and K.

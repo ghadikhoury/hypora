@@ -53,13 +53,15 @@
         "planning": "on",
         "retrieval_mode": "hybrid",
         "robustness": {
+          "constant_reference": "on",
           "evidence_before_exclusion": "on",
           "finish_reserve_compute_seconds": 60.0,
           "finish_reserve_seconds": 240.0,
           "finish_reserve_steps": 12,
           "lead_revision_rounds": 2,
           "max_diagnostics_per_session": 8,
-          "max_research_tool_calls": 16
+          "max_research_tool_calls": 16,
+          "target_composition": "on"
         }
       },
       "model_profile": "eval"
@@ -101,13 +103,15 @@
         "planning": "on",
         "retrieval_mode": "hybrid",
         "robustness": {
+          "constant_reference": "on",
           "evidence_before_exclusion": "on",
           "finish_reserve_compute_seconds": 60.0,
           "finish_reserve_seconds": 240.0,
           "finish_reserve_steps": 12,
           "lead_revision_rounds": 2,
           "max_diagnostics_per_session": 8,
-          "max_research_tool_calls": 16
+          "max_research_tool_calls": 16,
+          "target_composition": "on"
         }
       },
       "model_profile": "eval"
@@ -161,8 +165,8 @@
       "version": 3
     },
     "agent_c": {
-      "sha256": "d2790ab4afb73bf22bba2a4eecbd675638f24cbcc0fd74be45d4531a74bee80f",
-      "version": 12
+      "sha256": "c4131783d7b494e89e9d7b093bfe29289794d467cb19891c1ddded226593131a",
+      "version": 13
     },
     "agent_c_methodology": {
       "sha256": "6f9e20c29140ee751799c812461b2a6a6f420765f1aa9d0883ef840aed508081",

@@ -479,7 +479,7 @@ C proposes implementation breadth within A's approved experiment objectives and 
 | Genuinely uncertain | 2–3 candidates in parallel, explored cheaply first (8.4) + baseline |
 | User named a model | That model + baseline (+ reuse candidate if Research recommended reuse) |
 
-- **Mandatory baseline** in every Phase B: dummy/majority/mean predictor plus one simple model (linear/logistic for tabular, frozen-backbone linear head for vision, seasonal-naive for time series). Baselines are near-free and give every metric a reference.
+- **Mandatory baseline** in every Phase B: dummy/majority/mean predictor plus one simple model (linear/logistic for tabular, frozen-backbone linear head for vision, seasonal-naive for time series). Baselines are near-free and give every metric a reference. For tabular runs the platform itself scores the training-fold constant (median for MAE, mean otherwise, class prior) on the locked validation folds, shows it with the trial evidence, and for regression verifies a constant trial when no trial beats it by more than one paired standard error (D-060).
 - Every `TrialBatchProposal` must state C's **confidence**, the **justification for K**, and each trial's **estimated cost** (`estimate_experiment`). The controller rejects batches exceeding the approved budget.
 - Numeric hyperparameter search inside a trial uses Optuna or bounded random search, not LLM-invented combinations.
 - Config: `breadth_mode ∈ {adaptive, fixed_k}` for measuring compute savings.

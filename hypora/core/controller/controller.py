@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from importlib import resources
 from pathlib import Path
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
 
 import anyio
 import pandas as pd  # type: ignore[import-untyped]
@@ -54,6 +54,13 @@ from hypora.core.controller.code_review import (
     MAX_CODE_LINE_CHARS,
     MAX_CODE_LINES,
     build_code_excerpt,
+)
+from hypora.core.controller.constant_reference import (
+    FIRED,
+    ConstantReference,
+    constant_decision,
+    constant_reference,
+    fold_scores,
 )
 from hypora.core.controller.contract import (
     ContractError,
@@ -235,7 +242,12 @@ from hypora.mcp_server.server import _redact, summarize_result
 from hypora.mcp_server.session import load_session
 from hypora.mcp_server.tools import HyporaTools
 from hypora.mcp_server.trialfs import write_file
-from hypora.profiling.diagnostics import screen_candidates, single_column_screen
+from hypora.profiling.diagnostics import (
+    COMPOSITION_R2,
+    screen_candidates,
+    single_column_screen,
+    target_composition,
+)
 from hypora.profiling.integrity import ERROR_CODE as INTEGRITY_ERROR_CODE
 from hypora.profiling.integrity import (
     IntegrityFinding,
@@ -271,6 +283,9 @@ from hypora.storage.records import (
     upsert_trial,
 )
 
+if TYPE_CHECKING:
+    from hypora.execution.harness.partition import LockedPartition
+
 MAX_AGENT_TURNS: Final = 60
 """The single agent's own cap on model turns (a role limit, recorded like a run limit)."""
 POLL_SECONDS: Final = 1.0
@@ -284,6 +299,8 @@ predict the test split, load the frozen artifact, and one spare (D-047)."""
 FINAL_COMPUTE_MARGIN: Final = 1.1
 """Headroom on the final job's compute estimate (D-059); the stage bound already has a spare."""
 EXAMPLE_PIPELINE: Final = "linear/pipeline.py"
+CONSTANT_PIPELINE: Final = "dummy/pipeline.py"
+"""The template the platform's constant trial runs, with `config={"strategy": ...}` (D-060)."""
 _WORKER_NARRATIVE_FIELDS: Final = ("summary", "claims", "confidence", "open_questions")
 """TrialFinding fields a worker model authors; C receives them as untrusted worker text."""
 MAX_TRIAL_EVIDENCE_TRIALS: Final = 20
@@ -418,9 +435,44 @@ DEFERRED_CONCERN: Final = (
     "The platform locked the split as proposed and ran feature_predictiveness itself on those "
     "columns, on the locked diagnostic-only partition (platform facts): {results}\n"
     "A column is flagged when its single-column score reaches the platform's threshold "
-    "({thresholds}): it predicts the target almost by itself, which suggests leakage. {action}"
+    "({thresholds}): it predicts the target almost by itself, which suggests leakage.{composition} "
+    "{action}"
 )
 """What C and A see after the lock about A's deferred feature concern (D-058)."""
+COMPOSITION_SENTENCE: Final = (
+    " A column is also flagged, with target_component true, when the platform's joint test finds "
+    "that a small set of the questioned numeric columns reconstructs the target on the same rows "
+    "(an ordinary linear fit with R2 >= {threshold:g} on every held-out part, the smallest such "
+    "set): together those columns are the target, so each is evidence for its own exclusion even "
+    "when its single-column score is below the threshold."
+)
+"""Added to `DEFERRED_CONCERN` when the target-composition test is on (D-060)."""
+TARGET_COMPOSITION: Final = "target_composition"
+CONSTANT_REFERENCE: Final = "constant_reference"
+CONSTANT_RULE: Final = "constant_rule"
+"""D-060's platform decisions, each recorded as one `policy_decision` event (allow, no call ID)
+under this name with `key=<json>` reasons, as `user_request_context` is: informational
+platform facts, never `error` events, so a clean run records no error."""
+CONSTANT_CONTEXT: Final = (
+    "\nPlatform constant reference (platform fact, computed by code on the locked validation "
+    "folds): a constant prediction learned from each fold's training rows ({strategy}) scores a "
+    "mean {metric} of {mean} over {folds} fold(s). Small, noisy or grouped data can leave feature "
+    "models no better than this. You need not spend a trial measuring it. {rule}"
+)
+"""C's experiment-context line with the reference (D-060); `{rule}` is per task type."""
+CONSTANT_RULE_REGRESSION: Final = (
+    "For this regression task, if no trial beats it by more than one paired standard error "
+    "across folds, a feature model is not supported by the evidence: nominate a constant trial. "
+    "Otherwise the platform sends a constant trial to verification instead of your nomination, "
+    "but only while a trial slot and the run's limits remain, so if the reference looks "
+    "competitive and slots are scarce, run the constant trial yourself."
+)
+CONSTANT_RULE_CLASSIFICATION: Final = (
+    "For this classification task the reference is context only: never nominate a constant "
+    "classifier (it predicts one class and is not a useful model), and the platform does not "
+    "substitute one. Nominate the best validated feature model, and say plainly when it does "
+    "not clearly beat the class-prior reference."
+)
 DEFERRED_ACTION_C: Final = (
     "You may exclude a column by citing its diagnostic_id above as evidence; do not run these "
     "diagnostics again. Keep a column that is not flagged unless you have other evidence or the "
@@ -440,7 +492,13 @@ TRIAL_CHECK_NOTE: Final = (
     "unresolved_column_code lists what the reading could not resolve). The contract's allowed "
     "features were already reviewed: dropping one needs diagnostic evidence, and a nomination "
     "clearly worse on the primary metric than the best validated trial needs an explicit, "
-    "evidence-based reason."
+    "evidence-based reason. When present, constant_reference is the score of a constant learned "
+    "from each fold's training rows on the same folds, and each trial's vs_constant_reference "
+    "gives its mean paired improvement over it (positive is better), the standard error of "
+    "that improvement, and whether it beats the constant by more than that standard error. For a "
+    "regression task where no trial does, the platform sends a constant trial to verification "
+    "(platform_candidate names it): a feature trial that does not beat the constant by more than "
+    "that standard error is not clearly better than it."
 )
 """Heading of the trial evidence check shown to C before nomination and to A (D-058)."""
 NOMINATION_CHECK: Final = (
@@ -938,6 +996,11 @@ class _Run:
         """A's pre-lock concern about these feature columns only, carried past the lock (D-058)."""
         self.deferred_results: str = ""
         """The platform's diagnostics on `deferred_columns` after the lock, as shown (D-058)."""
+        self.composition_flags: dict[str, str] = {}
+        """Deferred columns the joint target-composition test flags, each with the ID of its own
+        recorded feature_predictiveness diagnostic (the evidence an exclusion cites, D-060)."""
+        self._constant_refs: dict[int, ConstantReference | None] = {}
+        """The platform's constant reference per contract version, computed once each (D-060)."""
 
     # --- the run ----------------------------------------------------------------------------------
 
@@ -1072,12 +1135,28 @@ class _Run:
         """Evidence before exclusion (D-056): only with no user present, and the flag on."""
         return self._no_user and self._robustness.evidence_before_exclusion is Toggle.ON
 
+    @property
+    def _constant_on(self) -> bool:
+        """The platform constant reference and its rule (D-060)."""
+        return self._robustness.constant_reference is Toggle.ON
+
+    @property
+    def _composition_on(self) -> bool:
+        """The joint target-composition test on A's questioned columns (D-060)."""
+        return self._robustness.target_composition is Toggle.ON
+
     def _flagged(self) -> dict[str, str]:
-        """Each column an extreme locked-split diagnostic of this run flags, with its ID."""
+        """Each column an extreme locked-split diagnostic of this run flags, with its ID.
+
+        A column the joint target-composition test flags (D-060) counts the same way, cited by
+        its own recorded feature_predictiveness diagnostic."""
         events = EventLog(self.database).read(
             self.run_id, EventFilters(types=(EventType.TOOL_RESULT,))
         )
-        return flagged_columns([e.payload for e in events if isinstance(e, ToolResultEvent)])
+        flagged = flagged_columns([e.payload for e in events if isinstance(e, ToolResultEvent)])
+        for column, ref in self.composition_flags.items():
+            flagged.setdefault(column, ref)
+        return dict(sorted(flagged.items()))
 
     def _user_request_block(self) -> str:
         """The user's own request for a role prompt after intake, screened once (D-058).
@@ -1543,10 +1622,25 @@ class _Run:
             "kinds of models to try and what to compare. For small trial budgets"
             + budget_note
             + ", ask C to start from a real feature-based linear baseline (regularized linear or "
-            "logistic regression) rather than spending a trial slot on a zero-feature "
-            "constant/dummy predictor, and compare it against two strong diverse model families "
+            "logistic regression) and compare it against two strong diverse model families "
             "(about 3 focused trials total when max_trials <= 4, keeping room for any automated "
-            "follow-up comparison check). The approved contract already fixes the "
+            "follow-up comparison check)."
+            + (
+                " C need not spend a trial slot on a constant/dummy predictor only to measure "
+                "it: the platform scores a training-fold constant on the same locked folds and "
+                "shows it with the trial evidence. A constant can beat feature models on small, "
+                "noisy or grouped data. For a regression task, when no trial beats it by more "
+                "than one paired standard error, a constant trial is the supported choice (the "
+                "platform sends one to verification while a trial slot and the run's limits "
+                "remain). For a classification task the reference is context only: a constant "
+                "classifier is never the choice; C nominates the best validated feature model and "
+                "reports honestly when it does not clearly beat the class prior."
+                if self._constant_on
+                else " For a regression task, a zero-feature constant/dummy predictor can beat "
+                "feature models on small, noisy or grouped data; ask C to include one when that "
+                "seems likely."
+            )
+            + " The approved contract already fixes the "
             "split, the validation scheme, the metric and every compute limit, and C runs all "
             "trials in the platform's local sandbox; do not restate or change those."
             + (
@@ -2096,7 +2190,7 @@ class _Run:
         deferred_feedback: str | None = None
         if self.deferred_columns:
             # A's pre-lock feature concern (D-058): the evidence it needed now exists.
-            evidence.update(self._platform_diagnostics(spec))
+            evidence.update(self._platform_diagnostics(spec, locked))
             deferred_feedback = self._deferred_text(DEFERRED_ACTION_C)
             revised, more_evidence = await self._propose_methodology(
                 spec, profile, previous=draft, prior_evidence=evidence, feedback=deferred_feedback
@@ -2390,8 +2484,14 @@ class _Run:
             return None
         return columns
 
-    def _platform_diagnostics(self, spec: TaskSpecification) -> dict[str, tuple[str, str]]:
+    def _platform_diagnostics(
+        self, spec: TaskSpecification, locked: "LockedPartition | None" = None
+    ) -> dict[str, tuple[str, str]]:
         """Run `feature_predictiveness` on A's deferred columns after the lock (D-058).
+
+        With `robustness.target_composition` on and a regression target, the joint
+        target-composition test then runs on the same locked diagnostic-only rows (`_composition`,
+        D-060), and the columns it flags are shown and counted as flagged too.
 
         The platform calls the MCP tool's own implementation in-process (`HyporaTools`, as the
         fixed-pipeline baseline does) on a controller session, so the diagnostic, its partition
@@ -2504,6 +2604,13 @@ class _Run:
                 )
         finally:
             session.close()
+        if (
+            self._composition_on
+            and spec.task_type is TaskType.REGRESSION
+            and locked is not None
+            and not self._stopping()
+        ):
+            self._composition(spec.target, locked, facts)
         self.deferred_results = json.dumps(facts)
         flagged_names = [f["column"] for f in facts if f.get("flagged")]
         self.notes.append(
@@ -2514,6 +2621,70 @@ class _Run:
         )
         return found
 
+    def _composition(
+        self, target: str, locked: "LockedPartition", facts: list[dict[str, Any]]
+    ) -> None:
+        """The joint target-composition test on A's questioned columns (D-060). Platform code.
+
+        Live run S4.2j verify3, temporal case: the target was the sum of two questioned columns;
+        one scored above the single-column threshold, the other (R2 0.52) did not, so it stayed a
+        feature and with it the model could rebuild the target. This fits an ordinary linear model
+        of the target on the questioned numeric columns that have a recorded diagnostic, on the
+        same locked diagnostic-only rows (`hypora.profiling.diagnostics.target_composition`), and
+        flags the smallest set that reaches `COMPOSITION_R2` on every held-out part. Each flagged
+        column's fact gets `flagged` and `target_component`; `composition_flags` maps it to its own
+        diagnostic ID, so an exclusion cites that evidence and `_flagged` counts it. Bounded by
+        the primitive's fit cap; recorded as one `TARGET_COMPOSITION` event of names and scores.
+        A failure flags nothing and is recorded as unavailable."""
+        ids = {f["column"]: f["diagnostic_id"] for f in facts if f.get("diagnostic_id")}
+        columns = [column for column in self.deferred_columns if column in ids]
+        details: dict[str, JsonValue] = {"columns": list(columns)}
+        try:
+            rows = locked.prepared.frame.iloc[locked.diagnostic]
+            outcome = target_composition(rows, columns, target)
+        except Exception:  # facts only: a failed test flags nothing
+            outcome = None
+        if outcome is None or outcome.unavailable is not None:
+            details.update(
+                {
+                    "outcome": "unavailable",
+                    "reason": outcome.unavailable if outcome else "the test could not be computed",
+                }
+            )
+            flagged: list[str] = []
+        else:
+            flagged = list(outcome.subset)
+            details.update(
+                {
+                    "outcome": "flagged" if flagged else "not_flagged",
+                    "tested": list(outcome.tested),
+                    "joint_r2": _rounded(outcome.joint_r2),
+                    "subset": list(outcome.subset),
+                    "subset_r2": _rounded(outcome.subset_r2),
+                    "threshold": outcome.threshold,
+                    "fits": outcome.fits,
+                    "truncated": outcome.truncated,
+                }
+            )
+        for fact in facts:
+            if fact.get("column") in flagged:
+                fact["flagged"] = True
+                fact["target_component"] = True
+                fact["composition"] = {
+                    "columns": flagged,
+                    "joint_r2": details.get("subset_r2"),
+                }
+                self.composition_flags[fact["column"]] = ids[fact["column"]]
+        self._platform_decision(TARGET_COMPOSITION, details)
+        if flagged:
+            self.notes.append(
+                "The platform's joint target-composition test found that "
+                + ", ".join(flagged)
+                + f" together reconstruct the target (linear R2 >= {COMPOSITION_R2:g} on every "
+                "held-out part of the locked diagnostic rows); each is flagged as a target "
+                "component."
+            )
+
     def _deferred_text(self, action: str) -> str:
         """A's deferred feature concern and the platform's diagnostics, for C or A (D-058)."""
         return DEFERRED_CONCERN.format(
@@ -2523,6 +2694,9 @@ class _Run:
             thresholds=", ".join(
                 f"{metric} >= {value:g}" for metric, value in DIAGNOSTIC_TRIGGER_THRESHOLDS.items()
             ),
+            composition=COMPOSITION_SENTENCE.format(threshold=COMPOSITION_R2)
+            if self._composition_on
+            else "",
             action=action,
         )
 
@@ -2749,6 +2923,11 @@ class _Run:
                 grace=self._robustness.finish_reserve_seconds if finishing else None,
             )
         nominated = outcome.final.final_trial_id if outcome.final else None
+        c_nominated = nominated
+        if self._constant_on and not cancel and not self._stopping():
+            # D-060: before A's final review, so A reviews the trial that would be verified.
+            # Skipped when the run is stopping (cancel, a fired limit): no extra work then.
+            nominated = await self._constant_rule(contract, nominated)
         if self._multi and not await self._lead_decision(
             "Review C's completed work and decide whether to continue to independent final "
             "verification, or report. The platform remains responsible for verification; "
@@ -2756,7 +2935,7 @@ class _Run:
             f"{FINAL_REVIEW_CONTEXT}{FINAL_SELECTION_NOTE} "
             f"C output: {outcome.final.model_dump_json() if outcome.final else 'unavailable'}. "
             f"Platform evidence: {self._trial_evidence()}. "
-            f"Trial evidence check: {self._trial_check(contract, nominated)}. "
+            f"Trial evidence check: {self._trial_check(contract, c_nominated, nominated)}. "
             f"Candidate code (untrusted, screened): {self._code_evidence(contract, nominated)}. "
             f"Run notes: {self.notes}",
             lead_schema=LeadFinalReviewAction,
@@ -2793,7 +2972,11 @@ class _Run:
         if selection.trial_id is None or selection.source_job_id is None:
             self.notes.append(f"No final model: {selection.reason}.")
             return
-        self.notes.append(f"Final candidate {selection.trial_id}: {selection.reason}.")
+        reason = selection.reason
+        if nominated is not None and nominated != c_nominated and selection.trial_id == nominated:
+            # The nomination came from the constant-reference rule, not from C (D-060).
+            reason = "substituted by the platform's constant-reference rule"
+        self.notes.append(f"Final candidate {selection.trial_id}: {reason}.")
         trial_id, source_job_id = selection.trial_id, selection.source_job_id
         if self._leakage_on:
             trial_id, source_job_id, contract = await self._too_good_check(
@@ -2967,6 +3150,7 @@ class _Run:
                                 f"(the platform keeps about {kept:.0f} s for the final job, more "
                                 "if your jobs are slow; every fold's fit counts)."
                             )
+                        context += self._constant_context(contract)
                         outcome = await run_single_agent(
                             c.adapter,
                             self.guard,
@@ -4442,7 +4626,257 @@ class _Run:
                 return text
             facts.pop()
 
-    def _trial_check(self, contract: ExperimentContract, nominated: str | None) -> str:
+    # --- the platform constant reference (D-060) --------------------------------------------------
+
+    def _constant_reference(self, contract: ExperimentContract) -> ConstantReference | None:
+        """The training-fold constant's primary-metric score on each locked validation fold.
+
+        Platform code, in process, on the verified partition lock (as the too-good screen reads
+        it): no trial, no sandbox job, no model call. Computed once per contract version and
+        recorded as one `constant_reference` policy decision of scores only. None when the flag
+        is off, the run is stopping (`_stopping`, nothing computed or recorded), or the reference
+        cannot be computed (recorded as unavailable)."""
+        if not self._constant_on:
+            return None
+        if contract.version in self._constant_refs:
+            return self._constant_refs[contract.version]
+        if self._stopping():
+            return None
+        from hypora.execution.harness.partition import load_verified_partition
+
+        reference: ConstantReference | None = None
+        try:
+            locked = load_verified_partition(
+                load_tabular(self.dataset),
+                contract,
+                self.dataset_fingerprint,
+                self.run_dir / "partition-lock.json",
+            )
+            reference = constant_reference(
+                locked.prepared.target,
+                locked.prepared.folds,
+                contract.task_type,
+                contract.primary_metric,
+            )
+        except Exception:  # facts only: no reference rather than a failed run
+            reference = None
+        if reference is not None and not reference.available:
+            reference = None
+        self._constant_refs[contract.version] = reference
+        details: dict[str, JsonValue] = {
+            "contract_version": contract.version,
+            "metric": contract.primary_metric.value,
+        }
+        if reference is None:
+            details["outcome"] = "unavailable"
+        else:
+            details.update(
+                {
+                    "outcome": "computed",
+                    "strategy": reference.strategy,
+                    "fold_scores": [_rounded(v) for v in reference.fold_scores],
+                    "mean": _rounded(reference.mean),
+                }
+            )
+        self._platform_decision(CONSTANT_REFERENCE, details)
+        return reference
+
+    def _stopping(self) -> bool:
+        """Whether the run is stopping: a user cancel or any run limit fired (the trial cap alone
+        is a graceful finish, D-056). D-060's platform work is skipped then (no reference, no
+        rule, no composition test), so a stopping run does no extra work and records nothing."""
+        return any(limit != Limit.MAX_TRIALS.value for limit in self.guard.fired)
+
+    def _platform_decision(self, name: str, details: dict[str, JsonValue]) -> None:
+        """Record one of D-060's informational platform decisions (module constants)."""
+        self._event(
+            EventType.POLICY_DECISION,
+            PolicyDecisionPayload(
+                tool=name,
+                decision=PolicyOutcome.ALLOW,
+                reasons=[
+                    f"{key}={json.dumps(value, sort_keys=True, separators=(',', ':'))}"
+                    for key, value in details.items()
+                ],
+            ),
+        )
+
+    def _constant_context(self, contract: ExperimentContract) -> str:
+        """C's (or the single agent's) context line with the constant reference, or nothing."""
+        reference = self._constant_reference(contract)
+        if reference is None or reference.mean is None:
+            return ""
+        return CONSTANT_CONTEXT.format(
+            strategy=_strategy_words(reference.strategy),
+            metric=reference.metric.value,
+            mean=f"{reference.mean:.6g}",
+            folds=len(reference.available),
+            rule=CONSTANT_RULE_REGRESSION
+            if contract.task_type is TaskType.REGRESSION
+            else CONSTANT_RULE_CLASSIFICATION,
+        )
+
+    def _validated_folds(self, metric: MetricName) -> dict[str, list[float | None]]:
+        """Per trial with a completed job and a stored validation result: its fold scores.
+
+        The scores are paired with the reference by fold position. That is sound because every
+        Phase B job runs under the one experiment contract, whose verified partition lock fixes
+        the fold rows; a future path that validated trials under another contract version (with
+        other folds) would have to filter by contract version first."""
+        completed = {
+            job.trial_id
+            for job in run_jobs(self.database, self.run_id)
+            if job.status is JobState.COMPLETED
+        }
+        found: dict[str, list[float | None]] = {}
+        for trial_id in sorted(completed):
+            result = load_result(self.database, trial_id, "validation")
+            scores = fold_scores(result.metrics if result else None, metric)
+            if any(value is not None for value in scores):
+                found[trial_id] = scores
+        return found
+
+    async def _constant_rule(
+        self, contract: ExperimentContract, nominated: str | None
+    ) -> str | None:
+        """Send a constant trial to verification when no trial beats the constant (D-060).
+
+        Deterministic platform code after the drain, before A's final review, so A reviews what
+        would be verified. `constant_decision` decides from stored fold scores only. When it
+        fires, the nomination becomes a trial that already scores the reference on every fold
+        (C's own nomination first), or else a constant trial the platform submits: the dummy
+        template with the reference's strategy, through the ordinary trial path, counted against
+        the trial cap and every run limit like the leakage comparison trial. With no room, or if
+        that trial fails, C's nomination stands and a note says why. One `CONSTANT_RULE` event
+        records the decision and what was done. Returns the nomination to use."""
+        reference = self._constant_reference(contract)
+        decision = constant_decision(
+            self._validated_folds(contract.primary_metric), reference, nominated
+        )
+        chosen, action = nominated, "none"
+        extra: dict[str, JsonValue] = {}
+        if decision.outcome == FIRED and contract.task_type is not TaskType.REGRESSION:
+            # Classification: the reference is shown to C and A, but the platform does not
+            # substitute a constant (a class-prior constant is never a useful classifier, and
+            # the imbalance cases require beating it); A and C weigh the evidence themselves.
+            action = "shown_only_classification"
+        elif decision.outcome == FIRED:
+            assert reference is not None
+            words = _strategy_words(reference.strategy)
+            lead = (
+                f"Platform constant-reference rule: no validated trial beat the training-fold "
+                f"constant ({words}; mean validation {reference.metric.value} "
+                f"{reference.mean:.6g}) by more than one paired standard error across folds"
+            )
+            if decision.matching_trial is not None:
+                chosen, action = decision.matching_trial, "existing_constant_trial"
+                self.notes.append(
+                    f"{lead}; trial {chosen} already predicts that constant, so it is the "
+                    "candidate for verification"
+                    + (f" instead of {nominated}." if nominated not in (None, chosen) else ".")
+                )
+            else:
+                action, chosen, extra = await self._constant_trial(contract, reference, nominated)
+                if action == "constant_trial_validated":
+                    self.notes.append(
+                        f"{lead}; the platform validated constant trial {chosen} on the same "
+                        "folds and it is the candidate for verification"
+                        + (f" instead of {nominated}." if nominated is not None else ".")
+                    )
+                else:
+                    self.notes.append(f"{lead}; {extra.get('reason')}, so the nomination stands.")
+        details: dict[str, JsonValue] = {
+            "outcome": decision.outcome,
+            "metric": contract.primary_metric.value,
+            "reference_mean": _rounded(reference.mean) if reference is not None else None,
+            "nominated": nominated,
+            "chosen": chosen,
+            "action": action,
+            "beaten_by": list(decision.beaten_by),
+            "comparisons": {
+                trial_id: {
+                    "paired_folds": c.paired_folds,
+                    "mean_improvement": _rounded(c.mean_improvement),
+                    "paired_se": _rounded(c.paired_se),
+                    "beats": c.beats,
+                    "matches": c.matches,
+                }
+                for trial_id, c in list(decision.comparisons.items())[:MAX_TRIAL_CHECK_TRIALS]
+            },
+            **extra,
+        }
+        self._platform_decision(CONSTANT_RULE, details)
+        return chosen
+
+    async def _constant_trial(
+        self, contract: ExperimentContract, reference: ConstantReference, nominated: str | None
+    ) -> tuple[str, str | None, dict[str, JsonValue]]:
+        """Submit and await the platform's constant trial; (action, nomination, event details).
+
+        The trial runs inside the finishing reserve (`guard.exploration`), like C's own
+        exploration: it may not start, and is cancelled, once it would spend the wall clock or
+        sandbox compute kept back for the final job, so C's nomination can still be verified."""
+        room = self._comparison_room()
+        if room is not None:
+            return "no_room", nominated, {"reason": f"no constant trial was run: {room}"}
+        source = self._constant_source(nominated)
+        if source is None:
+            return "no_room", nominated, {"reason": "no validated job to take the request from"}
+        with self.guard.exploration(
+            steps=0,
+            seconds=self._robustness.finish_reserve_seconds,
+            compute=lambda: self._final_compute_reserve(contract),
+        ):
+            try:
+                self.guard.sync_compute()
+                self.guard.before_job()
+            except RunLimitReached as reached:
+                return "no_room", nominated, {"reason": f"no constant trial was run: {reached}"}
+            self._recheck_approval(contract, "before the constant reference trial")
+            trial_id, job_id = submit_constant_trial(
+                self.database,
+                self.queue,
+                self.controller.runs_root,
+                self.run_id,
+                source,
+                contract,
+                reference.strategy,
+            )
+            try:
+                status = await self._await_job(
+                    job_id, self._job_timeout(contract), "constant trial"
+                )
+            except RunLimitReached as reached:  # pragma: no cover - _await_job cancels instead
+                status = JobState.CANCELLED
+                self.notes.append(f"Stopped the constant trial: {reached}.")
+        self.guard.sync_compute()
+        details: dict[str, JsonValue] = {
+            "constant_trial": trial_id,
+            "constant_job": job_id,
+            "job_status": status.value,
+        }
+        result = load_result(self.database, trial_id, "validation")
+        mean = metric_summary(result.metrics, contract.primary_metric).mean if result else None
+        if status is not JobState.COMPLETED or mean is None:
+            details["reason"] = f"the platform's constant trial {trial_id} ended {status.value}"
+            return "constant_trial_failed", nominated, details
+        details["constant_trial_mean"] = _rounded(mean)
+        return "constant_trial_validated", trial_id, details
+
+    def _constant_source(self, nominated: str | None) -> str | None:
+        """A completed job whose request the constant trial reuses (dataset, limits, approval):
+        C's nomination's latest one, else the run's latest completed job of a C trial."""
+        latest: dict[str, str] = {}
+        for job in run_jobs(self.database, self.run_id):  # oldest first: the last one wins
+            if job.status is JobState.COMPLETED:
+                latest[job.trial_id] = job.job_id
+        if nominated in latest:
+            return latest[nominated]
+        return next(reversed(latest.values()), None)
+
+    def _trial_check(
+        self, contract: ExperimentContract, nominated: str | None, candidate: str | None = None
+    ) -> str:
         """The trial evidence check (D-058): platform facts for C's nomination and A's review.
 
         For every trial with a completed job and a stored validation score: its rank by the
@@ -4453,15 +4887,19 @@ class _Run:
         this run flags. Always valid JSON within `MAX_TRIAL_CHECK_CHARS`: trials are left out
         whole from the bottom of the ranking and counted. Nothing here chooses a trial. Facts
         only: if they cannot be computed, the check says so instead of failing the run.
+        `candidate`, when it differs from C's nomination, is the constant trial the platform's
+        rule chose (D-060), shown as `platform_candidate`.
         """
         try:
-            return self._trial_check_facts(contract, nominated)
+            return self._trial_check_facts(contract, nominated, candidate)
         except Exception:
             return json.dumps(
                 {"note": TRIAL_CHECK_NOTE, "unavailable": "the check could not be computed"}
             )
 
-    def _trial_check_facts(self, contract: ExperimentContract, nominated: str | None) -> str:
+    def _trial_check_facts(
+        self, contract: ExperimentContract, nominated: str | None, candidate: str | None = None
+    ) -> str:
         metric = contract.primary_metric
         reported = list(dict.fromkeys([metric, *contract.secondary_metrics]))
         allowed = list(contract.data_contract.allowed_features)
@@ -4473,6 +4911,12 @@ class _Run:
             flagged = self._flagged()
         except Exception:  # facts only: a failed read shows no flag rather than failing the run
             flagged = {}
+        reference = self._constant_reference(contract)
+        comparisons = (
+            constant_decision(self._validated_folds(metric), reference, nominated).comparisons
+            if reference is not None
+            else {}
+        )
         rows: list[tuple[float, dict[str, Any]]] = []
         for trial_id, job_id in sorted(latest.items()):
             result = load_result(self.database, trial_id, "validation")
@@ -4488,6 +4932,13 @@ class _Run:
                 },
             }
             row.update(self._pipeline_use(job_id, allowed, flagged))
+            if trial_id in comparisons and comparisons[trial_id].paired_folds:
+                compared = comparisons[trial_id]
+                row["vs_constant_reference"] = {
+                    "mean_improvement": _rounded(compared.mean_improvement),
+                    "paired_se": _rounded(compared.paired_se),
+                    "beats_reference": compared.beats,
+                }
             if nominated is not None:
                 row["nominated_by_c"] = trial_id == nominated
             rows.append((summary.mean, row))
@@ -4505,6 +4956,22 @@ class _Run:
                     "primary_metric": metric.value,
                     "direction": metric.direction.value,
                     "contract_allowed_features": len(allowed),
+                    **(
+                        {
+                            "constant_reference": {
+                                "strategy": reference.strategy,
+                                "mean": _rounded(reference.mean),
+                                "folds": len(reference.available),
+                            }
+                        }
+                        if reference is not None
+                        else {}
+                    ),
+                    **(
+                        {"platform_candidate": candidate}
+                        if candidate is not None and candidate != nominated
+                        else {}
+                    ),
                     "trials": facts,
                     "omitted": len(rows) - len(facts),
                 }
@@ -4952,6 +5419,115 @@ def submit_comparison_trial(
                 name: hashlib.sha256(content).hexdigest() for name, content in snapshot.items()
             },
             withheld_columns=list(withheld),
+        ),
+        snapshot,
+    )
+    queued = queue.enqueue(
+        trial_id=new_id,
+        operation=Operation.FIT,
+        limits=request.limits,
+        idempotency_key=key,
+        approval_ref=request.approval_ref,
+        initiator="controller",
+        actor_role=ActorRole.CONTROLLER,
+        job_id=job_id,
+    )
+    if queued != job_id:
+        raise FinalJobConflict(new_id)
+    set_trial_status(database, new_id, "submitted")
+    return new_id, job_id
+
+
+def _strategy_words(strategy: str) -> str:
+    """How a constant's strategy reads in a note or prompt."""
+    return {
+        "median": "the training rows' median",
+        "mean": "the training rows' mean",
+        "prior": "the training class shares, most frequent class as the label",
+    }.get(strategy, strategy)
+
+
+def submit_constant_trial(
+    database: Database,
+    queue: JobQueue,
+    runs_root: Path,
+    run_id: str,
+    source_job_id: str,
+    contract: ExperimentContract,
+    strategy: str,
+) -> tuple[str, str]:
+    """Create and queue the platform's constant trial (D-060): the repository's dummy template
+    with `config={"strategy": strategy}`, run through the ordinary trial path.
+
+    The trial is a new `baseline` of the run (it counts against the trial cap). Its job request
+    is a completed job's request (dataset, limits) under the current contract and approval, a
+    new trial ID and a reserved key; the harness scores it on the same locked folds, so it
+    reproduces the platform's constant reference. Nothing is withheld: a constant reads no
+    feature.
+    """
+    source = protocol.job_dir(runs_root, run_id, source_job_id)
+    original = protocol.read_request(source)
+    for _ in range(20):
+        new_id = f"trl_{secrets.token_hex(4)}"
+        try:
+            load_trial(database, new_id)
+        except RecordNotFound:
+            break
+    else:  # pragma: no cover - 20 collisions of 32 random bits
+        raise RuntimeError("could not allocate a constant trial ID")
+    config: dict[str, JsonValue] = {"strategy": strategy}
+    trial = TrialFile.model_validate(
+        {
+            "trial_id": new_id,
+            "kind": TrialKind.BASELINE.value,
+            "operation": Operation.FIT.value,
+            "hypothesis": (
+                "Platform constant reference: no validated trial beat a constant learned from "
+                f"each fold's training rows ({_strategy_words(strategy)})"
+            ),
+            "model_family": "dummy",
+            "config": config,
+            "expected_effect": "the platform's constant reference score on the locked folds",
+            "estimated_cost": {"compute_seconds": 5},
+        }
+    )
+    pipeline = (
+        resources.files("hypora.execution.templates.tabular")
+        .joinpath(CONSTANT_PIPELINE)
+        .read_bytes()
+    )
+    snapshot = {
+        "trial.yaml": yaml.safe_dump(trial.model_dump(mode="json"), sort_keys=False).encode(),
+        "pipeline.py": pipeline,
+    }
+    parts = (run_id, "trials", new_id)
+    for name, content in snapshot.items():
+        write_file(runs_root, parts, name, content)
+    upsert_trial(database, run_id, trial, TRIAL_DIR_TEMPLATE.format(run_id=run_id, trial_id=new_id))
+    key = f"{run_id}:platform_constant_{new_id}"
+    request = SubmitExperimentRequest.model_validate(
+        {
+            **original.request.model_dump(mode="json"),
+            "trial_id": new_id,
+            "operation": Operation.FIT.value,
+            "model_ref": None,
+            "config": config,
+            "contract_version": contract.version,
+            "approval_ref": contract.approval_id,
+            "idempotency_key": key,
+        }
+    )
+    job_id = new_job_id()
+    protocol.publish_job(
+        protocol.job_dir(runs_root, run_id, job_id),
+        protocol.ExperimentRequest(
+            request=request,
+            dataset_id=original.dataset_id,
+            dataset_path=original.dataset_path,
+            dataset_sha256=original.dataset_sha256,
+            trial_files={
+                name: hashlib.sha256(content).hexdigest() for name, content in snapshot.items()
+            },
         ),
         snapshot,
     )
