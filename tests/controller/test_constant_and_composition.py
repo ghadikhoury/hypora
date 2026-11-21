@@ -22,12 +22,14 @@ from hypora.core.controller.controller import (
     RunRequest,
 )
 from hypora.core.llm.providers.fake import json_result
+from hypora.core.schemas.events import ErrorEvent, PolicyDecisionEvent
 from hypora.storage.database import Database
+from hypora.storage.events import EventLog
 from hypora.storage.records import list_trials, load_experiment_contract
 from tests.controller import scripted_sandbox
 from tests.controller.conftest import ControllerFactory, NoWorker
 from tests.controller.test_request_context import DUMMY, PLATFORM_FACTS, EvidenceC, TrialsWithBest
-from tests.controller.test_robustness import CONTINUE, PRE_LOCK, RECONCILE, _errors, _report
+from tests.controller.test_robustness import CONTINUE, PRE_LOCK, RECONCILE, _report
 
 pytestmark = pytest.mark.anyio
 HANG_GUARD = 300
@@ -87,6 +89,17 @@ async def _run(
         )
 
 
+def _decisions(database: Database, run_id: str, name: str) -> list[Any]:
+    """D-060's platform decisions named `name`, each as its `key=<json>` reasons."""
+    found = []
+    for event in EventLog(database).read(run_id):
+        if isinstance(event, PolicyDecisionEvent) and event.payload.tool == name:
+            assert event.payload.decision.value == "allow" and event.payload.call_id is None
+            pairs = (reason.split("=", 1) for reason in event.payload.reasons)
+            found.append({key: json.loads(value) for key, value in pairs})
+    return found
+
+
 def _final_candidate(notes: list[str]) -> str:
     (note,) = [n for n in notes if n.startswith("Final candidate ")]
     return note.split()[2].rstrip(":")
@@ -116,9 +129,9 @@ async def test_classification_shows_the_reference_but_never_substitutes_a_consta
     assert "Platform constant reference (platform fact" in experiment[0].messages[1].content
     (final_request,) = [r for r in script.requests if r.output_schema_name == "FinalAnswer"]
     assert '"constant_reference": {"strategy": "prior"' in final_request.messages[-1].content
-    (reference,) = _errors(database, run_id, CONSTANT_REFERENCE)
-    assert reference.payload.details["outcome"] == "computed"
-    assert reference.payload.details["mean"] == pytest.approx(0.5)
+    (reference,) = _decisions(database, run_id, CONSTANT_REFERENCE)
+    assert reference["outcome"] == "computed"
+    assert reference["mean"] == pytest.approx(0.5)
 
     # Classification: the reference is context only; C is never told to nominate a constant.
     c_context = experiment[0].messages[1].content
@@ -133,8 +146,7 @@ async def test_classification_shows_the_reference_but_never_substitutes_a_consta
     ]
     assert a_assignment and "a constant classifier is never the choice" in a_assignment[0]
 
-    (rule,) = _errors(database, run_id, CONSTANT_RULE)
-    details: Any = rule.payload.details
+    (details,) = _decisions(database, run_id, CONSTANT_RULE)
     assert details["outcome"] == "fired" and details["action"] == "shown_only_classification"
     assert all(not c["beats"] for c in details["comparisons"].values())
     assert details["chosen"] == details["nominated"]
@@ -228,11 +240,10 @@ async def test_regression_no_trial_beats_the_constant_so_the_platform_validates_
     assert "only while a trial slot" in context
     assert "For this regression task" in context and "nominate a constant trial" in context
     assert "never nominate a constant classifier" not in context
-    (reference,) = _errors(database, run_id, CONSTANT_REFERENCE)
-    assert reference.payload.details["strategy"] == "median"
+    (reference,) = _decisions(database, run_id, CONSTANT_REFERENCE)
+    assert reference["strategy"] == "median"
 
-    (rule,) = _errors(database, run_id, CONSTANT_RULE)
-    details: Any = rule.payload.details
+    (details,) = _decisions(database, run_id, CONSTANT_RULE)
     assert details["outcome"] == "fired" and details["action"] == "constant_trial_validated"
     constant = details["constant_trial"]
     assert details["chosen"] == constant and details["nominated"] != constant
@@ -271,8 +282,7 @@ async def test_regression_an_existing_median_trial_is_selected_without_a_new_tri
     run_id = "run_constant_existing"
     script = RegressionTrials(run_id, pipeline_py=TRAINING_MEDIAN, candidate_py=TRAINING_MAX)
     result = await _run(make_controller, run_config, noisy, run_id, script)
-    (rule,) = _errors(database, run_id, CONSTANT_RULE)
-    details: Any = rule.payload.details
+    (details,) = _decisions(database, run_id, CONSTANT_RULE)
     assert details["outcome"] == "fired" and details["action"] == "existing_constant_trial"
     assert details["chosen"] != details["nominated"]
     assert details["comparisons"][details["chosen"]]["matches"] is True
@@ -292,8 +302,7 @@ async def test_regression_without_a_trial_slot_the_nomination_stands(
     script = RegressionTrials(run_id, pipeline_py=DUMMY, candidate_py=TRAINING_MAX)
     budget = run_config.budgets.run.model_copy(update={"max_trials": 2})
     result = await _run(make_controller, run_config, noisy, run_id, script, budget=budget)
-    (rule,) = _errors(database, run_id, CONSTANT_RULE)
-    details: Any = rule.payload.details
+    (details,) = _decisions(database, run_id, CONSTANT_RULE)
     assert details["outcome"] == "fired" and details["action"] == "no_room"
     assert "trial limit" in str(details["reason"])
     assert details["chosen"] == details["nominated"]
@@ -314,9 +323,10 @@ async def test_a_trial_that_beats_the_constant_keeps_cs_nomination(
     run_id = "run_constant_beaten"
     script = TrialsWithBest(run_id, pipeline_py=LINEAR)
     result = await _run(make_controller, run_config, dataset, run_id, script)
-    (rule,) = _errors(database, run_id, CONSTANT_RULE)
-    details: Any = rule.payload.details
+    (details,) = _decisions(database, run_id, CONSTANT_RULE)
     assert details["outcome"] == "beaten" and details["action"] == "none"
+    # Informational platform decisions are never `error` events: this clean run records none.
+    assert not any(isinstance(e, ErrorEvent) for e in EventLog(database).read(run_id))
     assert details["chosen"] == details["nominated"] and details["beaten_by"]
     assert len(list_trials(database, run_id)) == 2
     assert _final_candidate(result.notes) == details["nominated"]
@@ -335,12 +345,34 @@ async def test_with_the_flag_off_there_is_no_reference_and_no_rule(
     result = await _run(
         make_controller, run_config, dataset, run_id, script, constant_reference=Toggle.OFF
     )
-    assert _errors(database, run_id, CONSTANT_REFERENCE) == []
-    assert _errors(database, run_id, CONSTANT_RULE) == []
+    assert _decisions(database, run_id, CONSTANT_REFERENCE) == []
+    assert _decisions(database, run_id, CONSTANT_RULE) == []
     assert len(list_trials(database, run_id)) == 2
     assert '"constant_reference": {' not in script.final_review
     assert 'vs_constant_reference": {' not in script.final_review
     assert not any("Platform constant-reference rule" in n for n in result.notes)
+
+
+async def test_a_cancelled_run_skips_the_rule(
+    make_controller: ControllerFactory, database: Database, dataset: Path, runs_root: Path
+) -> None:
+    """A user cancel during the experiments: the run stops without the rule's work."""
+    from hypora.core.controller.limits import CANCEL_FILE
+    from tests.controller.scripted import ScriptedRun
+
+    def cancel_after_inspecting(tool: str, _: dict[str, Any]) -> None:
+        if tool == "inspect_dataset":
+            (runs_root / "run_constant_cancel" / CANCEL_FILE).touch()
+
+    script = ScriptedRun("run_constant_cancel", on_tool_result=cancel_after_inspecting)
+    controller = make_controller(script, worker_factory=NoWorker)
+    with anyio.fail_after(HANG_GUARD):
+        result = await controller.run(
+            RunRequest(dataset=dataset, goal="x", target="target", run_id="run_constant_cancel")
+        )
+    assert result.limits_fired == ("user_cancel",)
+    assert _decisions(database, "run_constant_cancel", CONSTANT_RULE) == []
+    assert len(list_trials(database, "run_constant_cancel")) == 0
 
 
 # --- the joint target-composition test -----------------------------------------------------------
@@ -413,8 +445,7 @@ async def test_questioned_target_components_are_flagged_and_excluded(
     assert by_column["registered"]["score"] >= 0.85 > by_column["casual"]["score"]
     assert "registered" not in data.allowed_features
     if composition is Toggle.ON:
-        (event,) = _errors(database, run_id, TARGET_COMPOSITION)
-        details: Any = event.payload.details
+        (details,) = _decisions(database, run_id, TARGET_COMPOSITION)
         assert details["outcome"] == "flagged"
         assert details["subset"] == ["casual", "registered"]
         assert details["subset_r2"] >= 0.99 and details["fits"] <= 200
@@ -426,7 +457,7 @@ async def test_questioned_target_components_are_flagged_and_excluded(
         assert item.evidence == by_column["casual"]["diagnostic_id"]
         assert any("target-composition" in note for note in result.notes)
     else:
-        assert _errors(database, run_id, TARGET_COMPOSITION) == []
+        assert _decisions(database, run_id, TARGET_COMPOSITION) == []
         assert not by_column["casual"]["flagged"]
         assert "casual" in data.allowed_features
         assert "target_component" not in reviews[1]

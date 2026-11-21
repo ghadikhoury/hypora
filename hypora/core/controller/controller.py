@@ -447,12 +447,12 @@ COMPOSITION_SENTENCE: Final = (
     "when its single-column score is below the threshold."
 )
 """Added to `DEFERRED_CONCERN` when the target-composition test is on (D-060)."""
-TARGET_COMPOSITION: Final = "TARGET_COMPOSITION"
-"""Error code of the event recording the joint target-composition test's outcome (D-060)."""
-CONSTANT_REFERENCE: Final = "CONSTANT_REFERENCE"
-"""Error code of the event recording the platform's constant reference scores (D-060)."""
-CONSTANT_RULE: Final = "CONSTANT_RULE"
-"""Error code of the event recording the constant-reference rule's decision and action (D-060)."""
+TARGET_COMPOSITION: Final = "target_composition"
+CONSTANT_REFERENCE: Final = "constant_reference"
+CONSTANT_RULE: Final = "constant_rule"
+"""D-060's platform decisions, each recorded as one `policy_decision` event (allow, no call ID)
+under this name with `key=<json>` reasons, as `user_request_context` is: informational
+platform facts, never `error` events, so a clean run records no error."""
 CONSTANT_CONTEXT: Final = (
     "\nPlatform constant reference (platform fact, computed by code on the locked validation "
     "folds): a constant prediction learned from each fold's training rows ({strategy}) scores a "
@@ -2604,7 +2604,12 @@ class _Run:
                 )
         finally:
             session.close()
-        if self._composition_on and spec.task_type is TaskType.REGRESSION and locked is not None:
+        if (
+            self._composition_on
+            and spec.task_type is TaskType.REGRESSION
+            and locked is not None
+            and not self._stopping()
+        ):
             self._composition(spec.target, locked, facts)
         self.deferred_results = json.dumps(facts)
         flagged_names = [f["column"] for f in facts if f.get("flagged")]
@@ -2670,17 +2675,7 @@ class _Run:
                     "joint_r2": details.get("subset_r2"),
                 }
                 self.composition_flags[fact["column"]] = ids[fact["column"]]
-        self._event(
-            EventType.ERROR,
-            ErrorPayload(
-                component=PLATFORM_DIAGNOSTIC_SESSION,
-                code=TARGET_COMPOSITION,
-                message="joint target-composition test on A's questioned feature columns: "
-                + str(details["outcome"]),
-                retryable=True,
-                details=details,
-            ),
-        )
+        self._platform_decision(TARGET_COMPOSITION, details)
         if flagged:
             self.notes.append(
                 "The platform's joint target-composition test found that "
@@ -2929,8 +2924,9 @@ class _Run:
             )
         nominated = outcome.final.final_trial_id if outcome.final else None
         c_nominated = nominated
-        if self._constant_on:
+        if self._constant_on and not cancel and not self._stopping():
             # D-060: before A's final review, so A reviews the trial that would be verified.
+            # Skipped when the run is stopping (cancel, a fired limit): no extra work then.
             nominated = await self._constant_rule(contract, nominated)
         if self._multi and not await self._lead_decision(
             "Review C's completed work and decide whether to continue to independent final "
@@ -4637,12 +4633,15 @@ class _Run:
 
         Platform code, in process, on the verified partition lock (as the too-good screen reads
         it): no trial, no sandbox job, no model call. Computed once per contract version and
-        recorded as one `CONSTANT_REFERENCE` event of scores only. None when the flag is off or
-        the reference cannot be computed (recorded as unavailable)."""
+        recorded as one `constant_reference` policy decision of scores only. None when the flag
+        is off, the run is stopping (`_stopping`, nothing computed or recorded), or the reference
+        cannot be computed (recorded as unavailable)."""
         if not self._constant_on:
             return None
         if contract.version in self._constant_refs:
             return self._constant_refs[contract.version]
+        if self._stopping():
+            return None
         from hypora.execution.harness.partition import load_verified_partition
 
         reference: ConstantReference | None = None
@@ -4679,18 +4678,28 @@ class _Run:
                     "mean": _rounded(reference.mean),
                 }
             )
+        self._platform_decision(CONSTANT_REFERENCE, details)
+        return reference
+
+    def _stopping(self) -> bool:
+        """Whether the run is stopping: a user cancel or any run limit fired (the trial cap alone
+        is a graceful finish, D-056). D-060's platform work is skipped then (no reference, no
+        rule, no composition test), so a stopping run does no extra work and records nothing."""
+        return any(limit != Limit.MAX_TRIALS.value for limit in self.guard.fired)
+
+    def _platform_decision(self, name: str, details: dict[str, JsonValue]) -> None:
+        """Record one of D-060's informational platform decisions (module constants)."""
         self._event(
-            EventType.ERROR,
-            ErrorPayload(
-                component="constant_reference",
-                code=CONSTANT_REFERENCE,
-                message="platform constant reference on the locked validation folds: "
-                + str(details["outcome"]),
-                retryable=True,
-                details=details,
+            EventType.POLICY_DECISION,
+            PolicyDecisionPayload(
+                tool=name,
+                decision=PolicyOutcome.ALLOW,
+                reasons=[
+                    f"{key}={json.dumps(value, sort_keys=True, separators=(',', ':'))}"
+                    for key, value in details.items()
+                ],
             ),
         )
-        return reference
 
     def _constant_context(self, contract: ExperimentContract) -> str:
         """C's (or the single agent's) context line with the constant reference, or nothing."""
@@ -4796,16 +4805,7 @@ class _Run:
             },
             **extra,
         }
-        self._event(
-            EventType.ERROR,
-            ErrorPayload(
-                component="constant_reference",
-                code=CONSTANT_RULE,
-                message=f"constant-reference rule: {decision.outcome}; action {action}",
-                retryable=True,
-                details=details,
-            ),
-        )
+        self._platform_decision(CONSTANT_RULE, details)
         return chosen
 
     async def _constant_trial(

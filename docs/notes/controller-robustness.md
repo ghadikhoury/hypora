@@ -189,8 +189,12 @@ classification the training class shares as probabilities with the most frequent
 label (ties to the first class in sorted order). The partition comes from the verified lock
 (`load_verified_partition`, in process, as the too-good screen reads it) and the scores from the
 harness's own `score_predictions`; no trial, job or model call. Computed once per contract
-version and recorded as one `CONSTANT_REFERENCE` error-type event (component
-`constant_reference`; details: metric, strategy, fold scores, mean, or `unavailable`).
+version and recorded as one `policy_decision` event (tool name `constant_reference`, allow, no
+call ID, `key=<json>` reasons: metric, strategy, fold scores, mean, or `unavailable`), the
+pattern `user_request_context` uses. D-060's records are informational, never `error` events, so
+a clean run still records no error (review of PR #82). Nothing is computed or recorded once the
+run is stopping (`_stopping`: a user cancel or any fired limit except the trial cap); the rule
+and the composition test are skipped the same way.
 
 Where it shows: one line in the experiment session's context (both configurations), and in the
 trial evidence check (`constant_reference` with strategy, mean and fold count; each trial's
@@ -206,8 +210,8 @@ paired folds) and is a strict improvement; an exact tie never beats it. With one
 trial sharing a scored fold with it: nothing happens. For classification the rule only records
 `shown_only_classification`: a class-prior constant is never a useful classifier, and the
 imbalance cases' grader requires strictly beating it, so A and C weigh the shown reference
-themselves. For regression, when no trial beats it, the nomination becomes a trial that already scores the reference on every fold (C's own nomination
-first, then the first by ID), or else a constant trial the platform submits
+themselves. For regression, when no trial beats it, the nomination becomes a trial that already
+scores the reference on every fold (C's own nomination first, then the first by ID), or else a constant trial the platform submits
 (`submit_constant_trial`: the dummy template with `config={"strategy": ...}` under the current
 contract and approval, a new `baseline` trial counted against the trial cap and every run limit,
 like the leakage comparison trial). It runs inside the finishing reserve (`guard.exploration` with
@@ -216,7 +220,7 @@ cancelled, before it could spend what the final job needs. No room, or that tria
 C's nomination in place with a note; C's context therefore says the platform can act only while a
 trial slot remains. A's final review gets `platform_candidate` in the trial check when the rule
 changed the candidate, with the note that a feature trial within one paired standard error is
-not clearly better. One `CONSTANT_RULE` event records the outcome (`unavailable`, `no_comparable_trial`,
+not clearly better. One `constant_rule` policy decision records the outcome (`unavailable`, `no_comparable_trial`,
 `beaten`, `fired`), the action (`none`, `existing_constant_trial`, `constant_trial_validated`,
 `constant_trial_failed`, `no_room`), C's nomination, the choice and every comparison. A then
 reviews the chosen trial's code; `use_best_validated_trial` still works. The trial check's
@@ -244,7 +248,7 @@ fits; a search cut short flags nothing (`truncated`), as does a composition need
 columns. Each flagged column's fact gets `flagged` and `target_component`, and
 `composition_flags` maps it to its own feature_predictiveness diagnostic ID, so C cites that ID,
 `validate_data_proposal` accepts it, D-056's `_flagged()` counts it, and A's reconciliation review
-sees it. One `TARGET_COMPOSITION` event (component `platform_diagnostics`; columns, tested, joint
+sees it. One `target_composition` policy decision (columns, tested, joint
 and subset R2, subset, fits, truncated, or `unavailable`). The single-column thresholds (R2 0.85,
 ROC-AUC 0.90) are unchanged. 0.99 is far above what correlated legitimate inputs reach with real
 noise left over; only a near-exact arithmetic composition (a total and its parts, a difference

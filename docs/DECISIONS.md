@@ -1770,7 +1770,7 @@ hidden split or eval model profile changed.
   C's nomination. **Regression only:** for classification the reference is shown but never
   substituted (a class-prior constant is not a useful classifier, and the imbalance cases'
   unchanged grader requires strictly beating it). Deterministic from stored fold scores; recorded
-  as `CONSTANT_REFERENCE` and `CONSTANT_RULE` events. A still reviews the chosen code (the trial
+  as `constant_reference` and `constant_rule` policy decisions. A still reviews the chosen code (the trial
   check names it as `platform_candidate`) and may still ask for the best validated trial.
 - **Target-composition evidence (`robustness.target_composition`, default on).** Where the
   platform tests A's questioned columns after the lock (D-058), a regression target also gets a
@@ -1781,7 +1781,12 @@ hidden split or eval model profile changed.
   diagnostic ID, counted by evidence before exclusion, shown at reconciliation; it does not feed
   the too-good investigation's diagnostic fallback). 0.99 sits far above what correlated
   legitimate inputs reach; the 0.85 / 0.90 single-column thresholds are unchanged. One
-  `TARGET_COMPOSITION` event.
+  `target_composition` policy decision.
+- **Recording and stopping runs.** The three records are existing `policy_decision` events
+  (allow, no call ID, `key=<json>` reasons), the pattern of `user_request_context`: informational
+  platform facts, never `error` events, so a clean run records no error and stop tests that count
+  one error still see one. None of this work runs once the run is stopping (user cancel or any
+  fired limit except the trial cap's graceful finish).
 - **Prompts and spec.** `agent_c` v12 -> v13 replaces the false claim with when to nominate a
   constant, for regression only; for classification the prompt, C's context and A's assignment
   text say never to nominate a constant classifier but the best validated feature model,
@@ -1792,7 +1797,7 @@ hidden split or eval model profile changed.
   `docs/PROJECT_SPEC.md` §8.3's mandatory-baseline line notes the platform reference.
   `results/readiness/lock.json` regenerated.
 - **Frozen contracts and security.** No change to `hypora/core/schemas/`, `docs/schemas/`, the
-  MCP tool contract, event types (the existing error event carries new codes), the trial
+  MCP tool contract, event types (existing `policy_decision` events are reused), the trial
   `fit`/`predict` interface, the sandbox, `hypora/core/policy/`, eval cases or graders. Only
   aggregate scores reach a role; no label or row does. Scripted evidence only; no live run was
   made. Notes: `docs/notes/controller-robustness.md` J and K.
