@@ -2,7 +2,8 @@
 
 Spec §19 (all), §17 (real data, pinned eval model), §20 (course requirements); PLAN S5.1–S5.4;
 D-015 (real data), D-021 (licenses), D-032 (outcome evidence), D-051 (eval model), D-055 (fair
-grading, run limits), **D-057 (this test set)**. Cases and commands:
+grading, run limits), **D-057 (this test set)**, D-059 (compute limits), D-060 (constant
+reference, target composition). Cases and commands:
 `hypora/evaluation/cases/test/README.md`.
 
 The course handout is not in this repository. The requirements below are the spec's paraphrase
@@ -21,8 +22,8 @@ for the freeze).
 | Hidden splits | strategy, fraction 0.25 and seed 20261120 in each case; rows are a pure function of case ID, seed and row content |
 | Graders | `hypora/evaluation/graders/` at the frozen commit; programmatic only, no LLM judge (§19.1) |
 | Model | `eval` profile: `openai/gpt-6-luna` on every tier, temperature not configurable, no fallback (D-051) |
-| Configs | `configs/eval/default.yaml` (multi A/B/C) and `configs/eval/single_agent.yaml`; budgets and prompts as in `results/readiness/lock.json` at the frozen commit |
-| Per-case limits | $0.60, 1,800 compute s, 2M tokens, 6 trials, 200 steps, 3,600 run wall s; job ceiling 300 s, 4 GB, 2 threads. These are the dev set's D-055 limits with compute raised to 1,800 s (as #81 does for dev) and the run wall time raised to 3,600 s, so wall time cannot cut a run off before its compute budget |
+| Configs | `configs/eval/default.yaml` (multi A/B/C) and `configs/eval/single_agent.yaml`; budgets, flags and prompts as in `results/readiness/lock.json` at the frozen commit. The system under test includes D-060: the platform constant reference and constant-trial rule (`robustness.constant_reference`, regression only for substitution) and the joint target-composition test (`robustness.target_composition`), both on, with `agent_c` v13 |
+| Per-case limits | $0.60, 1,800 compute s, 2M tokens, 6 trials, 200 steps, 3,600 run wall s; job ceiling 300 s, 4 GB, 2 threads. These are the dev set's D-055 limits with compute raised to 1,800 s (as D-059 does for dev) and the run wall time raised to 3,600 s, so wall time cannot cut a run off before its compute budget |
 
 **No test-set-driven tuning after the freeze.** After the tag, no prompt, flag, budget, model,
 grader, case, threshold or hidden split changes because of test-set results. A change needed for
@@ -336,6 +337,9 @@ grader predicts on copied hidden features only.
   interval includes 0, with **multi vs single as the primary system comparison** and multi vs
   baseline reported **by family** (S1); per-case hidden metrics; failure categories (≤10 analysed
   cases); how often the too-good-score check fired on non-leakage cases and what it recommended;
+  how often the D-060 constant rule put a constant trial forward on regression cases (the
+  platform constant misses every bar on the hidden rows in the sanity check above, so such a final
+  model is expected to be a measured failure) and how often the target-composition test flagged columns, and on which cases;
   harness errors per system (N8); mean and nearest-rank p95 latency; actual and list-price cost per
   task with price date. No quality claim rests on pass percentages alone, leakage results are
   described as applying a stated constraint (N5), and no metric-choice claim is made from the
@@ -362,6 +366,12 @@ uv run --locked pytest tests/unit/evaluation/test_test_cases.py
 Done 2026-11-21 on `main` 4663caf (#75, #77, #78, #79): all 26 cases regenerate with matching
 hashes and validate; the case-format, coverage and rule tests pass; the committed readiness lock
 matches the code.
+
+Rebased 2026-11-21 onto `main` 3cd9849 (#80, #81, #82: D-059, D-060). No case, bar, tolerance or
+hidden split changed. Rerun after this rebase: lint, format, types, and the case-format, dev-case,
+readiness-lock and repository-convention tests (`test_test_cases.py`, `test_dev_cases.py`,
+`test_readiness_eval.py`, `test_repo_conventions.py`). Case regeneration and the per-case checks
+below were not rerun.
 
 Still to do:
 1. Run `/home/ghadi/orch/s51-checks.sh` (per-case shortcuts, hidden data and validation on the final

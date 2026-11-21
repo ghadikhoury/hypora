@@ -5,7 +5,7 @@ its source as synthetic or simulated. They are the frozen Stage 5 measurement; t
 thresholds, exclusions and freeze identity are in
 [the test-set protocol](../../../../docs/notes/test-set-protocol.md) and D-057. YAML requests and
 constraints expose neither trap metadata nor hidden rows. Every case has the dev set's limits
-(D-055) with compute raised to 1,800 s (as #81 does for dev) and the run's wall time raised to
+(D-055) with compute raised to 1,800 s (as D-059 does for dev) and the run's wall time raised to
 3,600 s: $0.60, 1,800 compute seconds, 2M tokens, six trials, 200 tool steps and 3,600 wall
 seconds, with matching contract bounds; hidden split 25%, seed 20261120.
 

@@ -173,7 +173,7 @@ def test_agent_b_research_tools_are_permitted(case: Case) -> None:
 
 @every_case
 def test_limits_match_the_locked_dev_limits(case: Case) -> None:
-    """The dev cases' per-case limits (D-055), with compute at 1,800 s as #81 sets for dev and the
+    """The dev cases' per-case limits (D-055), with compute at 1,800 s as D-059 sets for dev and the
     run's wall time at 3,600 s (so wall time cannot cut a run off before its compute budget); the
     other limits must equal dev's."""
     reference = DEV[0]

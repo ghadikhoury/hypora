@@ -1636,8 +1636,8 @@ after), revised after an independent audit of the set. Details, tables and numbe
   - Retryable tool errors that must be recovered from: 4.
   - Blank-label malformed data that must stop safely: 2.
 - **Limits.** The dev set's D-055 limits, with two changes in `budget` and `contract_bounds`:
-  - compute raised from 600 to 1,800 s, as #81 does for the dev cases (a paid dev run hit 600 s; a
-    5-fold job has about 50 s of fixed sandbox overhead);
+  - compute raised from 600 to 1,800 s, as D-059 (#81) does for the dev cases (a paid dev run hit
+    600 s; a 5-fold job has about 50 s of fixed sandbox overhead);
   - the run's wall time raised from 1,800 to 3,600 s, so wall time cannot cut a run off before its
     compute budget.
 
