@@ -3,7 +3,8 @@
 Spec §19 (all), §17 (real data, pinned eval model), §20 (course requirements); PLAN S5.1–S5.4;
 D-015 (real data), D-021 (licenses), D-032 (outcome evidence), D-051 (eval model), D-055 (fair
 grading, run limits), **D-057 (this test set)**, D-059 (compute limits), D-060 (constant
-reference, target composition). Cases and commands:
+reference, target composition), D-061 (contract feature facts), D-063 (leased cancel
+boundary), D-065 (generalized role prompts). Cases and commands:
 `hypora/evaluation/cases/test/README.md`.
 
 The CIS 1990 final project handout (pp. 5–7, F3 on p. 10) requires at least 25 held-out cases,
@@ -17,14 +18,14 @@ An evaluation below the target still reports the frozen results in full.
 
 | Item | Frozen value |
 |---|---|
-| Code commit | TODO: the reviewed S5.1 merge commit on `main`, after S4.2j merges |
+| Code commit | TODO: the reviewed S5.1 merge commit on `main` (rebased onto `bbe6165`) |
 | Tag | TODO: `eval-freeze` on that commit (created by the reviewer after merge) |
 | Cases | the 26 files in `hypora/evaluation/cases/test/` at that commit, with `derivation.json` |
 | Data | the snapshot SHA-256 and planted SHA-256 in each case file (table below) |
 | Hidden splits | Each case's strategy, keys, fraction (0.25), seed (20261120) and row content determine the held-out rows. Case IDs also enter deterministic selection where the strategy uses them. |
 | Graders | `hypora/evaluation/graders/` at the frozen commit; programmatic only, no LLM judge (§19.1) |
 | Model | `eval` profile: `openai/gpt-6-luna` on every tier, temperature not configurable, no fallback (D-051) |
-| Configs | `configs/eval/default.yaml` (multi A/B/C) and `configs/eval/single_agent.yaml`; budgets, flags and prompts as in `results/readiness/lock.json` at the frozen commit. The system under test includes D-060: the platform constant reference and constant-trial rule (`robustness.constant_reference`, regression only for substitution) and the joint target-composition test (`robustness.target_composition`), both on, with `agent_c` v13 |
+| Configs | `configs/eval/default.yaml` (multi A/B/C) and `configs/eval/single_agent.yaml`; budgets, flags and prompts as in `results/readiness/lock.json` at the frozen commit (SHA-256 `4d731346...` on `bbe6165`). Includes D-060 (`robustness.constant_reference` and `robustness.target_composition`, both on), D-061 (`robustness.contract_feature_facts` on), D-063 (leased pre-start cancel boundary), and D-065 generalized role prompts (`agent_a_decide` v9, `agent_b` v4, `agent_c` v14, `agent_c_workers` v3, `single_agent` v4) |
 | Per-case limits | $0.60, 1,800 compute s, 2M tokens, 6 trials, 200 steps, 3,600 run wall s; job ceiling 300 s, 4 GB, 2 threads. These are the dev set's D-055 limits with compute raised to 1,800 s (as D-059 does for dev) and the run wall time raised to 3,600 s, so wall time cannot cut a run off before its compute budget |
 
 **No test-set-driven tuning after the freeze.** After the tag, no prompt, flag, budget, model,
@@ -410,22 +411,34 @@ done
 
 ## Remaining freeze steps
 
-Done 2026-11-21 on `main` 4663caf (#75, #77, #78, #79): all 26 cases regenerate with matching
-hashes and validate; the case-format, coverage and rule tests pass; the committed readiness lock
-matches the code.
+Done 2026-11-21 on `main` 4663caf (#75, #77, #78, #79) and on rebased draft `1085191f72e8dee0360cc85778586ae977f31e4f`
+(`3cd9849`): case regeneration, threshold checks, and all 26 per-case real-data checks passed.
 
-Rebased 2026-11-21 onto `main` 3cd9849 (#80, #81, #82: D-059, D-060). No case, bar, tolerance or
-hidden split changed. Rerun after this rebase: lint, format, types, and the case-format, dev-case,
-readiness-lock and repository-convention tests (`test_test_cases.py`, `test_dev_cases.py`,
-`test_readiness_eval.py`, `test_repo_conventions.py`). Case regeneration and the per-case checks
-below were not rerun.
+Rebased 2026-11-21 onto verified `main` `bbe6165251aa801b13c30c632ccfc7bceb2657d7` (#83–#87:
+D-061–D-065). No case, bar, tolerance, or hidden split changed.
 
-The corrected per-case run on draft head `1085191f72e8dee0360cc85778586ae977f31e4f` passed all
-26 cases on 2026-11-21, with no failures or skips. The two malformed cases each passed validation,
-hidden-data isolation, the planted hash check and the visible-row integrity check. The earlier
-local script had counted these two cases despite executing no tests for them.
+Pre-freeze live confirmation on `bbe6165` (`openai/gpt-6-luna`, `eval` profile):
+- `verify8` (`default` multi-agent, 6 dev cases, `parallel=2`): **6/6 pass** ($0.2347 measured,
+  $0 reserved, 0 retries). An earlier `verify7` attempt passed 4/6 (`dev_class_imbalance`,
+  `dev_clean_control`, `dev_grouped_rows`, `dev_tool_failure`) before a 27-minute host battery
+  standby inflated `dev_target_leakage`'s wall-clock span and left `dev_temporal_order` with one
+  $0.36 open reservation ($0.2047 measured).
+- `single_agent` sanity (`single_agent` v4 on `bbe6165`): `dev_clean_control` passed
+  (`mae = 0.5799 <= 0.76`, $0.0135, 37 calls); host/server restart interrupted
+  `dev_class_imbalance` ($0.0306 total settled, $0 reserved).
+
+Post-rebase validation on `0c5537e` / `bbe6165` (2026-11-21):
+- `results/readiness/lock.json` (SHA-256 `4d731346ac305075e8f999fc811e7129a6fb083c92e3cc06574038a181f6922c`)
+  matches code (`test_readiness_eval.py`: 11 passed).
+- `python -m hypora.evaluation.cases.test.generate`: all 26 cases regenerated and validated.
+- `python -m hypora.evaluation.cases.test.thresholds`: all 24 graded cases matched (`case_file_matches: true`).
+- Per-case real-data loop (`test_test_cases.py`): all 26 cases passed (**86/86 tests passed**, 0
+  failed, 0 skipped — 4/4 on the 2 malformed-data cases and 6 planted cases, 3/3 on the other 18).
+- Unit suites (`test_test_cases.py`, `test_dev_cases.py`, `test_readiness_eval.py`,
+  `test_repo_conventions.py`): 503 passed, 25 skipped (unstored dev snapshots only);
+  `test_test_cases.py` standalone: 383 passed.
 
 Still to do:
-1. Rebase onto the verified runtime and check the case list, input hashes and readiness lock again.
-2. Record the verified base and final check results. The reviewer merges the PR and tags the
-   reviewed merge commit `eval-freeze`.
+1. Complete independent review (`🔍 REVIEW FOCUS`) and pass required CI checks (`make check`,
+   `gitleaks`) on the pushed rebased head.
+2. Reviewer merges PR #76 and tags the merge commit `eval-freeze`.
