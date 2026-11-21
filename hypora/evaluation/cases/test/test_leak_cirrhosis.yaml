@@ -1,0 +1,59 @@
+# Target leakage, already in the data: N_Days is the length of follow-up, which ends at death, transplant or the end of the study, so it is known only after the outcome. plantings.py turns the 3-way status into died / did not die.
+id: test_leak_cirrhosis
+split: test
+request: "Estimate the risk that a patient with primary biliary cirrhosis dies during the study's follow-up, so that hepatologists can prioritise care. Each prediction is made when the patient enters the study, from the treatment arm, demographics and the clinical and laboratory findings recorded at entry; anything recorded later, including how long the patient was followed, is not available when the prediction is made."
+constraints:
+  target: "died"
+  task_type: binary_classification
+  primary_metric: roc_auc
+dataset:
+  snapshot: uci-878-cirrhosis-patient-survival-prediction
+  sha256: "c821b3639219951965fc53b90f260da0c608ab36de5d4afa68c489e059089cd8"
+  planted:
+    script: hypora/evaluation/cases/test/plantings.py
+    file: test_leak_cirrhosis.parquet
+    sha256: "1de6ee911337e1ad1cd010d52b7e1f636e2dee5a7b74a079e613d4f2abf03a84"
+family: tabular
+permitted_tools:
+  - inspect_dataset
+  - run_diagnostic
+  - write_trial_files
+  - submit_experiment
+  - get_experiment_status
+  - get_experiment_metrics
+  - get_experiment_logs
+  - search_model_catalog
+  - get_model_evidence
+  - retrieve_methodology
+budget: &budget
+  max_usd: 0.6
+  max_compute_seconds: 1800
+  max_llm_tokens: 2000000
+  max_trials: 6
+  max_steps: 200
+  max_wall_clock_seconds: 3600
+approval_policy: auto_within_contract
+contract_bounds:
+  max_budget: *budget
+  max_job_limits:
+    max_wall_seconds: 300
+    max_memory_gb: 4
+    cpu_threads: 2
+hidden_split:
+  strategy: stratified
+  fraction: 0.25
+  seed: 20261120
+grading:
+  # Derived from visible rows only (thresholds.py): constant 0.5, linear 0.8234 (3-fold CV);
+  # bar = constant + 0.5 x gap; tolerance = 3 x combined standard error.
+  hidden_metric:
+    name: roc_auc
+    threshold: 0.66
+    reported_tolerance: 0.16
+traps:
+  # planted: true only because plantings.py writes this case's file (the target relabel);
+  # N_Days itself is an original column of the source.
+  - kind: target_leakage
+    planted: true
+    columns: [N_Days]
+expected_decision_class: train

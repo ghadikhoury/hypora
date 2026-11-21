@@ -54,6 +54,24 @@
   "reported_tolerance": 0.088
  },
  {
+  "case": "test_clean_phishing",
+  "metric": "roc_auc",
+  "direction": "maximize",
+  "n_visible": 8294,
+  "n_test": 1659,
+  "n_hidden": 2761,
+  "constant": 0.5,
+  "linear": 0.977913,
+  "gradient_boosting": 0.995118,
+  "reference_template": "gradient_boosting",
+  "reference": 0.995118,
+  "sd_folds": 0.000617,
+  "se_test": 0.001155,
+  "se_hidden": 0.000895,
+  "threshold": 0.74,
+  "reported_tolerance": 0.05
+ },
+ {
   "case": "test_clean_power_plant",
   "metric": "mae",
   "direction": "minimize",
@@ -144,22 +162,22 @@
   "reported_tolerance": 2.3
  },
  {
-  "case": "test_fault_write_magic",
+  "case": "test_fault_write_retinopathy",
   "metric": "roc_auc",
   "direction": "maximize",
-  "n_visible": 14265,
-  "n_test": 2853,
-  "n_hidden": 4755,
+  "n_visible": 863,
+  "n_test": 173,
+  "n_hidden": 288,
   "constant": 0.5,
-  "linear": 0.840941,
-  "gradient_boosting": 0.932029,
-  "reference_template": "gradient_boosting",
-  "reference": 0.932029,
-  "sd_folds": 0.004339,
-  "se_test": 0.005257,
-  "se_hidden": 0.004072,
-  "threshold": 0.71,
-  "reported_tolerance": 0.044
+  "linear": 0.76663,
+  "gradient_boosting": 0.717503,
+  "reference_template": "linear",
+  "reference": 0.76663,
+  "sd_folds": 0.016036,
+  "se_test": 0.037235,
+  "se_hidden": 0.028859,
+  "threshold": 0.63,
+  "reported_tolerance": 0.13
  },
  {
   "case": "test_group_airfoil",
@@ -213,7 +231,7 @@
   "se_test": 0.916872,
   "se_hidden": 0.707926,
   "threshold": 8.44,
-  "reported_tolerance": 4.1
+  "reported_tolerance": 2.2
  },
  {
   "case": "test_imb_bankruptcy",
@@ -231,7 +249,7 @@
   "se_test": 0.043698,
   "se_hidden": 0.033849,
   "threshold": 0.57,
-  "reported_tolerance": 0.2
+  "reported_tolerance": 0.092
  },
  {
   "case": "test_imb_churn",
@@ -288,24 +306,6 @@
   "reported_tolerance": 0.047
  },
  {
-  "case": "test_leak_ai4i_failure",
-  "metric": "f1_macro",
-  "direction": "maximize",
-  "n_visible": 7500,
-  "n_test": 1500,
-  "n_hidden": 2500,
-  "constant": 0.491418,
-  "linear": 0.649469,
-  "gradient_boosting": 0.815734,
-  "reference_template": "gradient_boosting",
-  "reference": 0.815734,
-  "sd_folds": 0.031953,
-  "se_test": 0.031516,
-  "se_hidden": 0.024412,
-  "threshold": 0.65,
-  "reported_tolerance": 0.16
- },
- {
   "case": "test_leak_bank_marketing",
   "metric": "f1_macro",
   "direction": "maximize",
@@ -324,6 +324,24 @@
   "reported_tolerance": 0.042
  },
  {
+  "case": "test_leak_cirrhosis",
+  "metric": "roc_auc",
+  "direction": "maximize",
+  "n_visible": 314,
+  "n_test": 63,
+  "n_hidden": 104,
+  "constant": 0.5,
+  "linear": 0.823352,
+  "gradient_boosting": 0.81626,
+  "reference_template": "linear",
+  "reference": 0.823352,
+  "sd_folds": 0.057406,
+  "se_test": 0.052675,
+  "se_hidden": 0.040998,
+  "threshold": 0.66,
+  "reported_tolerance": 0.16
+ },
+ {
   "case": "test_leak_heart_failure",
   "metric": "roc_auc",
   "direction": "maximize",
@@ -339,7 +357,7 @@
   "se_test": 0.078118,
   "se_hidden": 0.06051,
   "threshold": 0.64,
-  "reported_tolerance": 0.4
+  "reported_tolerance": 0.14
  },
  {
   "case": "test_leak_student_dropout",
@@ -360,24 +378,6 @@
   "reported_tolerance": 0.087
  },
  {
-  "case": "test_leak_student_grades",
-  "metric": "mae",
-  "direction": "minimize",
-  "n_visible": 487,
-  "n_test": 98,
-  "n_hidden": 162,
-  "constant": 2.301604,
-  "linear": 2.072945,
-  "gradient_boosting": 2.090923,
-  "reference_template": "linear",
-  "reference": 2.072945,
-  "sd_folds": 0.233022,
-  "se_test": 0.180044,
-  "se_hidden": 0.140034,
-  "threshold": 2.19,
-  "reported_tolerance": 0.98
- },
- {
   "case": "test_time_beijing_pm25",
   "metric": "mae",
   "direction": "minimize",
@@ -393,7 +393,25 @@
   "se_test": 0.623814,
   "se_hidden": 0.483227,
   "threshold": 59.5,
-  "reported_tolerance": 15.0
+  "reported_tolerance": 9.3
+ },
+ {
+  "case": "test_time_el_nino",
+  "metric": "mae",
+  "direction": "minimize",
+  "n_visible": 120833,
+  "n_test": 24187,
+  "n_hidden": 40240,
+  "constant": 1.816184,
+  "linear": 0.590847,
+  "gradient_boosting": 0.392377,
+  "reference_template": "gradient_boosting",
+  "reference": 0.392377,
+  "sd_folds": 0.054669,
+  "se_test": 0.002716,
+  "se_hidden": 0.002106,
+  "threshold": 1.11,
+  "reported_tolerance": 0.17
  },
  {
   "case": "test_time_metro_traffic",
@@ -412,23 +430,5 @@
   "se_hidden": 4.577832,
   "threshold": 1030.0,
   "reported_tolerance": 150.0
- },
- {
-  "case": "test_time_tetouan_power",
-  "metric": "mae",
-  "direction": "minimize",
-  "n_visible": 39312,
-  "n_test": 7862,
-  "n_hidden": 13104,
-  "constant": 6189.350645,
-  "linear": 3791.164377,
-  "gradient_boosting": 3111.365235,
-  "reference_template": "gradient_boosting",
-  "reference": 3111.365235,
-  "sd_folds": 1165.979058,
-  "se_test": 31.788156,
-  "se_hidden": 24.622374,
-  "threshold": 4660.0,
-  "reported_tolerance": 3600.0
  }
 ]

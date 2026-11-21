@@ -125,10 +125,10 @@ def test_no_test_case_shares_a_dataset_with_the_dev_set() -> None:
 def test_every_implemented_family_is_covered_with_clean_controls() -> None:
     kinds = [kind for case in CASES for kind in _kinds(case)]
     for kind, at_least in (
-        ("target_leakage", 5),
+        ("target_leakage", 4),
         ("grouped_rows", 3),
         ("temporal_order", 3),
-        ("class_imbalance", 6),
+        ("class_imbalance", 5),
     ):
         assert kinds.count(kind) >= at_least, kind
     clean = [case for case in CASES if not case.traps and not case.injected_faults]
@@ -173,10 +173,11 @@ def test_agent_b_research_tools_are_permitted(case: Case) -> None:
 
 @every_case
 def test_limits_match_the_locked_dev_limits(case: Case) -> None:
-    """The dev cases' per-case limits (D-055), with compute at 1,800 s as #81 sets for dev; the
+    """The dev cases' per-case limits (D-055), with compute at 1,800 s as #81 sets for dev and the
+    run's wall time at 3,600 s (so wall time cannot cut a run off before its compute budget); the
     other limits must equal dev's."""
     reference = DEV[0]
-    compute = {"max_compute_seconds": 1800.0}
+    compute = {"max_compute_seconds": 1800.0, "max_wall_clock_seconds": 3600.0}
     assert case.budget == reference.budget.model_copy(update=compute)
     assert case.contract_bounds == reference.contract_bounds.model_copy(
         update={"max_budget": reference.contract_bounds.max_budget.model_copy(update=compute)}
@@ -280,6 +281,25 @@ def test_the_rule_sits_halfway_and_rounds_toward_the_constant() -> None:
     )
 
 
+def test_the_tolerance_is_capped_at_the_margin_between_reference_and_bar() -> None:
+    """Large sampling error next to a small gap must not make the honesty check vacuous."""
+    # Gap 0.28 with a sampling term of 3 x 0.1 = 0.3: the cap (|0.78 - 0.64| = 0.14) applies.
+    threshold, tolerance = apply_rule(
+        maximize=True, constant=0.5, reference=0.78, se_test=0.0, se_hidden=0.0, sd_folds=0.1
+    )
+    assert threshold == 0.64 and tolerance == 0.14
+    # Small sampling error: the cap does not bind.
+    assert apply_rule(
+        maximize=False, constant=2.0, reference=1.0, se_test=0.01, se_hidden=0.01, sd_folds=0.0
+    )[1] == pytest.approx(0.1)
+
+
+@pytest.mark.parametrize("case", GRADED, ids=lambda case: case.id)
+def test_every_tolerance_is_within_the_margin_between_reference_and_bar(case: Case) -> None:
+    derivation = DERIVATIONS[case.id]
+    assert 0 < derivation.reported_tolerance <= abs(derivation.reference - derivation.threshold)
+
+
 @pytest.mark.parametrize("case", GRADED, ids=lambda case: case.id)
 def test_a_simple_learner_beats_the_constant_on_every_case(case: Case) -> None:
     """A case whose bar a constant predictor could reach measures nothing about quality, so no
@@ -306,6 +326,9 @@ def test_calendar_features_are_per_row_and_only_for_temporal_cases() -> None:
     assert alone[f"{trap.time_key}__hour"].tolist() == [0]
     clean = next(case for case in CASES if not case.traps)
     pd.testing.assert_frame_equal(calendar_features(frame, clean), frame)
+    # A plain-number time key (a year or a row position) carries no calendar.
+    numeric = pd.DataFrame({trap.time_key: [2011, 2012]})
+    pd.testing.assert_frame_equal(calendar_features(numeric, temporal), numeric)
 
 
 def test_the_derivation_records_no_hidden_value() -> None:
@@ -388,8 +411,10 @@ TRAP_CHECKS = {
 
 @_real(GRADED)
 def test_shortcuts_fail_and_an_honest_simple_model_passes(case: Case, tmp_path: Path) -> None:
-    """Real fits with the grader's own checks: the fixed pipeline fails exactly the trap, a sound
-    approach passes every check and the bar, and the constant predictor misses the bar.
+    """Real fits with the grader's own checks: the fixed pipeline fails exactly the trap, the
+    learner that honest model selection picks by validation (the derivation's reference) passes
+    every check and the bar, and the constant predictor misses the bar (D-055: no bar unreachable
+    by honest model selection; no bar a constant reaches).
 
     Temporal cases get the same per-row calendar features the bars were derived with."""
     _, visible, hidden = visible_and_hidden(case, planted_dir=_planted_dir(case, tmp_path))
@@ -401,8 +426,9 @@ def test_shortcuts_fail_and_an_honest_simple_model_passes(case: Case, tmp_path: 
     expected: set[str] = set().union(*(TRAP_CHECKS[kind] for kind in _kinds(case)))
     assert expected <= _failed(results["baseline"])
     assert _failed(results["baseline"]) - expected <= {"reported_metric_honesty"}
-    sound = [results[name] for name in ("sound_gb", "sound_linear")]
-    assert any(not _failed(r) and r["meets_threshold"] for r in sound), sound
+    chosen = DERIVATIONS[case.id].reference_template
+    selected = results["sound_gb" if chosen == "gradient_boosting" else "sound_linear"]
+    assert not _failed(selected) and selected["meets_threshold"], selected
     if "class_imbalance" in _kinds(case):
         assert "trap_class_imbalance_metric" in _failed(results["inappropriate_accuracy"])
     metric = case.grading.hidden_metric
@@ -444,18 +470,31 @@ def test_beijing_rows_without_a_reading_are_dropped_and_the_clock_becomes_iso() 
     assert planted["pm2.5"].tolist() == [129.0, 22.0]
 
 
-def test_time_keys_become_unambiguous_iso_text() -> None:
-    tetouan = plantings.plant_tetouan(
-        pd.DataFrame(
-            {
-                "DateTime": ["1/13/2017 0:10"],
-                plantings.TETOUAN_TARGET: [1.0],
-                **{zone: [2.0] for zone in plantings.TETOUAN_OTHER_ZONES},
-            }
-        )
+def test_el_nino_clock_becomes_an_iso_date_and_unlabeled_rows_go() -> None:
+    frame = pd.DataFrame(
+        {
+            "year": [80, 80, 98],
+            "month": [3, 3, 6],
+            "day": [7, 8, 14],
+            "date": [800307, 800308, 980614],
+            "air_temp": [26.1, 25.7, 28.0],
+            "ss_temp": [26.2, np.nan, 29.1],
+        }
     )
-    assert tetouan["DateTime"].tolist() == ["2017-01-13 00:10:00"]
-    assert list(tetouan.columns) == ["DateTime", plantings.TETOUAN_TARGET]
+    planted = plantings.plant_el_nino(frame)
+    assert list(planted.columns) == ["date", "air_temp", "ss_temp"]
+    assert planted["date"].tolist() == ["1980-03-07", "1998-06-14"]
+    assert planted["ss_temp"].tolist() == [26.2, 29.1]
+
+
+def test_cirrhosis_status_becomes_died_and_follow_up_stays() -> None:
+    frame = pd.DataFrame(
+        {"N_Days": [400, 4500, 1012], "Status": ["D", "C", "CL"], "Bilirubin": [14.5, 1.1, 1.4]}
+    )
+    planted = plantings.plant_cirrhosis(frame)
+    assert planted[plantings.CIRRHOSIS_TARGET].tolist() == [1, 0, 0]
+    assert "Status" not in planted.columns
+    assert planted["N_Days"].tolist() == [400, 4500, 1012]
 
 
 def test_blank_labels_are_seeded_and_change_nothing_else() -> None:

@@ -26,7 +26,7 @@ budget: &budget
   max_llm_tokens: 2000000
   max_trials: 6
   max_steps: 200
-  max_wall_clock_seconds: 1800
+  max_wall_clock_seconds: 3600
 approval_policy: auto_within_contract
 contract_bounds:
   max_budget: *budget
@@ -44,7 +44,7 @@ grading:
   hidden_metric:
     name: f1_macro
     threshold: 0.57
-    reported_tolerance: 0.2
+    reported_tolerance: 0.092
 traps:
   - kind: class_imbalance
     planted: false

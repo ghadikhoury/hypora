@@ -1621,69 +1621,92 @@ them.
 ## D-057 — S5.1: the held-out test set, its threshold rule, and what was dropped or excluded (2026-11-21)
 
 Built under Ghadi's overnight authorization for S5.1 and S5.2 (orchestrator decisions, reported
-after). Details, tables and numbers are in `docs/notes/test-set-protocol.md`. Cases, scripts and the
-recorded derivation are in `hypora/evaluation/cases/test/`.
+after), revised after an independent audit of the set. Details, tables and numbers are in
+`docs/notes/test-set-protocol.md`. Cases, scripts and the recorded derivation are in
+`hypora/evaluation/cases/test/`.
 
-- **Design.** 26 tabular cases, each on a different real UCI snapshot (CC BY 4.0). None shares a
-  dataset with the dev set (a test enforces it).
-  - Target leakage: 5 cases, all real post-outcome fields already in the data. The request states
-    when the prediction is made (D-055). Two of them also have class imbalance.
-  - Grouped rows: 3 cases, with real group keys recovered by a script.
-  - Temporal order: 3. Class imbalance: 4. Clean controls: 5.
+- **Design.** 26 tabular cases, each on a different real UCI snapshot (CC BY 4.0).
+  - None shares a dataset with the dev set (a test enforces it), none is a near-duplicate of one,
+    and none is described by its source as synthetic or simulated (each UCI description was read).
+  - Target leakage: 4 cases, all real post-outcome fields; the request states when the prediction is
+    made (D-055). One of them also has class imbalance.
+  - Grouped rows: 3, with real group keys recovered by a script.
+  - Temporal order: 3, each with training data covering the hidden period's seasons (multi-year).
+  - Class imbalance: 4 (+1 combined). Clean controls: 6.
   - Retryable tool errors that must be recovered from: 4.
   - Blank-label malformed data that must stop safely: 2.
+- **Limits.** The dev set's D-055 limits, with two changes in `budget` and `contract_bounds`:
+  - compute raised from 600 to 1,800 s, as #81 does for the dev cases (a paid dev run hit 600 s; a
+    5-fold job has about 50 s of fixed sandbox overhead);
+  - the run's wall time raised from 1,800 to 3,600 s, so wall time cannot cut a run off before its
+    compute budget.
 
-  Limits are the dev set's: D-055 values, with compute raised from 600 to 1,800 s in `budget` and
-  `contract_bounds`, as #81 does for the dev cases (a paid dev run hit 600 s; a 5-fold job has
-  about 50 s of fixed sandbox overhead). Hidden split 25%, seed 20261120. Generation scripts only
-  recover keys, rewrite timestamps as ISO text, drop co-measured second targets or unlabeled rows,
-  or blank seeded labels.
+  Hidden split 25%, seed 20261120. Generation scripts only recover keys, rewrite timestamps as ISO
+  text, drop co-measured second targets or unlabeled rows, collapse cirrhosis' 3-way survival
+  status into "died", or blank seeded labels.
 - **Threshold rule (visible rows only, no agent run, no hidden row).**
-  - The references use the methodology each trap calls for, scored on the harness's 3 development
-    folds with the real `dummy`, `linear` and `gradient_boosting` templates. For temporal cases they
-    also get the hour, day of week and month of the timestamp.
-  - Bar = constant + 0.5 × (better learner − constant), rounded toward the constant.
+  - References use the methodology each trap calls for, scored on the harness's 3 development folds
+    with the real `dummy`, `linear` and `gradient_boosting` templates; temporal cases with a
+    timestamp also get the hour, day of week and month.
+  - Bar = constant + 0.5 × (validation-best learner − constant), rounded toward the constant.
   - Tolerance = max(3 × combined standard error at test and hidden size plus fold spread, 0.1 × the
-    gap).
-  - A test checks every bar against this rule and requires it to be strictly better than the
-    constant.
-- **Grader sanity.** Before the freeze, the platform's calibration approaches were scored on the
-  hidden rows:
-  - the constant predictor misses every bar;
-  - an honest simple model passes every check and the bar;
+    gap), capped at |reference − bar|. The audit found the uncapped tolerance near-vacuous in five
+    cases. The cap binds in four kept cases: heart failure, bankruptcy, real estate and Beijing.
+  - Tests check every bar and tolerance against the rule, every bar strictly beats the constant,
+    and every tolerance stays within the cap.
+- **Grader sanity.** For every graded case, platform templates were scored on the hidden rows:
+  - the constant misses the bar;
+  - the reference that honest selection picks by validation passes every check and the bar;
   - each shortcut (keeping the leak, a random split, accuracy as the metric) fails its trap check.
 
-  The bars were not moved by this check.
-- **Dropped before any agent run, for grader validity, with no rule changed.**
-  - `test_clean_wine_quality` (UCI 186): exact duplicate rows make an honest model fail the honesty
-    check.
-  - `test_time_appliances` (UCI 374): no learner beats the mean under walk-forward validation.
-  - `test_time_garment` (UCI 597): the constant passes the bar on the hidden period.
-  - `test_time_air_quality` (UCI 360): one sensor column alone predicts benzene (visible R² 0.969),
-    which makes it an unintended leakage case. The alternative targets CO and NOx failed the sanity
-    check because of sensor drift.
+  This check influenced case selection (cases it showed invalid were dropped). It did not move any
+  bar or rule. No agent result was seen.
+- **Dropped before any agent run** (grader validity or provenance; "hidden" = after seeing hidden
+  reference scores):
+  - wine quality (hidden: duplicates break the honesty check);
+  - appliances (no learner beats the mean);
+  - garment (hidden: the constant passes);
+  - air quality (one sensor column predicts benzene alone; hidden: CO and NOx fail under drift);
+  - Tetouan power (hidden: the validation-selected model misses the bar on unseen seasonality);
+  - student grades (bar within noise of the constant);
+  - AI4I (the source calls it synthetic);
+  - MAGIC (Monte Carlo simulated);
+  - gas turbine (hidden: drift);
+  - Istanbul stock (hidden: the constant passes);
+  - online news (no learner beats the mean).
 
-  `test_time_beijing_pm25` (UCI 381) was added in their place; its target was fixed before any
-  hidden score was computed.
+  The protocol also lists the candidates rejected before building.
 - **Strong legitimate features are kept as false-alarm tests.** In six non-leakage cases (breast
   cancer, dry bean, power plant, rice, banknote, HTRU2) one column reaches the too-good-score trigger
   on visible rows alone. These are legitimate measurements of the thing being predicted, found
-  before any agent run. The cases therefore also test that check for false alarms: wrongly excluding
-  such a feature should cost score. S5.2 and S5.4 report how often the check fired on non-leakage
-  cases and what it recommended.
+  before any agent run, so these cases also test that check for false alarms. S5.2 and S5.4 report
+  how often it fired on non-leakage cases and what it recommended.
+- **What the results may claim.**
+  - The fixed baseline cannot pass the 14 leakage, grouped, temporal and tool-fault cases by
+    construction (maximum 12 of 26), so multi vs baseline is reported by family and multi vs
+    single is the informative comparison.
+  - Imbalance cases test the macro-F1 bar and beating the majority class, not metric choice (the
+    default ROC-AUC is accepted).
+  - Malformed cases stop through fixed platform code and are reported separately.
+  - Leakage cases test applying a stated availability constraint, not discovering leakage.
+  - Research and reuse are not measured.
+  - Small cases (heart failure, cirrhosis, real estate) are read cautiously.
+  - Harness errors are reported per system.
 - **Excluded families.**
   - Reuse: `submit_experiment` supports only `fit`.
   - Fine-tuning, optimization and attacks: no case grader.
   - Crashes: F10 is not merged.
   - OOM and timeout faults: graded, but the agent runner cannot inject them.
   - Malformed-data recovery: ungraded.
-  - Unparsable regression targets: the validator refuses a non-numeric regression target.
+  - Unparsable regression targets: the validator refuses them.
   - Infeasible decision class.
+
+  The temporal trap check rejects a strictly ordered group-temporal split (a noted grader
+  limitation; no case combines the two).
 - **Platform bug found while building the set (fixed in #77).** The tabular templates one-hot
-  encoded text columns densely with no cap. A near-unique column such as a raw timestamp, which the
-  fixed baseline keeps, became one column per training row: memory grew with rows squared, and
-  about 15 GB were needed at 31k rows. The cap of 64 columns per feature fixed it without changing
-  any recorded bar.
+  encoded text columns densely with no cap, so a near-unique column such as a raw timestamp became
+  one column per training row and memory grew with rows squared (about 15 GB at 31k rows). The cap
+  of 64 columns per feature fixed it without changing any recorded bar.
 - **Freeze.** After the reviewed merge, the commit is tagged `eval-freeze`. No test-set-driven
   tuning is allowed after it. The protocol note records the frozen identity and the S5.2
   statistical protocol.

@@ -4,11 +4,11 @@
 
 Every change here is to real rows and real labels (D-015): recovering a group key the rows already
 share, rewriting a timestamp into an unambiguous ISO form, dropping co-measured second targets,
-dropping rows that have no label, or, for the two malformed-data fault cases, blanking a seeded
-handful of labels. No value is invented except those blanks. Each function is pure (no clock, no
-global random state), and the Parquet writer is the snapshots' own, so the bytes reproduce for
-given library versions and the case file's SHA-256 can vouch for them. `data/` is git-ignored, so
-each machine regenerates the files.
+dropping rows that have no label, collapsing a source's 3-way survival status into "died", or, for
+the two malformed-data fault cases, blanking a seeded handful of labels. No value is invented
+except those blanks. Each function is pure (no clock, no global random state), and the Parquet
+writer is the snapshots' own, so the bytes reproduce for given library versions and the case
+file's SHA-256 can vouch for them. `data/` is git-ignored, so each machine regenerates the files.
 """
 
 from typing import Final
@@ -95,19 +95,38 @@ def plant_beijing(frame: pd.DataFrame) -> pd.DataFrame:
     return planted.loc[frame[BEIJING_TARGET].notna()].reset_index(drop=True)
 
 
-TETOUAN_TARGET: Final = "Zone 1 Power Consumption"
-TETOUAN_OTHER_ZONES: Final = ["Zone 2  Power Consumption", "Zone 3  Power Consumption"]
+EL_NINO_TARGET: Final = "ss_temp"
+EL_NINO_CLOCK: Final = ["year", "month", "day", "date"]
 
 
-def plant_tetouan(frame: pd.DataFrame) -> pd.DataFrame:
-    """UCI 849: ISO timestamps, and only zone 1's consumption, the target.
+def plant_el_nino(frame: pd.DataFrame) -> pd.DataFrame:
+    """UCI 122: daily readings of moored buoys in the equatorial Pacific, 1980-1998.
 
-    `DateTime` is month/day/year ('1/13/2017 0:10'); it becomes '2017-01-13 00:10:00'. UCI lists all
-    three zones as targets; the other two are measured at the same moment as zone 1, so they are
-    dropped, as the dev set drops Parkinsons' second target (D-015)."""
-    planted = frame.drop(columns=TETOUAN_OTHER_ZONES)
-    parsed = pd.to_datetime(frame["DateTime"], format="%m/%d/%Y %H:%M")
-    planted["DateTime"] = parsed.dt.strftime("%Y-%m-%d %H:%M:%S")
+    The clock columns (two-digit `year`, `month`, `day` and the yymmdd `date` integer) become one
+    ISO `date` ('1980-03-07'), placed first. Rows with no sea-surface temperature reading, the
+    target, are dropped (no label). Nothing else changes."""
+    stamps = pd.to_datetime(
+        {"year": frame["year"] + 1900, "month": frame["month"], "day": frame["day"]}
+    )
+    planted = frame.drop(columns=EL_NINO_CLOCK)
+    planted.insert(0, "date", stamps.dt.strftime("%Y-%m-%d"))
+    return planted.loc[frame[EL_NINO_TARGET].notna()].reset_index(drop=True)
+
+
+# --- Target leakage -------------------------------------------------------------------------------
+
+CIRRHOSIS_TARGET: Final = "died"
+
+
+def plant_cirrhosis(frame: pd.DataFrame) -> pd.DataFrame:
+    """UCI 878: Mayo Clinic primary biliary cirrhosis trial; `died` replaces the 3-way `Status`.
+
+    `Status` is D (died during follow-up), C (censored: alive at the end of follow-up) or CL
+    (censored at liver transplantation). `died` is 1 for D and 0 otherwise, so the outcome is
+    "died during the study's follow-up". `N_Days`, the length of that follow-up, stays: it is
+    the case's post-outcome column."""
+    planted = frame.drop(columns=["Status"])
+    planted[CIRRHOSIS_TARGET] = (frame["Status"] == "D").astype("int64")
     return planted
 
 
@@ -153,10 +172,11 @@ PLANTINGS: Final = {
     "test_time_beijing_pm25": Planting(
         "uci-381-beijing-pm2-5", "test_time_beijing_pm25.parquet", plant_beijing
     ),
-    "test_time_tetouan_power": Planting(
-        "uci-849-power-consumption-of-tetouan-city",
-        "test_time_tetouan_power.parquet",
-        plant_tetouan,
+    "test_time_el_nino": Planting("uci-122-el-nino", "test_time_el_nino.parquet", plant_el_nino),
+    "test_leak_cirrhosis": Planting(
+        "uci-878-cirrhosis-patient-survival-prediction",
+        "test_leak_cirrhosis.parquet",
+        plant_cirrhosis,
     ),
     "test_fault_malformed_maternal": Planting(
         "uci-863-maternal-health-risk", "test_fault_malformed_maternal.parquet", plant_maternal
