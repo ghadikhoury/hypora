@@ -100,7 +100,7 @@ def test_agent_c_methodology_distinguishes_risks_from_open_questions() -> None:
 
 def test_agent_c_includes_imbalanced_classification_guidance() -> None:
     prompt = load_prompt("agent_c")
-    assert prompt.version == 11
+    assert prompt.version == 12
     lower = prompt.text.lower()
     assert "class imbalance" in lower
     assert "HistGradientBoostingClassifier" in prompt.text
@@ -122,7 +122,7 @@ def test_agent_c_workers_includes_multi_turn_budget_and_small_trial_guidance() -
 
 def test_agent_c_includes_draft_recovery_and_mae_regression_guidance() -> None:
     prompt = load_prompt("agent_c")
-    assert prompt.version == 11
+    assert prompt.version == 12
     lower = prompt.text.lower()
     assert "unsubmitted `draft` trial" in lower
     assert "via its `trial_id`" in prompt.text
@@ -132,13 +132,22 @@ def test_agent_c_includes_draft_recovery_and_mae_regression_guidance() -> None:
     assert "min_samples_leaf" in prompt.text
     assert "HuberRegressor" in prompt.text
     assert "Ridge" in prompt.text and "Lasso" in prompt.text
-    assert "ExtraTreesRegressor" in prompt.text
     assert "inner cv" in lower
+
+
+def test_agent_c_steers_away_from_slow_absolute_error_trees() -> None:
+    """D-059: a recommended `criterion="absolute_error"` forest burned a paid run's compute."""
+    prompt = load_prompt("agent_c")
+    assert prompt.version == 12
+    assert 'ExtraTreesRegressor(criterion="absolute_error"' not in prompt.text
+    assert "many times slower" in prompt.text
+    assert "Sandbox compute is a run limit" in prompt.text
+    assert "final job refits" in prompt.text
 
 
 def test_agent_c_includes_step_budget_and_feature_baseline_guidance() -> None:
     prompt = load_prompt("agent_c")
-    assert prompt.version == 11
+    assert prompt.version == 12
     lower = prompt.text.lower()
     assert "run_diagnostic" in prompt.text
     assert "DummyRegressor" in prompt.text and "DummyClassifier" in prompt.text

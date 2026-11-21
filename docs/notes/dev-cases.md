@@ -90,6 +90,22 @@ an unbiased reading; the frozen Stage 5 test set, built later, measures generali
   metrics as available. Metric, bar and accepted metrics are unchanged: accuracy-primary still
   fails the metric check and the majority predictor (0.458) still fails the bar.
 
+## D-059 revision (2026-11-20, after readiness results)
+
+Also made after seeing readiness results (paid run `run_3aae18d950dd` on `d9cef81`).
+
+- **Compute: `max_compute_seconds` 600 -> 1,800, every case** (`budget` and, through the YAML
+  anchor, `contract_bounds.max_budget`). The grouped run ended "did not finish
+  (max_compute_seconds)" at 615 s of 600. Five-fold validation jobs took 54 s (linear), 61 s
+  (gradient boosting, absolute-error loss), and 155 s and 173 s (two forests with
+  `criterion="absolute_error"`); the final job for one of those forests had spent 172 s when the
+  limit cancelled it. About 5 s per stage is fixed sandbox overhead, so a 5-fold job costs at least
+  ~50 s and a final job ~65 s before any model work: 600 s left room for only a few honest trials
+  and a final job. `configs/budgets.yaml` keeps its 3,600 s run default (at least the case value).
+- The platform side of the same fix: the finishing reserve now keeps compute back for the final job
+  (`docs/notes/controller-robustness.md`), and C's prompt no longer recommends
+  `criterion="absolute_error"` trees.
+
 ## Profiling follow-up
 
 ID detection skips the target entirely. Sorted integer-valued columns with any repeated nonmissing

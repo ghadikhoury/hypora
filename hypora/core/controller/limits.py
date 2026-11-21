@@ -15,7 +15,9 @@ recorded once as `RUN_CANCELLED`.
 The finishing reserve (D-056): while C explores (`RunGuard.exploration`), a few steps and seconds
 of the run's budget are kept back, so exploration stops early with `FinishReserveReached`
 (recorded once as `FINISH_RESERVE_REACHED`, not as a run limit) and the run can still review,
-verify and report its best validated trial within its real limits.
+verify and report its best validated trial within its real limits. Sandbox compute is kept back
+the same way (D-059): enough for the final job, estimated by the controller from the jobs that
+have completed, so the final job still fits in `max_compute_seconds`.
 """
 
 import time
@@ -49,6 +51,9 @@ RESERVE_STEP_SHARE: Final = 4
 """The step reserve is at most `max_steps // RESERVE_STEP_SHARE`: a small budget still explores."""
 RESERVE_TIME_SHARE: Final = 0.15
 """The time reserve is at most this share of `max_wall_clock_seconds`."""
+RESERVE_COMPUTE_SHARE: Final = 0.35
+"""The compute reserve is at most this share of `max_compute_seconds` (D-059): exploration keeps
+most of the budget even when one job was very slow."""
 
 
 @dataclass
@@ -109,10 +114,13 @@ class RunGuard:
         self.usd = 0.0
         self.compute_s = 0.0
         self._charged_stages: set[tuple[str, int, int]] = set()
+        self.job_compute: dict[str, tuple[float, int]] = {}
+        """Per job: the compute seconds charged and the number of stages they came from."""
         self._charged_token_calls: set[str] = set()
         self.fired: dict[str, RunLimitReached] = {}
         """Each limit that stopped a call, in order; its event was recorded once."""
         self._reserve: tuple[int, float] | None = None
+        self._compute_reserve: Callable[[], float] | None = None
         self.reserve_fired: FinishReserveReached | None = None
         """The first finishing-reserve stop (D-056); its event was recorded once."""
 
@@ -132,21 +140,54 @@ class RunGuard:
         )
         return kept_steps, kept_seconds
 
+    def compute_reserve_for(self, floor: float, estimate: float = 0.0) -> float:
+        """The compute seconds actually kept back for the final job (D-059).
+
+        The larger of `floor` and `estimate`, capped at `RESERVE_COMPUTE_SHARE` of
+        `max_compute_seconds`, so it is never negative and never the whole budget. 0 when the run
+        has no compute limit or `floor` is 0 (the compute reserve is off).
+        """
+        maximum = self.budget.max_compute_seconds
+        if maximum is None or floor <= 0:
+            return 0.0
+        return max(0.0, min(max(floor, estimate), RESERVE_COMPUTE_SHARE * maximum))
+
     @contextmanager
-    def exploration(self, *, steps: int, seconds: float) -> Iterator[None]:
-        """Within this block every call check also keeps the finishing reserve back."""
-        previous = self._reserve
+    def exploration(
+        self,
+        *,
+        steps: int,
+        seconds: float,
+        compute: Callable[[], float] | None = None,
+    ) -> Iterator[None]:
+        """Within this block every call check also keeps the finishing reserve back.
+
+        `compute`, when given, returns the compute seconds to keep back now (already capped, see
+        `compute_reserve_for`); it is asked at every check, so the reserve follows the jobs that
+        have completed.
+        """
+        previous = self._reserve, self._compute_reserve
         self._reserve = self.reserve_for(steps, seconds)
+        self._compute_reserve = compute
         try:
             yield
         finally:
-            self._reserve = previous
+            self._reserve, self._compute_reserve = previous
 
     def _check_reserve(self, limits: tuple[Limit, ...]) -> None:
         if self._reserve is None:
             return
         reserve_steps, reserve_seconds = self._reserve
         b = self.budget
+        if (
+            Limit.MAX_COMPUTE in limits
+            and b.max_compute_seconds is not None
+            and self._compute_reserve is not None
+        ):
+            kept = self._compute_reserve()
+            usable_c = b.max_compute_seconds - kept
+            if kept > 0 and self.compute_s >= usable_c:
+                raise self._reserve_stop(Limit.MAX_COMPUTE, self.compute_s, usable_c, kept)
         if Limit.MAX_STEPS in limits and b.max_steps is not None and reserve_steps:
             usable = b.max_steps - reserve_steps
             if self.steps >= usable:
@@ -210,6 +251,8 @@ class RunGuard:
                 )
                 self._charged_stages.add(key)
                 self.compute_s += stage.duration_s
+                seconds, stages = self.job_compute.get(job.job_id, (0.0, 0))
+                self.job_compute[job.job_id] = (seconds + stage.duration_s, stages + 1)
 
     # --- CallGuard --------------------------------------------------------------------------------
 
