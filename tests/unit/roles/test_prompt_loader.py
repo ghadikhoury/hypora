@@ -64,7 +64,7 @@ def test_role_code_loads_its_prompts_instead_of_inlining_them() -> None:
 
 def test_agent_a_decide_includes_methodology_review_guidance() -> None:
     prompt = load_prompt("agent_a_decide")
-    assert prompt.version == 7
+    assert prompt.version == 8
     lower_text = prompt.text.lower()
     # D-056: report at a methodology review goes back to C; blocker stops at once.
     assert "report sends your reason back to c" in lower_text
@@ -80,6 +80,9 @@ def test_agent_a_decide_includes_methodology_review_guidance() -> None:
     assert "feature_concern_columns" in prompt.text
     assert "user's original request" in lower
     assert "use_best_validated_trial" in prompt.text
+    # D-061: a report names a concrete problem, judged against the contract feature facts.
+    assert "concrete problem you can name, in the lines shown or the platform evidence" in lower
+    assert "when contract feature facts are shown" in lower
 
 
 def test_agent_c_methodology_distinguishes_risks_from_open_questions() -> None:

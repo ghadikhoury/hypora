@@ -1801,3 +1801,48 @@ hidden split or eval model profile changed.
   `fit`/`predict` interface, the sandbox, `hypora/core/policy/`, eval cases or graders. Only
   aggregate scores reach a role; no label or row does. Scripted evidence only; no live run was
   made. Notes: `docs/notes/controller-robustness.md` J and K.
+
+## D-061 — S4.2j verify4 follow-up: contract feature facts at A's final reviews (2026-11-21)
+
+Made by the orchestrator under Ghadi's standing direction for broad, dataset-agnostic fixes, never
+tuned to the dev cases. **This change was made after seeing readiness results** (paid verify4 on
+`3cd9849`, 5/6), so, as with D-055, D-059 and D-060, the dev cases are no longer an unbiased
+measurement; the frozen Stage 5 test set measures generalization. No dev case, grading rule, bar,
+hidden split or eval model profile changed.
+
+- **What failed.** On the temporal regression case, A reported at the review before final
+  verification, so no model was verified. The candidate was clean (19 lines, gradient boosting
+  fitted on all of `train.X`), platform facts were clean, and the nominated trial ranked first.
+  A did state a reason. It is in `role_outputs/`; the model-call log only shows the filtered
+  view without it. The reason was false: A said the pipeline used "the allowed features casual
+  and registered", which rebuild the target. Both had already been excluded from the contract,
+  and platform code passes the pipeline only the allowed features. A had been shown a count of
+  allowed features, never their names, and notes saying the two columns were *flagged*, not that
+  they were *excluded*. A first proposal (re-ask A when a report has no reason) was dropped after
+  the evidence showed `LeadAction.reason` is already required and A's reason was concrete, just
+  wrong. The fix supplies the missing facts instead.
+- **Contract feature facts (`robustness.contract_feature_facts`, default on).** Both reviews
+  before final verification (the pre-final review and the `use_best_validated_trial` swap
+  review) show the approved contract's target, allowed feature names, and each excluded feature
+  with its evidence reference, the platform diagnostic that flagged it in this run, and C's
+  screened reason. They also state that platform code builds `train.X` and `X` from the allowed
+  features only, so excluded columns cannot reach the pipeline. The JSON is bounded, and names
+  cut for size are counted. Methodology and reconciliation reviews already show C's full
+  proposal with these names, so they are unchanged; so is the trial evidence check.
+- **A's stop reason in the run notes.** When A reports at either review, its reason goes into
+  the run notes and so the report. It passes the same role-text screen (credentials, code, record
+  IDs, data firewall, injection screen; fail closed) that A's `overlap_reason` already passes
+  before entering the notes. Platform record IDs in it (A sees trial IDs at the review) are
+  first replaced by a placeholder, since the note reaches no other role. Refused text is
+  replaced by a fixed note. Flag off: unchanged (the reason stays in A's role output only).
+- **Prompt.** `agent_a_decide` v7 -> v8: report only for a concrete problem nameable in the code
+  shown or the platform evidence, named in the reason. When contract feature facts are shown, judge the code against them;
+  a concern they settle is not a reason to report. The first sentence applies with the flag off
+  too, like D-060's unconditional prompt fix. `results/readiness/lock.json` regenerated.
+- **Stop semantics unchanged.** A reasoned report still stops the run before verification;
+  continue still goes to the platform's independent verification, which A cannot waive. No
+  re-ask loop and no platform override of A.
+- **Frozen contracts and security.** No change to `hypora/core/schemas/`, `docs/schemas/`, the
+  MCP tool contract, event types, the trial `fit`/`predict` interface, the sandbox,
+  `hypora/core/policy/`, eval cases or graders. Scripted evidence only; no live run was made.
+  Notes: `docs/notes/controller-robustness.md` L.

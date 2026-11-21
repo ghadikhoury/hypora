@@ -54,6 +54,7 @@
         "retrieval_mode": "hybrid",
         "robustness": {
           "constant_reference": "on",
+          "contract_feature_facts": "on",
           "evidence_before_exclusion": "on",
           "finish_reserve_compute_seconds": 60.0,
           "finish_reserve_seconds": 240.0,
@@ -104,6 +105,7 @@
         "retrieval_mode": "hybrid",
         "robustness": {
           "constant_reference": "on",
+          "contract_feature_facts": "on",
           "evidence_before_exclusion": "on",
           "finish_reserve_compute_seconds": 60.0,
           "finish_reserve_seconds": 240.0,
@@ -149,8 +151,8 @@
   },
   "prompts": {
     "agent_a_decide": {
-      "sha256": "994cf2583d16a9d140a71fbda923ddf74d5338036392633ae0935416a21e3bbd",
-      "version": 7
+      "sha256": "decf3d416d3d1760c7b470fbe35003eee3eedeee48d95ab62e096c12683b3f49",
+      "version": 8
     },
     "agent_a_intake": {
       "sha256": "ea2fc5b42a391bc1383be01d3208f1b8096602ec6b8257de94128be814bd0d2f",

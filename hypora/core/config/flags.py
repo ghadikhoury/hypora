@@ -98,8 +98,8 @@ class LeakageCheckConfig(FrozenModel):
 class RobustnessConfig(FrozenModel):
     """Controller robustness switches and caps (D-056; docs/notes/controller-robustness.md).
 
-    `evidence_before_exclusion`, `constant_reference` and `target_composition` are comparison
-    switches; the other fields are bounds. Each
+    `evidence_before_exclusion`, `constant_reference`, `target_composition` and
+    `contract_feature_facts` are comparison switches; the other fields are bounds. Each
     bound has headroom over what successful live runs used, so it binds only on runaway use.
     """
 
@@ -133,6 +133,11 @@ class RobustnessConfig(FrozenModel):
     """D-060: after the lock, the platform also tests whether A's questioned numeric feature
     columns jointly reconstruct a regression target (linear R2 >= 0.99) and flags the smallest
     such set like an above-threshold single-column diagnostic (off: single-column flags only)."""
+    contract_feature_facts: OnOff = Toggle.ON
+    """D-061: A's reviews before final verification show the contract's allowed and excluded
+    feature names (each exclusion with its evidence and screened reason) and state that the
+    pipeline receives only the allowed features; A's screened stop reason goes into the run notes
+    (off: a count of allowed features only, and the reason stays in A's role output)."""
 
 
 class FeatureFlags(FrozenModel):
