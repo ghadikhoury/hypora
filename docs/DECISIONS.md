@@ -1908,3 +1908,13 @@ Details and the table of every run are in `docs/notes/readiness-verification.md`
   - Agent arm only (no baseline or single-agent arm); one model; one WSL2 machine.
 - **Scope.** No schema, event type, MCP tool, fit/predict interface, dependency, sandbox,
   policy, scanner, eval case, grading rule, hidden split or model profile change.
+
+## D-064 — CI test job timeout raised from 30 to 45 minutes (2026-11-21)
+
+- **Decision.** `timeout-minutes` is 45 (was 30) for the non-container test shards
+  (`tests without containers`) and the container test shards in `.github/workflows/ci.yml`. The
+  scope, lint and types, and `make check` jobs stay at 30. Routing, required checks and
+  `gitleaks.yml` are unchanged.
+- **Approval.** Ghadi, 2026-11-21: "For the time limit, yes, raise it to 45."
+- **Reason.** The `tests without containers (agents)` shard now takes 24 to 26 minutes against the
+  30-minute limit and has timed out once, so a slow runner fails CI without a real test failure.
