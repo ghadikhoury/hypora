@@ -8,7 +8,8 @@ cases are development controls, not held-out test results (S5).
 S4.2 collected it once (D-051, sections below the S4.2f one). S4.2b–S4.2e then changed behavior
 that evidence measured, so S4.2f reran it once (D-052, D-053). **S4.2f is the latest recorded
 readiness run.** The S4.2 sections are the record of the first collection. Post-readiness fixes
-change the workflow and await the S4.2j verification.
+changed the workflow; the S4.2j verification of that workflow (agent only, `default` config) is in
+[`readiness-verification.md`](readiness-verification.md) (D-062).
 
 ## S4.2f rerun (D-053)
 

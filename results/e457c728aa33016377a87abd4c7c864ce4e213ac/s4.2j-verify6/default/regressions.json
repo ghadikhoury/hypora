@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "commit": "e457c728aa33016377a87abd4c7c864ce4e213ac",
+  "config": "default",
+  "status": "no_baseline",
+  "message": "No regression check: no results for config default on the parent of e457c728aa33 or the 79 commit(s) before it. These results can be the base for the next commit.",
+  "base_commit": null,
+  "commits_back": null,
+  "newly_failing": [],
+  "recovered": [],
+  "new_cases": [],
+  "missing_cases": [],
+  "not_comparable": []
+}
