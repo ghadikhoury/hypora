@@ -9,7 +9,8 @@ import pytest
 from hypora.core.config.flags import AgentMode, Toggle
 from hypora.core.controller.controller import RunRequest
 from hypora.core.llm.providers.fake import json_result, text_result
-from hypora.core.schemas import Budget
+from hypora.core.policy.allowlists import allowed_tools
+from hypora.core.schemas import ActorRole, Budget
 from hypora.core.schemas.events import HandoffEvent, RoleStartedEvent
 from hypora.storage.events import EventLog
 from tests.controller.conftest import NoWorker
@@ -30,7 +31,15 @@ class ScriptedWorkers(ScriptedMulti):
     async def generate(self, request):
         if request.output_schema_name == "WorkerProposal":
             self.requests.append(request)
-            refs = json.loads(request.messages[1].content.split("Available context refs: ")[1])
+            context = request.messages[1].content
+            assert f"\nAgent A assignment: {self.assignment}\n" in context
+            refs = json.loads(context.split("Available context refs: ", 1)[1])
+            # D-065: C is told the exact worker envelope (live, briefs asking for tools outside
+            # it, such as estimate_experiment, were denied whole).
+            listed = context.split("\nWorker tools (a brief may request only these): ", 1)[1]
+            assert json.JSONDecoder().raw_decode(listed)[0] == sorted(
+                tool.value for tool in allowed_tools(ActorRole.TRIAL_WORKER)
+            )
             return json_result(
                 {
                     "workers": [

@@ -21,6 +21,7 @@ from hypora.core.controller import controller as controller_module
 from hypora.core.controller.contract import build_data_contract
 from hypora.core.controller.controller import RunRequest
 from hypora.core.llm.providers.fake import json_result
+from hypora.core.llm.sinks import FileModelIOStore
 from hypora.core.roles.single_agent import ToolChannel
 from hypora.core.schemas import ActorRole, DataContract, MetricName, RequestedAction, TaskType
 from hypora.core.schemas.events import (
@@ -271,7 +272,23 @@ async def test_a_failed_research_session_leaves_a_decides_without_it(
         return real(launch, errlog)
 
     monkeypatch.setattr(controller_module, "mcp_transport", transport)
-    script = ScriptedMulti("run_no_research")
+
+    class UnavailableResearchScript(ScriptedMulti):
+        async def generate(self, request):
+            if request.output_schema_name == "LeadAction" and request.messages[
+                1
+            ].content.startswith("Review C's proposed data methodology"):
+                self.requests.append(request)
+                return json_result(
+                    {
+                        "action": "continue",
+                        "reason": "Methodology is defensible",
+                        "assignment": "This incidental field should not replace the assignment",
+                    }
+                )
+            return await super().generate(request)
+
+    script = UnavailableResearchScript("run_no_research")
     controller = _multi(make_controller, run_config, script)
     result = await controller.run(
         RunRequest(dataset=dataset, goal="Predict target", run_id="run_no_research")
@@ -286,6 +303,18 @@ async def test_a_failed_research_session_leaves_a_decides_without_it(
         if r.output_schema_name == "LeadAction" and "Review B's research" in r.messages[1].content
     ]
     assert decision and "Research unavailable" in decision[0]
+    decode = json.JSONDecoder().raw_decode
+    task = decode(decision[0].split("Task specification: ", 1)[1])[0]
+    profile = decode(decision[0].split("Dataset profile: ", 1)[1])[0]
+    assert task["requested_actions"] == ["train"]
+    assert profile["rows"] > 0 and profile["columns"] == sum(profile["column_types"].values())
+    c_context = next(
+        r.messages[1].content
+        for r in script.requests
+        if r.output_schema_name is None and "You are Agent C" in r.messages[0].content
+    )
+    assert f"Agent A assignment: {script.assignment}" in c_context
+    assert "This incidental field" not in c_context
     assert any("Research session failed (OSError)" in note for note in result.notes)
     assert "research server" not in json.dumps([e.model_dump(mode="json") for e in events])
 
@@ -293,8 +322,9 @@ async def test_a_failed_research_session_leaves_a_decides_without_it(
 # --- Data-driven replanning (spec §5.4, §8.7) ----------------------------------------------
 
 
+@pytest.mark.parametrize("revise_assignment", [False, True])
 async def test_a_data_finding_returns_through_a_for_revised_research(
-    make_controller, database, dataset, run_config, monkeypatch
+    make_controller, database, dataset, run_config, monkeypatch, revise_assignment, runs_root
 ):
     calls: list[DataContract | None] = []
 
@@ -318,8 +348,54 @@ async def test_a_data_finding_returns_through_a_for_revised_research(
 
     monkeypatch.setattr(controller_module._Run, "_propose_methodology", propose)
     monkeypatch.setattr(controller_module, "validate_data_proposal", lambda *args: None)
-    script = ScriptedMulti("run_finding")
+
+    class ReconciledResearchScript(ScriptedMulti):
+        refused = "import mock_boundary_sentinel"
+        revised_assignment = "Compare a tree ensemble after the feature revision"
+
+        async def generate(self, request):
+            context = request.messages[1].content
+            if request.output_schema_name == "ResearchObservation":
+                self.requests.append(request)
+                report = cited_strategy_fixture(self.run_id, self.evidence)
+                if "Data finding that may change the research question" in context:
+                    report["options"][3]["summary"] = "Compare a tree ensemble"
+                return json_result(
+                    {
+                        "summary": "Research source reviewed",
+                        "uncertainties": [],
+                        "strategy_report": report,
+                    }
+                )
+            if request.output_schema_name == "LeadAction" and context.startswith(
+                "Reconcile B's evidence"
+            ):
+                self.requests.append(request)
+                assert f"Current assignment: {self.assignment}" in context
+                assert "B evidence (untrusted): " in context
+                assert "Compare a tree ensemble" in context
+                if "was not accepted" not in context:
+                    return json_result(
+                        {
+                            "action": "continue",
+                            "reason": "Consider revised research",
+                            "assignment": self.refused,
+                        }
+                    )
+                assert "role text cannot contain code" in context
+                assert self.refused not in context
+                response: dict[str, object] = {
+                    "action": "continue",
+                    "reason": "The proposed methodology works",
+                }
+                if revise_assignment:
+                    response["assignment"] = self.revised_assignment
+                return json_result(response)
+            return await super().generate(request)
+
+    script = ReconciledResearchScript("run_finding")
     controller = _multi(make_controller, run_config, script)
+    controller.adapter._io_store = FileModelIOStore(runs_root)
     result = await controller.run(
         RunRequest(dataset=dataset, goal="Predict target", run_id="run_finding")
     )
@@ -341,7 +417,20 @@ async def test_a_data_finding_returns_through_a_for_revised_research(
         if r.output_schema_name == "LeadAction"
         and "Reconcile B's evidence" in r.messages[1].content
     ]
-    assert len(reconcile) == 1 and len(calls) == 2
+    assert len(reconcile) == 2 and len(calls) == 2
+    assert all(script.refused not in str(event) for event in events)
+    artifacts = [
+        path.read_text(encoding="utf-8") for path in (runs_root / script.run_id).rglob("*.json")
+    ]
+    assert any(json.loads(payload).get("text") == "[FILTERED]" for payload in artifacts)
+    assert all(script.refused not in payload for payload in artifacts)
+    c_context = next(
+        r.messages[1].content
+        for r in script.requests
+        if r.output_schema_name is None and "You are Agent C" in r.messages[0].content
+    )
+    expected_assignment = script.revised_assignment if revise_assignment else script.assignment
+    assert f"Agent A assignment: {expected_assignment}" in c_context
 
 
 # --- Tool-error recovery through the eval harness's fault channel (F4) ---------------------------
@@ -628,6 +717,10 @@ async def test_phase_contexts_surface_targeted_diagnostics_linear_baseline_and_s
     assert "feature-based linear baseline" in assignments[0]
     assert "constant/dummy predictor" in assignments[0]
     assert "max_trials=4" in assignments[0]
+    # D-065: A picks model families from B's research and the data, under any trial budget.
+    assert "chosen from B's research, the task and the dataset profile" in assignments[0]
+    assert "diverse model families suited to the data's size" in assignments[0]
+    assert "max_trials <= 4" not in assignments[0]
 
     c_requests = [
         r.messages[1].content

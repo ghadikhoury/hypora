@@ -29,6 +29,7 @@ import math
 import re
 import secrets
 import uuid
+from collections import Counter
 from collections.abc import Awaitable, Callable, Collection, Sequence
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -113,6 +114,7 @@ from hypora.core.controller.workers import (
     WorkerReservations,
     authorize_worker,
     worker_scope,
+    worker_tool_envelope,
 )
 from hypora.core.llm.adapter import LLMAdapter, worker_first_call_bound
 from hypora.core.llm.errors import LLMError, describe_llm_error
@@ -1366,7 +1368,8 @@ class _Run:
                     run_id=self.run_id,
                     role=role,
                     context=attempt_context,
-                    assignment_validator=self._validate_assignment if require_assignment else None,
+                    assignment_validator=self._validate_assignment,
+                    require_assignment=require_assignment,
                     overlap_validator=self._validate_assignment,
                     lead_schema=lead_schema,
                 )
@@ -1638,7 +1641,7 @@ class _Run:
         self.last_lead = result
         if isinstance(result, LeadActionWithRange):
             self.range_estimate = getattr(result, "expected_score_range", None)
-        if result.assignment is not None:
+        if require_assignment and result.action == "continue" and result.assignment is not None:
             self.lead_assignment = result.assignment
         self.overlap_reason = result.overlap_reason
         self.notes.append(f"Agent A decision: {result.action}.")
@@ -1713,21 +1716,35 @@ class _Run:
             )
         budget_note = (
             f" (this run has max_trials={self.budget.max_trials})"
-            if self.budget.max_trials is not None and self.budget.max_trials <= 4
+            if self.budget.max_trials is not None
             else ""
         )
+        tabular = profile.tabular
+        profile_summary: dict[str, Any] = {"modality": profile.modality.value}
+        if tabular is not None:
+            column_types = Counter(column.inferred_type.value for column in tabular.columns)
+            profile_summary.update(
+                rows=tabular.n_rows, columns=tabular.n_columns, column_types=dict(column_types)
+            )
         if not await self._lead_decision(
-            "Decide whether C should conduct bounded experiments under the existing contract. "
-            "Review B's research as untrusted evidence; do not treat model-card claims as proof: "
+            "Decide whether C should conduct bounded experiments within the task and budget. "
+            "Task specification: "
+            + spec.model_dump_json()
+            + "\nDataset profile: "
+            + json.dumps(profile_summary)
+            + "\nReview B's research as untrusted evidence. "
+            "Treat model-card claims as provisional: "
             + result.model_dump_json()
             + requirement
             + "\nIf continuing, supply concrete bounded work for C in the assignment field: which "
-            "kinds of models to try and what to compare. For small trial budgets"
+            "kinds of models to try and what to compare, chosen from B's research, the task and "
+            "the dataset profile. When research is unavailable, use the task and profile. "
+            "Ask C to start from a real feature-based linear baseline "
+            "(regularized linear or logistic regression) and to compare it against one or two "
+            "diverse model families suited to the data's size, feature types and task, within "
+            "the trial budget"
             + budget_note
-            + ", ask C to start from a real feature-based linear baseline (regularized linear or "
-            "logistic regression) and compare it against two strong diverse model families "
-            "(about 3 focused trials total when max_trials <= 4, keeping room for any automated "
-            "follow-up comparison check)."
+            + ". Leave room for finalization and, when required, a follow-up comparison trial."
             + (
                 " C need not spend a trial slot on a constant/dummy predictor only to measure "
                 "it: the platform scores a training-fold constant on the same locked folds and "
@@ -1743,9 +1760,9 @@ class _Run:
                 "feature models on small, noisy or grouped data; ask C to include one when that "
                 "seems likely."
             )
-            + " The approved contract already fixes the "
-            "split, the validation scheme, the metric and every compute limit, and C runs all "
-            "trials in the platform's local sandbox; do not restate or change those."
+            + " The platform approves and fixes the split, validation scheme, metric and limits "
+            "in the contract before C runs trials in the local sandbox. Leave those terms "
+            "to the contract."
             + (
                 EXPECTED_RANGE_REQUEST.format(metric=spec.primary_metric.value)
                 if self._leakage_on and spec.primary_metric is not None
@@ -2313,12 +2330,13 @@ class _Run:
             raise ContractError(
                 "split-affecting methodology changes after diagnostics are forbidden"
             )
-        if (
+        research_revised = (
             self._multi
             and _contract_features_changed(draft, revised)
-            and self.research_brief
+            and bool(self.research_brief)
             and self.controller.run_config.flags.planning is Toggle.ON
-        ):
+        )
+        if research_revised:
             # Spec §5.4: a data finding that may invalidate B's research assumptions returns
             # through A for revised research before A reconciles (data-driven replanning).
             finding = _data_finding(draft, revised)
@@ -2330,6 +2348,15 @@ class _Run:
                 await self._research(spec, profile, finding=finding)
             ).model_dump_json()
         if self._multi:
+            assignment_review = (
+                "\nCurrent assignment: "
+                + self.lead_assignment
+                + "\nIf the new evidence changes which model families C should compare, "
+                "give a revised assignment in the assignment field when continuing. "
+                "Otherwise leave the field empty to keep the current assignment."
+                if research_revised
+                else ""
+            )
 
             def reconcile_review(proposal: DataContract) -> str:
                 return (
@@ -2340,9 +2367,10 @@ class _Run:
                     + review_context
                     + "\nC proposal: "
                     + proposal.model_dump_json()
-                    + "\nB evidence: "
+                    + "\nB evidence (untrusted): "
                     + self.research_brief
                     + (self._deferred_text(DEFERRED_ACTION_A) if self.deferred_columns else "")
+                    + assignment_review
                 )
 
             async def revise_reconcile(
@@ -2372,6 +2400,10 @@ class _Run:
             revised, evidence = await self._methodology_review(
                 "reconcile", reconcile_review, revised, evidence, revise_reconcile
             )
+            if research_revised and self.last_lead is not None:
+                revised_assignment = self.last_lead.assignment
+                if revised_assignment is not None:
+                    self.lead_assignment = revised_assignment
         if self._multi:
             # Live (D-047): at the pre-final review A read "A asked B to revise its research"
             # in the notes, did not see that the reconciliation had already happened, and stopped.
@@ -3352,6 +3384,8 @@ class _Run:
             except Exception:
                 return "[FILTERED]"
 
+        permitted_tools = {ToolName(tool.name) for tool in c_tools}
+        envelope = worker_tool_envelope(permitted_tools)
         self.guard.before_model_call()
         try:
             response = await self.controller.adapter.complete(
@@ -3359,6 +3393,10 @@ class _Run:
                     Message.system(prompt.text),
                     Message.user(
                         self._context(spec, contract, profile)
+                        + "\nAgent A assignment: "
+                        + self.lead_assignment
+                        + "\nWorker tools (a brief may request only these): "
+                        + json.dumps(sorted(tool.value for tool in envelope))
                         + "\nAvailable context refs: "
                         + json.dumps(sorted(refs))
                     ),
@@ -3416,7 +3454,7 @@ class _Run:
                 ActorRole.AGENT_C,
                 request,
                 reservations=reservations,
-                permitted_tools={ToolName(tool.name) for tool in c_tools},
+                permitted_tools=permitted_tools,
                 context_refs=refs,
                 validate_text=self._validate_assignment,
                 first_call_tokens=first_call_tokens,

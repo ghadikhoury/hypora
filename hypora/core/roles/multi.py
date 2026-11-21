@@ -174,13 +174,15 @@ async def main_role_call(
     role: ActorRole,
     context: str,
     assignment_validator: Callable[[str], None] | None = None,
+    require_assignment: bool = False,
     overlap_validator: Callable[[str], None] | None = None,
     lead_schema: type[LeadAction] = LeadAction,
 ) -> LeadAction | ResearchObservation:
     """Call A or B without a tool channel and validate the structured result.
 
     `lead_schema` is A's output schema: `LeadActionWithRange` only for the C-assignment decision
-    with the leakage_flag on; every other call keeps `LeadAction` exactly.
+    with the leakage_flag on; every other call keeps `LeadAction` exactly. A supplied assignment
+    is screened before recording even when a continue decision may omit it.
     """
     if role not in (ActorRole.AGENT_A, ActorRole.AGENT_B):
         raise ValueError("Only A and B use this role call")
@@ -192,13 +194,10 @@ async def main_role_call(
     def filter_sensitive_output(text: str) -> str:
         try:
             decision = lead_schema.model_validate_json(text)
-            if (
-                assignment_validator is not None
-                and decision.action == "continue"
-                and decision.assignment is None
-            ):
+            if require_assignment and decision.action == "continue" and decision.assignment is None:
                 return "[FILTERED]"
-            if decision.assignment is not None and assignment_validator is not None:
+            if decision.assignment is not None:
+                assert assignment_validator is not None
                 assignment_validator(decision.assignment)
             if decision.overlap_reason is not None:
                 assert overlap_validator is not None
@@ -241,7 +240,9 @@ async def main_role_call(
                 prompt_ref=prompt.ref,
                 sensitive_output_filter=(
                     filter_sensitive_output
-                    if assignment_validator is not None or overlap_validator is not None
+                    if require_assignment
+                    or assignment_validator is not None
+                    or overlap_validator is not None
                     else None
                 ),
             ),
