@@ -30,7 +30,10 @@ For each case with a graded metric:
    scaled by sqrt(n)); sd_folds is the spread of the reference's fold scores, which is where a shift
    between groups or periods shows. The floor, a tenth of the gap between no model and a simple
    honest one, keeps a near-perfect reference (whose own error is tiny) from making the tolerance
-   too tight for a weaker model that still clears the bar.
+   too tight for a weaker model that still clears the bar. The tolerance is then capped at
+   |reference - threshold| (rounded down to two significant digits), so it is never wider than
+   half the gap: where sampling error is large next to the gap, an unbounded tolerance would make
+   the honesty check near-vacuous. Every quantity is a visible-row statistic.
 
 docs/notes/test-set-protocol.md records the output and the reasons.
 """
@@ -110,11 +113,14 @@ def calendar_features(frame: pd.DataFrame, case: Case) -> pd.DataFrame:
     The time key itself stays excluded from the features (`approaches_for`), so without these a
     reference model for a timestamped case would ignore the hour, weekday and season that any
     honest forecaster derives first. Each value depends only on its own row's timestamp, so nothing
-    is learned across rows or across the split. Cases without a temporal trap are unchanged."""
+    is learned across rows or across the split. Cases without a temporal trap, or whose time key is
+    a plain number (a year) rather than a timestamp, are unchanged."""
     trap = next((t for t in case.traps if isinstance(t, TemporalOrderTrap)), None)
     if trap is None:
         return frame
     times = time_values(frame[trap.time_key])
+    if not pd.api.types.is_datetime64_any_dtype(times):
+        return frame
     added = frame.copy()
     for part in CALENDAR_PARTS:
         added[f"{trap.time_key}__{part}"] = getattr(times.dt, part).astype("int64").to_numpy()
@@ -206,6 +212,11 @@ def apply_rule(
         threshold = _ceil_significant(raw, 3)
     sampling = SE_MULTIPLIER * math.sqrt(se_test**2 + se_hidden**2 + sd_folds**2)
     tolerance = _ceil_significant(max(sampling, GAP_FLOOR * abs(reference - constant)), 2)
+    # Cap: never wider than the margin between the reference and the bar (rounded down), so the
+    # honesty check keeps meaning where sampling error is large next to the gap.
+    margin = abs(reference - threshold)
+    if margin > 0:
+        tolerance = min(tolerance, _floor_significant(margin, 2))
     return threshold, tolerance
 
 

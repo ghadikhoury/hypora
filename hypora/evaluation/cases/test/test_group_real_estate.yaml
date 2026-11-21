@@ -1,7 +1,7 @@
 # Grouped rows: several sales share one location (the same building). Key recovered by plantings.py.
 id: test_group_real_estate
 split: test
-request: "Predict the price per unit area of a house in Sindian District, New Taipei City, so that appraisers can value houses. The model will be used for houses at locations with no earlier sale in the data."
+request: "Predict the price per unit area of a house in Sindian District, New Taipei City, so that appraisers can value houses. The model will be used for houses at locations that do not appear in the data."
 constraints:
   target: "Y house price of unit area"
   task_type: regression
@@ -31,7 +31,7 @@ budget: &budget
   max_llm_tokens: 2000000
   max_trials: 6
   max_steps: 200
-  max_wall_clock_seconds: 1800
+  max_wall_clock_seconds: 3600
 approval_policy: auto_within_contract
 contract_bounds:
   max_budget: *budget
@@ -50,7 +50,7 @@ grading:
   hidden_metric:
     name: mae
     threshold: 8.44
-    reported_tolerance: 4.1
+    reported_tolerance: 2.2
 traps:
   - kind: grouped_rows
     planted: true

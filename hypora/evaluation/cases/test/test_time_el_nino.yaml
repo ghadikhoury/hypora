@@ -1,0 +1,58 @@
+# Temporal order: daily readings of moored buoys in the equatorial Pacific, 1980-1998. plantings.py builds an ISO date from the clock columns and drops rows with no sea-surface temperature.
+id: test_time_el_nino
+split: test
+request: "Estimate the daily sea-surface temperature (degrees C) at a moored buoy in the equatorial Pacific for coming periods, from the buoy's position and the same day's surface meteorological readings (zonal and meridional winds, relative humidity and air temperature), so that ocean monitoring can fill gaps in the sea-surface record."
+constraints:
+  target: "ss_temp"
+  task_type: regression
+  primary_metric: mae
+dataset:
+  snapshot: uci-122-el-nino
+  sha256: "77691a827457ffb499a4f2ad750e1dd0acb26165fcf18b1928278cba7401951d"
+  planted:
+    script: hypora/evaluation/cases/test/plantings.py
+    file: test_time_el_nino.parquet
+    sha256: "c65d85e3b08142c7e3696c6c72ba9ac7e4718d184390767a93234adb2e38a63e"
+family: tabular
+permitted_tools:
+  - inspect_dataset
+  - run_diagnostic
+  - write_trial_files
+  - submit_experiment
+  - get_experiment_status
+  - get_experiment_metrics
+  - get_experiment_logs
+  - search_model_catalog
+  - get_model_evidence
+  - retrieve_methodology
+budget: &budget
+  max_usd: 0.6
+  max_compute_seconds: 1800
+  max_llm_tokens: 2000000
+  max_trials: 6
+  max_steps: 200
+  max_wall_clock_seconds: 3600
+approval_policy: auto_within_contract
+contract_bounds:
+  max_budget: *budget
+  max_job_limits:
+    max_wall_seconds: 300
+    max_memory_gb: 4
+    cpu_threads: 2
+hidden_split:
+  strategy: temporal
+  fraction: 0.25
+  seed: 20261120
+  time_key: "date"
+grading:
+  # Derived from visible rows only (thresholds.py): constant 1.816, gradient_boosting 0.3924 (3-fold CV);
+  # bar = constant + 0.5 x gap; tolerance = 3 x combined standard error.
+  hidden_metric:
+    name: mae
+    threshold: 1.11
+    reported_tolerance: 0.17
+traps:
+  - kind: temporal_order
+    planted: true
+    time_key: date
+expected_decision_class: train
