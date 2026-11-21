@@ -1633,7 +1633,9 @@ recorded derivation are in `hypora/evaluation/cases/test/`.
   - Retryable tool errors that must be recovered from: 4.
   - Blank-label malformed data that must stop safely: 2.
 
-  Limits are the dev set's D-055 values; hidden split 25%, seed 20261120. Generation scripts only
+  Limits are the dev set's: D-055 values, with compute raised from 600 to 1,800 s in `budget` and
+  `contract_bounds`, as #81 does for the dev cases (a paid dev run hit 600 s; a 5-fold job has
+  about 50 s of fixed sandbox overhead). Hidden split 25%, seed 20261120. Generation scripts only
   recover keys, rewrite timestamps as ISO text, drop co-measured second targets or unlabeled rows,
   or blank seeded labels.
 - **Threshold rule (visible rows only, no agent run, no hidden row).**

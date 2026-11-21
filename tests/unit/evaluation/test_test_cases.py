@@ -173,10 +173,14 @@ def test_agent_b_research_tools_are_permitted(case: Case) -> None:
 
 @every_case
 def test_limits_match_the_locked_dev_limits(case: Case) -> None:
-    """The D-055 per-case limits; the test set must not get a different budget than dev."""
+    """The dev cases' per-case limits (D-055), with compute at 1,800 s as #81 sets for dev; the
+    other limits must equal dev's."""
     reference = DEV[0]
-    assert case.budget == reference.budget
-    assert case.contract_bounds == reference.contract_bounds
+    compute = {"max_compute_seconds": 1800.0}
+    assert case.budget == reference.budget.model_copy(update=compute)
+    assert case.contract_bounds == reference.contract_bounds.model_copy(
+        update={"max_budget": reference.contract_bounds.max_budget.model_copy(update=compute)}
+    )
     assert case.hidden_split.fraction == 0.25
     assert case.hidden_split.seed == 20261120
 
