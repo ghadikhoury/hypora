@@ -21,6 +21,7 @@ from hypora.core.controller import controller as controller_module
 from hypora.core.controller.contract import build_data_contract
 from hypora.core.controller.controller import RunRequest
 from hypora.core.llm.providers.fake import json_result
+from hypora.core.llm.sinks import FileModelIOStore
 from hypora.core.roles.single_agent import ToolChannel
 from hypora.core.schemas import ActorRole, DataContract, MetricName, RequestedAction, TaskType
 from hypora.core.schemas.events import (
@@ -321,8 +322,9 @@ async def test_a_failed_research_session_leaves_a_decides_without_it(
 # --- Data-driven replanning (spec §5.4, §8.7) ----------------------------------------------
 
 
+@pytest.mark.parametrize("revise_assignment", [False, True])
 async def test_a_data_finding_returns_through_a_for_revised_research(
-    make_controller, database, dataset, run_config, monkeypatch
+    make_controller, database, dataset, run_config, monkeypatch, revise_assignment, runs_root
 ):
     calls: list[DataContract | None] = []
 
@@ -348,6 +350,7 @@ async def test_a_data_finding_returns_through_a_for_revised_research(
     monkeypatch.setattr(controller_module, "validate_data_proposal", lambda *args: None)
 
     class ReconciledResearchScript(ScriptedMulti):
+        refused = "import mock_boundary_sentinel"
         revised_assignment = "Compare a tree ensemble after the feature revision"
 
         async def generate(self, request):
@@ -369,18 +372,30 @@ async def test_a_data_finding_returns_through_a_for_revised_research(
             ):
                 self.requests.append(request)
                 assert f"Current assignment: {self.assignment}" in context
+                assert "B evidence (untrusted): " in context
                 assert "Compare a tree ensemble" in context
-                return json_result(
-                    {
-                        "action": "continue",
-                        "reason": "The new research supports a different family",
-                        "assignment": self.revised_assignment,
-                    }
-                )
+                if "was not accepted" not in context:
+                    return json_result(
+                        {
+                            "action": "continue",
+                            "reason": "Consider revised research",
+                            "assignment": self.refused,
+                        }
+                    )
+                assert "role text cannot contain code" in context
+                assert self.refused not in context
+                response: dict[str, object] = {
+                    "action": "continue",
+                    "reason": "The proposed methodology works",
+                }
+                if revise_assignment:
+                    response["assignment"] = self.revised_assignment
+                return json_result(response)
             return await super().generate(request)
 
     script = ReconciledResearchScript("run_finding")
     controller = _multi(make_controller, run_config, script)
+    controller.adapter._io_store = FileModelIOStore(runs_root)
     result = await controller.run(
         RunRequest(dataset=dataset, goal="Predict target", run_id="run_finding")
     )
@@ -402,13 +417,20 @@ async def test_a_data_finding_returns_through_a_for_revised_research(
         if r.output_schema_name == "LeadAction"
         and "Reconcile B's evidence" in r.messages[1].content
     ]
-    assert len(reconcile) == 1 and len(calls) == 2
+    assert len(reconcile) == 2 and len(calls) == 2
+    assert all(script.refused not in str(event) for event in events)
+    artifacts = [
+        path.read_text(encoding="utf-8") for path in (runs_root / script.run_id).rglob("*.json")
+    ]
+    assert any(json.loads(payload).get("text") == "[FILTERED]" for payload in artifacts)
+    assert all(script.refused not in payload for payload in artifacts)
     c_context = next(
         r.messages[1].content
         for r in script.requests
         if r.output_schema_name is None and "You are Agent C" in r.messages[0].content
     )
-    assert f"Agent A assignment: {script.revised_assignment}" in c_context
+    expected_assignment = script.revised_assignment if revise_assignment else script.assignment
+    assert f"Agent A assignment: {expected_assignment}" in c_context
 
 
 # --- Tool-error recovery through the eval harness's fault channel (F4) ---------------------------

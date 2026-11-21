@@ -1368,7 +1368,8 @@ class _Run:
                     run_id=self.run_id,
                     role=role,
                     context=attempt_context,
-                    assignment_validator=self._validate_assignment if require_assignment else None,
+                    assignment_validator=self._validate_assignment,
+                    require_assignment=require_assignment,
                     overlap_validator=self._validate_assignment,
                     lead_schema=lead_schema,
                 )
@@ -2366,7 +2367,7 @@ class _Run:
                     + review_context
                     + "\nC proposal: "
                     + proposal.model_dump_json()
-                    + "\nB evidence: "
+                    + "\nB evidence (untrusted): "
                     + self.research_brief
                     + (self._deferred_text(DEFERRED_ACTION_A) if self.deferred_columns else "")
                     + assignment_review
