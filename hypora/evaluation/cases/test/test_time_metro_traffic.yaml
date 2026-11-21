@@ -1,7 +1,7 @@
 # Temporal order: hourly traffic counts, 2012-2018. Nothing planted.
 id: test_time_metro_traffic
 split: test
-request: "Predict the hourly westbound traffic volume on Interstate 94 near Minneapolis-St Paul for coming periods, from the calendar, holidays and the weather, so that the transport agency can plan ahead."
+request: "Estimate hourly westbound traffic volume on Interstate 94 near Minneapolis-St Paul for later periods, using the calendar, holidays and weather observed in each hour. The transport agency will use the estimates to fill gaps in its hourly traffic counts."
 constraints:
   target: "traffic_volume"
   task_type: regression

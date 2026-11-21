@@ -7,6 +7,7 @@ called anywhere here: the grader checks run on the platform's own templates, in 
 """
 
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -35,7 +36,7 @@ from hypora.evaluation.cases.dev.calibrate import (
     run_approach,
     visible_and_hidden,
 )
-from hypora.evaluation.cases.test import plantings
+from hypora.evaluation.cases.test import plantings, thresholds
 from hypora.evaluation.cases.test.thresholds import (
     apply_rule,
     calendar_features,
@@ -337,6 +338,26 @@ def test_the_derivation_records_no_hidden_value() -> None:
     assert not {name for name in fields if "hidden" in name} - {"n_hidden", "se_hidden"}
 
 
+def test_threshold_verification_rejects_unknown_graded_cases() -> None:
+    with pytest.raises(ValueError, match="unknown graded test cases"):
+        thresholds.main(["unknown_case"])
+
+
+def test_threshold_verification_rejects_a_case_file_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = GRADED[0]
+    mismatched = replace(DERIVATIONS[case.id], threshold=0.0, reported_tolerance=0.0)
+
+    def derive_mismatched(selected: Case) -> thresholds.Derivation:
+        assert selected.id == case.id
+        return mismatched
+
+    monkeypatch.setattr(thresholds, "derive", derive_mismatched)
+    with pytest.raises(ValueError, match="case files differ from recalculated"):
+        thresholds.main([case.id])
+
+
 # --- Real data -----------------------------------------------------------------------------------
 
 
@@ -355,7 +376,7 @@ def test_a_script_reproduces_the_recorded_hash(case: Case, tmp_path: Path) -> No
 
 @_real(CASES)
 def test_hidden_rows_never_reach_what_a_system_is_given(case: Case, tmp_path: Path) -> None:
-    """The runner's whole system-facing surface: SystemInput and the one dataset path it names."""
+    """The trusted wrapper names the visible dataset passed to the controller."""
     store = HiddenStore(tmp_path / "hidden")
     runs = tmp_path / "runs"
     dataset = load_case_dataset(case, planted_dir=_planted_dir(case, tmp_path / "planted"))

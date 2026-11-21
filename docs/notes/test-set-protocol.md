@@ -21,7 +21,7 @@ An evaluation below the target still reports the frozen results in full.
 | Tag | TODO: `eval-freeze` on that commit (created by the reviewer after merge) |
 | Cases | the 26 files in `hypora/evaluation/cases/test/` at that commit, with `derivation.json` |
 | Data | the snapshot SHA-256 and planted SHA-256 in each case file (table below) |
-| Hidden splits | strategy, fraction 0.25 and seed 20261120 in each case; rows are a pure function of case ID, seed and row content |
+| Hidden splits | Each case's strategy, keys, fraction (0.25), seed (20261120) and row content determine the held-out rows. Case IDs also enter deterministic selection where the strategy uses them. |
 | Graders | `hypora/evaluation/graders/` at the frozen commit; programmatic only, no LLM judge (§19.1) |
 | Model | `eval` profile: `openai/gpt-6-luna` on every tier, temperature not configurable, no fallback (D-051) |
 | Configs | `configs/eval/default.yaml` (multi A/B/C) and `configs/eval/single_agent.yaml`; budgets, flags and prompts as in `results/readiness/lock.json` at the frozen commit. The system under test includes D-060: the platform constant reference and constant-trial rule (`robustness.constant_reference`, regression only for substitution) and the joint target-composition test (`robustness.target_composition`), both on, with `agent_c` v13 |
@@ -178,11 +178,11 @@ remain non-injectable, which S5.3 must resolve or report as a limitation.
 
 Each request states what is predicted, for whom and why. Where a column's legitimacy depends on
 when the prediction is made (the four leakage cases and churn), the request states that moment and
-what is known then (D-055). Grouped cases say the model will be
-used on unseen mixtures, setups or locations; `test_group_real_estate` says "locations that do not
-appear in the data", so it cannot be read as a time split. No request or constraint names a trap
-column, a group or time key, or the words leak, imbalance or group (tested). Imbalance cases name
-no primary metric.
+what is known then (D-055). Grouped cases describe use on unseen mixtures, setups or locations.
+Temporal cases describe applying the model to later periods using contemporaneous weather
+observations. They evaluate chronological generalization of conditional predictions.
+The request and constraint tests check for trap names, columns and keys. Imbalance cases leave the
+primary metric open.
 
 ## Thresholds and tolerances
 
@@ -252,25 +252,27 @@ accuracy; never accuracy), MAE for regression.
 
 ### Grader sanity (real data, platform templates, `test_test_cases.py`)
 
-The bars were set before this check and were not moved by it. It fits the calibration approaches
-(`hypora/evaluation/cases/dev/calibrate.py`) on the visible rows, scores the hidden rows, and runs
-the grader's own trap, honesty and beats-the-constant checks. The criterion for every graded case
-is that **the reference chosen by validation** (the derivation's `reference_template`, not
-whichever learner happens to pass) passes every check and the bar, and the constant misses the
-bar. Results (2026-11-20 and 2026-11-21; new cases one per process under a memory cap; the 20
-earlier cases re-judged against the capped tolerances from their logged hidden scores):
+The bars were set first. The calibration checks fit platform templates on the visible rows,
+score the hidden rows and exercise the trap, honesty, threshold and beats-the-constant checks.
+They establish model-check feasibility. Policy enforcement, budget handling, fault recovery and
+artifact provenance are assessed in recorded system runs. For imbalance cases the reference
+selects by macro-F1, which establishes a feasible selection strategy. Selection by another
+accepted metric can choose a different model. The criterion for each quality-scored case is that
+the derivation's validation-selected reference passes the model checks and the bar and the
+constant misses the bar. Results (2026-11-20 and 2026-11-21):
 
 - **The constant predictor misses every bar.** The closest is `test_group_real_estate` (8.59 against
   8.44).
-- **The validation-selected reference passes every check and the bar in all 24 graded cases.**
+- **The validation-selected reference passes the model checks and bar in all 24 quality-scored cases.**
   New cases: cirrhosis (linear, hidden ROC-AUC 0.859), retinopathy (linear, 0.810), phishing
   (gradient boosting, 0.993), El Niño (gradient boosting, hidden MAE 0.439 against a bar of 1.11;
   reporting gap 0.032 within 0.17).
-- **Shortcuts fail on their trap.** The fixed pipeline (random split, every column) fails
+- **Shortcuts fail on their trap.** The in-process random-split, all-column comparator fails
   `trap_target_leakage_excluded` on all four leakage cases, `trap_grouped_rows_no_overlap` on all
   three grouped cases and `trap_temporal_order_split` on all three temporal cases. Accuracy as the
   primary metric fails `trap_class_imbalance_metric` on all five imbalance cases. Clean and
-  tool-fault cases show no failed data check.
+  tool-fault cases show no failed data check. The temporal comparator also receives the derived
+  calendar features. The S5.2 fixed pipeline runs separately through the production path.
 - The per-case commands below rerun the validation-selected reference and shortcut checks. For
   the malformed-data cases they check the expected integrity stop instead. The case validation,
   hidden-data isolation and planted-file hash checks apply with or without a graded metric.
@@ -323,15 +325,19 @@ recomputed by the grader on the visible rows, before any job or partition lock (
 
 ## Hidden data
 
-Hidden rows live in `~/.hypora/hidden/<key>/`, outside the repository and the runs folder (the
-store refuses both). A system receives only `SystemInput` (request, constraints, family, permitted
-tools, budget, contract bounds, and `split.system_dataset()`), never the case, its traps, grading or
-split settings; the visible file's path is an opaque key. Tests on every real case check that the
-visible file holds no hidden row's features, that rows add up to the source, and that nothing in
-`SystemInput` names the split, the traps or the bar. Hidden labels never enter a sandbox; the
-grader predicts on copied hidden features only.
+Hidden rows live in `~/.hypora/hidden/<key>/`, outside the repository and runs folder. The
+trusted evaluation wrapper receives `SystemInput` and `SystemContext`. It uses the case ID for
+records and the fault schedule for injection. The model sees the request and structured
+constraints, and its tools read the visible dataset through an opaque path. The wrapper omits
+the case ID, fault schedule, split and grading rules from the model and trial inputs. Tests
+check the visible file against the source row count and hidden feature rows and check which
+fields `SystemInput` carries. The grader gives the final pipeline copied hidden features
+for prediction and scores their labels outside the sandbox.
 
 ## Statistical protocol for S5.2 (spec §19.5)
+
+Use the final matrix collector (`scripts/final_eval.py`), which records the frozen identity
+and per-case outcomes across configurations. Build the comparisons from those paired records.
 
 - **Systems:** multi A/B/C (`default`), single agent (`single_agent`), fixed baseline; same frozen
   cases, visible data, limits and eval profile. One primary run per case per system.

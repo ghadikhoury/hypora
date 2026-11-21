@@ -1656,8 +1656,11 @@ after), revised after an independent audit of the set. Details, tables and numbe
     and every tolerance stays within the cap.
 - **Grader sanity.** For every graded case, platform templates were scored on the hidden rows:
   - the constant misses the bar;
-  - the reference that honest selection picks by validation passes every check and the bar;
+  - the validation-selected reference passes the trap, honesty, threshold and constant-reference
+    checks in process;
   - each shortcut (keeping the leak, a random split, accuracy as the metric) fails its trap check.
+
+  Policy, budget, fault recovery and provenance are assessed in the recorded system runs.
 
   This check influenced case selection (cases it showed invalid were dropped). It did not move any
   bar or rule. No agent result was seen.

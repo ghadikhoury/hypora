@@ -282,12 +282,18 @@ def load_derivations(path: Path = DERIVATION_FILE) -> dict[str, Derivation]:
 def main(argv: Sequence[str]) -> None:
     """Print one JSON record per graded case and whether the case file matches it.
 
-    `--write` also records the derivations in derivation.json, replacing the named cases' entries
-    (or every entry when no case is named)."""
+    Verification fails on unknown case IDs or values that differ from the case files.
+    `--write` records recalculated values in derivation.json for the selected cases, allowing a
+    mismatch so proposed updates can be inspected before case files are edited."""
     write = "--write" in argv
     wanted = set(argv) - {"--write"}
+    cases = graded_cases()
+    unknown = wanted - {case.id for case in cases}
+    if unknown:
+        raise ValueError(f"unknown graded test cases: {sorted(unknown)}")
     derivations = []
-    for case in graded_cases():
+    mismatches = []
+    for case in cases:
         if wanted and case.id not in wanted:
             continue
         derivation = derive(case)
@@ -299,11 +305,15 @@ def main(argv: Sequence[str]) -> None:
             and metric.reported_tolerance == derivation.reported_tolerance
         )
         print(json.dumps(asdict(derivation) | {"case_file_matches": matches}), flush=True)
+        if not matches:
+            mismatches.append(case.id)
     if write:
         merged = {} if not wanted else {k: asdict(v) for k, v in load_derivations().items()}
         merged |= {record["case"]: record for record in derivations}
-        ordered = [merged[case.id] for case in graded_cases() if case.id in merged]
+        ordered = [merged[case.id] for case in cases if case.id in merged]
         DERIVATION_FILE.write_text(json.dumps(ordered, indent=1) + "\n", encoding="utf-8")
+    elif mismatches:
+        raise ValueError(f"case files differ from recalculated bars or tolerances: {mismatches}")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 # Temporal order: hourly PM2.5 in Beijing, 2010-2014. plantings.py builds an ISO timestamp from the clock columns and drops hours with no reading.
 id: test_time_beijing_pm25
 split: test
-request: "Predict the hourly PM2.5 concentration (ug/m3) at the US embassy in Beijing for coming periods, from the calendar and the weather (dew point, temperature, pressure, wind direction and speed, and hours of snow and rain), so that residents can be warned ahead of polluted hours."
+request: "Estimate the hourly PM2.5 concentration (ug/m3) at the US embassy in Beijing for later periods when an air pollution reading is missing. The calendar and weather observations from the same hour are available, including dew point, temperature, pressure, wind direction and speed, and hours of snow and rain. The estimates will help residents understand exposure during gaps in the measurements."
 constraints:
   target: "pm2.5"
   task_type: regression

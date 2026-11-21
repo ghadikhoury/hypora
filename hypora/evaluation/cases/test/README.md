@@ -40,8 +40,8 @@ seconds, with matching contract bounds; hidden split 25%, seed 20261120.
 
 All sources declare CC BY 4.0 on their UCI page. Snapshot and planted bytes stay under ignored
 `data/`; `data/snapshots/manifest.json` records source URL, version, license, retrieval date and
-SHA-256 on each machine, and the protocol note copies those fields. A changed download fails the
-pinned case hash and needs investigation, never substitution.
+SHA-256 on each machine. The protocol lists source IDs, update dates and checksum prefixes.
+The case files pin the full checksums so a changed download fails verification.
 
 Fetch the snapshots, then regenerate and validate every case:
 
@@ -52,7 +52,9 @@ uv run --locked python -m hypora.evaluation.cases.test.generate
 ~~~
 
 Re-derive the bars from visible rows and split sizes (`thresholds.py`). The derivation uses
-no hidden feature or label values after split selection and calls no model provider.
+no hidden feature or label values after split selection and calls no model provider. The
+command fails if a named case is unknown or if any recalculated threshold or tolerance differs
+from the case file.
 
 ~~~bash
 uv run --locked python -m hypora.evaluation.cases.test.thresholds
