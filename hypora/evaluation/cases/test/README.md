@@ -51,8 +51,8 @@ for id in 1 17 94 122 146 165 222 267 291 294 327 329 350 372 381 464 477 492 51
 uv run --locked python -m hypora.evaluation.cases.test.generate
 ~~~
 
-Re-derive the bars from the visible rows (`thresholds.py`; no hidden row is read, no model provider
-is called):
+Re-derive the bars from visible rows and split sizes (`thresholds.py`). The derivation uses
+no hidden feature or label values after split selection and calls no model provider.
 
 ~~~bash
 uv run --locked python -m hypora.evaluation.cases.test.thresholds

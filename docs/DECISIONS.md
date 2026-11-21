@@ -1642,16 +1642,16 @@ after), revised after an independent audit of the set. Details, tables and numbe
     compute budget.
 
   Hidden split 25%, seed 20261120. Generation scripts only recover keys, rewrite timestamps as ISO
-  text, drop co-measured second targets or unlabeled rows, collapse cirrhosis' 3-way survival
-  status into "died", or blank seeded labels.
-- **Threshold rule (visible rows only, no agent run, no hidden row).**
+  text, drop unlabeled rows, collapse cirrhosis' 3-way survival status into "died", or blank
+  seeded labels.
+- **Threshold rule (visible-row estimates and split sizes, no agent run).**
   - References use the methodology each trap calls for, scored on the harness's 3 development folds
     with the real `dummy`, `linear` and `gradient_boosting` templates; temporal cases with a
     timestamp also get the hour, day of week and month.
   - Bar = constant + 0.5 × (validation-best learner − constant), rounded toward the constant.
   - Tolerance = max(3 × combined standard error at test and hidden size plus fold spread, 0.1 × the
-    gap), capped at |reference − bar|. The audit found the uncapped tolerance near-vacuous in five
-    cases. The cap binds in four kept cases: heart failure, bankruptcy, real estate and Beijing.
+    gap), capped at |reference − bar|. The cap binds in six retained cases: retinopathy, real
+    estate, bankruptcy, cirrhosis, heart failure and Beijing PM2.5.
   - Tests check every bar and tolerance against the rule, every bar strictly beats the constant,
     and every tolerance stays within the cap.
 - **Grader sanity.** For every graded case, platform templates were scored on the hidden rows:
@@ -1682,12 +1682,14 @@ after), revised after an independent audit of the set. Details, tables and numbe
   before any agent run, so these cases also test that check for false alarms. S5.2 and S5.4 report
   how often it fired on non-leakage cases and what it recommended.
 - **What the results may claim.**
-  - The fixed baseline cannot pass the 14 leakage, grouped, temporal and tool-fault cases by
-    construction (maximum 12 of 26), so multi vs baseline is reported by family and multi vs
-    single is the informative comparison.
+  - Report full-set pass rates and paired comparisons for all 26 cases as required by the
+    course rubric. The fixed baseline cannot pass the 14 leakage, grouped, temporal and tool-fault
+    cases by construction (maximum 12 of 26 overall and 10 of 24 quality-scored cases). Include
+    its by-family results and make multi vs single the primary comparison between agents.
   - Imbalance cases test the macro-F1 bar and beating the majority class, not metric choice (the
     default ROC-AUC is accepted).
-  - Malformed cases stop through fixed platform code and are reported separately.
+  - Malformed cases stop through fixed platform code. Include them in the full-set results
+    and show their safe-stop outcomes separately from the 24-case quality breakdown.
   - Leakage cases test applying a stated availability constraint, not discovering leakage.
   - Research and reuse are not measured.
   - Small cases (heart failure, cirrhosis, real estate) are read cautiously.

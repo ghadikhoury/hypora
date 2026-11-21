@@ -2,9 +2,8 @@
 
     uv run --locked python -m hypora.evaluation.cases.test.thresholds [case_id ...]
 
-No model provider is called, no container is started, and no hidden row is read: the rule below
-uses only the rows a system would receive, so the bar is not fitted to the held-out data and no
-agent run is involved. Everything is the platform's own code, in process: the harness's split
+The derivation uses only visible rows and split sizes after deterministic split selection.
+It runs in process with no model provider, container, or agent run. It uses the harness's split
 (`prepare_data`, three folds inside the development rows), its metrics (`score_predictions`) and
 the real tabular templates (`dummy`, `linear`, `gradient_boosting`).
 

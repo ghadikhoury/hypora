@@ -3,10 +3,9 @@
     uv run --locked python -m hypora.evaluation.cases.test.plantings
 
 Every change here is to real rows and real labels (D-015): recovering a group key the rows already
-share, rewriting a timestamp into an unambiguous ISO form, dropping co-measured second targets,
-dropping rows that have no label, collapsing a source's 3-way survival status into "died", or, for
-the two malformed-data fault cases, blanking a seeded handful of labels. No value is invented
-except those blanks. Each function is pure (no clock, no global random state), and the Parquet
+share, rewriting a timestamp into an unambiguous ISO form, dropping rows that have no label,
+collapsing a source's 3-way survival status into "died", or blanking seeded labels in the two
+malformed-data fault cases. Each function is pure (no clock, no global random state). The Parquet
 writer is the snapshots' own, so the bytes reproduce for given library versions and the case
 file's SHA-256 can vouch for them. `data/` is git-ignored, so each machine regenerates the files.
 """

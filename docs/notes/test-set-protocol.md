@@ -6,10 +6,12 @@ grading, run limits), **D-057 (this test set)**, D-059 (compute limits), D-060 (
 reference, target composition). Cases and commands:
 `hypora/evaluation/cases/test/README.md`.
 
-The course handout is not in this repository. The requirements below are the spec's paraphrase
-(§19.5, §20: ≥25 held-out cases plus a separate dev set, ≥5 representative cases × 3 runs, Wilson
-intervals, paired comparison). 🧑 Ghadi confirms the rubric against the handout (not a blocker
-for the freeze).
+The CIS 1990 final project handout (pp. 5–7, F3 on p. 10) requires at least 25 held-out cases,
+a separate development set, a repeat sample of at least five representative cases run three
+times per system, Wilson intervals, paired comparisons, and a single-agent comparison on the
+same core test set. The rubric specifies no minimum pass rate. Hypora's informal target for the
+multi-agent arm is at least 21 passes across the 26 cases, with 23 or more considered strong.
+An evaluation below the target still reports the frozen results in full.
 
 ## Freeze identity
 
@@ -30,11 +32,12 @@ grader, case, threshold or hidden split changes because of test-set results. A c
 another reason (a bug, F7's planned fix) is a new commit with its own identity; S5.3 names it and
 re-measures every affected arm on the identical cases, keeping the frozen-commit records.
 
-**What was seen before the freeze, stated plainly.** No agent has run on any test case, so no
-agent result influenced anything here. The bars come from visible rows only. But the case
-*selection* was influenced by hidden-row scores: the grader sanity check below (platform
-templates scored on the hidden rows) was run before the freeze, and cases it showed to be invalid
-were dropped (listed below). No bar or rule was changed to rescue a case.
+**Case authorship and inspection.** Repository coding agents built the cases under Ghadi
+Khoury's direction and revised them after an independent case audit. Before the freeze,
+they inspected zero agent test results. The pre-freeze grader sanity checks scored platform
+templates on hidden rows to find invalid cases. Those checks influenced case selection
+as recorded below. Retained thresholds derive from visible rows and split sizes. The freeze
+rule above governs any later change.
 
 ## Cases and families
 
@@ -132,16 +135,17 @@ reuse are not measured**: no grader scores research quality, and the reuse famil
   keeps the default. The imbalance cases test only the macro-F1 bar and beating the majority
   class; no claim about metric choice is made from them.
 - **Malformed data (S3).** The safe stop comes from fixed platform code (the controller's integrity
-  check), so every system should behave the same. These two cases are reported separately and kept
-  out of the system-comparison pass rates. The rule differs from the generation scripts on purpose:
+  check), so every system should behave the same. These two cases count in the full-set results
+  and have a separate safe-stop breakdown outside the model-quality results. The rule differs from the generation scripts on purpose:
   graded cases drop rows that have no label (Beijing, El Niño), because a missing label can be
   neither learned nor scored; the malformed cases keep blank labels to test the stop.
 - **Easy datasets (N4).** Several clean and fault cases are easy (bars far from the reference,
   e.g. banknote, phishing, rice): they test completing the workflow correctly, not model quality.
 - **Fixed baseline (S1).** The fixed pipeline cannot pass the 14 leakage, grouped, temporal and
   tool-fault cases by construction: it uses a random split and every column, and never retries a
-  failed tool. Its maximum is 12 of 26 (46%). Multi vs baseline is reported **by family**; multi vs
-  single is the informative system comparison.
+  failed tool. Its theoretical maximum is 12 of 26 overall and 10 of 24 on the quality-scored
+  cases. The full-set comparisons satisfy the rubric. By-family results show where the fixed
+  baseline was eligible to pass, and multi vs single is the primary comparison between agents.
 - **Group-temporal splits (N6).** The temporal trap check requires the contract's split strategy to
   be `temporal` on the trap's key (`traps.py`, `_check_temporal_split`), so a strictly ordered
   group-temporal split is rejected even when it keeps time order. No case has a group key and a
@@ -182,10 +186,11 @@ no primary metric.
 
 ## Thresholds and tolerances
 
-Derived by `hypora/evaluation/cases/test/thresholds.py` from the **visible rows only** (no hidden
-row read, no agent run, no model provider): the reference methodology the traps call for, scored
-by the harness's three development folds with the real `dummy`, `linear` and
-`gradient_boosting` templates.
+`hypora/evaluation/cases/test/thresholds.py` derives the thresholds from **visible rows and split
+sizes**. After deterministic split selection, the calculations use no hidden feature or label
+values. They run without an agent or model provider. The references use the methodology each
+trap calls for, scored on the harness's three development folds with the real `dummy`, `linear`
+and `gradient_boosting` templates.
 
 - **Bar** = constant + 0.5 × (reference − constant), where constant is the dummy template's CV
   score and reference the better of linear and gradient boosting by validation. Rounded toward the
@@ -204,11 +209,13 @@ references exclude trap columns and the group or time key itself. For temporal c
 timestamp they add the hour, day of week and month (`calendar_features`): general per-row
 features any forecaster derives, nothing case-specific.
 
-**Tolerance cap, effect.** It binds in four cases, which were the near-vacuous ones (tolerance /
-gap before → after): `test_leak_heart_failure` 1.42 → 0.50, `test_imb_bankruptcy` 1.17 → 0.54,
-`test_group_real_estate` 0.90 → 0.48, `test_time_beijing_pm25` 0.81 → 0.50. (Bankruptcy is just
-above 0.5 because its bar is rounded toward the constant.) The other two near-vacuous cases named
-by the audit, `test_leak_student_grades` and `test_time_tetouan_power`, were removed.
+**Tolerance cap, effect.** It binds in six cases, including all four retained cases flagged
+in the audit. The tolerance divided by the gap changed as follows:
+`test_leak_heart_failure` 1.42 → 0.50, `test_imb_bankruptcy` 1.17 → 0.54,
+`test_group_real_estate` 0.90 → 0.48, and `test_time_beijing_pm25` 0.81 → 0.50. Bankruptcy's
+ratio is above 0.5 because its bar is rounded toward the constant. The cap also binds on the
+later retinopathy and cirrhosis cases. Two other cases named in the audit, `test_leak_student_grades`
+and `test_time_tetouan_power`, were removed.
 
 | Case | Metric | Constant (CV) | Linear (CV) | Gradient boosting (CV) | Bar | Tolerance | Visible / hidden rows |
 |---|---|---:|---:|---:|---|---:|---:|
@@ -264,8 +271,9 @@ earlier cases re-judged against the capped tolerances from their logged hidden s
   three grouped cases and `trap_temporal_order_split` on all three temporal cases. Accuracy as the
   primary metric fails `trap_class_imbalance_metric` on all five imbalance cases. Clean and
   tool-fault cases show no failed data check.
-- The per-case script `/home/ghadi/orch/s51-checks.sh` reruns this on the final case list and the
-  rebased code (pending; run by the coordinator).
+- The per-case commands below rerun the validation-selected reference and shortcut checks. For
+  the malformed-data cases they check the expected integrity stop instead. The case validation,
+  hidden-data isolation and planted-file hash checks apply with or without a graded metric.
 
 ### Single-column predictiveness screen (visible rows only)
 
@@ -331,24 +339,28 @@ grader predicts on copied hidden features only.
   reported separately and never mixed into primary rates: `test_leak_heart_failure`,
   `test_group_concrete`, `test_time_beijing_pm25`, `test_imb_churn`, `test_clean_rice`,
   `test_fault_submit_spambase`. Command: `ARGS="--repeats 3 --repeat-cases <those six>"`.
-- **Reported:** pass rate with 95% Wilson interval per system, over the 24 non-malformed cases
-  (the two malformed cases separately, S3); paired outcome tables and 95% paired percentile
-  bootstrap (10,000 resamples, fixed seed) on pass-rate differences, "inconclusive" when the
-  interval includes 0, with **multi vs single as the primary system comparison** and multi vs
-  baseline reported **by family** (S1); per-case hidden metrics; failure categories (≤10 analysed
-  cases); how often the too-good-score check fired on non-leakage cases and what it recommended;
-  how often the D-060 constant rule put a constant trial forward on regression cases (the
-  platform constant misses every bar on the hidden rows in the sanity check above, so such a final
-  model is expected to be a measured failure) and how often the target-composition test flagged columns, and on which cases;
-  harness errors per system (N8); mean and nearest-rank p95 latency; actual and list-price cost per
-  task with price date. No quality claim rests on pass percentages alone, leakage results are
-  described as applying a stated constraint (N5), and no metric-choice claim is made from the
-  imbalance cases (S2).
+- **Full-set results.** Report all 26 primary cases for each system, with pass rates and 95%
+  Wilson intervals for completed arms. Include paired outcome counts and 95% paired percentile
+  bootstrap intervals for all three comparisons (10,000 resamples, fixed seed), labeling a
+  comparison inconclusive when its interval includes zero. Multi vs single is the primary
+  comparison between agents.
+- **Additional breakdowns.** Show the 24 cases with model-quality checks, the two malformed-data
+  safe stops separately, and fixed-baseline comparisons by family (S1). Keep the repeat sample
+  separate from all primary comparisons. Report per-case hidden metrics and categorize up to
+  10 failures. Describe the leakage results as applying a stated availability constraint (N5)
+  and the imbalance results as measuring the bar and majority-class check (S2).
+- **Operational evidence.** Report which non-leakage features raised the too-good-score check
+  and what it recommended. Record which D-060 regression cases selected or considered a
+  constant trial and which cases triggered the target-composition check. Report harness errors
+  per system (N8), mean and nearest-rank p95 latency, and actual and list-price cost per task
+  with price date. Support quality claims with hidden metrics and per-case outcomes alongside
+  aggregate pass rates.
 - **Incomplete vs failed:** a run that finishes is graded, and a failed check is a measured failure.
   A run the harness could not finish (system or grader crash, collection cap or provider quota
-  refusal, D-054) is a `harness_error`: listed by case and system, excluded from Wilson intervals
-  and paired tables, retried only with `--resume` and the earlier attempt archived. A missing
-  measurement never becomes a win or a loss.
+  refusal, D-054) is a `harness_error`. List missing measurements by case and system. Suppress
+  inferential intervals for an incomplete arm or comparison and mark any partial rates or paired
+  counts as descriptive, using only cases with the required graded records. Use `--resume` to
+  retry harness errors and archive the earlier attempt.
 - **Budget:** S5.2 needs Ghadi's approval of the aggregate estimate first (`🧑 HUMAN · DECIDE`).
   26 cases × 2 LLM systems + 6 × 3 × 2 repeats = 88 paid runs. Recorded runs cost about $0.035
   each, so about $3 expected; the coordinator plans a $10 hard cap. Case budgets are unchanged.
@@ -359,6 +371,35 @@ grader predicts on copied hidden features only.
 uv run --locked python -m hypora.evaluation.cases.test.generate     # data, hashes, validation
 uv run --locked python -m hypora.evaluation.cases.test.thresholds   # visible-only bars
 uv run --locked pytest tests/unit/evaluation/test_test_cases.py
+```
+
+With the snapshots installed, the real-data checks can run one case per process to bound memory.
+The loop rejects a failed test or a skipped snapshot check.
+
+```bash
+# Check the real cases one process at a time on a memory-constrained machine.
+set -euo pipefail
+uv run --locked python -m hypora.evaluation.cases.test.generate
+test_file=tests/unit/evaluation/test_test_cases.py
+for case_file in hypora/evaluation/cases/test/*.yaml; do
+    case_id=$(basename "$case_file" .yaml)
+    if [[ "$case_id" == test_fault_malformed_* ]]; then
+        behavior_test=test_the_malformed_rows_reach_the_system_and_stop_it
+    else
+        behavior_test=test_shortcuts_fail_and_an_honest_simple_model_passes
+    fi
+    tests=(
+        "$test_file::test_the_case_validates_against_its_data[$case_id]"
+        "$test_file::test_hidden_rows_never_reach_what_a_system_is_given[$case_id]"
+        "$test_file::$behavior_test[$case_id]"
+    )
+    if grep -q '^  planted:' "$case_file"; then
+        tests+=("$test_file::test_a_script_reproduces_the_recorded_hash[$case_id]")
+    fi
+    report=$(uv run --locked pytest -q -p no:cacheprovider "${tests[@]}")
+    printf '%s: %s\n' "$case_id" "$report"
+    [[ $(tail -n 1 <<<"$report") =~ ^${#tests[@]}\ passed\ in\  ]]
+done
 ```
 
 ## Remaining freeze steps
@@ -373,8 +414,12 @@ readiness-lock and repository-convention tests (`test_test_cases.py`, `test_dev_
 `test_readiness_eval.py`, `test_repo_conventions.py`). Case regeneration and the per-case checks
 below were not rerun.
 
+The corrected per-case run on draft head `1085191f72e8dee0360cc85778586ae977f31e4f` passed all
+26 cases on 2026-11-21, with no failures or skips. The two malformed cases each passed validation,
+hidden-data isolation, the planted hash check and the visible-row integrity check. The earlier
+local script had counted these two cases despite executing no tests for them.
+
 Still to do:
-1. Run `/home/ghadi/orch/s51-checks.sh` (per-case shortcuts, hidden data and validation on the final
-   case list, one process per case) and record the result here.
-2. Once S4.2j has passed, fill in the commit and tag rows above.
-3. Mark the PR ready. The reviewer merges it and tags the merge commit `eval-freeze`.
+1. Rebase onto the verified runtime and check the case list, input hashes and readiness lock again.
+2. Record the verified base and final check results. The reviewer merges the PR and tags the
+   reviewed merge commit `eval-freeze`.
