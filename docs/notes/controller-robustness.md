@@ -178,3 +178,82 @@ no final job completed, no limit or cancel fired and no controller error exists.
 
 Tests: `tests/controller/test_request_context.py` (scripted, end to end) and
 `tests/unit/controller/test_request_and_trial_facts.py`.
+
+# D-060 follow-ups (S4.2j verify3, 4/6 on a5d32af)
+
+## J. Platform constant reference (`constant_reference`, default on)
+
+`constant_reference.py` scores, per locked validation fold, the constant a model without features
+learns from that fold's training rows: the median for `mae`, the mean for `rmse`/`r2`, and for
+classification the training class shares as probabilities with the most frequent class as the
+label (ties to the first class in sorted order). The partition comes from the verified lock
+(`load_verified_partition`, in process, as the too-good screen reads it) and the scores from the
+harness's own `score_predictions`; no trial, job or model call. Computed once per contract
+version and recorded as one `CONSTANT_REFERENCE` error-type event (component
+`constant_reference`; details: metric, strategy, fold scores, mean, or `unavailable`).
+
+Where it shows: one line in the experiment session's context (both configurations), and in the
+trial evidence check (`constant_reference` with strategy, mean and fold count; each trial's
+`vs_constant_reference` with its mean paired improvement, paired standard error and
+`beats_reference`), so C sees it before nominating and A in its final review.
+
+**The rule** (`constant_decision`, `_constant_rule`), after the drain and before A's final review:
+for each trial with a completed job, the paired differences with the reference over the folds
+where both have a score (signed so positive is better). A trial beats the reference when the mean
+difference exceeds one standard error (sample standard deviation over the square root of the
+paired folds) and is a strict improvement; an exact tie never beats it. With one paired fold
+(holdout) there is no fold-to-fold noise, so any strict improvement counts. No reference, or no
+trial sharing a scored fold with it: nothing happens. For classification the rule only records
+`shown_only_classification`: a class-prior constant is never a useful classifier, and the
+imbalance cases' grader requires strictly beating it, so A and C weigh the shown reference
+themselves. For regression, when no trial beats it, the nomination becomes a trial that already scores the reference on every fold (C's own nomination
+first, then the first by ID), or else a constant trial the platform submits
+(`submit_constant_trial`: the dummy template with `config={"strategy": ...}` under the current
+contract and approval, a new `baseline` trial counted against the trial cap and every run limit,
+like the leakage comparison trial). It runs inside the finishing reserve (`guard.exploration` with
+`finish_reserve_seconds` and the D-059 final-job compute reserve), so it never starts, or is
+cancelled, before it could spend what the final job needs. No room, or that trial failing, leaves
+C's nomination in place with a note; C's context therefore says the platform can act only while a
+trial slot remains. A's final review gets `platform_candidate` in the trial check when the rule
+changed the candidate, with the note that a feature trial within one paired standard error is
+not clearly better. One `CONSTANT_RULE` event records the outcome (`unavailable`, `no_comparable_trial`,
+`beaten`, `fired`), the action (`none`, `existing_constant_trial`, `constant_trial_validated`,
+`constant_trial_failed`, `no_room`), C's nomination, the choice and every comparison. A then
+reviews the chosen trial's code; `use_best_validated_trial` still works. The trial check's
+`nominated_by_c` keeps naming C's own nomination.
+
+Prompts: `agent_c` v13 drops the false claim that a constant predictor "cannot beat a constant
+baseline" and says when to nominate a constant; A's C-assignment request says the same. Removing
+that false claim is an unconditional bug fix: with the flag off the prompt still drops it (and
+defers to the context for what the platform does), so an off/on comparison measures the
+reference and the rule, not the claim. The dummy template reads `ctx.config["strategy"]`
+(default unchanged).
+
+## K. Target-composition evidence (`target_composition`, default on)
+
+After the lock, when A's deferred feature concern is on a regression target,
+`_platform_diagnostics` also runs `target_composition` (`hypora/profiling/diagnostics.py`) on the
+same locked diagnostic-only rows: an ordinary least-squares fit of the target on the questioned
+numeric columns that have a recorded diagnostic, 3 shuffled parts, worst-part R2. Only when the full
+set reaches `COMPOSITION_R2` = 0.99 are subsets searched, smallest first (sizes 1 to 4, in A's
+column order); the first size with a subset at the threshold wins (its best subset). At most 200
+fits; a search cut short flags nothing (`truncated`), as does a composition needing more than four
+columns. Each flagged column's fact gets `flagged` and `target_component`, and
+`composition_flags` maps it to its own feature_predictiveness diagnostic ID, so C cites that ID,
+`validate_data_proposal` accepts it, D-056's `_flagged()` counts it, and A's reconciliation review
+sees it. One `TARGET_COMPOSITION` event (component `platform_diagnostics`; columns, tested, joint
+and subset R2, subset, fits, truncated, or `unavailable`). The single-column thresholds (R2 0.85,
+ROC-AUC 0.90) are unchanged. 0.99 is far above what correlated legitimate inputs reach with real
+noise left over; only a near-exact arithmetic composition (a total and its parts, a difference
+of two readings) does.
+
+Scope: composition flags count as exclusion evidence (C's citation, D-056's `_flagged()`, the
+trial check's `not_used_without_a_diagnostic_flag`) and are shown at reconciliation. They do not
+feed the too-good investigation's diagnostic fallback, which still reads only recorded
+single-column results. Known limit: when one questioned column alone is already near the
+threshold (so already single-flagged), a legitimate column that adds the last bit of R2 can
+complete a size-2 subset and be flagged too; R2 alone cannot tell the two apart.
+
+Tests: `tests/unit/controller/test_constant_reference.py`,
+`tests/unit/profiling/test_target_composition.py` and
+`tests/controller/test_constant_and_composition.py` (scripted, end to end).

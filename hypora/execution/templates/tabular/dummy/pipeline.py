@@ -72,8 +72,12 @@ def fit(train: TrainData, ctx: TrialContext):
     )
 
     regression = ctx.task_type == "regression"
+    # ctx.config["strategy"] picks the constant: "mean" (default) or "median" for regression,
+    # "most_frequent" (default) or "prior" (class shares as probabilities) for classification.
+    # The platform's constant reference uses "median" for mae, "mean" otherwise, and "prior".
+    strategy = ctx.config.get("strategy") or ("mean" if regression else "most_frequent")
     estimator = (
-        DummyRegressor(strategy="mean") if regression else DummyClassifier(strategy="most_frequent")
+        DummyRegressor(strategy=strategy) if regression else DummyClassifier(strategy=strategy)
     )
     model = Pipeline([("preparation", preparation), ("model", estimator)])
     model.fit(train.X, train.y)

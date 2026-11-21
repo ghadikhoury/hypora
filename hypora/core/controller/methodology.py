@@ -34,8 +34,9 @@ ASSUMPTION_PREFIX: Final = "Assumption (no user present): "
 
 FLAGGED_REASON: Final = (
     "a locked-split feature_predictiveness diagnostic flagged it as predicting the target almost "
-    "by itself (possible leakage), and C's concern about it could not be put to a user because "
-    "no user is present (D-056)"
+    "by itself, or the platform's joint test flagged it as a component that reconstructs the "
+    "target with other questioned columns (possible leakage), and C's concern about it could not "
+    "be put to a user because no user is present (D-056, D-060)"
 )
 """The fixed `reason` of an exclusion the platform made because a diagnostic flagged the column."""
 

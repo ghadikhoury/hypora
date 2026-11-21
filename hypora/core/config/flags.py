@@ -98,7 +98,8 @@ class LeakageCheckConfig(FrozenModel):
 class RobustnessConfig(FrozenModel):
     """Controller robustness switches and caps (D-056; docs/notes/controller-robustness.md).
 
-    `evidence_before_exclusion` is the comparison switch; the other fields are bounds. Each
+    `evidence_before_exclusion`, `constant_reference` and `target_composition` are comparison
+    switches; the other fields are bounds. Each
     bound has headroom over what successful live runs used, so it binds only on runaway use.
     """
 
@@ -123,6 +124,15 @@ class RobustnessConfig(FrozenModel):
     may make; later calls are refused with an instruction to proceed."""
     max_research_tool_calls: PositiveInt = 16
     """Tool calls one Agent B research session may make; later calls are refused the same way."""
+    constant_reference: OnOff = Toggle.ON
+    """D-060: the platform scores a training-fold constant on the locked validation folds, shows
+    it with the trial evidence, and for regression, when no validated trial beats it by more than
+    one paired standard error, sends a constant trial to verification (off: no reference, no
+    rule)."""
+    target_composition: OnOff = Toggle.ON
+    """D-060: after the lock, the platform also tests whether A's questioned numeric feature
+    columns jointly reconstruct a regression target (linear R2 >= 0.99) and flags the smallest
+    such set like an above-threshold single-column diagnostic (off: single-column flags only)."""
 
 
 class FeatureFlags(FrozenModel):

@@ -47,3 +47,6 @@ flags:
     finish_reserve_compute_seconds: 60  # least sandbox compute kept for the final job (0 = off)
     max_diagnostics_per_session: 8   # run_diagnostic calls per C session (proposal or experiments)
     max_research_tool_calls: 16      # tool calls per B research session
+    # S4.2j verify3 follow-up (D-060, docs/notes/controller-robustness.md sections J and K).
+    constant_reference: "on"         # on | off: platform constant reference + constant-trial rule
+    target_composition: "on"         # on | off: joint target-composition test on questioned columns
