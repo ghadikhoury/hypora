@@ -1939,8 +1939,9 @@ weight or eval model profile changed.
   check already keyed compute accounting on RUNNING transitions and needed no change; no other
   grader path used `attempts == 0` or a pre-run state list.
 - **Runtime cleanup.** Both workers (`ExperimentWorker`, which ran verify6, and
-  `ExecutionWorker`) now confirm such a cancel at once: when `start` raises `StaleJobState`, or a
-  pre-start refusal's `fail` does, and the job is CANCEL_REQUESTED under this worker's lease, they
+  `ExecutionWorker`) now confirm such a cancel at once: when `start` raises `StaleJobState`, or
+  `fail` does for a pre-start refusal (every pre-start refusal in `ExperimentWorker`; planning
+  failure in `ExecutionWorker`), and the job is CANCEL_REQUESTED under this worker's lease, they
   call `confirm_cancelled` with the reason `cancelled before sandbox start`. The usual
   `job_transition` event is emitted; no outcome file is written. A stale state that is not a
   cancel under this worker's lease is left alone as before. `JobQueue.confirm_cancelled` gained

@@ -248,7 +248,8 @@ python -m hypora.execution.worker --db hypora.sqlite --planner package.module:pl
   heartbeat thread → `complete` / `fail` / `confirm_cancelled`.
 - **Cancel before start (D-063):** a cancel can reach a job between `lease` and `start` (the
   controller stops a role while its job is LEASED). `start` then finds CANCEL_REQUESTED and
-  raises `StaleJobState`, and so does `fail` for a pre-start refusal. Both workers
+  raises `StaleJobState`, and so does `fail` for a pre-start refusal (any in `ExperimentWorker`,
+  planning failure in `ExecutionWorker`). Both workers
   (`ExecutionWorker` and the `ExperimentWorker` that runs real experiments) then confirm the
   cancel at once (`confirm_cancelled`, reason `cancelled before sandbox start`), with no sandbox
   and no outcome file. Before this they dropped the job still holding its lease, and the
