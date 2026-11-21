@@ -61,8 +61,13 @@ stays within case bounds, including earlier unsuccessful candidates. Ledger and 
 compared conservatively using the larger measure. A limit firing after an overrun does not excuse it.
 
 Approval request/grant evidence must precede each exact job's first execution boundary. A
-never-executed cancellation needs durable zero-attempt cancellation proof (a pre-run prior state on
-the CANCEL_REQUESTED or CANCELLED transition, since a cancel passes through CANCEL_REQUESTED). Completion requires
+never-executed cancellation needs durable proof that nothing ran: a stored CANCELLED status, no
+RUNNING transition, a pre-run prior state on the CANCEL_REQUESTED or CANCELLED transition (since a
+cancel passes through CANCEL_REQUESTED), no stage logs, and no outcome or a zero-stage one. LEASED
+counts as pre-run, because only LEASED -> RUNNING starts a sandbox. The job's `attempts` count is
+not used: each lease counts one, even a lease that is cancelled or expires before any start
+(D-063; S4.2j verify6). Any job with a RUNNING transition is graded against that transition as
+its boundary, whatever its cancel history. Completion requires
 the stored run status and latest report-stage terminal transition to agree.
 
 ## Outcome evidence (D-032)

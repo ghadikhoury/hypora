@@ -246,6 +246,14 @@ python -m hypora.execution.worker --db hypora.sqlite --planner package.module:pl
   and runs each in its own thread.
 - **Lifecycle per job:** plan → validate mounts → `start` (LEASED → RUNNING) → sandbox, with a
   heartbeat thread → `complete` / `fail` / `confirm_cancelled`.
+- **Cancel before start (D-063):** a cancel can reach a job between `lease` and `start` (the
+  controller stops a role while its job is LEASED). `start` then finds CANCEL_REQUESTED and
+  raises `StaleJobState`, and so does `fail` for a pre-start refusal. Both workers
+  (`ExecutionWorker` and the `ExperimentWorker` that runs real experiments) then confirm the
+  cancel at once (`confirm_cancelled`, reason `cancelled before sandbox start`), with no sandbox
+  and no outcome file. Before this they dropped the job still holding its lease, and the
+  scheduler cancelled it only on lease expiry (about a minute later). A stale state that is not
+  a cancel under this worker's lease (the lease expired and moved on) is still left alone.
 - **Failure codes:** trial-caused failures are terminal: `EXIT_<n>`, `TIMEOUT`, `OOM_KILLED`,
   `OUTPUT_LIMIT`, `UNSAFE_OUTPUT`, `PLANNING_FAILED`. Infrastructure failures are retryable:
   `SANDBOX_START_FAILED`, `HEARTBEAT_FAILED`, `WORKER_ERROR`.

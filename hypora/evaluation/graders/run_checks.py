@@ -256,8 +256,17 @@ def _execution_boundary(
         return first
     record = JobQueue(log.database).get(job_id)
     # A cancel request reaches CANCELLED through CANCEL_REQUESTED, so a job that never ran may show
-    # the pre-run state on either the request or the final transition.
-    pre_run = {JobState.DRAFT, JobState.VALIDATING, JobState.AWAITING_APPROVAL, JobState.QUEUED}
+    # the pre-run state on either the request or the final transition. LEASED is pre-run too: a
+    # worker holds the job but has not started the sandbox (only LEASED -> RUNNING does, D-063).
+    # `attempts` is no proof either way: each lease counts one, even one that expires unstarted.
+    # The proof that nothing ran is the missing RUNNING transition plus the empty worker records.
+    pre_run = {
+        JobState.DRAFT,
+        JobState.VALIDATING,
+        JobState.AWAITING_APPROVAL,
+        JobState.QUEUED,
+        JobState.LEASED,
+    }
     cancelled = any(
         e.payload.to_state in {JobState.CANCELLED, JobState.CANCEL_REQUESTED}
         and e.payload.expected_prior_state in pre_run
@@ -267,7 +276,6 @@ def _execution_boundary(
     outcome = protocol.read_outcome(folder)
     if (
         record.status is JobState.CANCELLED
-        and record.attempts == 0
         and cancelled
         and not protocol.read_stage_logs(folder)
         and (outcome is None or outcome.stages == 0)
