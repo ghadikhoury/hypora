@@ -264,3 +264,63 @@ complete a size-2 subset and be flagged too; R2 alone cannot tell the two apart.
 Tests: `tests/unit/controller/test_constant_reference.py`,
 `tests/unit/profiling/test_target_composition.py` and
 `tests/controller/test_constant_and_composition.py` (scripted, end to end).
+
+# D-061 follow-up (S4.2j verify4, 5/6 on 3cd9849)
+
+## L. Contract feature facts at A's final reviews (`contract_feature_facts`, default on)
+
+**What happened.** On the temporal regression case, A's review before final verification
+stopped a clean candidate: 19 lines, a gradient-boosted model fitted on all of `train.X`, platform
+facts clean, the nominated trial ranked first and well ahead of the constant reference. A's
+stated reason (it was there, in `role_outputs/`; the model-call log shows only the filtered
+`action`/`assignment`/`overlap_reason` view) was that the pipeline "fits on all of train.X" and
+that "the allowed features casual and registered" rebuild the target. That was false: the run
+had already excluded both columns (the D-060 composition flags), and platform code builds
+`train.X` and the `X` passed to `predict` as `frame[allowed_features]` (`harness/data.py`), so
+neither could reach the pipeline. A could not know that. The final review showed the trial
+check's `contract_allowed_features` as a count only, and the run notes said the columns were
+*flagged*, never that they had been *excluded*.
+
+**The fix.** With the flag on, both reviews before final verification (the pre-final review and
+the `use_best_validated_trial` swap review) carry `Contract feature facts: {...}` just before
+the trial evidence check (`_feature_facts`): the target, the approved contract's
+`allowed_features` by name, and each `excluded_features` entry with its evidence reference, the
+platform diagnostic that flagged it in this run (`_flagged()`), and C's stated reason after the
+role-text screen (`_relayable`, fail closed: `null` when refused; at most 300 characters). The
+note says in plain words that platform code removes the target and every excluded column before
+any stage, so code fitting on all of `train.X` or predicting on all of `X` uses only the allowed
+features. Always valid JSON; while it exceeds 8,000 characters the longer list is halved, and the
+totals still count every name. If the facts cannot be computed, the block says so and the run continues.
+Column names are dataset header names, which A already sees in full in every methodology and
+reconciliation review (C's whole proposal is shown), so those two reviews were not changed. The
+trial evidence check itself is unchanged, including for C's nomination.
+
+**A's stop reason in the notes.** When A reports at either review, `_note_stop` adds
+`A's stated reason for stopping (screened model text): ...` after the headline. The reason is
+A's output already redacted for logs (`redact_model_data`) and then screened by `_relayable`,
+the same role-text screen that A's `overlap_reason` passes before it goes into the notes:
+credential shapes, code syntax, platform record IDs, the data firewall and the injection screen,
+failing closed. Refused text is not repeated (`STOP_REASON_WITHHELD`). The review shows A trial
+IDs, and the record-ID rule would withhold any reason that cites one, so each platform record ID
+in the reason is first replaced by `[record ID]`. That rule exists to keep IDs from steering
+another role, and this note reaches no other role. The run stops there, so the
+note reaches only the report and its narrative call. `_stop_facts_note` then points to the
+previous note.
+
+**Prompt.** `agent_a_decide` v7 -> v8: report only for a concrete problem A can name, in the lines
+shown or the platform evidence, named in its reason; when contract feature facts are shown, judge the code against them,
+and a concern they settle is not a reason to report. The prompt is static, so both sentences are
+there with the flag off too. The second is conditional ("when contract feature facts are
+shown") and does nothing with the flag off. The first (name a concrete problem) applies in both
+settings, like D-060's unconditional prompt fix, so an off/on comparison measures the facts and
+the note, not that sentence.
+
+**Not changed.** No re-ask loop and no platform override of a reasoned report: a report still
+stops the run exactly as before, and continue still goes to independent verification. No schema,
+MCP tool, event type, trial interface, sandbox, policy, eval case, bar or grader change.
+
+Tests: `tests/controller/test_contract_feature_facts.py` (scripted, in-process worker): the names
+and exclusion at the pre-final review, a reasoned stop in the notes and report (a cited trial ID
+replaced), a refused reason withheld, the flag off, and the swap review. Unit:
+`tests/unit/controller/test_feature_facts.py` covers the size cap, a refused exclusion reason, a
+platform-flagged exclusion and the fallback when the facts cannot be computed.

@@ -341,6 +341,11 @@ _ROLE_OVERRIDE: Final = re.compile(
 _RECORD_ID: Final = re.compile(
     r"\b(trl|brf|appr|sess|mc)_\w|\b(job|run|ri)_(?=\w*[0-9])\w{4,}\b", re.IGNORECASE
 )
+_RECORD_ID_TOKEN: Final = re.compile(
+    r"\b(?:trl|brf|appr|sess|mc)_\w+|\b(?:job|run|ri)_(?=\w*[0-9])\w{4,}\b", re.IGNORECASE
+)
+"""A whole platform record identifier, as `_RECORD_ID` recognizes it, for replacement."""
+RECORD_ID_PLACEHOLDER: Final = "[record ID]"
 PLATFORM_GUARANTEES: Final = (
     "What the platform guarantees, so these are not open questions for you or C: target values "
     "and class counts are withheld from every role until the split is locked, by design; "
@@ -527,6 +532,29 @@ SWAP_REVIEW_CONTEXT: Final = (
     "verification; report stops the run before verification, so no model is verified."
 )
 """A's extra final review of the trial its use_best_validated_trial chose (D-058)."""
+FEATURE_FACTS_NOTE: Final = (
+    "Platform facts from the approved data contract, enforced by platform code: before every "
+    "sandbox stage the platform builds train.X, and the X passed to fit and predict, from the "
+    "allowed_features below and nothing else. The target and every excluded feature are removed "
+    "in platform code before the pipeline runs, so code that fits on all of train.X or predicts "
+    "on all of X uses only the allowed features, and an excluded column cannot reach the "
+    "pipeline, even if a diagnostic flagged it earlier in this run. Each exclusion lists its "
+    "evidence, the platform diagnostic that flagged the column (if any) and its stated reason "
+    "(screened; null if withheld). If a list is cut for size, its total counts every name; a "
+    "name left out of a cut list is not evidence either way. Judge the code against these "
+    "facts: a report must name a "
+    "concrete problem in the lines shown that is still a problem given them."
+)
+"""Heading of the contract feature facts in A's reviews before final verification (D-061)."""
+MAX_FEATURE_FACTS_CHARS: Final = 8_000
+MAX_EXCLUSION_REASON_CHARS: Final = 300
+"""Bounds of the contract feature facts; names beyond them are left out and counted."""
+STOP_REASON_NOTE: Final = "A's stated reason for stopping (screened model text): {reason}"
+STOP_REASON_WITHHELD: Final = (
+    "A's stated reason for stopping did not pass the platform's role-text screen, so it is not "
+    "repeated here; it stays in A's role output."
+)
+"""Run notes with A's reason when it stops before final verification (D-061)."""
 MAX_TRIAL_CHECK_TRIALS: Final = 20
 MAX_TRIAL_CHECK_CHARS: Final = 12_000
 """Bounds of the trial evidence check; trials beyond them are left out whole and counted."""
@@ -714,11 +742,12 @@ def _failure_detail(exc: BaseException) -> str:
     return name
 
 
-def _stop_facts_note(facts: dict[str, Any]) -> str:
+def _stop_facts_note(facts: dict[str, Any], *, reason_noted: bool = False) -> str:
     """The report note beside A's pre-verification stop: what code had checked (D-047).
 
-    A's stated reason is model text and stays in its role output; this note gives the reader the
-    platform's facts to weigh it against, so a stop over a false premise is visible as such.
+    A's stated reason is model text: it stays in its role output and, with `reason_noted`
+    (D-061), its screened form is the run note just before this one. This note gives the reader
+    the platform's facts to weigh it against, so a stop over a false premise is visible as such.
     """
 
     def word(value: object) -> str:
@@ -736,7 +765,12 @@ def _stop_facts_note(facts: dict[str, Any]) -> str:
         f"submitted job: {word(facts['pipeline_sha256_matches_submitted_job'])}; job completed "
         f"its {stages} sandbox stage(s): {word(facts['job_completed'])}; "
         f"full file parses: {word(facts['full_file_parses_as_python'])}. No model was verified; "
-        "A's stated reason is in its role output. If these facts contradict it, rerun the task."
+        + (
+            "A's stated reason is in the previous note and its role output."
+            if reason_noted
+            else "A's stated reason is in its role output."
+        )
+        + " If these facts contradict it, rerun the task."
         + too_long
     )
 
@@ -1144,6 +1178,75 @@ class _Run:
     def _composition_on(self) -> bool:
         """The joint target-composition test on A's questioned columns (D-060)."""
         return self._robustness.target_composition is Toggle.ON
+
+    @property
+    def _feature_facts_on(self) -> bool:
+        """Contract feature facts in A's final reviews and A's stop reason in the notes (D-061)."""
+        return self._robustness.contract_feature_facts is Toggle.ON
+
+    def _feature_facts_line(self, contract: ExperimentContract) -> str:
+        """The contract feature facts for A's reviews before final verification (D-061).
+
+        Live (verify4), A stopped a clean candidate because it believed two columns flagged as
+        target components were still in train.X: it saw only a count of allowed features, never
+        which ones, nor that the flagged columns had been excluded. Empty with the flag off.
+        """
+        if not self._feature_facts_on:
+            return ""
+        return f"Contract feature facts: {self._feature_facts(contract)}. "
+
+    def _feature_facts(self, contract: ExperimentContract) -> str:
+        """The approved contract's allowed and excluded feature names, as bounded JSON.
+
+        Names are the dataset's header names, which A already sees in every methodology review.
+        Each exclusion carries its evidence reference (a validated identifier), the platform
+        diagnostic that flagged the column in this run, if any, and C's stated reason after the
+        role-text screen (`_relayable`, fail closed: null when refused), shortened. Always valid
+        JSON; while it exceeds `MAX_FEATURE_FACTS_CHARS`, the longer list is halved (names left
+        out from the end, the totals still count them) until it fits or no name remains.
+        Facts only: if they cannot be computed, the block says so instead of failing the run.
+        """
+        try:
+            data = contract.data_contract
+            try:
+                flagged = self._flagged()
+            except Exception:  # facts only: a failed read shows no flag rather than failing
+                flagged = {}
+            allowed = list(data.allowed_features)
+            excluded: list[dict[str, Any]] = []
+            for feature in data.excluded_features:
+                reason = self._relayable(feature.reason)
+                excluded.append(
+                    {
+                        "name": feature.name,
+                        "evidence": feature.evidence,
+                        "flagged_by_platform_diagnostic": flagged.get(feature.name),
+                        "reason": (shorten(reason, MAX_EXCLUSION_REASON_CHARS) if reason else None),
+                    }
+                )
+            shown_allowed, shown_excluded = len(allowed), len(excluded)
+            while True:
+                text = json.dumps(
+                    {
+                        "note": FEATURE_FACTS_NOTE,
+                        "target": data.target,
+                        "allowed_features": allowed[:shown_allowed],
+                        "allowed_features_total": len(allowed),
+                        "excluded_features": excluded[:shown_excluded],
+                        "excluded_features_total": len(excluded),
+                    }
+                )
+                if len(text) <= MAX_FEATURE_FACTS_CHARS or (shown_allowed + shown_excluded) == 0:
+                    return text
+                # Halve the longer list: few rounds even with thousands of columns.
+                if shown_allowed >= shown_excluded:
+                    shown_allowed //= 2
+                else:
+                    shown_excluded //= 2
+        except Exception:
+            return json.dumps(
+                {"note": FEATURE_FACTS_NOTE, "unavailable": "the facts could not be computed"}
+            )
 
     def _flagged(self) -> dict[str, str]:
         """Each column an extreme locked-split diagnostic of this run flags, with its ID.
@@ -2935,14 +3038,13 @@ class _Run:
             f"{FINAL_REVIEW_CONTEXT}{FINAL_SELECTION_NOTE} "
             f"C output: {outcome.final.model_dump_json() if outcome.final else 'unavailable'}. "
             f"Platform evidence: {self._trial_evidence()}. "
+            f"{self._feature_facts_line(contract)}"
             f"Trial evidence check: {self._trial_check(contract, c_nominated, nominated)}. "
             f"Candidate code (untrusted, screened): {self._code_evidence(contract, nominated)}. "
             f"Run notes: {self.notes}",
             lead_schema=LeadFinalReviewAction,
         ):
-            self.notes.append("Agent A chose to report before final verification.")
-            if (facts := self.candidate_code_facts) is not None:
-                self.notes.append(_stop_facts_note(facts))
+            self._note_stop("Agent A chose to report before final verification.")
             return
         if self._multi and getattr(self.last_lead, "use_best_validated_trial", None):
             # A's judgment, executed by code (D-058): the best mean validation primary metric.
@@ -3015,18 +3117,42 @@ class _Run:
             SWAP_REVIEW_CONTEXT + " "
             f"{FINAL_REVIEW_CONTEXT} "
             f"Platform evidence: {self._trial_evidence()}. "
+            f"{self._feature_facts_line(contract)}"
             f"Trial evidence check: {self._trial_check(contract, None)}. "
             f"Candidate code (untrusted, screened): {self._code_evidence(contract, None)}. "
             f"Run notes: {self.notes}"
         ):
             return True
-        self.notes.append(
+        self._note_stop(
             "Agent A chose to report before final verification after reviewing the best "
             "validated trial's code."
         )
-        if (facts := self.candidate_code_facts) is not None:
-            self.notes.append(_stop_facts_note(facts))
         return False
+
+    def _note_stop(self, headline: str) -> None:
+        """Run notes for A's stop before final verification: the headline, A's screened reason
+        (D-061, with `robustness.contract_feature_facts` on) and the platform's code facts.
+
+        The reason is A's own model text, already redacted for logs, and passes the same
+        role-text screen as every relayed A text (`_relayable`: credentials, code, record IDs,
+        the data firewall and the injection screen), failing closed: refused text is not
+        repeated, and the note says so. The run stops here, so the note reaches only the report
+        and its narrative call, as A's screened overlap_reason note already does. A's review shows
+        trial IDs, so a reason may cite one: each platform record ID is first replaced by a fixed
+        placeholder, so the reason is not withheld for that alone. The record-ID rule keeps IDs
+        from steering another role, and this note goes to no other role.
+        """
+        self.notes.append(headline)
+        noted = False
+        if self._feature_facts_on and self.last_lead is not None:
+            reason = _RECORD_ID_TOKEN.sub(RECORD_ID_PLACEHOLDER, self.last_lead.reason)
+            relayed = self._relayable(reason)
+            noted = relayed is not None
+            self.notes.append(
+                STOP_REASON_NOTE.format(reason=relayed) if relayed else STOP_REASON_WITHHELD
+            )
+        if (facts := self.candidate_code_facts) is not None:
+            self.notes.append(_stop_facts_note(facts, reason_noted=noted))
 
     async def _agent(
         self, spec: TaskSpecification, contract: ExperimentContract, profile: DatasetProfile

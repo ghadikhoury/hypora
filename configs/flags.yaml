@@ -50,3 +50,5 @@ flags:
     # S4.2j verify3 follow-up (D-060, docs/notes/controller-robustness.md sections J and K).
     constant_reference: "on"         # on | off: platform constant reference + constant-trial rule
     target_composition: "on"         # on | off: joint target-composition test on questioned columns
+    # S4.2j verify4 follow-up (D-061, docs/notes/controller-robustness.md section L).
+    contract_feature_facts: "on"     # on | off: A's final reviews see allowed/excluded feature names
