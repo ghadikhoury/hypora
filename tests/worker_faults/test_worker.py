@@ -23,7 +23,7 @@ from hypora.execution.sandbox.spec import SandboxSpec
 from hypora.execution.worker import ExecutionWorker, JobOutcome, load_planner
 from hypora.storage.database import Database
 from hypora.storage.events import EventFilters, EventLog
-from hypora.storage.jobs import JobQueue, JobRecord
+from hypora.storage.jobs import CANCELLED_BEFORE_START, JobQueue, JobRecord, WorkerCapacity
 from hypora.storage.migrate import migrate
 from hypora.storage.models import Run, Trial
 from tests.worker_faults.planners import ScriptPlanner
@@ -318,6 +318,67 @@ def test_cancel_stops_the_sandbox_and_is_confirmed(
     assert seen == ["cancel requested"]
     assert outcomes[0].final_state is S.CANCELLED
     assert job_states(database, job_id)[-2:] == [S.CANCEL_REQUESTED, S.CANCELLED]
+
+
+class CancelWhilePlanning(ScriptPlanner):
+    """The controller cancels between lease and start (S4.2j verify6, D-063)."""
+
+    def __init__(self, base: Path, queue: JobQueue, *, fail: bool) -> None:
+        super().__init__(base, image="unused:tag")
+        self.queue = queue
+        self.fail = fail
+
+    def plan(self, job: JobRecord, worker_id: str) -> SandboxSpec:
+        self.queue.request_cancel(job.id, "controller", "Worker stopped")
+        if self.fail:
+            raise RuntimeError("no data for this job")
+        return super().plan(job, worker_id)
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_a_cancel_before_start_is_confirmed_at_once(
+    queue: JobQueue, database: Database, tmp_path: Path, fail: bool
+) -> None:
+    job_id = enqueue(queue, "k:1")
+    launcher = FakeLauncher()
+    worker, outcomes = make_worker(queue, launcher, tmp_path)
+    worker.planner = CancelWhilePlanning(tmp_path / "jobs", queue, fail=fail)
+    worker.poll_once()
+    worker.wait(10)
+    assert launcher.specs == []  # no sandbox
+    assert outcomes[0].final_state is S.CANCELLED and outcomes[0].result is None
+    assert outcomes[0].error == CANCELLED_BEFORE_START
+    record = queue.get(job_id)
+    assert record.status is S.CANCELLED and record.lease_owner is None
+    assert job_states(database, job_id)[-3:] == [S.LEASED, S.CANCEL_REQUESTED, S.CANCELLED]
+    assert S.RUNNING not in job_states(database, job_id)
+    events = EventLog(database).read("run_1", EventFilters(job_id=job_id))
+    assert isinstance(events[-1].payload, JobTransitionPayload)
+    assert events[-1].payload.reason == CANCELLED_BEFORE_START
+
+
+def test_a_stale_start_that_is_not_a_cancel_leaves_the_job_alone(
+    queue: JobQueue, clock: FakeClock, tmp_path: Path
+) -> None:
+    job_id = enqueue(queue, "k:1")
+    launcher = FakeLauncher()
+    # One CPU slot, so this worker's poll loop cannot itself re-lease the expired job.
+    worker, outcomes = make_worker(queue, launcher, tmp_path, pools=make_pools(cpu=1))
+
+    class LeaseMovesOn(ScriptPlanner):
+        def plan(self, job: JobRecord, worker_id: str) -> SandboxSpec:
+            clock.advance(31)  # our lease expired; another worker takes the job
+            other = queue.lease("w2", WorkerCapacity(cpu_slots=4, gpu_slots=0, memory_gb=8.0))
+            assert other is not None and other.id == job.id
+            return super().plan(job, worker_id)
+
+    worker.planner = LeaseMovesOn(tmp_path / "jobs", image="unused:tag")
+    worker.poll_once()
+    worker.wait(10)
+    assert launcher.specs == [] and outcomes[0].final_state is None
+    assert outcomes[0].error is not None and "WORKER_ERROR" in outcomes[0].error
+    record = queue.get(job_id)
+    assert record.status is S.LEASED and record.lease_owner == "w2"
 
 
 def test_a_failing_heartbeat_stops_the_sandbox_and_requeues(

@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 import anyio
 import pytest
+from sqlalchemy import update
 
 from hypora.core.controller.contract import approve_by_policy, build_plan
 from hypora.core.policy.approvals import ApprovalScope, effective_tools, write_scope
@@ -19,9 +20,10 @@ from hypora.core.schemas import (
     ApprovalRecord,
     EventType,
     JobLimits,
+    JobState,
     Operation,
 )
-from hypora.core.schemas.events import ApprovalRequestedPayload
+from hypora.core.schemas.events import ApprovalRequestedPayload, JobTransitionPayload
 from hypora.core.schemas.trials import TrialDesign
 from hypora.execution.harness.partition import LOCK_FILE, create_partition_lock
 from hypora.execution.harness.runner import HarnessFailure, TabularHarness
@@ -32,8 +34,9 @@ from hypora.mcp_server.dev import create_dev_workspace
 from hypora.mcp_server.errors import ToolFailure
 from hypora.mcp_server.session import Session, SessionConfig
 from hypora.mcp_server.tools import HyporaTools
-from hypora.storage.events import EventLog
-from hypora.storage.jobs import WorkerCapacity
+from hypora.storage.events import EventFilters, EventLog
+from hypora.storage.jobs import CANCELLED_BEFORE_START, StaleJobState, WorkerCapacity
+from hypora.storage.models import Job
 from hypora.storage.records import save_approval, save_experiment_contract
 from tests.mcp_contracts.helpers import DESIGN, LINEAR, RUN_ID, fresh_key
 from tests.unit.controller.helpers import spec
@@ -391,3 +394,62 @@ def test_artifact_changed_after_submit_is_refused_at_lease(setup, change):
     else:
         plan_path.unlink()
     refused_at_lease(worker, tools, job_id, "approved")
+
+
+# --- a cancel that reaches a leased job before its sandbox starts (D-063) -------------------------
+
+
+def cancel_while_leased(monkeypatch, session: Session, job_id: str, *, then_fail: bool) -> None:
+    """The controller cancels between lease and start, as in S4.2j verify6."""
+    original = ExperimentWorker._firewall
+
+    def cancelled_then_firewall(self, *args, **kwargs):
+        session.queue.request_cancel(job_id, "controller", "Worker stopped", ActorRole.CONTROLLER)
+        if then_fail:
+            raise RuntimeError("preparation fails too")
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(ExperimentWorker, "_firewall", cancelled_then_firewall)
+
+
+@pytest.mark.parametrize("then_fail", [False, True])
+def test_a_cancel_before_start_is_confirmed_at_once(setup, monkeypatch, then_fail):
+    session, tools, worker = setup
+    job_id = submitted(tools)
+    cancel_while_leased(monkeypatch, session, job_id, then_fail=then_fail)
+    ran = worker.run_once()  # the launcher would raise if any sandbox were started
+    assert ran.final_state is JobState.CANCELLED and ran.outcome is None
+    record = session.queue.get(job_id)
+    assert record.status is JobState.CANCELLED and record.lease_owner is None
+    events = EventLog(session.database).read(
+        RUN_ID, EventFilters(job_id=job_id, types=(EventType.JOB_TRANSITION,))
+    )
+    payloads = [e.payload for e in events if isinstance(e.payload, JobTransitionPayload)]
+    moves = [(p.expected_prior_state, p.to_state) for p in payloads]
+    assert moves[-3:] == [
+        (JobState.QUEUED, JobState.LEASED),
+        (JobState.LEASED, JobState.CANCEL_REQUESTED),
+        (JobState.CANCEL_REQUESTED, JobState.CANCELLED),
+    ]
+    assert JobState.RUNNING not in [to for _, to in moves]
+    assert payloads[-1].reason == CANCELLED_BEFORE_START
+    assert events[-1].actor_role is ActorRole.EXECUTION_WORKER
+    folder = protocol.job_dir(session.runs_root, RUN_ID, job_id)
+    assert protocol.read_outcome(folder) is None
+
+
+def test_a_stale_start_that_is_not_a_cancel_still_raises(setup, monkeypatch):
+    session, tools, worker = setup
+    job_id = submitted(tools)
+    original = ExperimentWorker._firewall
+
+    def lease_moves_on(self, *args, **kwargs):
+        with session.database.write() as connection:  # another worker's lease, as after expiry
+            connection.execute(update(Job).where(Job.id == job_id).values(lease_owner="w_other"))
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(ExperimentWorker, "_firewall", lease_moves_on)
+    with pytest.raises(StaleJobState):
+        worker.run_once()
+    record = session.queue.get(job_id)
+    assert record.status is JobState.LEASED and record.lease_owner == "w_other"

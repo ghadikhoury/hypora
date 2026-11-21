@@ -1909,6 +1909,48 @@ Details and the table of every run are in `docs/notes/readiness-verification.md`
 - **Scope.** No schema, event type, MCP tool, fit/predict interface, dependency, sandbox,
   policy, scanner, eval case, grading rule, hidden split or model profile change.
 
+## D-063 — A cancel that reaches a leased job before its sandbox starts (2026-11-21)
+
+**This modifies grading logic (stop-and-ask trigger 4).** It is made under Ghadi's standing
+authorization for general fixes found during S4.2j, the same authorization that covered the
+earlier fix to this same grader function (PR #78, two-step cancel of a job that never ran). This
+change extends that fix to its sibling case. No bar, threshold, dev case, hidden split, grading
+weight or eval model profile changed.
+
+- **What happened.** In paid verify6 (`e457c72`, run `run_a7c6469ab652`) the experiment worker
+  leased job `…_229c2c` (attempts 0 -> 1). The controller then cancelled it from LEASED ("Worker
+  stopped": the trial worker hit its token limit). The worker's `queue.start` found
+  CANCEL_REQUESTED and raised `StaleJobState`. The worker dropped the job while still holding its
+  lease. About 67 s later the same worker's own expiry sweep inside `lease()` moved it to
+  CANCELLED on lease expiry, recording that transition with the scheduler role (no separate
+  scheduler process was involved). The job never
+  reached RUNNING: no stage logs, no outcome, no sandbox. The grader still failed
+  `no_policy_violations`, because its never-ran proof listed only DRAFT, VALIDATING,
+  AWAITING_APPROVAL and QUEUED as pre-run states (not LEASED) and required `attempts == 0`.
+- **Grader fix.** `_execution_boundary` now counts LEASED as pre-run and no longer uses
+  `attempts`. A lease raises `attempts` without starting anything, and so does a lease that
+  expired and was requeued, so `attempts` cannot tell whether a sandbox ran.
+- **Why it is safe.** Only LEASED -> RUNNING starts a sandbox, and that transition and its event
+  are written in the same transaction before the sandbox launches. A job that ran therefore always
+  has a RUNNING transition, and the grader checks such a job against that transition as before,
+  whatever its cancel history. Every other never-ran proof stays: stored status CANCELLED, a
+  cancel from a pre-run state, no stage logs, and no outcome or a zero-stage one. A job with a
+  RUNNING transition, stage logs or a non-empty outcome still fails the never-ran path. The budget
+  check already keyed compute accounting on RUNNING transitions and needed no change; no other
+  grader path used `attempts == 0` or a pre-run state list.
+- **Runtime cleanup.** Both workers (`ExperimentWorker`, which ran verify6, and
+  `ExecutionWorker`) now confirm such a cancel at once: when `start` raises `StaleJobState`, or
+  `fail` does for a pre-start refusal (every pre-start refusal in `ExperimentWorker`; planning
+  failure in `ExecutionWorker`), and the job is CANCEL_REQUESTED under this worker's lease, they
+  call `confirm_cancelled` with the reason `cancelled before sandbox start`. The usual
+  `job_transition` event is emitted; no outcome file is written. A stale state that is not a
+  cancel under this worker's lease is left alone as before. `JobQueue.confirm_cancelled` gained
+  an optional `reason` (default unchanged).
+- **Frozen contracts and security.** No change to `hypora/core/schemas/`, `docs/schemas/`, the
+  MCP tool contract, event types, the trial `fit`/`predict` interface,
+  `hypora/execution/sandbox/` or `hypora/core/policy/`. Scripted tests only; no live run. Notes:
+  `docs/notes/graders.md`, `docs/notes/sandbox-layout.md`.
+
 ## D-064 — CI test job timeout raised from 30 to 45 minutes (2026-11-21)
 
 - **Decision.** `timeout-minutes` is 45 (was 30) for the non-container test shards

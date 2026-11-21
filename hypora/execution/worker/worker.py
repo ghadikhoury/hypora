@@ -29,7 +29,13 @@ from hypora.core.schemas import JobState
 from hypora.execution.sandbox.launcher import SandboxLauncher, SandboxResult, SandboxStatus
 from hypora.execution.worker.planner import JobPlanner
 from hypora.execution.worker.pools import JobNeeds, PoolAccountant
-from hypora.storage.jobs import HeartbeatStatus, JobQueue, JobRecord, StaleJobState
+from hypora.storage.jobs import (
+    CANCELLED_BEFORE_START,
+    HeartbeatStatus,
+    JobQueue,
+    JobRecord,
+    StaleJobState,
+)
 
 log = logging.getLogger(__name__)
 
@@ -175,8 +181,19 @@ class ExecutionWorker:
             spec = self.planner.plan(job, self.worker_id)
             spec.mounts.validated()  # refuse unsafe mounts before anything starts
         except Exception as exc:
-            return self._fail(job, "PLANNING_FAILED", f"{type(exc).__name__}: {exc}", False)
-        self.queue.start(job.id, self.worker_id)
+            failed = self._fail(job, "PLANNING_FAILED", f"{type(exc).__name__}: {exc}", False)
+            if failed.final_state is not None:
+                return failed
+            return self._cancel_unstarted(job) or failed
+        try:
+            self.queue.start(job.id, self.worker_id)
+        except StaleJobState:
+            # A cancel that arrived while we held the lease: nothing ran, so close it now rather
+            # than leave it held until the lease expires (D-063). Anything else is a worker error.
+            cancelled = self._cancel_unstarted(job)
+            if cancelled is None:
+                raise
+            return cancelled
 
         abort: list[str] = []
         lease_lost = threading.Event()
@@ -239,6 +256,19 @@ class ExecutionWorker:
         except StaleJobState as exc:
             return JobOutcome(job, None, result, str(exc))
         return JobOutcome(job, record.status, result)
+
+    def _cancel_unstarted(self, job: JobRecord) -> JobOutcome | None:
+        """Confirm a cancel that reached this worker's lease before the sandbox started.
+
+        Returns None when the job is not CANCEL_REQUESTED under our lease (e.g. the lease expired
+        and moved on): then it is not ours to touch.
+        """
+        try:
+            record = self.queue.confirm_cancelled(job.id, self.worker_id, CANCELLED_BEFORE_START)
+        except StaleJobState:
+            return None
+        log.info("job %s: %s", job.id, CANCELLED_BEFORE_START)
+        return JobOutcome(job, record.status, None, CANCELLED_BEFORE_START)
 
     def _fail(
         self,

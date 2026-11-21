@@ -54,6 +54,9 @@ TERMINAL_STATES = frozenset({S.COMPLETED, S.CANCELLED, S.FAILED_TERMINAL})
 HELD_STATES = frozenset({S.LEASED, S.RUNNING, S.CANCEL_REQUESTED})
 """States in which a worker may hold the job's lease."""
 
+CANCELLED_BEFORE_START = "cancelled before sandbox start"
+"""The CANCELLED reason a worker records when a cancel reached a job it leased but never started."""
+
 ALLOWED_TRANSITIONS: dict[JobState, frozenset[JobState]] = {
     S.DRAFT: frozenset({S.VALIDATING, S.CANCEL_REQUESTED}),
     S.VALIDATING: frozenset({S.AWAITING_APPROVAL, S.FAILED_TERMINAL, S.CANCEL_REQUESTED}),
@@ -392,8 +395,11 @@ class JobQueue:
                 )
             return record
 
-    def confirm_cancelled(self, job_id: str, worker_id: str) -> JobRecord:
-        """CANCEL_REQUESTED -> CANCELLED, by the worker that stopped the job."""
+    def confirm_cancelled(
+        self, job_id: str, worker_id: str, reason: str = "sandbox stopped"
+    ) -> JobRecord:
+        """CANCEL_REQUESTED -> CANCELLED, by the worker that stopped the job (or that held it
+        when the cancel arrived before its sandbox started)."""
         with self.database.write() as connection:
             record = self._held(connection, job_id, worker_id, {S.CANCEL_REQUESTED})
             return self._transition(
@@ -402,7 +408,7 @@ class JobQueue:
                 S.CANCELLED,
                 worker_id,
                 ActorRole.EXECUTION_WORKER,
-                "sandbox stopped",
+                reason,
                 owner=worker_id,
                 release=True,
             )
@@ -556,6 +562,7 @@ def _record(row: Any) -> JobRecord:
 
 __all__ = [
     "ALLOWED_TRANSITIONS",
+    "CANCELLED_BEFORE_START",
     "HELD_STATES",
     "RESERVED_KEY_PREFIX",
     "TERMINAL_STATES",

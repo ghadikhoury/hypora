@@ -1257,7 +1257,7 @@ def test_two_step_cancellation_of_a_never_run_job(world: World, ran: bool) -> No
         **fields,
     )
     if ran:
-        # It ran, so the cancel request alone is not a boundary: attempts and stage evidence differ.
+        # It ran, so the cancel request alone is not a boundary: its stage evidence shows it.
         with world.database.write() as connection:
             connection.execute(update(Job).where(Job.id == "job_cancelled").values(attempts=1))
         append_stage_log(folder, _stage(1.0))
@@ -1271,6 +1271,96 @@ def test_two_step_cancellation_of_a_never_run_job(world: World, ran: bool) -> No
     assert check_of(grade(world), POLICY).status is (
         CheckStatus.FAILED if ran else CheckStatus.PASSED
     )
+
+
+def _leased_then_cancelled(world: World, *, requeued: bool) -> Path:
+    """verify6's job: leased (maybe after an expired, unstarted lease), cancelled while LEASED,
+    and closed by lease expiry or the worker, without ever reaching RUNNING (D-063)."""
+    folder = add_job(world, "job_cancelled", "fit", "CANCELLED")
+    raw = json.loads(_final_job_file(world, "request.json").read_text())
+    (folder / "request.json").write_text(json.dumps(raw))
+    fields = {"operation": "fit", "trial_id": TRIAL_ID}
+    world.job_event("job_cancelled", "LEASED", expected_prior_state="QUEUED", attempt=1, **fields)
+    attempts = 1
+    if requeued:
+        world.job_event(
+            "job_cancelled", "QUEUED", expected_prior_state="LEASED", attempt=1, **fields
+        )
+        world.job_event(
+            "job_cancelled", "LEASED", expected_prior_state="QUEUED", attempt=2, **fields
+        )
+        attempts = 2
+    with world.database.write() as connection:
+        connection.execute(update(Job).where(Job.id == "job_cancelled").values(attempts=attempts))
+    world.job_event(
+        "job_cancelled",
+        "CANCEL_REQUESTED",
+        expected_prior_state="LEASED",
+        attempt=attempts,
+        **fields,
+    )
+    world.job_event(
+        "job_cancelled",
+        "CANCELLED",
+        expected_prior_state="CANCEL_REQUESTED",
+        attempt=attempts,
+        **fields,
+    )
+    return folder
+
+
+@pytest.mark.parametrize("requeued", [False, True])
+def test_cancel_while_leased_is_a_never_run_job(world: World, requeued: bool) -> None:
+    _leased_then_cancelled(world, requeued=requeued)
+    assert check_of(grade(world), POLICY).status is CheckStatus.PASSED
+
+
+def test_cancel_while_leased_with_stage_logs_is_not_a_boundary(world: World) -> None:
+    folder = _leased_then_cancelled(world, requeued=False)
+    append_stage_log(folder, _stage(1.0))
+    assert check_of(grade(world), POLICY).status is CheckStatus.FAILED
+
+
+def test_cancel_while_leased_with_a_sandbox_outcome_is_not_a_boundary(world: World) -> None:
+    folder = _leased_then_cancelled(world, requeued=False)
+    (folder / "outcome.json").write_text(_final_job_file(world, "outcome.json").read_text())
+    assert check_of(grade(world), POLICY).status is CheckStatus.FAILED
+
+
+def test_cancelled_job_that_reached_running_needs_its_real_boundary(world: World) -> None:
+    folder = add_job(world, "job_cancelled", "fit", "CANCELLED")
+    raw = json.loads(_final_job_file(world, "request.json").read_text())
+    (folder / "request.json").write_text(json.dumps(raw))
+    world.job_event(
+        "job_cancelled", "LEASED", expected_prior_state="QUEUED", operation="fit", attempt=1
+    )
+    # It started under another trial's identity, so its RUNNING transition is no boundary, and
+    # the cancel from LEASED that preceded it cannot stand in for one.
+    world.job_event(
+        "job_cancelled",
+        "RUNNING",
+        expected_prior_state="LEASED",
+        operation="fit",
+        trial_id="trial_other",
+        attempt=1,
+    )
+    world.job_event(
+        "job_cancelled",
+        "CANCEL_REQUESTED",
+        expected_prior_state="RUNNING",
+        operation="fit",
+        trial_id=TRIAL_ID,
+        attempt=1,
+    )
+    world.job_event(
+        "job_cancelled",
+        "CANCELLED",
+        expected_prior_state="CANCEL_REQUESTED",
+        operation="fit",
+        trial_id=TRIAL_ID,
+        attempt=1,
+    )
+    assert check_of(grade(world), POLICY).status is CheckStatus.FAILED
 
 
 def test_cancel_requested_from_running_is_not_a_boundary(world: World) -> None:

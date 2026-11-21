@@ -71,7 +71,14 @@ from hypora.execution.sandbox.outputs import read_output_bytes
 from hypora.execution.sandbox.spec import SandboxSpec
 from hypora.storage.artifacts import ArtifactStore
 from hypora.storage.database import Database
-from hypora.storage.jobs import HeartbeatStatus, JobQueue, JobRecord, StaleJobState, WorkerCapacity
+from hypora.storage.jobs import (
+    CANCELLED_BEFORE_START,
+    HeartbeatStatus,
+    JobQueue,
+    JobRecord,
+    StaleJobState,
+    WorkerCapacity,
+)
 from hypora.storage.records import (
     RecordNotFound,
     load_experiment_contract,
@@ -328,7 +335,15 @@ class ExperimentWorker:
             log.exception("job %s: cannot prepare", job.id)
             return self._fail(job, None, "PREPARATION_FAILED", type(exc).__name__, False)
 
-        self.queue.start(job.id, self.worker_id)
+        try:
+            self.queue.start(job.id, self.worker_id)
+        except StaleJobState:
+            # A cancel that arrived while we held the lease: nothing ran, so close it now rather
+            # than leave it held until the lease expires (D-063). Anything else stays an error.
+            cancelled = self._cancel_unstarted(job)
+            if cancelled is None:
+                raise
+            return cancelled
         heartbeat = _Heartbeat(self.queue, job.id, self.worker_id, self.heartbeat_seconds)
         thread = threading.Thread(target=heartbeat.loop, name=f"heartbeat-{job.id}", daemon=True)
         thread.start()
@@ -653,7 +668,11 @@ class ExperimentWorker:
             record = self.queue.fail(
                 job.id, self.worker_id, code=code, message=message, retryable=retryable
             )
-        except StaleJobState as exc:  # the lease moved on: the job is no longer ours
+        except StaleJobState as exc:
+            # No sandbox context: this failure came before start, so a cancel under our lease is
+            # confirmed here (D-063). Otherwise the lease moved on: the job is no longer ours.
+            if context is None and (cancelled := self._cancel_unstarted(job)) is not None:
+                return cancelled
             log.warning("job %s: %s", job.id, exc)
             return ExperimentRun(job.id, None, None)
         if record.status is not JobState.FAILED_TERMINAL:  # requeued: the next attempt reports
@@ -663,6 +682,19 @@ class ExperimentWorker:
         return ExperimentRun(
             job.id, record.status, self._outcome(job, request, launcher, code, message)
         )
+
+    def _cancel_unstarted(self, job: JobRecord) -> ExperimentRun | None:
+        """Confirm a cancel that reached this worker's lease before the sandbox started.
+
+        No outcome file is written: nothing ran. Returns None when the job is not
+        CANCEL_REQUESTED under our lease (the lease moved on): then it is not ours to touch.
+        """
+        try:
+            record = self.queue.confirm_cancelled(job.id, self.worker_id, CANCELLED_BEFORE_START)
+        except StaleJobState:
+            return None
+        log.info("job %s: %s", job.id, CANCELLED_BEFORE_START)
+        return ExperimentRun(job.id, record.status, None)
 
 
 def main(argv: list[str] | None = None, *, image_factory: Callable[[], str] | None = None) -> None:
