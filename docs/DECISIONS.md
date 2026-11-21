@@ -1846,3 +1846,51 @@ hidden split or eval model profile changed.
   MCP tool contract, event types, the trial `fit`/`predict` interface, the sandbox,
   `hypora/core/policy/`, eval cases or graders. Scripted evidence only; no live run was made.
   Notes: `docs/notes/controller-robustness.md` L.
+
+## D-062 — S4.2j readiness gate and verification evidence on `3cd9849` (2026-11-21)
+
+(D-061 is taken by PR #83, contract feature facts for A's reviews, under review.) Details and the
+table of every run: `docs/notes/readiness-verification.md`.
+
+- **Gate change (owner).** Before verify4 Ghadi changed the S4.2j gate from PLAN's "all six cases
+  pass" in one predeclared run to: "We can continue as long as two runs pass with five or more out
+  of six tests passing… Preferably six, but five is fine". Per-run cap $3 (ledger cap $2.75); the
+  nights' overall caps were also authorized. Both counted runs must be on one integrated commit,
+  the multi-agent `default` config on the pinned `eval` profile (`openai/gpt-6-luna`, every tier,
+  no fallback), the six dev cases with their merged graders, bars, hidden splits and limits,
+  `parallel` 1.
+- **Which runs count.** verify4 (5/6) and verify5 (6/6), both on
+  `3cd984947dc3c02b62222fad53a931ec39908492` (`main` after #82), run config hash `1fa3d2ab…`,
+  lock `results/readiness/lock.json` at that commit (SHA-256 `94095df4…`). Verify4's failure was
+  temporal (`run_4b4ad8d832e1`): A chose to report before final verification although the recorded
+  platform facts showed the nominated candidate's job had completed and matched its code; no model
+  was verified. The gate is met. Earlier runs on other commits (verify1 4/6 on `2d7b1bf`, verify3
+  4/6 on `a5d32af`, partial runs on `c5328d5`, `4663caf`, `d9cef81`) do not count, and nothing
+  pre-D-055 counts.
+- **Costs.** verify4 $0.2038 (254 model calls, 2,391,761 input / 165,845 output tokens);
+  verify5 $0.2031 (245 calls, 2,331,450 / 166,895). Measured spend over all S4.2j paid runs on
+  the revised cases: $1.1456 (plus two never-settled reservations in one stopped run, at most
+  $0.72); on the earlier case files: $0.5458. No run reached a case limit; no retries or fallback.
+- **Evidence committed.** Summaries, regression reports and both paid audits. The 12 per-case
+  records are held back pending Ghadi's approval of one more path in D-035's `split_key`
+  allowlist (10 lines flagged, all values identical to committed S4.2f split keys), as at S4.2a
+  (D-052, D-053); they are kept byte-identical outside the repository (tarball SHA-256 in the note).
+- **Limitations.**
+  - The dev cases were changed and the workflow was fixed after seeing these results (D-055,
+    D-059, D-060, and D-061 if it merges), so dev results are not an unbiased measurement. The
+    frozen Stage 5 test set measures generalization.
+  - Run-to-run nondeterminism: on the same commit verify4 got 5/6 and verify5 6/6; temporal failed
+    in three of the four complete runs on the revised cases, each for a different reason. Two runs
+    do not estimate a pass rate.
+  - Both grouped passes came from the D-060 platform constant trial (hidden MAE 7.708 ≤ 8.0), not
+    from a learned model.
+  - The #72 `max_trials <= 4` guidance (three focused trials, no C workers) is not exercised,
+    because every dev case now has `max_trials` 6 (D-055).
+  - Runs killed by the Claude Code low-memory process reaper (diag-c5328d5, verify2b, verify2c) and
+    one more stopped run (verify-2d7b1bf, cause not recorded, overlapping verify1's start by three
+    minutes) left pending records; they are reported, not resumed or graded. verify2 was refused by
+    the runner's spend pre-check before any call.
+  - Agent arm only (no baseline or single-agent arm); one model; one WSL2 machine.
+- **Next.** If PR #83 merges, one confirmation run (verify6) on the new `main` is to be added to
+  this record. No schema, event type, MCP tool, fit/predict interface, dependency, sandbox,
+  policy, scanner, eval case, grading rule, hidden split or model profile change.
