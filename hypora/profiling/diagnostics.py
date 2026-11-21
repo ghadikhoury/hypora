@@ -6,10 +6,13 @@ primitive. These functions do not grant data access or expose themselves as MCP 
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from itertools import combinations
+from typing import Any, Final
 
 import numpy as np
 import pandas as pd  # type: ignore[import-untyped]
-from sklearn.metrics import roc_auc_score  # type: ignore[import-untyped]
+from sklearn.linear_model import LinearRegression  # type: ignore[import-untyped]
+from sklearn.metrics import r2_score, roc_auc_score  # type: ignore[import-untyped]
 from sklearn.model_selection import (  # type: ignore[import-untyped]
     KFold,
     StratifiedKFold,
@@ -253,6 +256,135 @@ def screen_candidates(
             rest = ordered[count] if count < len(ordered) else None
             return ordered[:count], rest
     return [], ordered[0] if ordered else None
+
+
+COMPOSITION_R2: Final = 0.99
+"""A set of columns whose ordinary linear fit explains at least this share of a regression
+target's variance on every held-out part reconstructs the target (S4.2j, D-060). Far above the
+single-column R2 flag (0.85): only a near-exact arithmetic composition (a total and its parts, a
+difference of two readings) reaches it; correlated legitimate inputs leave real residual noise."""
+COMPOSITION_MAX_SUBSET: Final = 4
+"""The largest column subset the minimal-subset search tries."""
+COMPOSITION_MAX_FITS: Final = 200
+"""A hard bound on linear fits per test (the full set plus every subset tried); 8 questioned
+columns, the default diagnostic cap, need 163."""
+COMPOSITION_FOLDS: Final = 3
+COMPOSITION_MAX_ROWS: Final = 20_000
+COMPOSITION_MIN_ROWS: Final = 30
+
+
+@dataclass(frozen=True)
+class TargetComposition:
+    """Whether a small set of numeric columns jointly reconstructs a regression target.
+
+    `joint_r2` is the worst held-out-part R2 of an ordinary least-squares fit on every tested
+    column together; `subset` is the smallest set (then the best-scoring one) whose worst-part
+    R2 reaches `threshold`, empty when none does or the search hit its bound (`truncated`).
+    Aggregates only: no value, coefficient or row ever leaves this object."""
+
+    tested: tuple[str, ...]
+    joint_r2: float | None
+    subset: tuple[str, ...]
+    subset_r2: float | None
+    fits: int
+    truncated: bool
+    threshold: float
+    unavailable: str | None = None
+
+
+def _worst_part_r2(x: np.ndarray, y: np.ndarray, folds: int, seed: int) -> float | None:
+    """The lowest held-out R2 of an ordinary least-squares fit over `folds` shuffled parts."""
+    scores = []
+    for train, held in KFold(folds, shuffle=True, random_state=seed).split(y):
+        if np.ptp(y[held]) == 0:
+            return None
+        model = LinearRegression().fit(x[train], y[train])
+        scores.append(float(r2_score(y[held], model.predict(x[held]), force_finite=False)))
+    return min(scores) if scores and np.isfinite(scores).all() else None
+
+
+def target_composition(
+    training: pd.DataFrame,
+    columns: Sequence[str],
+    target: str,
+    *,
+    threshold: float = COMPOSITION_R2,
+    max_subset: int = COMPOSITION_MAX_SUBSET,
+    max_fits: int = COMPOSITION_MAX_FITS,
+    seed: int = 0,
+) -> TargetComposition:
+    """Test whether `columns` jointly reconstruct a numeric `target` on caller-supplied rows.
+
+    Only numeric (non-boolean) columns are tested, on the rows where they and the target are all
+    present (a seeded sample of at most `COMPOSITION_MAX_ROWS`). The full set is fit first; only
+    when it reaches `threshold` on every held-out part are subsets searched, smallest size first
+    (up to `max_subset` columns, in the given column order), and the search stops at the first
+    size where some subset reaches it. At most `max_fits` fits in all; a search cut short by that
+    bound reports `truncated` and no subset, so nothing is flagged on an incomplete search, and a
+    composition that needs more than `max_subset` columns is not flagged either.
+    Not a leakage verdict, and callers pass locked training rows only, never the test split.
+    """
+    if target not in training or any(column not in training for column in columns):
+        raise ValueError("columns and target must exist")
+    tested = tuple(
+        dict.fromkeys(
+            column
+            for column in columns
+            if column != target
+            and pd.api.types.is_numeric_dtype(training[column])
+            and not pd.api.types.is_bool_dtype(training[column])
+        )
+    )
+
+    def result(**fields: Any) -> TargetComposition:
+        base: dict[str, Any] = {
+            "tested": tested,
+            "joint_r2": None,
+            "subset": (),
+            "subset_r2": None,
+            "fits": 0,
+            "truncated": False,
+            "threshold": threshold,
+        }
+        return TargetComposition(**{**base, **fields})
+
+    if not tested:
+        return result(unavailable="no numeric questioned column")
+    if not pd.api.types.is_numeric_dtype(training[target]):
+        return result(unavailable="the target is not numeric")
+    try:
+        frame = training[[*tested, target]].astype(float)
+    except (TypeError, ValueError):
+        return result(unavailable="the columns could not be read as numbers")
+    frame = frame[np.isfinite(frame.to_numpy()).all(axis=1)].reset_index(drop=True)
+    if len(frame) > COMPOSITION_MAX_ROWS:
+        rows = np.random.default_rng(seed).choice(len(frame), COMPOSITION_MAX_ROWS, replace=False)
+        frame = frame.iloc[np.sort(rows)].reset_index(drop=True)
+    if len(frame) < COMPOSITION_MIN_ROWS:
+        return result(unavailable="too few complete rows")
+    y = frame[target].to_numpy()
+    fits = 0
+
+    def score(subset: Sequence[str]) -> float | None:
+        nonlocal fits
+        fits += 1
+        return _worst_part_r2(frame[list(subset)].to_numpy(), y, COMPOSITION_FOLDS, seed)
+
+    joint = score(tested)
+    if joint is None or joint < threshold:
+        return result(joint_r2=joint, fits=fits)
+    for size in range(1, min(max_subset, len(tested)) + 1):
+        best: tuple[float, tuple[str, ...]] | None = None
+        for subset in combinations(tested, size):
+            if fits >= max_fits:
+                return result(joint_r2=joint, fits=fits, truncated=True)
+            value = score(subset)
+            if value is not None and value >= threshold and (best is None or value > best[0]):
+                best = (value, subset)
+        if best is not None:
+            return result(joint_r2=joint, subset=best[1], subset_r2=best[0], fits=fits)
+    # Only a composition that needs more than `max_subset` columns gets here: not flagged.
+    return result(joint_r2=joint, fits=fits)
 
 
 def group_overlap(frame: pd.DataFrame, column: str) -> GroupOverlap:
