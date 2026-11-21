@@ -10,7 +10,10 @@ generalization.
 cases passing on one integrated commit) is met on `3cd984947dc3c02b62222fad53a931ec39908492`
 (`main` after #82): verify4 passed 5/6 and verify5 passed 6/6. The plan's original "all six cases
 pass in one run" is also met by verify5 alone, but verify4 on the same commit shows it does not
-hold every time.
+hold every time. After D-061 (PR #83) merged, one confirmation run, verify6, on
+`e457c728aa33016377a87abd4c7c864ce4e213ac` passed 5/6. Its one failure is a policy check on
+`dev_grouped_rows`, and it is a suspected false positive that is being investigated (below).
+**The S5.1 freeze candidate is `e457c72`.**
 
 ## Procedure
 
@@ -37,8 +40,10 @@ below.
 | verify5 summary, regression report | `results/3cd984947dc3c02b62222fad53a931ec39908492/s4.2j-verify5/default/` |
 | verify4 paid audit (IDs, usage, prices) | `results/readiness/s4.2j-verify4-paid-accounting.json` |
 | verify5 paid audit | `results/readiness/s4.2j-verify5-paid-accounting.json` |
+| verify6 summary, regression report | `results/e457c728aa33016377a87abd4c7c864ce4e213ac/s4.2j-verify6/default/` |
+| verify6 paid audit | `results/readiness/s4.2j-verify6-paid-accounting.json` |
 
-The two runs share a commit and config, so each sits under its own `s4.2j-verify<N>` segment
+verify4 and verify5 share a commit and config, so each run sits under its own `s4.2j-verify<N>` segment (verify6 follows the same layout)
 instead of the runner's `<commit>/default/` path. That also keeps them out of the runner's
 automatic regression base (`hypora/evaluation/runner/regression.py` looks for `<commit>/<config>/`).
 
@@ -47,7 +52,9 @@ automatic regression base (`hypora/evaluation/runner/regression.py` looks for `<
 the committed S4.2f records. The scanner exception in `.gitleaks.toml` is path-scoped, and each
 earlier extension needed Ghadi's approval (D-052, D-053), so the records wait for that approval.
 They are kept byte-identical in `~/hypora-s4.2j-records-3cd9849.tar.gz` (SHA-256
-`04dce1030a5ee8d630e5a8c0dd70103a6d5fc0f49ea6002a9d7a62316176d7df`). Every number below was read
+`04dce1030a5ee8d630e5a8c0dd70103a6d5fc0f49ea6002a9d7a62316176d7df`). verify6's six records are
+held the same way in `~/hypora-s4.2j-records-verify6-e457c72.tar.gz` (SHA-256
+`0868f1846d8e18d3514eac51e7b7bc62e59afa5950b9b2b91f42d6018585e710`). Every number below was read
 from those records and the ledgers.
 
 ## Identity (verify4 and verify5)
@@ -88,9 +95,10 @@ from those records and the ledgers.
 | **Total** | | **6/6** | | **0.2031** | **245** | 2,331,450 / 166,895 | 3,353 |
 
 Pass rates: verify4 5/6, Wilson 95% [0.436, 0.970]; verify5 6/6, [0.610, 1.000]. Latency mean /
-p95 (nearest-rank): verify4 514.4 s / 751.7 s, verify5 559.1 s / 786.6 s. No run reached a case
-limit; no retries, rate-limit waits under 0.02 s, no unknown reservation, no harness error. Run
-windows (UTC, 2026-11-21): verify4 12:52:58–13:40:55, verify5 13:42:43–14:34:49.
+p95 (nearest-rank): verify4 514.4 s / 751.7 s, verify5 559.1 s / 786.6 s. No verify4–6 run
+reached a case limit. Those runs had no retries, rate-limit waits under 0.02 s, no unknown
+reservation and no harness error. Run windows (UTC, 2026-11-21): verify4 12:52:58–13:40:55,
+verify5 13:42:43–14:34:49.
 
 - **verify4 temporal.** C proposed the split; A's pre-lock concern named `casual` and `registered`,
   the platform locked the split and its joint target-composition test (D-060) flagged both as
@@ -105,6 +113,39 @@ windows (UTC, 2026-11-21): verify4 12:52:58–13:40:55, verify5 13:42:43–14:34
   platform constant trial, chosen when A asked for the best validated trial). Both scored the same
   hidden MAE, 7.708. This is the outcome D-055's bar was set to allow; it is not a model that
   learned the task.
+
+## verify6: confirmation on `e457c72` after D-061
+
+The run setup was the same as verify4/5 (`run-verify6.py`, ledger cap $2.75). The commit is
+`e457c728aa33016377a87abd4c7c864ce4e213ac` (`main` after #83), clean. Identity differences from
+`3cd9849`:
+- run config hash `ae7acf028009c274d808d303a810af85bcb79bda2b5bdb64edc810445ed2fe5c`;
+- the new flag `robustness.contract_feature_facts: on`;
+- `agent_a_decide@v8`;
+- lock SHA-256 `fe240b8e7d04510bfd94ea4a2ccf2d6c6715422a812e5f07109f98fd0e0db5b5`.
+
+Prompts, tool contract, sandbox image, model, retry policy and case hashes are otherwise the same.
+
+| Case | verify6 run | Result | Hidden | $ | Calls | Tokens in/out | Wall s |
+|---|---|---|---:|---:|---:|---|---:|
+| imbalance | `run_a47b942128e0` | pass | 0.827 | 0.0298 | 38 | 293,407 / 22,882 | 538 |
+| clean control | `run_7e2b65e13e45` | pass | 0.609 | 0.0270 | 46 | 345,323 / 21,620 | 511 |
+| grouped | `run_a7c6469ab652` | **fail** (policy check, suspected false positive) | 7.708 | 0.0355 | 42 | 496,857 / 23,607 | 562 |
+| leakage | `run_d0ae011f953a` | pass | 0.729 | 0.0342 | 40 | 384,087 / 24,785 | 550 |
+| temporal | `run_eea115625057` | pass | 75.89 | 0.0378 | 40 | 343,056 / 38,478 | 447 |
+| tool failure | `run_1a1f9ff14cda` | pass | 0.754 | 0.0287 | 30 | 279,805 / 23,197 | 484 |
+| **Total** | | **5/6** | | **0.1931** | **236** | 2,142,535 / 154,569 | 3,092 |
+
+Wilson 95% [0.436, 0.970]. Latency mean / p95: 515.5 s / 562.2 s. Window (UTC, 2026-11-21):
+14:46:31–15:34:37. Spend $0.193056755, 236 attempts, no unknown reservation.
+
+- **Grouped failure: suspected false positive, under investigation.** The run completed. The
+  verifier passed, and the hidden MAE of 7.708 meets the 8.0 bar. Every check passed except
+  `no_policy_violations`: "job job_1795273580584684319_229c2c has no trustworthy execution
+  boundary". That job ended `CANCELLED` after a C `trial_worker` handed off `partial`. The message
+  is the same one behind verify1's imbalance failure. Whether this is a runtime event-log bug
+  (a cancelled job's boundary not recorded) or a grader false positive is being investigated. It
+  is graded and counted here as a failure; no grade was changed.
 
 ## Every S4.2j paid run
 
@@ -123,8 +164,9 @@ record remains.
 | verify3 | `a5d32af` | 11-21 01:14–02:10 | 6 | **4/6** | 2.75 | 0.2161 |
 | verify4 | `3cd9849` | 11-21 12:53–13:41 | 6 | **5/6** | 2.75 | 0.2038 |
 | verify5 | `3cd9849` | 11-21 13:43–14:35 | 6 | **6/6** | 2.75 | 0.2031 |
+| verify6 | `e457c72` | 11-21 14:46–15:35 | 6 | **5/6** (grouped: suspected false-positive policy check) | 2.75 | 0.1931 |
 
-Total measured spend on the revised cases: **$1.1456** (plus two unsettled verify-2d7b1bf
+Total measured spend on the revised cases: **$1.3386** (plus two unsettled verify-2d7b1bf
 reservations, at most $0.72 by the reservation bound). For killed runs without an audit file the
 spend is the sum of settled journal entries.
 
@@ -153,12 +195,15 @@ drove D-054 to D-056. Measured total: $0.5458.
 ## Limitations
 
 - **The dev cases are not an unbiased measurement.** Cases, bars and limits (D-055, D-059) and the
-  workflow (D-056, D-058, D-060, and D-061 if PR #83 merges) were changed after seeing these
-  results. The frozen Stage 5 test set measures generalization.
+  workflow (D-056, D-058, D-060, D-061) were changed after seeing these results. The frozen
+  Stage 5 test set measures generalization.
 - **Run-to-run nondeterminism.** Same commit, config and cases: verify4 5/6, verify5 6/6. Temporal
   failed in verify1, verify3 and verify4 for three different reasons. Two runs cannot estimate a
   pass rate; the per-run Wilson intervals overlap widely.
-- **Grouped passes only through the platform's constant rule** (above).
+- **The "no trustworthy execution boundary" failure** (verify1 imbalance, verify6 grouped) is
+  unexplained: a suspected false positive, under investigation. If it is a grader or event-log
+  defect, both grades understate the agent; no grade was changed here.
+- **The verify4 and verify5 grouped passes came only through the platform's constant rule** (above).
 - **The #72 `max_trials <= 4` guidance** (`agent_c`, `agent_c_workers`: three focused trials, no
   workers) is not exercised: every dev case now has `max_trials` 6 (D-055).
 - **Reaper-killed runs** (diag-c5328d5, verify2b, verify2c; verify-2d7b1bf ended with the same

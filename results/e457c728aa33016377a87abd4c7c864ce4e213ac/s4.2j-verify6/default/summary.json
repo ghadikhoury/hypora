@@ -1,0 +1,195 @@
+{
+  "commit": "e457c728aa33016377a87abd4c7c864ce4e213ac",
+  "dirty": false,
+  "config": "default",
+  "profile": "eval",
+  "flags": {
+    "agent_mode": "multi",
+    "planning": "on",
+    "retrieval_mode": "hybrid",
+    "defenses": {
+      "allowlist": true,
+      "sandbox_network": true,
+      "firewall": true,
+      "approval": true,
+      "injection_filter": true
+    },
+    "durable_mode": "on",
+    "breadth_mode": "adaptive",
+    "parallel_mode": "on",
+    "phase_a_mode": "parallel",
+    "approval_policy": "auto_within_contract",
+    "max_research_workers": 4,
+    "max_diagnostic_workers": 4,
+    "max_parallel_trials": 3,
+    "max_c_workers": 2,
+    "leakage_flag": "on",
+    "leakage_check": {
+      "score_margin": 0.08,
+      "relative_margin": 0.35,
+      "screen_max_rows": 50000,
+      "screen_folds": 5,
+      "screen_min_excess": 0.1,
+      "screen_gap_ratio": 1.5,
+      "max_candidates": 3,
+      "permutation_repeats": 3,
+      "permutation_max_rows": 10000,
+      "confirm_fraction": 0.5,
+      "dominance_ratio": 2.0,
+      "max_confirmed": 2
+    },
+    "robustness": {
+      "lead_revision_rounds": 2,
+      "evidence_before_exclusion": "on",
+      "finish_reserve_steps": 12,
+      "finish_reserve_seconds": 240.0,
+      "finish_reserve_compute_seconds": 60.0,
+      "max_diagnostics_per_session": 8,
+      "max_research_tool_calls": 16,
+      "constant_reference": "on",
+      "target_composition": "on",
+      "contract_feature_facts": "on"
+    }
+  },
+  "run_config_hashes": [
+    "ae7acf028009c274d808d303a810af85bcb79bda2b5bdb64edc810445ed2fe5c"
+  ],
+  "sandbox_images": [
+    "hypora-sandbox-tabular:f50772e217853fa1"
+  ],
+  "tools_contract_sha256": [
+    "1518dfe40ff96fbe0c7eb1dc94f8df685d2c706e17355910899b58d0ccea12e9"
+  ],
+  "python_versions": [
+    "3.12.14"
+  ],
+  "tiers": {
+    "lead": {
+      "provider": "openai",
+      "model_id": "gpt-6-luna",
+      "temperature": "not_configurable"
+    },
+    "worker": {
+      "provider": "openai",
+      "model_id": "gpt-6-luna",
+      "temperature": "not_configurable"
+    },
+    "cheap": {
+      "provider": "openai",
+      "model_id": "gpt-6-luna",
+      "temperature": "not_configurable"
+    }
+  },
+  "retry_policy": {
+    "max_retries": 3,
+    "base_delay_s": 6.0,
+    "max_delay_s": 60.0,
+    "request_timeout_s": 240.0
+  },
+  "systems": [
+    {
+      "system": "agent",
+      "pass_rate": {
+        "passed": 5,
+        "tasks": 6,
+        "rate": 0.8333333333333334,
+        "measured_tasks": 6,
+        "complete": true,
+        "wilson_low": 0.4364971778135299,
+        "wilson_high": 0.9699466302516934
+      },
+      "harness_errors": [],
+      "latency_system": {
+        "mean": 515.5047010166667,
+        "p95": 562.158621777,
+        "method": "nearest-rank"
+      },
+      "latency_active": {
+        "mean": 515.5026520163339,
+        "p95": 562.1565602740011,
+        "method": "nearest-rank"
+      },
+      "list_cost_total_usd": 0.193056755,
+      "list_cost_per_task_usd": 0.03217612583333333,
+      "actual_spend_total_usd": 0.193056755,
+      "actual_spend_per_task_usd": 0.03217612583333333,
+      "model_calls": 236,
+      "input_tokens": 2142535,
+      "output_tokens": 154569,
+      "rate_limit_wait_seconds": 0.012294001996451698,
+      "retry_wait_seconds": 0.0,
+      "setup_seconds": 7.83594084500146
+    }
+  ],
+  "paired": null,
+  "failure_categories": {
+    "no_policy_violations": {
+      "agent": 1
+    }
+  },
+  "cases": [
+    {
+      "case_id": "dev_class_imbalance",
+      "outcomes": {
+        "agent": "pass"
+      }
+    },
+    {
+      "case_id": "dev_clean_control",
+      "outcomes": {
+        "agent": "pass"
+      }
+    },
+    {
+      "case_id": "dev_grouped_rows",
+      "outcomes": {
+        "agent": "fail"
+      }
+    },
+    {
+      "case_id": "dev_target_leakage",
+      "outcomes": {
+        "agent": "pass"
+      }
+    },
+    {
+      "case_id": "dev_temporal_order",
+      "outcomes": {
+        "agent": "pass"
+      }
+    },
+    {
+      "case_id": "dev_tool_failure",
+      "outcomes": {
+        "agent": "pass"
+      }
+    }
+  ],
+  "repeats": [],
+  "models": [
+    {
+      "provider": "openai",
+      "model_id": "gpt-6-luna",
+      "price_retrieved_on": "2026-11-07"
+    }
+  ],
+  "regression": {
+    "schema_version": 1,
+    "commit": "e457c728aa33016377a87abd4c7c864ce4e213ac",
+    "config": "default",
+    "status": "no_baseline",
+    "message": "No regression check: no results for config default on the parent of e457c728aa33 or the 79 commit(s) before it. These results can be the base for the next commit.",
+    "base_commit": null,
+    "commits_back": null,
+    "newly_failing": [],
+    "recovered": [],
+    "new_cases": [],
+    "missing_cases": [],
+    "not_comparable": []
+  },
+  "recovery_overhead": [],
+  "total_list_cost_usd": 0.193056755,
+  "total_actual_spend_usd": 0.193056755,
+  "total_unobserved_spend_reserved_usd": 0.0,
+  "usage_complete": true
+}
