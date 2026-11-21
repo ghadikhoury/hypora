@@ -128,19 +128,47 @@ plus reserved can never pass $10.
   $F reconcile --confirm              # keeps them in results/final/s5.2-orphans/, clears receipts
   $F collect --arm both --pass primary --parallel 2 --resume
   ```
-  If the host kills a job for low memory, drop to `--parallel 1` (or `--arm multi`, then
-  `--arm single`) before resuming.
+  If the host kills a job for low memory, resume the paid arms separately with `--arm multi` and
+  then `--arm single`. With `--arm both`, each arm still has one worker when `--parallel 1` is passed.
 - A cap refusal shows as harness errors with "cap reached" in the record's `error`. Raising the cap
   needs Ghadi's approval and a new journal; do not edit the ledger.
 
-### 6. After collection
+### 6. Prepare the report and public evidence
 
-`$F summarize` writes `results/final/s5.2-summary.{json,md}` from the records (run it in the
-collection checkout: the too-good-score section reads the runs' state databases). It reports per
-system the pass rate over graded runs with a 95% Wilson interval and harness errors listed apart;
-paired tables and a 10,000-resample paired bootstrap (seed 1990; "inconclusive" when the interval
-includes 0) for multi vs baseline, single vs baseline and multi vs single; per-case outcomes and
-hidden metrics; failure categories; mean and nearest-rank p95 latency; actual and list-price cost
-per task with the price date; the repeat sample; and how often the too-good-score check fired on
-non-leakage cases, the column it named and what it recommended (S5.1). Copy `results/<freeze>/` and
-`results/final/` into the S5.2 branch for the PR.
+Use the reporting branch after all primary and repeat slots have graded records. The offline
+reporter reads the frozen collection directly, including its state databases. It does not call the
+provider or modify the collection. The release command requires every planned slot to be
+graded, its case and system identity to match the manifest, and the published spend audit
+to match the original ledger. Use a new staging path outside the collection checkout.
+
+```bash
+uv run --locked python -m scripts.final_eval_report \
+  --cases ~/hypora-final/hypora/evaluation/cases/test report \
+  --collection ~/hypora-final --staging-results /tmp/hypora-s5.2-stage/results
+```
+
+The full-set primary rates and paired comparisons cover 26 planned cases. The report adds a
+24-case modeling comparison, two platform safe stops, multi vs baseline by family, per-case
+repeat latency spread, grader-linked failure examples, and D-060 trace counts. The frozen
+collector's separate ledger, provenance, case-level outcomes and too-good-score section remain
+the source for the corresponding report fields. The simple fixed pipeline is a reference for
+workflow and methodology. Predictive performance is shown through the hidden scores and clean
+controls, with multi vs single as the primary comparison of agent configurations.
+
+The public records omit only the deterministic split directory identifier. Every record indexed in
+`s5.2-evidence-index.json` has separate SHA-256 hashes for the unchanged canonical record and
+its derivative. The frozen case definition and recorded dataset hash recover that identifier
+without data access. Export verifies byte-for-byte recovery before writing a derivative,
+and keeps all grade evidence, inputs, outputs, timings, usage and provenance. The published
+files are not direct inputs to the collector. Use the restore command with a new scratch directory
+to recreate its exact JSON:
+
+```bash
+uv run --locked python -m scripts.final_eval_report \
+  --cases ~/hypora-final/hypora/evaluation/cases/test restore \
+  --staging-results /tmp/hypora-s5.2-stage/results --output /tmp/hypora-s5.2-restored
+```
+
+Scan the staged public evidence with the pinned Gitleaks image and the unchanged repository
+configuration before moving the staged files into the S5.2 PR. Keep the original records and
+the collector ledger in the execution checkout.
