@@ -289,6 +289,29 @@ handoff.
 test checks that every file has a valid header and that role code loads prompts instead of
 inlining them. Changing a prompt's text means bumping its version.
 
+### Prompt principles (D-065)
+
+What belongs in a role prompt or a controller-injected context line:
+
+1. **Role, goal and interface.** What the role does, its tools and output contract, the
+   `pipeline.py` interface, idempotency keys.
+2. **Platform facts and rules the code enforces.** Data firewall, untrusted text, no validation
+   or test labels inside `fit`, contract wins, constant reference, finishing reserves, caps.
+   They must describe the code accurately; when the code changes, the sentence changes with it.
+3. **General ML principles,** stated at the level that holds for any tabular task: diverse
+   model families suited to the data, objective matched to the metric, deliberate handling of
+   imbalance, more regularization on small, noisy or grouped data, compute as a run limit.
+
+What does not belong: named estimators or hyperparameters as recommendations, rules keyed on a
+dev-case symptom (such as `max_trials <= 4`), and "do X, not Y" lessons from one run. One neutral
+example is allowed where an interface needs it (the template baseline pipeline). Behaviour that
+must hold goes into platform code (as with the D-059 compute reserve and the D-060 constant
+rule), not a prompt patch. Model choice travels through the agents: B's options name the model
+families worth comparing, A's assignment picks among them, and C decides details after
+`inspect_dataset`. C also sees A's assignment when it proposes worker trials. Each worker
+only sees its own brief and referenced records. `agent_c` and `single_agent` share one identical "Choosing models" block, so
+the two configurations stay comparable; a test checks that the blocks match.
+
 ## Tests
 
 - `tests/controller/test_end_to_end.py` (sandbox): a scripted provider plays Intake, the agent,

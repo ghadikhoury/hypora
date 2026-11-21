@@ -1918,3 +1918,66 @@ Details and the table of every run are in `docs/notes/readiness-verification.md`
 - **Approval.** Ghadi, 2026-11-21: "For the time limit, yes, raise it to 45."
 - **Reason.** The `tests without containers (agents)` shard now takes 24 to 26 minutes against the
   30-minute limit and has timed out once, so a slow runner fails CI without a real test failure.
+
+## D-065 — General prompts: roles, interfaces, platform facts and principles; no case patches (2026-11-21)
+
+Ghadi's direction: the prompts should be "somewhat general", giving each agent enough to handle
+all cases, and the communication between the agents should decide which models are trained. The
+workflow and the guardrails, not prompt patches, keep the run on point. **This change was made
+after seeing the S4.2j dev results** (verify3–6), and several of the removed sentences were
+written from those or earlier dev failures, so dev results remain a biased measurement; the
+frozen Stage 5 test set measures generalization.
+
+- **The principle.** A prompt carries (a) the role, goal and interface or tool contract, (b)
+  platform facts and rules the code enforces, described accurately, and (c) general ML
+  principles. It does not carry (d) named estimators or hyperparameters as recommendations, rules
+  keyed on a dev-case symptom, or "do X, not Y" lessons from one run. Behaviour that must hold is
+  enforced in code. Model choice is made through the agents: B's options and plan name the model
+  families worth comparing, A's assignment picks among them, and C decides details after
+  `inspect_dataset`. Notes: `docs/notes/controller.md` "Prompt principles".
+- **Removed or rewritten** (before/after table in the PR):
+  - `agent_c` v13 → v14, step 3: the `max_trials <= 4` "three focused trials … ~12 run steps"
+    rule; the `HistGradientBoostingClassifier`/`Regressor` example; the imbalanced-classification
+    paragraph naming HistGradientBoosting, LightGBM and XGBoost; the MAE paragraph naming
+    HuberRegressor, Ridge, Lasso, `HistGradientBoostingRegressor(loss="absolute_error")`,
+    `l2_regularization` and `min_samples_leaf`; and the `criterion="absolute_error"` sentence.
+    Their substance is kept as a short "Choosing models" block: two or three diverse families
+    suited to the data's size, feature types and task when trial budget allows; an objective
+    matched to the primary metric; imbalance handled deliberately (a suitable nonlinear
+    learner, weighting or a threshold
+    chosen from training rows inside `fit`); more regularization and simpler models on small,
+    noisy or grouped data, since inner CV that splits groups can favor too little regularization; compute
+    as a run limit (efficient loss implementations, cheaper variants for slow jobs).
+  - `single_agent` v3 → v4: the same block, word for word (a test checks), replacing "one or two
+    stronger candidates, for example HistGradientBoosting…", so the comparison stays fair.
+  - A's C-assignment request (controller): "about 3 focused trials total when max_trials <= 4"
+    became "a feature-based baseline plus one or two diverse families suited to the data, chosen
+    from B's research, the task and the dataset profile, within the trial budget", with the trial
+    budget always stated. A receives the validated task and a bounded aggregate profile even
+    when research is unavailable, and can revise the assignment when reconciling new B
+    evidence after locked-split diagnostics.
+  - `agent_c_workers` v2 → v3: the `max_trials <= 4` example and the fixed "60000–80000, never
+    24000" advice. The advice was also wrong: a worker's `max_tokens` is the sum of all its calls,
+    and in 12 of the 24 verify3–6 runs a worker stopped at `max_tokens` (usually a budget of 80000). The
+    prompt now states the admission rule and sizes the budget as the first call's need times the
+    expected calls, with room for the growing conversation.
+  - `agent_a_decide` v8 → v9: the duplicate-rows and repeated-timestamp sentences are recast as
+    examples of the platform's split guarantees, behind the general rule that a residual risk or
+    a choice between reasonable designs is not a conflict; A chooses the model kinds from B's
+    research, the task and the profile.
+  - `agent_b` v3 → v4: for task-specific training, the options and plan name the model families
+    worth comparing and why.
+- **One small bug fix.** The worker-proposal prompt asked for "the listed six trial tools" but
+  never listed them, and in verify4–6 C's briefs asked for tools outside the worker envelope
+  (`estimate_experiment`, B's research tools) and were denied whole in 7 of 18 runs. The
+  controller now lists the run's worker envelope (`worker_tool_envelope`, the same set
+  `authorize_worker` enforces) in that context. C also receives A's validated assignment
+  when deciding whether to propose a worker, so worker trials follow the same assignment
+  as C's direct work. Each worker's context remains scoped to its own brief and references.
+- **Unchanged.** Every safety and integrity instruction (data firewall, untrusted text, no
+  validation or test labels inside `fit`, contract wins, idempotency keys, never print data), the
+  D-060 constant-reference sentences, the methodology, intake, report, `role_plan`, `c_worker`
+  and `c_worker_final` prompts, and every
+  controller platform-fact constant. No MCP tool description, schema, event type, fit/predict
+  interface, eval case, grader, bar, hidden split or model profile changed.
+  `results/readiness/lock.json` regenerated. Scripted evidence only; no live run.

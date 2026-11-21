@@ -91,6 +91,11 @@ class WorkerReservations:
             self.active.pop(key, None)
 
 
+def worker_tool_envelope(permitted_tools: set[ToolName]) -> frozenset[ToolName]:
+    """The tools a worker brief may request: the worker allowlist within C's own tools."""
+    return allowed_tools(ActorRole.TRIAL_WORKER) & permitted_tools
+
+
 def authorize_worker(
     requester: ActorRole,
     request: WorkerRequest,
@@ -112,9 +117,7 @@ def authorize_worker(
     reason: str | None = None
     if requester is not ActorRole.AGENT_C:
         reason = "Only the main C role may request workers."
-    elif not set(request.allowed_tools) <= (
-        allowed_tools(ActorRole.TRIAL_WORKER) & permitted_tools
-    ):
+    elif not set(request.allowed_tools) <= worker_tool_envelope(permitted_tools):
         reason = "Requested tools exceed the worker session envelope."
     elif len(set(request.allowed_tools)) != len(request.allowed_tools):
         reason = "Requested tools must be unique."

@@ -139,7 +139,7 @@ async def test_a_run_ends_with_a_verified_model_and_a_report(
     every_prompt = {e.payload.prompt_ref for e in events if e.type.value == "model_call"}
     assert every_prompt == {
         "intake@v2",
-        "single_agent@v3",
+        "single_agent@v4",
         "single_agent_final@v1",
         "reporter@v1",
         "role_plan@v1",

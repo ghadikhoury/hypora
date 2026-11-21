@@ -271,7 +271,23 @@ async def test_a_failed_research_session_leaves_a_decides_without_it(
         return real(launch, errlog)
 
     monkeypatch.setattr(controller_module, "mcp_transport", transport)
-    script = ScriptedMulti("run_no_research")
+
+    class UnavailableResearchScript(ScriptedMulti):
+        async def generate(self, request):
+            if request.output_schema_name == "LeadAction" and request.messages[
+                1
+            ].content.startswith("Review C's proposed data methodology"):
+                self.requests.append(request)
+                return json_result(
+                    {
+                        "action": "continue",
+                        "reason": "Methodology is defensible",
+                        "assignment": "This incidental field should not replace the assignment",
+                    }
+                )
+            return await super().generate(request)
+
+    script = UnavailableResearchScript("run_no_research")
     controller = _multi(make_controller, run_config, script)
     result = await controller.run(
         RunRequest(dataset=dataset, goal="Predict target", run_id="run_no_research")
@@ -286,6 +302,18 @@ async def test_a_failed_research_session_leaves_a_decides_without_it(
         if r.output_schema_name == "LeadAction" and "Review B's research" in r.messages[1].content
     ]
     assert decision and "Research unavailable" in decision[0]
+    decode = json.JSONDecoder().raw_decode
+    task = decode(decision[0].split("Task specification: ", 1)[1])[0]
+    profile = decode(decision[0].split("Dataset profile: ", 1)[1])[0]
+    assert task["requested_actions"] == ["train"]
+    assert profile["rows"] > 0 and profile["columns"] == sum(profile["column_types"].values())
+    c_context = next(
+        r.messages[1].content
+        for r in script.requests
+        if r.output_schema_name is None and "You are Agent C" in r.messages[0].content
+    )
+    assert f"Agent A assignment: {script.assignment}" in c_context
+    assert "This incidental field" not in c_context
     assert any("Research session failed (OSError)" in note for note in result.notes)
     assert "research server" not in json.dumps([e.model_dump(mode="json") for e in events])
 
@@ -318,7 +346,40 @@ async def test_a_data_finding_returns_through_a_for_revised_research(
 
     monkeypatch.setattr(controller_module._Run, "_propose_methodology", propose)
     monkeypatch.setattr(controller_module, "validate_data_proposal", lambda *args: None)
-    script = ScriptedMulti("run_finding")
+
+    class ReconciledResearchScript(ScriptedMulti):
+        revised_assignment = "Compare a tree ensemble after the feature revision"
+
+        async def generate(self, request):
+            context = request.messages[1].content
+            if request.output_schema_name == "ResearchObservation":
+                self.requests.append(request)
+                report = cited_strategy_fixture(self.run_id, self.evidence)
+                if "Data finding that may change the research question" in context:
+                    report["options"][3]["summary"] = "Compare a tree ensemble"
+                return json_result(
+                    {
+                        "summary": "Research source reviewed",
+                        "uncertainties": [],
+                        "strategy_report": report,
+                    }
+                )
+            if request.output_schema_name == "LeadAction" and context.startswith(
+                "Reconcile B's evidence"
+            ):
+                self.requests.append(request)
+                assert f"Current assignment: {self.assignment}" in context
+                assert "Compare a tree ensemble" in context
+                return json_result(
+                    {
+                        "action": "continue",
+                        "reason": "The new research supports a different family",
+                        "assignment": self.revised_assignment,
+                    }
+                )
+            return await super().generate(request)
+
+    script = ReconciledResearchScript("run_finding")
     controller = _multi(make_controller, run_config, script)
     result = await controller.run(
         RunRequest(dataset=dataset, goal="Predict target", run_id="run_finding")
@@ -342,6 +403,12 @@ async def test_a_data_finding_returns_through_a_for_revised_research(
         and "Reconcile B's evidence" in r.messages[1].content
     ]
     assert len(reconcile) == 1 and len(calls) == 2
+    c_context = next(
+        r.messages[1].content
+        for r in script.requests
+        if r.output_schema_name is None and "You are Agent C" in r.messages[0].content
+    )
+    assert f"Agent A assignment: {script.revised_assignment}" in c_context
 
 
 # --- Tool-error recovery through the eval harness's fault channel (F4) ---------------------------
@@ -628,6 +695,10 @@ async def test_phase_contexts_surface_targeted_diagnostics_linear_baseline_and_s
     assert "feature-based linear baseline" in assignments[0]
     assert "constant/dummy predictor" in assignments[0]
     assert "max_trials=4" in assignments[0]
+    # D-065: A picks model families from B's research and the data, under any trial budget.
+    assert "chosen from B's research, the task and the dataset profile" in assignments[0]
+    assert "diverse model families suited to the data's size" in assignments[0]
+    assert "max_trials <= 4" not in assignments[0]
 
     c_requests = [
         r.messages[1].content
