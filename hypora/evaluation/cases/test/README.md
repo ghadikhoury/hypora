@@ -3,9 +3,9 @@
 26 tabular cases on pinned real UCI snapshots, none shared with the dev set. They are the frozen
 Stage 5 measurement; the protocol, thresholds, exclusions and freeze identity are in
 [the test-set protocol](../../../../docs/notes/test-set-protocol.md). YAML requests and constraints
-expose neither trap metadata nor hidden rows. Every case has the dev set's D-055 limits: $0.60,
-600 compute seconds, 2M tokens, six trials, 200 tool steps and 1,800 wall seconds, with matching
-contract bounds; hidden split 25%, seed 20261120.
+expose neither trap metadata nor hidden rows. Every case has the dev set's limits (D-055, with
+compute raised to 1,800 s as in #81): $0.60, 1,800 compute seconds, 2M tokens, six trials, 200 tool
+steps and 1,800 wall seconds, with matching contract bounds; hidden split 25%, seed 20261120.
 
 | Case | Real source | Family | Construction |
 |---|---|---|---|

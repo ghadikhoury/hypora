@@ -22,7 +22,7 @@ for the freeze).
 | Graders | `hypora/evaluation/graders/` at the frozen commit; programmatic only, no LLM judge (§19.1) |
 | Model | `eval` profile: `openai/gpt-6-luna` on every tier, temperature not configurable, no fallback (D-051) |
 | Configs | `configs/eval/default.yaml` (multi A/B/C) and `configs/eval/single_agent.yaml`; budgets and prompts as in `results/readiness/lock.json` at the frozen commit (TODO: confirm the lock after S4.2j) |
-| Per-case limits | $0.60, 600 compute s, 2M tokens, 6 trials, 200 steps, 1,800 wall s; job ceiling 300 s, 4 GB, 2 threads (D-055 values, same as dev) |
+| Per-case limits | $0.60, 1,800 compute s, 2M tokens, 6 trials, 200 steps, 1,800 wall s; job ceiling 300 s, 4 GB, 2 threads (D-055 values with compute raised to 1,800 s like the dev cases in #81) |
 
 **No test-set-driven tuning after the freeze.** After the tag, no prompt, flag, budget, model,
 grader, case, threshold or hidden split changes because of test-set results. A change needed for

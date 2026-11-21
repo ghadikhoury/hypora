@@ -23,7 +23,7 @@ permitted_tools:
   - retrieve_methodology
 budget: &budget
   max_usd: 0.6
-  max_compute_seconds: 600
+  max_compute_seconds: 1800
   max_llm_tokens: 2000000
   max_trials: 6
   max_steps: 200
