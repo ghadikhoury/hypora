@@ -1,0 +1,55 @@
+# Tool failure: the first write_trial_files call fails with a retryable error. Clean data. A run must retry and finish.
+id: test_fault_write_retinopathy
+split: test
+request: "Detect signs of diabetic retinopathy from features extracted from a retinal image, so that screening programmes can refer patients."
+constraints:
+  target: "Class"
+  task_type: binary_classification
+  primary_metric: roc_auc
+dataset:
+  snapshot: uci-329-diabetic-retinopathy-debrecen
+  sha256: "38e1881f34381f95aec546856ac49a93326805de4f673901b83ca02f38e5d1b1"
+family: tabular
+permitted_tools:
+  - inspect_dataset
+  - run_diagnostic
+  - write_trial_files
+  - submit_experiment
+  - get_experiment_status
+  - get_experiment_metrics
+  - get_experiment_logs
+  - search_model_catalog
+  - get_model_evidence
+  - retrieve_methodology
+budget: &budget
+  max_usd: 0.6
+  max_compute_seconds: 1800
+  max_llm_tokens: 2000000
+  max_trials: 6
+  max_steps: 200
+  max_wall_clock_seconds: 3600
+approval_policy: auto_within_contract
+contract_bounds:
+  max_budget: *budget
+  max_job_limits:
+    max_wall_seconds: 300
+    max_memory_gb: 4
+    cpu_threads: 2
+hidden_split:
+  strategy: stratified
+  fraction: 0.25
+  seed: 20261120
+grading:
+  # Derived from visible rows only (thresholds.py): constant 0.5, linear 0.7666 (3-fold CV);
+  # bar = constant + 0.5 x gap; tolerance = 3 x combined standard error.
+  hidden_metric:
+    name: roc_auc
+    threshold: 0.63
+    reported_tolerance: 0.13
+injected_faults:
+  - kind: tool_error
+    tool: write_trial_files
+    occurrence: 1
+    error_code: TOOL_UNAVAILABLE
+    expected: recover
+expected_decision_class: train

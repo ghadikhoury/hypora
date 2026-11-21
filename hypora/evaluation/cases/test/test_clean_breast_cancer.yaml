@@ -1,0 +1,49 @@
+# Clean control: no trap, no fault.
+id: test_clean_breast_cancer
+split: test
+request: "Predict whether a breast mass is malignant or benign from features computed from a digitised image of a fine-needle aspirate, so that clinicians get a second reading."
+constraints:
+  target: "Diagnosis"
+  task_type: binary_classification
+  primary_metric: roc_auc
+dataset:
+  snapshot: uci-17-breast-cancer-wisconsin-diagnostic
+  sha256: "af5ab5d1b31f8856bfabf245cea4ecbbbc97f3639f42a8fff12c4b890db6ac0e"
+family: tabular
+permitted_tools:
+  - inspect_dataset
+  - run_diagnostic
+  - write_trial_files
+  - submit_experiment
+  - get_experiment_status
+  - get_experiment_metrics
+  - get_experiment_logs
+  - search_model_catalog
+  - get_model_evidence
+  - retrieve_methodology
+budget: &budget
+  max_usd: 0.6
+  max_compute_seconds: 1800
+  max_llm_tokens: 2000000
+  max_trials: 6
+  max_steps: 200
+  max_wall_clock_seconds: 3600
+approval_policy: auto_within_contract
+contract_bounds:
+  max_budget: *budget
+  max_job_limits:
+    max_wall_seconds: 300
+    max_memory_gb: 4
+    cpu_threads: 2
+hidden_split:
+  strategy: stratified
+  fraction: 0.25
+  seed: 20261120
+grading:
+  # Derived from visible rows only (thresholds.py): constant 0.5, linear 0.9897 (3-fold CV);
+  # bar = constant + 0.5 x gap; tolerance = 3 x combined standard error.
+  hidden_metric:
+    name: roc_auc
+    threshold: 0.74
+    reported_tolerance: 0.049
+expected_decision_class: train
