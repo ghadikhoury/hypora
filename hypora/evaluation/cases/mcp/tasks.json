@@ -1,0 +1,177 @@
+{
+  "benchmark": "hypora-s53-f5-mcp",
+  "version": 1,
+  "spec_refs": ["§12", "§19.4", "§20"],
+  "total_tasks": 24,
+  "repeat_task_ids": ["MCP-05", "MCP-10", "MCP-15", "MCP-20", "MCP-22", "MCP-23"],
+  "tasks": [
+    {
+      "id": "MCP-01",
+      "category": "profiling_and_diagnostics",
+      "expected_tool": "inspect_dataset",
+      "prompt_template": "Profile the default experiment dataset for this run so we know its shape and columns.",
+      "arg_checks": {}
+    },
+    {
+      "id": "MCP-02",
+      "category": "profiling_and_diagnostics",
+      "expected_tool": "inspect_dataset",
+      "prompt_template": "Profile dataset `ds_main` explicitly by its dataset_id.",
+      "arg_checks": {"dataset_id": "ds_main"}
+    },
+    {
+      "id": "MCP-03",
+      "category": "profiling_and_diagnostics",
+      "expected_tool": "run_diagnostic",
+      "prompt_template": "Run the `group_overlap` diagnostic on feature column `mean radius`.",
+      "arg_checks": {"diagnostic": "group_overlap", "column": "mean radius"}
+    },
+    {
+      "id": "MCP-04",
+      "category": "profiling_and_diagnostics",
+      "expected_tool": "run_diagnostic",
+      "prompt_template": "Run the `timestamp_order` diagnostic on feature column `mean area`.",
+      "arg_checks": {"diagnostic": "timestamp_order", "column": "mean area"}
+    },
+    {
+      "id": "MCP-05",
+      "category": "profiling_and_diagnostics",
+      "expected_tool": "run_diagnostic",
+      "prompt_template": "Run the `feature_predictiveness` diagnostic on column `mean perimeter` for `binary_classification` with target `target`.",
+      "arg_checks": {"diagnostic": "feature_predictiveness", "column": "mean perimeter"}
+    },
+    {
+      "id": "MCP-06",
+      "category": "profiling_and_diagnostics",
+      "expected_tool": "run_diagnostic",
+      "prompt_template": "Check single-feature predictiveness (`feature_predictiveness`) on feature column `mean texture` (never on the target column) for `binary_classification` on target `target`.",
+      "arg_checks": {"diagnostic": "feature_predictiveness", "column": "mean texture"}
+    },
+    {
+      "id": "MCP-07",
+      "category": "methodology_retrieval",
+      "expected_tool": "retrieve_methodology",
+      "prompt_template": "Retrieve cited methodology passages about stratified cross-validation for imbalanced binary classification.",
+      "arg_checks": {"nonempty_query": true}
+    },
+    {
+      "id": "MCP-08",
+      "category": "methodology_retrieval",
+      "expected_tool": "retrieve_methodology",
+      "prompt_template": "Retrieve cited methodology passages about preventing target leakage during feature preprocessing.",
+      "arg_checks": {"nonempty_query": true}
+    },
+    {
+      "id": "MCP-09",
+      "category": "methodology_retrieval",
+      "expected_tool": "retrieve_methodology",
+      "prompt_template": "Retrieve cited methodology passages about temporal or grouped validation splits.",
+      "arg_checks": {"nonempty_query": true}
+    },
+    {
+      "id": "MCP-10",
+      "category": "trial_authoring",
+      "expected_tool": "write_trial_files",
+      "prompt_template": "Create a new baseline logistic regression trial (run_id `{run_id}`, idempotency key `{run_id}:wr_f5_10`) with a minimal valid pipeline.py.",
+      "arg_checks": {"has_pipeline_py": true}
+    },
+    {
+      "id": "MCP-11",
+      "category": "trial_authoring",
+      "expected_tool": "write_trial_files",
+      "prompt_template": "Create a new candidate gradient boosting fit trial (run_id `{run_id}`, idempotency key `{run_id}:wr_f5_11`) with a valid pipeline.py.",
+      "arg_checks": {"has_pipeline_py": true}
+    },
+    {
+      "id": "MCP-12",
+      "category": "trial_authoring",
+      "expected_tool": "write_trial_files",
+      "prompt_template": "Create a new candidate random forest fit trial (run_id `{run_id}`, idempotency key `{run_id}:wr_f5_12`, estimated compute 20s) with a valid pipeline.py.",
+      "arg_checks": {"has_pipeline_py": true}
+    },
+    {
+      "id": "MCP-13",
+      "category": "trial_authoring",
+      "expected_tool": "write_trial_files",
+      "prompt_template": "Update existing trial `{trial_id}` with a revised logistic regression pipeline.py using idempotency key `{run_id}:wr_f5_13`.",
+      "arg_checks": {"trial_id_key": "seeded_trial_id"}
+    },
+    {
+      "id": "MCP-14",
+      "category": "trial_authoring",
+      "expected_tool": "write_trial_files",
+      "prompt_template": "Author a new baseline ridge classifier trial (run_id `{run_id}`, idempotency key `{run_id}:wr_f5_14`) using only standard tabular sandbox packages.",
+      "arg_checks": {"has_pipeline_py": true}
+    },
+    {
+      "id": "MCP-15",
+      "category": "experiment_lifecycle",
+      "expected_tool": "submit_experiment",
+      "prompt_template": "Submit existing trial `{trial_id}` for validation using idempotency key `{run_id}:sub_f5_15`.",
+      "arg_checks": {"trial_id_key": "seeded_trial_id"}
+    },
+    {
+      "id": "MCP-16",
+      "category": "experiment_lifecycle",
+      "expected_tool": "submit_experiment",
+      "prompt_template": "Submit existing trial `{trial_id}` with CPU-only limits (max_wall_seconds=60, max_memory_gb=1.0, cpu_threads=1, gpu=false) using idempotency key `{run_id}:sub_f5_16`.",
+      "arg_checks": {"trial_id_key": "seeded_trial_id"}
+    },
+    {
+      "id": "MCP-17",
+      "category": "experiment_lifecycle",
+      "expected_tool": "get_experiment_status",
+      "prompt_template": "Check the current execution status of experiment job `{job_id}`.",
+      "arg_checks": {"job_id_key": "seeded_job_id"}
+    },
+    {
+      "id": "MCP-18",
+      "category": "experiment_lifecycle",
+      "expected_tool": "get_experiment_metrics",
+      "prompt_template": "Fetch the validation metrics for completed experiment job `{job_id}`.",
+      "arg_checks": {"job_id_key": "seeded_job_id"}
+    },
+    {
+      "id": "MCP-19",
+      "category": "experiment_lifecycle",
+      "expected_tool": "get_experiment_logs",
+      "prompt_template": "Retrieve the execution logs for experiment job `{job_id}`.",
+      "arg_checks": {"job_id_key": "seeded_job_id"}
+    },
+    {
+      "id": "MCP-20",
+      "category": "experiment_lifecycle",
+      "expected_tool": "get_experiment_logs",
+      "prompt_template": "Retrieve only the last 5 lines (`tail_lines=5`) of logs for experiment job `{job_id}`.",
+      "arg_checks": {"job_id_key": "seeded_job_id", "tail_lines": 5}
+    },
+    {
+      "id": "MCP-21",
+      "category": "edge_and_recovery",
+      "expected_tool": "run_diagnostic",
+      "prompt_template": "Run the `feature_predictiveness` diagnostic on `mean smoothness` for target `target`.",
+      "arg_checks": {"diagnostic": "feature_predictiveness", "column": "mean smoothness"}
+    },
+    {
+      "id": "MCP-22",
+      "category": "edge_and_recovery",
+      "expected_tool": "write_trial_files",
+      "prompt_template": "Register a quick baseline logistic regression trial for run `{run_id}` using short key suffix `wr_quick_22`.",
+      "arg_checks": {"has_pipeline_py": true}
+    },
+    {
+      "id": "MCP-23",
+      "category": "edge_and_recovery",
+      "expected_tool": "submit_experiment",
+      "prompt_template": "Queue trial `{trial_id}` for run `{run_id}` using short key suffix `sub_quick_23`.",
+      "arg_checks": {"trial_id_key": "seeded_trial_id"}
+    },
+    {
+      "id": "MCP-24",
+      "category": "edge_and_recovery",
+      "expected_tool": "get_experiment_metrics",
+      "prompt_template": "Return the official validation score for job `{job_id}` (do not pass extra filter flags).",
+      "arg_checks": {"job_id_key": "seeded_job_id"}
+    }
+  ]
+}
