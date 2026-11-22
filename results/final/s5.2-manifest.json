@@ -1,0 +1,95 @@
+{
+  "attempt_reservation_usd": 0.36,
+  "cap_usd": 10.0,
+  "case_set": "test",
+  "case_set_sha256": "e949b7e1ea4005a7bb7a6f404a338c4841211dc10fee579a3aa204fbf0defb2b",
+  "cases": {
+    "test_clean_abalone": "f550aec0f8ded1a1553598ac9c47d7cb88328f6348730038b9d817bb57ddeec8",
+    "test_clean_breast_cancer": "1820697f8e282e4c83ce5dc08ca0e559fe1edf473a80dd7e93bb3654c556823d",
+    "test_clean_dry_bean": "d1eac81a02111ff89f63c0078d667f2a7ac64297bb7b0ee4cb6a0416b19363dc",
+    "test_clean_phishing": "2393dfef4e32f3a9cadaca8ceff1cc0761b46b12b093efc52442cd4a44718d72",
+    "test_clean_power_plant": "712b7694db62a3e5a029d98e631c6e54e88da136b60e5659a92ad540cc6e5386",
+    "test_clean_rice": "3e2517c4b9f0382f2b6de5073028c584e1d46f5ec5b375b39da3bea9cc24588a",
+    "test_fault_malformed_landsat": "ef56fb30afb94237e95885e7ef0340f9b696fe2c08db362ae04371f9401fe721",
+    "test_fault_malformed_maternal": "7ca65461d062b7206d5704a4828167b96eccb27e724e99d6828679962a7b1b86",
+    "test_fault_submit_banknote": "60eda8de40577ba248b9983602391cb93065d46bf6a19879f1ae46965a1a8086",
+    "test_fault_submit_spambase": "69096ab9d5543309cc750531f73f14addfeccc9f684a03b78b7d9cc8a9425d89",
+    "test_fault_submit_superconductivity": "b36e673da9853c84047595ec029b80980770464de753fbfbf566bfc47b012f68",
+    "test_fault_write_retinopathy": "d2f59a052d2b35b5c68351d435ca6b03a5192582b032a5e9049620fa42649786",
+    "test_group_airfoil": "5051a3041e4a826271f7950573156b3798de39c2c2fd45e46a5dbadea24dcaca",
+    "test_group_concrete": "99cbc1315f5593c0e1493e26ff630812c2cd620cf049e5b758a296423ef89a11",
+    "test_group_real_estate": "bca7056e026f5bed2ea763eb5835fcfe37094dc0601ebf990987f1f34acec077",
+    "test_imb_bankruptcy": "a72338f50d0ec2890f2284b97a73f6a19dd1221f7e431d22ba76db2619ea486e",
+    "test_imb_churn": "f085f646bbfcc3ba667ceaca87d795cc2b016d9f2f00bea40474701d2af7d05f",
+    "test_imb_credit_default": "79c8bd42d732e88e271fa465ead79668c906c099dd8cc4eb2fa9b4595312418e",
+    "test_imb_htru2": "ca46bb23c6bc21178b1afdbd3f786af1c04a201112fce5953c4cb9f21a873161",
+    "test_leak_bank_marketing": "b2cabc2dac5204a8ad1453218bc8702eac87edb1a2feb3eead56d22e3da0886b",
+    "test_leak_cirrhosis": "b95f4c85ed9b13f08e26619af8415ebc7aba0fc520b936bc7a2f36c44e4ebd62",
+    "test_leak_heart_failure": "b9d3b4dda4b5f3f50a2cf46e95ab85b51fcf877ac52b27912f412d1c02030596",
+    "test_leak_student_dropout": "52f5bfa9a2676ffc30707c71a09793f767500635ac9999fea4b8204aa6dbedf0",
+    "test_time_beijing_pm25": "250aaf86ca8558ec53992913bc647976523611ac45dadf494b5ddab590a6d4a6",
+    "test_time_el_nino": "da5dbbda00c268ae3b701e654e1bbeab2d65712b7edf623ad3aa3a8dbfcd8a16",
+    "test_time_metro_traffic": "4e59043f568acecf2f4d31df01acc70f5ab72e45372f67760fb5d15596a3eb1c"
+  },
+  "commit": "62b4e3fb6016a0abddf70a14152252a62c8aca4a",
+  "configs": {
+    "default": {
+      "agent_mode": "multi",
+      "fallback_enabled": false,
+      "profile": "eval",
+      "run_config_hash": "4627eab59517fa73280ba502a36f0fbc44a68a5928c1a65083b24c1c3460ef90",
+      "tiers": {
+        "cheap": {
+          "model_id": "gpt-6-luna",
+          "provider": "openai",
+          "temperature": "not_configurable"
+        },
+        "lead": {
+          "model_id": "gpt-6-luna",
+          "provider": "openai",
+          "temperature": "not_configurable"
+        },
+        "worker": {
+          "model_id": "gpt-6-luna",
+          "provider": "openai",
+          "temperature": "not_configurable"
+        }
+      }
+    },
+    "single_agent": {
+      "agent_mode": "single",
+      "fallback_enabled": false,
+      "profile": "eval",
+      "run_config_hash": "dc319add272b144ca097e9b909c213c77ee1b0bfb25796b97a08316037ad18c2",
+      "tiers": {
+        "cheap": {
+          "model_id": "gpt-6-luna",
+          "provider": "openai",
+          "temperature": "not_configurable"
+        },
+        "lead": {
+          "model_id": "gpt-6-luna",
+          "provider": "openai",
+          "temperature": "not_configurable"
+        },
+        "worker": {
+          "model_id": "gpt-6-luna",
+          "provider": "openai",
+          "temperature": "not_configurable"
+        }
+      }
+    }
+  },
+  "freeze_tag": "eval-freeze",
+  "readiness_lock_sha256": "4d731346ac305075e8f999fc811e7129a6fb083c92e3cc06574038a181f6922c",
+  "repeat_cases": [
+    "test_clean_rice",
+    "test_fault_submit_spambase",
+    "test_group_concrete",
+    "test_imb_churn",
+    "test_leak_heart_failure",
+    "test_time_beijing_pm25"
+  ],
+  "repeats": 3,
+  "step": "S5.2"
+}

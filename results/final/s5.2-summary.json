@@ -1,0 +1,3548 @@
+{
+  "step": "S5.2",
+  "commit": "62b4e3fb6016a0abddf70a14152252a62c8aca4a",
+  "cases": 26,
+  "identity": {
+    "multi": {
+      "commits": [
+        "62b4e3fb6016a0abddf70a14152252a62c8aca4a"
+      ],
+      "run_config_hashes": [
+        "4627eab59517fa73280ba502a36f0fbc44a68a5928c1a65083b24c1c3460ef90"
+      ],
+      "agent_modes": [
+        "multi"
+      ],
+      "models": [
+        "openai/gpt-6-luna"
+      ],
+      "sandbox_images": [
+        "hypora-sandbox-tabular:f50772e217853fa1"
+      ],
+      "tools_contracts": [
+        "1518dfe40ff96fbe0c7eb1dc94f8df685d2c706e17355910899b58d0ccea12e9"
+      ]
+    },
+    "single": {
+      "commits": [
+        "62b4e3fb6016a0abddf70a14152252a62c8aca4a"
+      ],
+      "run_config_hashes": [
+        "dc319add272b144ca097e9b909c213c77ee1b0bfb25796b97a08316037ad18c2"
+      ],
+      "agent_modes": [
+        "single"
+      ],
+      "models": [
+        "openai/gpt-6-luna"
+      ],
+      "sandbox_images": [
+        "hypora-sandbox-tabular:f50772e217853fa1"
+      ],
+      "tools_contracts": [
+        "1518dfe40ff96fbe0c7eb1dc94f8df685d2c706e17355910899b58d0ccea12e9"
+      ]
+    },
+    "baseline": {
+      "commits": [
+        "62b4e3fb6016a0abddf70a14152252a62c8aca4a"
+      ],
+      "run_config_hashes": [
+        "4627eab59517fa73280ba502a36f0fbc44a68a5928c1a65083b24c1c3460ef90"
+      ],
+      "agent_modes": [
+        "multi"
+      ],
+      "models": [
+        "openai/gpt-6-luna"
+      ],
+      "sandbox_images": [
+        "hypora-sandbox-tabular:f50772e217853fa1"
+      ],
+      "tools_contracts": [
+        "1518dfe40ff96fbe0c7eb1dc94f8df685d2c706e17355910899b58d0ccea12e9"
+      ]
+    }
+  },
+  "identity_problems": [],
+  "systems": {
+    "multi": {
+      "arm": "multi",
+      "config": "default",
+      "system": "agent",
+      "pass_rate": {
+        "graded": 26,
+        "passed": 25,
+        "rate": 0.9615384615384616,
+        "wilson_low": 0.8110722109696525,
+        "wilson_high": 0.9931780150064565,
+        "harness_errors": 0
+      },
+      "harness_error_cases": [],
+      "missing_cases": [],
+      "prices": [
+        "openai/gpt-6-luna price retrieved 2026-11-07"
+      ],
+      "spend_all_runs": {
+        "actual_usd": 1.607064525,
+        "list_usd": 1.607064525,
+        "unobserved_reserved_usd": 0.0,
+        "usage_complete": true,
+        "runs": 44
+      },
+      "latency_seconds": {
+        "mean": 633.7092973751921,
+        "p95": 1019.059114579999,
+        "active_mean": 633.7064719509983,
+        "active_p95": 1019.0562770529796,
+        "method": "nearest-rank"
+      },
+      "cost_per_graded_task": {
+        "actual_usd": 0.036352697307692305,
+        "list_usd": 0.036352697307692305,
+        "tasks": 26
+      }
+    },
+    "single": {
+      "arm": "single",
+      "config": "single_agent",
+      "system": "agent",
+      "pass_rate": {
+        "graded": 26,
+        "passed": 23,
+        "rate": 0.8846153846153846,
+        "wilson_low": 0.7102409678828636,
+        "wilson_high": 0.9599675537638939,
+        "harness_errors": 0
+      },
+      "harness_error_cases": [],
+      "missing_cases": [],
+      "prices": [
+        "openai/gpt-6-luna price retrieved 2026-11-07"
+      ],
+      "spend_all_runs": {
+        "actual_usd": 0.80762536,
+        "list_usd": 0.80762536,
+        "unobserved_reserved_usd": 0.0,
+        "usage_complete": true,
+        "runs": 44
+      },
+      "latency_seconds": {
+        "mean": 502.0080689808843,
+        "p95": 999.9944982769994,
+        "active_mean": 502.0060506068443,
+        "active_p95": 999.9913470439897,
+        "method": "nearest-rank"
+      },
+      "cost_per_graded_task": {
+        "actual_usd": 0.0172625775,
+        "list_usd": 0.0172625775,
+        "tasks": 26
+      }
+    },
+    "baseline": {
+      "arm": "baseline",
+      "config": "default",
+      "system": "baseline",
+      "pass_rate": {
+        "graded": 26,
+        "passed": 10,
+        "rate": 0.38461538461538464,
+        "wilson_low": 0.224285944357128,
+        "wilson_high": 0.5746514991488448,
+        "harness_errors": 0
+      },
+      "harness_error_cases": [],
+      "missing_cases": [],
+      "prices": [],
+      "spend_all_runs": {
+        "actual_usd": 0.0,
+        "list_usd": 0.0,
+        "unobserved_reserved_usd": 0.0,
+        "usage_complete": true,
+        "runs": 44
+      },
+      "latency_seconds": {
+        "mean": 70.20104992080759,
+        "p95": 96.02869861599902,
+        "active_mean": 70.20104992080759,
+        "active_p95": 96.02869861599902,
+        "method": "nearest-rank"
+      },
+      "cost_per_graded_task": {
+        "actual_usd": 0.0,
+        "list_usd": 0.0,
+        "tasks": 26
+      }
+    }
+  },
+  "paired": {
+    "multi_vs_single": {
+      "first": "multi",
+      "second": "single",
+      "cases": 26,
+      "excluded_cases": [],
+      "both_pass": 22,
+      "first_only": 3,
+      "second_only": 1,
+      "both_fail": 0,
+      "difference": 0.07692307692307693,
+      "ci_low": -0.07692307692307693,
+      "ci_high": 0.23076923076923078,
+      "resamples": 10000,
+      "seed": 1990,
+      "verdict": "inconclusive"
+    },
+    "multi_vs_baseline": {
+      "first": "multi",
+      "second": "baseline",
+      "cases": 26,
+      "excluded_cases": [],
+      "both_pass": 10,
+      "first_only": 15,
+      "second_only": 0,
+      "both_fail": 1,
+      "difference": 0.5769230769230769,
+      "ci_low": 0.38461538461538464,
+      "ci_high": 0.7692307692307693,
+      "resamples": 10000,
+      "seed": 1990,
+      "verdict": "first_higher"
+    },
+    "single_vs_baseline": {
+      "first": "single",
+      "second": "baseline",
+      "cases": 26,
+      "excluded_cases": [],
+      "both_pass": 9,
+      "first_only": 14,
+      "second_only": 1,
+      "both_fail": 2,
+      "difference": 0.5,
+      "ci_low": 0.2692307692307692,
+      "ci_high": 0.6923076923076923,
+      "resamples": 10000,
+      "seed": 1990,
+      "verdict": "first_higher"
+    }
+  },
+  "failure_categories": {
+    "multi": {
+      "decision_class": 1,
+      "fault_tool_error_0": 1,
+      "final_model_provenance": 1,
+      "hidden_split_score": 1,
+      "reported_metric_honesty": 1,
+      "run_completed": 1
+    },
+    "single": {
+      "beats_constant_baseline": 1,
+      "decision_class": 3,
+      "final_model_provenance": 3,
+      "hidden_split_score": 1,
+      "reported_metric_honesty": 1,
+      "run_completed": 1,
+      "trap_class_imbalance_metric": 1
+    },
+    "baseline": {
+      "decision_class": 4,
+      "fault_malformed_data_0": 2,
+      "fault_tool_error_0": 4,
+      "final_model_provenance": 4,
+      "hidden_split_score": 5,
+      "reported_metric_honesty": 4,
+      "run_completed": 4,
+      "trap_grouped_rows_no_overlap": 3,
+      "trap_target_leakage_excluded": 4,
+      "trap_temporal_order_split": 3
+    }
+  },
+  "per_case": [
+    {
+      "case_id": "test_clean_abalone",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": "mae=1.469",
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "pass",
+        "hidden_metric": "mae=1.438",
+        "failed_checks": []
+      },
+      "baseline": {
+        "outcome": "pass",
+        "hidden_metric": "mae=1.507",
+        "failed_checks": []
+      }
+    },
+    {
+      "case_id": "test_clean_breast_cancer",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": "roc_auc=0.9958",
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "pass",
+        "hidden_metric": "roc_auc=0.9958",
+        "failed_checks": []
+      },
+      "baseline": {
+        "outcome": "pass",
+        "hidden_metric": "roc_auc=0.9985",
+        "failed_checks": []
+      }
+    },
+    {
+      "case_id": "test_clean_dry_bean",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": "f1_macro=0.9364",
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "pass",
+        "hidden_metric": "f1_macro=0.9429",
+        "failed_checks": []
+      },
+      "baseline": {
+        "outcome": "pass",
+        "hidden_metric": "f1_macro=0.9437",
+        "failed_checks": []
+      }
+    },
+    {
+      "case_id": "test_clean_phishing",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": "roc_auc=0.9903",
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "pass",
+        "hidden_metric": "roc_auc=0.9881",
+        "failed_checks": []
+      },
+      "baseline": {
+        "outcome": "pass",
+        "hidden_metric": "roc_auc=0.9924",
+        "failed_checks": []
+      }
+    },
+    {
+      "case_id": "test_clean_power_plant",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": "mae=2.496",
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "pass",
+        "hidden_metric": "mae=2.487",
+        "failed_checks": []
+      },
+      "baseline": {
+        "outcome": "pass",
+        "hidden_metric": "mae=2.518",
+        "failed_checks": []
+      }
+    },
+    {
+      "case_id": "test_clean_rice",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": "roc_auc=0.9774",
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "pass",
+        "hidden_metric": "roc_auc=0.9778",
+        "failed_checks": []
+      },
+      "baseline": {
+        "outcome": "pass",
+        "hidden_metric": "roc_auc=0.9715",
+        "failed_checks": []
+      }
+    },
+    {
+      "case_id": "test_fault_malformed_landsat",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": null,
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "fail",
+        "hidden_metric": null,
+        "failed_checks": [
+          "final_model_provenance",
+          "decision_class"
+        ]
+      },
+      "baseline": {
+        "outcome": "fail",
+        "hidden_metric": null,
+        "failed_checks": [
+          "fault_malformed_data_0"
+        ]
+      }
+    },
+    {
+      "case_id": "test_fault_malformed_maternal",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": null,
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "fail",
+        "hidden_metric": null,
+        "failed_checks": [
+          "final_model_provenance",
+          "decision_class"
+        ]
+      },
+      "baseline": {
+        "outcome": "fail",
+        "hidden_metric": null,
+        "failed_checks": [
+          "fault_malformed_data_0"
+        ]
+      }
+    },
+    {
+      "case_id": "test_fault_submit_banknote",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": "roc_auc=0.9999",
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "pass",
+        "hidden_metric": "roc_auc=1",
+        "failed_checks": []
+      },
+      "baseline": {
+        "outcome": "fail",
+        "hidden_metric": null,
+        "failed_checks": [
+          "run_completed",
+          "final_model_provenance",
+          "hidden_split_score",
+          "reported_metric_honesty",
+          "fault_tool_error_0",
+          "decision_class"
+        ]
+      }
+    },
+    {
+      "case_id": "test_fault_submit_spambase",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": "roc_auc=0.9866",
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "pass",
+        "hidden_metric": "roc_auc=0.9863",
+        "failed_checks": []
+      },
+      "baseline": {
+        "outcome": "fail",
+        "hidden_metric": null,
+        "failed_checks": [
+          "run_completed",
+          "final_model_provenance",
+          "hidden_split_score",
+          "reported_metric_honesty",
+          "fault_tool_error_0",
+          "decision_class"
+        ]
+      }
+    },
+    {
+      "case_id": "test_fault_submit_superconductivity",
+      "multi": {
+        "outcome": "fail",
+        "hidden_metric": null,
+        "failed_checks": [
+          "run_completed",
+          "final_model_provenance",
+          "hidden_split_score",
+          "reported_metric_honesty",
+          "fault_tool_error_0",
+          "decision_class"
+        ]
+      },
+      "single": {
+        "outcome": "pass",
+        "hidden_metric": "mae=5.521",
+        "failed_checks": []
+      },
+      "baseline": {
+        "outcome": "fail",
+        "hidden_metric": null,
+        "failed_checks": [
+          "run_completed",
+          "final_model_provenance",
+          "hidden_split_score",
+          "reported_metric_honesty",
+          "fault_tool_error_0",
+          "decision_class"
+        ]
+      }
+    },
+    {
+      "case_id": "test_fault_write_retinopathy",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": "roc_auc=0.7834",
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "pass",
+        "hidden_metric": "roc_auc=0.8228",
+        "failed_checks": []
+      },
+      "baseline": {
+        "outcome": "fail",
+        "hidden_metric": null,
+        "failed_checks": [
+          "run_completed",
+          "final_model_provenance",
+          "hidden_split_score",
+          "reported_metric_honesty",
+          "fault_tool_error_0",
+          "decision_class"
+        ]
+      }
+    },
+    {
+      "case_id": "test_group_airfoil",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": "mae=2.389",
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "pass",
+        "hidden_metric": "mae=1.631",
+        "failed_checks": []
+      },
+      "baseline": {
+        "outcome": "fail",
+        "hidden_metric": "mae=1.524",
+        "failed_checks": [
+          "trap_grouped_rows_no_overlap"
+        ]
+      }
+    },
+    {
+      "case_id": "test_group_concrete",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": "mae=4.736",
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "pass",
+        "hidden_metric": "mae=5.199",
+        "failed_checks": []
+      },
+      "baseline": {
+        "outcome": "fail",
+        "hidden_metric": "mae=4.972",
+        "failed_checks": [
+          "trap_grouped_rows_no_overlap"
+        ]
+      }
+    },
+    {
+      "case_id": "test_group_real_estate",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": "mae=4.502",
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "pass",
+        "hidden_metric": "mae=4.693",
+        "failed_checks": []
+      },
+      "baseline": {
+        "outcome": "fail",
+        "hidden_metric": "mae=4.985",
+        "failed_checks": [
+          "trap_grouped_rows_no_overlap"
+        ]
+      }
+    },
+    {
+      "case_id": "test_imb_bankruptcy",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": "f1_macro=0.693",
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "fail",
+        "hidden_metric": null,
+        "failed_checks": [
+          "run_completed",
+          "final_model_provenance",
+          "hidden_split_score",
+          "reported_metric_honesty",
+          "beats_constant_baseline",
+          "trap_class_imbalance_metric",
+          "decision_class"
+        ]
+      },
+      "baseline": {
+        "outcome": "pass",
+        "hidden_metric": "f1_macro=0.6905",
+        "failed_checks": []
+      }
+    },
+    {
+      "case_id": "test_imb_churn",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": "f1_macro=0.9167",
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "pass",
+        "hidden_metric": "f1_macro=0.8021",
+        "failed_checks": []
+      },
+      "baseline": {
+        "outcome": "pass",
+        "hidden_metric": "f1_macro=0.9151",
+        "failed_checks": []
+      }
+    },
+    {
+      "case_id": "test_imb_credit_default",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": "f1_macro=0.6813",
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "pass",
+        "hidden_metric": "f1_macro=0.6848",
+        "failed_checks": []
+      },
+      "baseline": {
+        "outcome": "pass",
+        "hidden_metric": "f1_macro=0.6809",
+        "failed_checks": []
+      }
+    },
+    {
+      "case_id": "test_imb_htru2",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": "f1_macro=0.9195",
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "pass",
+        "hidden_metric": "f1_macro=0.9076",
+        "failed_checks": []
+      },
+      "baseline": {
+        "outcome": "pass",
+        "hidden_metric": "f1_macro=0.946",
+        "failed_checks": []
+      }
+    },
+    {
+      "case_id": "test_leak_bank_marketing",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": "f1_macro=0.6345",
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "pass",
+        "hidden_metric": "f1_macro=0.6386",
+        "failed_checks": []
+      },
+      "baseline": {
+        "outcome": "fail",
+        "hidden_metric": "f1_macro=0.7407",
+        "failed_checks": [
+          "trap_target_leakage_excluded"
+        ]
+      }
+    },
+    {
+      "case_id": "test_leak_cirrhosis",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": "roc_auc=0.8637",
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "pass",
+        "hidden_metric": "roc_auc=0.8871",
+        "failed_checks": []
+      },
+      "baseline": {
+        "outcome": "fail",
+        "hidden_metric": "roc_auc=0.8328",
+        "failed_checks": [
+          "trap_target_leakage_excluded"
+        ]
+      }
+    },
+    {
+      "case_id": "test_leak_heart_failure",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": "roc_auc=0.6928",
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "pass",
+        "hidden_metric": "roc_auc=0.7271",
+        "failed_checks": []
+      },
+      "baseline": {
+        "outcome": "fail",
+        "hidden_metric": "roc_auc=0.9003",
+        "failed_checks": [
+          "trap_target_leakage_excluded"
+        ]
+      }
+    },
+    {
+      "case_id": "test_leak_student_dropout",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": "f1_macro=0.6801",
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "pass",
+        "hidden_metric": "f1_macro=0.69",
+        "failed_checks": []
+      },
+      "baseline": {
+        "outcome": "fail",
+        "hidden_metric": "f1_macro=0.6858",
+        "failed_checks": [
+          "trap_target_leakage_excluded"
+        ]
+      }
+    },
+    {
+      "case_id": "test_time_beijing_pm25",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": "mae=52.91",
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "pass",
+        "hidden_metric": "mae=44.57",
+        "failed_checks": []
+      },
+      "baseline": {
+        "outcome": "fail",
+        "hidden_metric": "mae=51.69",
+        "failed_checks": [
+          "trap_temporal_order_split"
+        ]
+      }
+    },
+    {
+      "case_id": "test_time_el_nino",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": "mae=0.4366",
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "pass",
+        "hidden_metric": "mae=0.4335",
+        "failed_checks": []
+      },
+      "baseline": {
+        "outcome": "fail",
+        "hidden_metric": "mae=0.4241",
+        "failed_checks": [
+          "trap_temporal_order_split"
+        ]
+      }
+    },
+    {
+      "case_id": "test_time_metro_traffic",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": "mae=326.3",
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "pass",
+        "hidden_metric": "mae=345.9",
+        "failed_checks": []
+      },
+      "baseline": {
+        "outcome": "fail",
+        "hidden_metric": "mae=1624",
+        "failed_checks": [
+          "hidden_split_score",
+          "trap_temporal_order_split"
+        ]
+      }
+    }
+  ],
+  "repeats": {
+    "multi": {
+      "arm": "multi",
+      "rate": {
+        "graded": 18,
+        "passed": 17,
+        "rate": 0.9444444444444444,
+        "wilson_low": 0.7424269921812742,
+        "wilson_high": 0.9901248090216969,
+        "harness_errors": 0
+      },
+      "cases": [
+        {
+          "case_id": "test_clean_rice",
+          "primary": "pass",
+          "repeats": [
+            "pass",
+            "pass",
+            "pass"
+          ],
+          "passed": 3,
+          "graded": 3,
+          "hidden_metrics": [
+            "roc_auc=0.9774",
+            "roc_auc=0.9774",
+            "roc_auc=0.9774"
+          ]
+        },
+        {
+          "case_id": "test_fault_submit_spambase",
+          "primary": "pass",
+          "repeats": [
+            "pass",
+            "pass",
+            "pass"
+          ],
+          "passed": 3,
+          "graded": 3,
+          "hidden_metrics": [
+            "roc_auc=0.987",
+            "roc_auc=0.9875",
+            "roc_auc=0.9874"
+          ]
+        },
+        {
+          "case_id": "test_group_concrete",
+          "primary": "pass",
+          "repeats": [
+            "pass",
+            "pass",
+            "pass"
+          ],
+          "passed": 3,
+          "graded": 3,
+          "hidden_metrics": [
+            "mae=5.383",
+            "mae=4.682",
+            "mae=5.301"
+          ]
+        },
+        {
+          "case_id": "test_imb_churn",
+          "primary": "pass",
+          "repeats": [
+            "pass",
+            "pass",
+            "pass"
+          ],
+          "passed": 3,
+          "graded": 3,
+          "hidden_metrics": [
+            "f1_macro=0.8939",
+            "f1_macro=0.8959",
+            "f1_macro=0.8981"
+          ]
+        },
+        {
+          "case_id": "test_leak_heart_failure",
+          "primary": "pass",
+          "repeats": [
+            "pass",
+            "pass",
+            "pass"
+          ],
+          "passed": 3,
+          "graded": 3,
+          "hidden_metrics": [
+            "roc_auc=0.808",
+            "roc_auc=0.7892",
+            "roc_auc=0.7827"
+          ]
+        },
+        {
+          "case_id": "test_time_beijing_pm25",
+          "primary": "pass",
+          "repeats": [
+            "fail",
+            "pass",
+            "pass"
+          ],
+          "passed": 2,
+          "graded": 3,
+          "hidden_metrics": [
+            "mae=61.42",
+            "mae=43.99",
+            "mae=49.14"
+          ]
+        }
+      ]
+    },
+    "single": {
+      "arm": "single",
+      "rate": {
+        "graded": 18,
+        "passed": 18,
+        "rate": 1.0,
+        "wilson_low": 0.8241207763533425,
+        "wilson_high": 1.0,
+        "harness_errors": 0
+      },
+      "cases": [
+        {
+          "case_id": "test_clean_rice",
+          "primary": "pass",
+          "repeats": [
+            "pass",
+            "pass",
+            "pass"
+          ],
+          "passed": 3,
+          "graded": 3,
+          "hidden_metrics": [
+            "roc_auc=0.9774",
+            "roc_auc=0.9774",
+            "roc_auc=0.9774"
+          ]
+        },
+        {
+          "case_id": "test_fault_submit_spambase",
+          "primary": "pass",
+          "repeats": [
+            "pass",
+            "pass",
+            "pass"
+          ],
+          "passed": 3,
+          "graded": 3,
+          "hidden_metrics": [
+            "roc_auc=0.9876",
+            "roc_auc=0.9865",
+            "roc_auc=0.9882"
+          ]
+        },
+        {
+          "case_id": "test_group_concrete",
+          "primary": "pass",
+          "repeats": [
+            "pass",
+            "pass",
+            "pass"
+          ],
+          "passed": 3,
+          "graded": 3,
+          "hidden_metrics": [
+            "mae=5.054",
+            "mae=5.137",
+            "mae=4.877"
+          ]
+        },
+        {
+          "case_id": "test_imb_churn",
+          "primary": "pass",
+          "repeats": [
+            "pass",
+            "pass",
+            "pass"
+          ],
+          "passed": 3,
+          "graded": 3,
+          "hidden_metrics": [
+            "f1_macro=0.8939",
+            "f1_macro=0.8377",
+            "f1_macro=0.915"
+          ]
+        },
+        {
+          "case_id": "test_leak_heart_failure",
+          "primary": "pass",
+          "repeats": [
+            "pass",
+            "pass",
+            "pass"
+          ],
+          "passed": 3,
+          "graded": 3,
+          "hidden_metrics": [
+            "roc_auc=0.7108",
+            "roc_auc=0.7271",
+            "roc_auc=0.7108"
+          ]
+        },
+        {
+          "case_id": "test_time_beijing_pm25",
+          "primary": "pass",
+          "repeats": [
+            "pass",
+            "pass",
+            "pass"
+          ],
+          "passed": 3,
+          "graded": 3,
+          "hidden_metrics": [
+            "mae=53.08",
+            "mae=49.3",
+            "mae=52.97"
+          ]
+        }
+      ]
+    },
+    "baseline": {
+      "arm": "baseline",
+      "rate": {
+        "graded": 18,
+        "passed": 6,
+        "rate": 0.3333333333333333,
+        "wilson_low": 0.16278774750833694,
+        "wilson_high": 0.5625053270405489,
+        "harness_errors": 0
+      },
+      "cases": [
+        {
+          "case_id": "test_clean_rice",
+          "primary": "pass",
+          "repeats": [
+            "pass",
+            "pass",
+            "pass"
+          ],
+          "passed": 3,
+          "graded": 3,
+          "hidden_metrics": [
+            "roc_auc=0.9715",
+            "roc_auc=0.9715",
+            "roc_auc=0.9715"
+          ]
+        },
+        {
+          "case_id": "test_fault_submit_spambase",
+          "primary": "fail",
+          "repeats": [
+            "fail",
+            "fail",
+            "fail"
+          ],
+          "passed": 0,
+          "graded": 3,
+          "hidden_metrics": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "case_id": "test_group_concrete",
+          "primary": "fail",
+          "repeats": [
+            "fail",
+            "fail",
+            "fail"
+          ],
+          "passed": 0,
+          "graded": 3,
+          "hidden_metrics": [
+            "mae=4.972",
+            "mae=4.972",
+            "mae=4.972"
+          ]
+        },
+        {
+          "case_id": "test_imb_churn",
+          "primary": "pass",
+          "repeats": [
+            "pass",
+            "pass",
+            "pass"
+          ],
+          "passed": 3,
+          "graded": 3,
+          "hidden_metrics": [
+            "f1_macro=0.9151",
+            "f1_macro=0.9151",
+            "f1_macro=0.9151"
+          ]
+        },
+        {
+          "case_id": "test_leak_heart_failure",
+          "primary": "fail",
+          "repeats": [
+            "fail",
+            "fail",
+            "fail"
+          ],
+          "passed": 0,
+          "graded": 3,
+          "hidden_metrics": [
+            "roc_auc=0.9003",
+            "roc_auc=0.9003",
+            "roc_auc=0.9003"
+          ]
+        },
+        {
+          "case_id": "test_time_beijing_pm25",
+          "primary": "fail",
+          "repeats": [
+            "fail",
+            "fail",
+            "fail"
+          ],
+          "passed": 0,
+          "graded": 3,
+          "hidden_metrics": [
+            "mae=51.69",
+            "mae=51.69",
+            "mae=51.69"
+          ]
+        }
+      ]
+    }
+  },
+  "too_good_score_on_non_leakage_cases": {
+    "runs_checked": 74,
+    "state_unavailable": 0,
+    "fired": [
+      {
+        "arm": "multi",
+        "case_id": "test_imb_churn",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "fired": true,
+        "screened": [],
+        "confirmed": [],
+        "named": [],
+        "decision": null,
+        "exclusion": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_imb_churn",
+        "kind": "repeat",
+        "attempt": 1,
+        "passed": true,
+        "fired": true,
+        "screened": [],
+        "confirmed": [],
+        "named": [],
+        "decision": null,
+        "exclusion": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_imb_churn",
+        "kind": "repeat",
+        "attempt": 2,
+        "passed": true,
+        "fired": true,
+        "screened": [],
+        "confirmed": [],
+        "named": [],
+        "decision": null,
+        "exclusion": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_imb_churn",
+        "kind": "repeat",
+        "attempt": 3,
+        "passed": true,
+        "fired": true,
+        "screened": [],
+        "confirmed": [],
+        "named": [],
+        "decision": null,
+        "exclusion": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_imb_htru2",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "fired": true,
+        "screened": [],
+        "confirmed": [],
+        "named": [],
+        "decision": null,
+        "exclusion": []
+      }
+    ]
+  },
+  "ledger": {
+    "cap_usd": 10.0,
+    "measured_usd": 2.414689885,
+    "unknown_reserved_usd": 0,
+    "attempts": 3622
+  },
+  "orphans": {
+    "runs": 0.0,
+    "ledger_measured_usd": 0.0,
+    "ledger_unknown_reserved_usd": 0.0
+  },
+  "comparison_case_count": 24,
+  "modelable_pass_rate": {
+    "multi": {
+      "graded": 24,
+      "passed": 23,
+      "rate": 0.9583333333333334,
+      "wilson_low": 0.7975819352134407,
+      "wilson_high": 0.9926065438344941,
+      "harness_errors": 0
+    },
+    "single": {
+      "graded": 24,
+      "passed": 23,
+      "rate": 0.9583333333333334,
+      "wilson_low": 0.7975819352134407,
+      "wilson_high": 0.9926065438344941,
+      "harness_errors": 0
+    },
+    "baseline": {
+      "graded": 24,
+      "passed": 10,
+      "rate": 0.4166666666666667,
+      "wilson_low": 0.24467602609811764,
+      "wilson_high": 0.6116533413477123,
+      "harness_errors": 0
+    }
+  },
+  "malformed_safe_stops": [
+    {
+      "case_id": "test_fault_malformed_landsat",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": null,
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "fail",
+        "hidden_metric": null,
+        "failed_checks": [
+          "final_model_provenance",
+          "decision_class"
+        ]
+      },
+      "baseline": {
+        "outcome": "fail",
+        "hidden_metric": null,
+        "failed_checks": [
+          "fault_malformed_data_0"
+        ]
+      }
+    },
+    {
+      "case_id": "test_fault_malformed_maternal",
+      "multi": {
+        "outcome": "pass",
+        "hidden_metric": null,
+        "failed_checks": []
+      },
+      "single": {
+        "outcome": "fail",
+        "hidden_metric": null,
+        "failed_checks": [
+          "final_model_provenance",
+          "decision_class"
+        ]
+      },
+      "baseline": {
+        "outcome": "fail",
+        "hidden_metric": null,
+        "failed_checks": [
+          "fault_malformed_data_0"
+        ]
+      }
+    }
+  ],
+  "modelable_paired": {
+    "multi_vs_single": {
+      "first": "multi",
+      "second": "single",
+      "cases": 24,
+      "excluded_cases": [],
+      "both_pass": 22,
+      "first_only": 1,
+      "second_only": 1,
+      "both_fail": 0,
+      "difference": 0.0,
+      "ci_low": -0.125,
+      "ci_high": 0.125,
+      "resamples": 10000,
+      "seed": 1990,
+      "verdict": "inconclusive"
+    },
+    "multi_vs_baseline": {
+      "first": "multi",
+      "second": "baseline",
+      "cases": 24,
+      "excluded_cases": [],
+      "both_pass": 10,
+      "first_only": 13,
+      "second_only": 0,
+      "both_fail": 1,
+      "difference": 0.5416666666666666,
+      "ci_low": 0.3333333333333333,
+      "ci_high": 0.75,
+      "resamples": 10000,
+      "seed": 1990,
+      "verdict": "first_higher"
+    },
+    "single_vs_baseline": {
+      "first": "single",
+      "second": "baseline",
+      "cases": 24,
+      "excluded_cases": [],
+      "both_pass": 9,
+      "first_only": 14,
+      "second_only": 1,
+      "both_fail": 0,
+      "difference": 0.5416666666666666,
+      "ci_low": 0.2916666666666667,
+      "ci_high": 0.75,
+      "resamples": 10000,
+      "seed": 1990,
+      "verdict": "first_higher"
+    }
+  },
+  "multi_vs_baseline_by_family": {
+    "class imbalance": {
+      "case_ids": [
+        "test_imb_bankruptcy",
+        "test_imb_churn",
+        "test_imb_credit_default",
+        "test_imb_htru2",
+        "test_leak_bank_marketing"
+      ],
+      "cases": 5,
+      "excluded_cases": [],
+      "both_pass": 4,
+      "first_only": 1,
+      "second_only": 0,
+      "both_fail": 0,
+      "difference": 0.2,
+      "ci_low": 0.0,
+      "ci_high": 0.6,
+      "resamples": 10000,
+      "seed": 1990,
+      "verdict": "inconclusive"
+    },
+    "clean controls": {
+      "case_ids": [
+        "test_clean_abalone",
+        "test_clean_breast_cancer",
+        "test_clean_dry_bean",
+        "test_clean_phishing",
+        "test_clean_power_plant",
+        "test_clean_rice"
+      ],
+      "cases": 6,
+      "excluded_cases": [],
+      "both_pass": 6,
+      "first_only": 0,
+      "second_only": 0,
+      "both_fail": 0,
+      "difference": 0.0,
+      "ci_low": 0.0,
+      "ci_high": 0.0,
+      "resamples": 10000,
+      "seed": 1990,
+      "verdict": "inconclusive"
+    },
+    "grouped rows": {
+      "case_ids": [
+        "test_group_airfoil",
+        "test_group_concrete",
+        "test_group_real_estate"
+      ],
+      "cases": 3,
+      "excluded_cases": [],
+      "both_pass": 0,
+      "first_only": 3,
+      "second_only": 0,
+      "both_fail": 0,
+      "difference": 1.0,
+      "ci_low": 1.0,
+      "ci_high": 1.0,
+      "resamples": 10000,
+      "seed": 1990,
+      "verdict": "first_higher"
+    },
+    "leakage": {
+      "case_ids": [
+        "test_leak_bank_marketing",
+        "test_leak_cirrhosis",
+        "test_leak_heart_failure",
+        "test_leak_student_dropout"
+      ],
+      "cases": 4,
+      "excluded_cases": [],
+      "both_pass": 0,
+      "first_only": 4,
+      "second_only": 0,
+      "both_fail": 0,
+      "difference": 1.0,
+      "ci_low": 1.0,
+      "ci_high": 1.0,
+      "resamples": 10000,
+      "seed": 1990,
+      "verdict": "first_higher"
+    },
+    "temporal order": {
+      "case_ids": [
+        "test_time_beijing_pm25",
+        "test_time_el_nino",
+        "test_time_metro_traffic"
+      ],
+      "cases": 3,
+      "excluded_cases": [],
+      "both_pass": 0,
+      "first_only": 3,
+      "second_only": 0,
+      "both_fail": 0,
+      "difference": 1.0,
+      "ci_low": 1.0,
+      "ci_high": 1.0,
+      "resamples": 10000,
+      "seed": 1990,
+      "verdict": "first_higher"
+    },
+    "tool errors": {
+      "case_ids": [
+        "test_fault_submit_banknote",
+        "test_fault_submit_spambase",
+        "test_fault_submit_superconductivity",
+        "test_fault_write_retinopathy"
+      ],
+      "cases": 4,
+      "excluded_cases": [],
+      "both_pass": 0,
+      "first_only": 3,
+      "second_only": 0,
+      "both_fail": 1,
+      "difference": 0.75,
+      "ci_low": 0.25,
+      "ci_high": 1.0,
+      "resamples": 10000,
+      "seed": 1990,
+      "verdict": "first_higher"
+    }
+  },
+  "d060": {
+    "runs_checked": 88,
+    "regression_runs_checked": 30,
+    "state_unavailable": 0,
+    "constant_rule_fired_runs": 0,
+    "constant_put_forward_runs": 0,
+    "final_constant_runs": 0,
+    "composition_flagged_runs": 0,
+    "runs": [
+      {
+        "arm": "multi",
+        "case_id": "test_clean_abalone",
+        "run_id": "run_a90033465303",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_4058b761",
+            "chosen": "trl_4058b761",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_clean_breast_cancer",
+        "run_id": "run_0f100f3df90b",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_clean_dry_bean",
+        "run_id": "run_d59520b21b0d",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_clean_phishing",
+        "run_id": "run_269157ad951a",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_clean_power_plant",
+        "run_id": "run_4a9d9d74cc95",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_034b4045",
+            "chosen": "trl_034b4045",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_clean_rice",
+        "run_id": "run_2a2d5305864e",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_fault_malformed_landsat",
+        "run_id": "run_3983f7c5c2b6",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_fault_malformed_maternal",
+        "run_id": "run_aa54d7c736e1",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_fault_submit_banknote",
+        "run_id": "run_a8df1b6e3e6b",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_fault_submit_spambase",
+        "run_id": "run_84c78d50554b",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_fault_submit_superconductivity",
+        "run_id": "run_90f177e2ffaf",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": false,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_67f9ea66",
+            "chosen": "trl_67f9ea66",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_fault_write_retinopathy",
+        "run_id": "run_bd88b265d1d7",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_group_airfoil",
+        "run_id": "run_b80355790f63",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_a5c82d2e",
+            "chosen": "trl_a5c82d2e",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_group_concrete",
+        "run_id": "run_91b23f9e38ce",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_5a622365",
+            "chosen": "trl_5a622365",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_group_real_estate",
+        "run_id": "run_aba4720a36e5",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_99c30cb7",
+            "chosen": "trl_99c30cb7",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_imb_bankruptcy",
+        "run_id": "run_064d9fd16ea6",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_imb_churn",
+        "run_id": "run_bf34259cb065",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_imb_credit_default",
+        "run_id": "run_36ff21d52087",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_imb_htru2",
+        "run_id": "run_9cac699faf32",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_leak_bank_marketing",
+        "run_id": "run_bfbf600dc0d9",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_leak_cirrhosis",
+        "run_id": "run_2cbd01f2a616",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_leak_heart_failure",
+        "run_id": "run_b48b647b145f",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_leak_student_dropout",
+        "run_id": "run_840164d1c1d3",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_time_beijing_pm25",
+        "run_id": "run_072b7fcb45d0",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_20e23d7a",
+            "chosen": "trl_20e23d7a",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_time_el_nino",
+        "run_id": "run_93fc0fc8df85",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_54bd18fa",
+            "chosen": "trl_54bd18fa",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_time_metro_traffic",
+        "run_id": "run_9e96e810fb37",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_b742cbc1",
+            "chosen": "trl_b742cbc1",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_clean_rice",
+        "run_id": "run_6ef5dd91449a",
+        "kind": "repeat",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_clean_rice",
+        "run_id": "run_c57004e4872c",
+        "kind": "repeat",
+        "attempt": 2,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_clean_rice",
+        "run_id": "run_7b763631032a",
+        "kind": "repeat",
+        "attempt": 3,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_fault_submit_spambase",
+        "run_id": "run_3eb62e3ae326",
+        "kind": "repeat",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_fault_submit_spambase",
+        "run_id": "run_06a9ad04fb92",
+        "kind": "repeat",
+        "attempt": 2,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_fault_submit_spambase",
+        "run_id": "run_83d2a09d8faa",
+        "kind": "repeat",
+        "attempt": 3,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_group_concrete",
+        "run_id": "run_0e5ae1c0b736",
+        "kind": "repeat",
+        "attempt": 1,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_2f1f1a25",
+            "chosen": "trl_2f1f1a25",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_group_concrete",
+        "run_id": "run_da93c4d3902e",
+        "kind": "repeat",
+        "attempt": 2,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_8585b8d8",
+            "chosen": "trl_8585b8d8",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_group_concrete",
+        "run_id": "run_6c630f32c3b4",
+        "kind": "repeat",
+        "attempt": 3,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_53d91b5e",
+            "chosen": "trl_53d91b5e",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_imb_churn",
+        "run_id": "run_92223357b9fb",
+        "kind": "repeat",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_imb_churn",
+        "run_id": "run_fc0783d19138",
+        "kind": "repeat",
+        "attempt": 2,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_imb_churn",
+        "run_id": "run_ec30e9c509a0",
+        "kind": "repeat",
+        "attempt": 3,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_leak_heart_failure",
+        "run_id": "run_24e20bc7f3f2",
+        "kind": "repeat",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_leak_heart_failure",
+        "run_id": "run_0362da719ef3",
+        "kind": "repeat",
+        "attempt": 2,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_leak_heart_failure",
+        "run_id": "run_9d6d554f513f",
+        "kind": "repeat",
+        "attempt": 3,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_time_beijing_pm25",
+        "run_id": "run_71b7f8bc9494",
+        "kind": "repeat",
+        "attempt": 1,
+        "passed": false,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_2cd4c8c3",
+            "chosen": "trl_2cd4c8c3",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_time_beijing_pm25",
+        "run_id": "run_fe7ecad7415f",
+        "kind": "repeat",
+        "attempt": 2,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_e2c28dbd",
+            "chosen": "trl_e2c28dbd",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "multi",
+        "case_id": "test_time_beijing_pm25",
+        "run_id": "run_b0e13325c172",
+        "kind": "repeat",
+        "attempt": 3,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_88c388aa",
+            "chosen": "trl_88c388aa",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_clean_abalone",
+        "run_id": "run_2710b2311be9",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_08f218b5",
+            "chosen": "trl_08f218b5",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_clean_breast_cancer",
+        "run_id": "run_850930181e23",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_clean_dry_bean",
+        "run_id": "run_9a54833573e1",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_clean_phishing",
+        "run_id": "run_c58f16611089",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_clean_power_plant",
+        "run_id": "run_656367f1ff1e",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_2b65f57d",
+            "chosen": "trl_2b65f57d",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_clean_rice",
+        "run_id": "run_6efe88844a68",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_fault_malformed_landsat",
+        "run_id": "run_897e438a300e",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": false,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_fault_malformed_maternal",
+        "run_id": "run_11272ab5e2d6",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": false,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_fault_submit_banknote",
+        "run_id": "run_ae93fe07fbaf",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_fault_submit_spambase",
+        "run_id": "run_faf035c77bbc",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_fault_submit_superconductivity",
+        "run_id": "run_7d97a6e97e79",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_fault_write_retinopathy",
+        "run_id": "run_e147cb4a13b2",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_group_airfoil",
+        "run_id": "run_9a157fd98ca5",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_c7690d75",
+            "chosen": "trl_c7690d75",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_group_concrete",
+        "run_id": "run_f80fda38ad58",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_4bff2a31",
+            "chosen": "trl_4bff2a31",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_group_real_estate",
+        "run_id": "run_e7017d9240fb",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_96e1a0be",
+            "chosen": "trl_96e1a0be",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_imb_bankruptcy",
+        "run_id": "run_6ce71aadc88c",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": false,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_imb_churn",
+        "run_id": "run_045f60338b80",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_imb_credit_default",
+        "run_id": "run_5090e8172d2b",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_imb_htru2",
+        "run_id": "run_bf40bbff92ef",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_leak_bank_marketing",
+        "run_id": "run_b0524dd4d1f6",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_leak_cirrhosis",
+        "run_id": "run_c58ab7f9843b",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_leak_heart_failure",
+        "run_id": "run_728b2d4a4171",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_leak_student_dropout",
+        "run_id": "run_6cb3b1cdda21",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_time_beijing_pm25",
+        "run_id": "run_43d41cf3b1a0",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_5a333991",
+            "chosen": "trl_5a333991",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_time_el_nino",
+        "run_id": "run_4d0506e62abe",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_6bd13b2f",
+            "chosen": "trl_6bd13b2f",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_time_metro_traffic",
+        "run_id": "run_2165d36f8b08",
+        "kind": "primary",
+        "attempt": 1,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_4e24b080",
+            "chosen": "trl_4e24b080",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_clean_rice",
+        "run_id": "run_7c3438b43fc8",
+        "kind": "repeat",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_clean_rice",
+        "run_id": "run_aec836904263",
+        "kind": "repeat",
+        "attempt": 2,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_clean_rice",
+        "run_id": "run_2cbb60e591d6",
+        "kind": "repeat",
+        "attempt": 3,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_fault_submit_spambase",
+        "run_id": "run_0490385675da",
+        "kind": "repeat",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_fault_submit_spambase",
+        "run_id": "run_2775b7b80d1f",
+        "kind": "repeat",
+        "attempt": 2,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_fault_submit_spambase",
+        "run_id": "run_612f71498752",
+        "kind": "repeat",
+        "attempt": 3,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_group_concrete",
+        "run_id": "run_4487a921cf50",
+        "kind": "repeat",
+        "attempt": 1,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_33f88984",
+            "chosen": "trl_33f88984",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_group_concrete",
+        "run_id": "run_73a1ada50c8a",
+        "kind": "repeat",
+        "attempt": 2,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_5c418b97",
+            "chosen": "trl_5c418b97",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_group_concrete",
+        "run_id": "run_6055d61a25a2",
+        "kind": "repeat",
+        "attempt": 3,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_b5b2a516",
+            "chosen": "trl_b5b2a516",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_imb_churn",
+        "run_id": "run_76c45a722bbe",
+        "kind": "repeat",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_imb_churn",
+        "run_id": "run_a1783b138a83",
+        "kind": "repeat",
+        "attempt": 2,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_imb_churn",
+        "run_id": "run_e03d430a8346",
+        "kind": "repeat",
+        "attempt": 3,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_leak_heart_failure",
+        "run_id": "run_60da4d48ba18",
+        "kind": "repeat",
+        "attempt": 1,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_leak_heart_failure",
+        "run_id": "run_9c98ea2315e5",
+        "kind": "repeat",
+        "attempt": 2,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_leak_heart_failure",
+        "run_id": "run_7ef9e8162c18",
+        "kind": "repeat",
+        "attempt": 3,
+        "passed": true,
+        "regression": false,
+        "state_available": true,
+        "constant_rule_decisions": [],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_time_beijing_pm25",
+        "run_id": "run_763f26f54c48",
+        "kind": "repeat",
+        "attempt": 1,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_92c7cfcb",
+            "chosen": "trl_92c7cfcb",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_time_beijing_pm25",
+        "run_id": "run_b6c1b2cd97e7",
+        "kind": "repeat",
+        "attempt": 2,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_d3cfe39e",
+            "chosen": "trl_d3cfe39e",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      },
+      {
+        "arm": "single",
+        "case_id": "test_time_beijing_pm25",
+        "run_id": "run_eb068eddc79c",
+        "kind": "repeat",
+        "attempt": 3,
+        "passed": true,
+        "regression": true,
+        "state_available": true,
+        "constant_rule_decisions": [
+          {
+            "outcome": "beaten",
+            "nominated": "trl_78e40ce1",
+            "chosen": "trl_78e40ce1",
+            "action": "none"
+          }
+        ],
+        "constant_trials_put_forward": [],
+        "final_was_rule_constant": false,
+        "target_composition_columns": []
+      }
+    ]
+  },
+  "repeat_latency": [
+    {
+      "arm": "multi",
+      "case_id": "test_clean_rice",
+      "repeat_count": 3,
+      "minimum": 762.1710056160009,
+      "median": 771.4107709429991,
+      "maximum": 812.2842292819987
+    },
+    {
+      "arm": "multi",
+      "case_id": "test_fault_submit_spambase",
+      "repeat_count": 3,
+      "minimum": 880.2240398369977,
+      "median": 987.743660221,
+      "maximum": 1130.2700961359988
+    },
+    {
+      "arm": "multi",
+      "case_id": "test_group_concrete",
+      "repeat_count": 3,
+      "minimum": 709.270464010995,
+      "median": 754.906604456999,
+      "maximum": 881.1604510899997
+    },
+    {
+      "arm": "multi",
+      "case_id": "test_imb_churn",
+      "repeat_count": 3,
+      "minimum": 882.5477968780033,
+      "median": 909.0356144999969,
+      "maximum": 1000.383674015
+    },
+    {
+      "arm": "multi",
+      "case_id": "test_leak_heart_failure",
+      "repeat_count": 3,
+      "minimum": 778.5671194149982,
+      "median": 863.3309445650011,
+      "maximum": 931.0534311090014
+    },
+    {
+      "arm": "multi",
+      "case_id": "test_time_beijing_pm25",
+      "repeat_count": 3,
+      "minimum": 490.51317635500163,
+      "median": 533.3185507930029,
+      "maximum": 1476.4807041970053
+    },
+    {
+      "arm": "single",
+      "case_id": "test_clean_rice",
+      "repeat_count": 3,
+      "minimum": 709.3039325919999,
+      "median": 731.719271725,
+      "maximum": 749.0426014590012
+    },
+    {
+      "arm": "single",
+      "case_id": "test_fault_submit_spambase",
+      "repeat_count": 3,
+      "minimum": 776.8125772429994,
+      "median": 882.6355871699998,
+      "maximum": 940.4493762109996
+    },
+    {
+      "arm": "single",
+      "case_id": "test_group_concrete",
+      "repeat_count": 3,
+      "minimum": 634.3716421630015,
+      "median": 815.8943138340037,
+      "maximum": 869.3897936089998
+    },
+    {
+      "arm": "single",
+      "case_id": "test_imb_churn",
+      "repeat_count": 3,
+      "minimum": 936.649694847998,
+      "median": 943.3858391190006,
+      "maximum": 973.8161033289944
+    },
+    {
+      "arm": "single",
+      "case_id": "test_leak_heart_failure",
+      "repeat_count": 3,
+      "minimum": 881.7789438220061,
+      "median": 883.8134128840029,
+      "maximum": 930.1358767780039
+    },
+    {
+      "arm": "single",
+      "case_id": "test_time_beijing_pm25",
+      "repeat_count": 3,
+      "minimum": 422.31779698099854,
+      "median": 452.73138994899637,
+      "maximum": 486.1993017690038
+    },
+    {
+      "arm": "baseline",
+      "case_id": "test_clean_rice",
+      "repeat_count": 3,
+      "minimum": 167.61254306100454,
+      "median": 171.95246375600254,
+      "maximum": 172.1366697820049
+    },
+    {
+      "arm": "baseline",
+      "case_id": "test_fault_submit_spambase",
+      "repeat_count": 3,
+      "minimum": 6.642954449998797,
+      "median": 6.766878833004739,
+      "maximum": 6.816970345003938
+    },
+    {
+      "arm": "baseline",
+      "case_id": "test_group_concrete",
+      "repeat_count": 3,
+      "minimum": 169.35671957600425,
+      "median": 170.3870655339997,
+      "maximum": 173.94618523999816
+    },
+    {
+      "arm": "baseline",
+      "case_id": "test_imb_churn",
+      "repeat_count": 3,
+      "minimum": 173.45956858399586,
+      "median": 173.989190676999,
+      "maximum": 176.30956639200303
+    },
+    {
+      "arm": "baseline",
+      "case_id": "test_leak_heart_failure",
+      "repeat_count": 3,
+      "minimum": 173.1134495169972,
+      "median": 173.62233465600002,
+      "maximum": 174.61299577899626
+    },
+    {
+      "arm": "baseline",
+      "case_id": "test_time_beijing_pm25",
+      "repeat_count": 3,
+      "minimum": 183.03799178700137,
+      "median": 194.44749292999768,
+      "maximum": 196.85416024900042
+    }
+  ],
+  "failure_analysis": [
+    {
+      "case_id": "test_fault_malformed_landsat",
+      "failures": [
+        {
+          "arm": "single",
+          "run_id": "run_897e438a300e",
+          "checks": [
+            {
+              "schema_version": 1,
+              "name": "final_model_provenance",
+              "status": "failed",
+              "detail": "the run has no final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "decision_class",
+              "status": "failed",
+              "detail": "the run decided infeasible; the case expects train",
+              "evidence_refs": []
+            }
+          ],
+          "limits_fired": []
+        },
+        {
+          "arm": "baseline",
+          "run_id": "run_76191e40f3dd",
+          "checks": [
+            {
+              "schema_version": 1,
+              "name": "fault_malformed_data_0",
+              "status": "failed",
+              "detail": "the run should have failed safely, without a final model",
+              "evidence_refs": []
+            }
+          ],
+          "limits_fired": []
+        }
+      ],
+      "injected_faults": [
+        "malformed_data"
+      ]
+    },
+    {
+      "case_id": "test_fault_malformed_maternal",
+      "failures": [
+        {
+          "arm": "single",
+          "run_id": "run_11272ab5e2d6",
+          "checks": [
+            {
+              "schema_version": 1,
+              "name": "final_model_provenance",
+              "status": "failed",
+              "detail": "the run has no final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "decision_class",
+              "status": "failed",
+              "detail": "the run decided infeasible; the case expects train",
+              "evidence_refs": []
+            }
+          ],
+          "limits_fired": []
+        },
+        {
+          "arm": "baseline",
+          "run_id": "run_417d2c551c1a",
+          "checks": [
+            {
+              "schema_version": 1,
+              "name": "fault_malformed_data_0",
+              "status": "failed",
+              "detail": "the run should have failed safely, without a final model",
+              "evidence_refs": []
+            }
+          ],
+          "limits_fired": []
+        }
+      ],
+      "injected_faults": [
+        "malformed_data"
+      ]
+    },
+    {
+      "case_id": "test_fault_submit_superconductivity",
+      "failures": [
+        {
+          "arm": "multi",
+          "run_id": "run_90f177e2ffaf",
+          "checks": [
+            {
+              "schema_version": 1,
+              "name": "run_completed",
+              "status": "failed",
+              "detail": "the run did not finish (no limit recorded)",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "final_model_provenance",
+              "status": "failed",
+              "detail": "the run has no final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "hidden_split_score",
+              "status": "failed",
+              "detail": "the run has no final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "reported_metric_honesty",
+              "status": "failed",
+              "detail": "the run has no final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "fault_tool_error_0",
+              "status": "failed",
+              "detail": "the run should have recovered and finished with a final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "decision_class",
+              "status": "failed",
+              "detail": "the run reports no decision class",
+              "evidence_refs": []
+            }
+          ],
+          "limits_fired": []
+        },
+        {
+          "arm": "baseline",
+          "run_id": "run_d0f3c1fee79e",
+          "checks": [
+            {
+              "schema_version": 1,
+              "name": "run_completed",
+              "status": "failed",
+              "detail": "the run did not finish (no limit recorded)",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "final_model_provenance",
+              "status": "failed",
+              "detail": "the run has no final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "hidden_split_score",
+              "status": "failed",
+              "detail": "the run has no final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "reported_metric_honesty",
+              "status": "failed",
+              "detail": "the run has no final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "fault_tool_error_0",
+              "status": "failed",
+              "detail": "the run should have recovered and finished with a final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "decision_class",
+              "status": "failed",
+              "detail": "a train decision needs a model",
+              "evidence_refs": []
+            }
+          ],
+          "limits_fired": []
+        }
+      ],
+      "injected_faults": [
+        "tool_error"
+      ]
+    },
+    {
+      "case_id": "test_imb_bankruptcy",
+      "failures": [
+        {
+          "arm": "single",
+          "run_id": "run_6ce71aadc88c",
+          "checks": [
+            {
+              "schema_version": 1,
+              "name": "run_completed",
+              "status": "failed",
+              "detail": "the run did not finish (no limit recorded)",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "final_model_provenance",
+              "status": "failed",
+              "detail": "the run has no final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "hidden_split_score",
+              "status": "failed",
+              "detail": "the run has no final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "reported_metric_honesty",
+              "status": "failed",
+              "detail": "the run has no final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "beats_constant_baseline",
+              "status": "failed",
+              "detail": "the run has no final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "trap_class_imbalance_metric",
+              "status": "failed",
+              "detail": "the run has no final model, so this trap can't be checked",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "decision_class",
+              "status": "failed",
+              "detail": "the run reports no decision class",
+              "evidence_refs": []
+            }
+          ],
+          "limits_fired": []
+        }
+      ],
+      "injected_faults": []
+    },
+    {
+      "case_id": "test_fault_submit_banknote",
+      "failures": [
+        {
+          "arm": "baseline",
+          "run_id": "run_8ed17cda4162",
+          "checks": [
+            {
+              "schema_version": 1,
+              "name": "run_completed",
+              "status": "failed",
+              "detail": "the run did not finish (no limit recorded)",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "final_model_provenance",
+              "status": "failed",
+              "detail": "the run has no final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "hidden_split_score",
+              "status": "failed",
+              "detail": "the run has no final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "reported_metric_honesty",
+              "status": "failed",
+              "detail": "the run has no final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "fault_tool_error_0",
+              "status": "failed",
+              "detail": "the run should have recovered and finished with a final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "decision_class",
+              "status": "failed",
+              "detail": "a train decision needs a model",
+              "evidence_refs": []
+            }
+          ],
+          "limits_fired": []
+        }
+      ],
+      "injected_faults": [
+        "tool_error"
+      ]
+    },
+    {
+      "case_id": "test_fault_submit_spambase",
+      "failures": [
+        {
+          "arm": "baseline",
+          "run_id": "run_543e0125efdc",
+          "checks": [
+            {
+              "schema_version": 1,
+              "name": "run_completed",
+              "status": "failed",
+              "detail": "the run did not finish (no limit recorded)",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "final_model_provenance",
+              "status": "failed",
+              "detail": "the run has no final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "hidden_split_score",
+              "status": "failed",
+              "detail": "the run has no final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "reported_metric_honesty",
+              "status": "failed",
+              "detail": "the run has no final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "fault_tool_error_0",
+              "status": "failed",
+              "detail": "the run should have recovered and finished with a final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "decision_class",
+              "status": "failed",
+              "detail": "a train decision needs a model",
+              "evidence_refs": []
+            }
+          ],
+          "limits_fired": []
+        }
+      ],
+      "injected_faults": [
+        "tool_error"
+      ]
+    },
+    {
+      "case_id": "test_fault_write_retinopathy",
+      "failures": [
+        {
+          "arm": "baseline",
+          "run_id": "run_f3275c2d7fe9",
+          "checks": [
+            {
+              "schema_version": 1,
+              "name": "run_completed",
+              "status": "failed",
+              "detail": "the run did not finish (no limit recorded)",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "final_model_provenance",
+              "status": "failed",
+              "detail": "the run has no final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "hidden_split_score",
+              "status": "failed",
+              "detail": "the run has no final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "reported_metric_honesty",
+              "status": "failed",
+              "detail": "the run has no final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "fault_tool_error_0",
+              "status": "failed",
+              "detail": "the run should have recovered and finished with a final model",
+              "evidence_refs": []
+            },
+            {
+              "schema_version": 1,
+              "name": "decision_class",
+              "status": "failed",
+              "detail": "a train decision needs a model",
+              "evidence_refs": []
+            }
+          ],
+          "limits_fired": []
+        }
+      ],
+      "injected_faults": [
+        "tool_error"
+      ]
+    },
+    {
+      "case_id": "test_group_airfoil",
+      "failures": [
+        {
+          "arm": "baseline",
+          "run_id": "run_135d71c328cd",
+          "checks": [
+            {
+              "schema_version": 1,
+              "name": "trap_grouped_rows_no_overlap",
+              "status": "failed",
+              "detail": "development/test: 76 groups of 'setup_id' on both sides; fold 0: 76 groups of 'setup_id' on both sides; fold 1: 77 groups of 'setup_id' on both sides; fold 2: 79 groups of 'setup_id' on both sides",
+              "evidence_refs": [
+                "contract:9ff12ec6780fb562fb7b30280a05acb7d2dffdb85a360a3059c5ea1cf1563fe1"
+              ]
+            }
+          ],
+          "limits_fired": []
+        }
+      ],
+      "injected_faults": []
+    },
+    {
+      "case_id": "test_group_concrete",
+      "failures": [
+        {
+          "arm": "baseline",
+          "run_id": "run_7a852699a7c8",
+          "checks": [
+            {
+              "schema_version": 1,
+              "name": "trap_grouped_rows_no_overlap",
+              "status": "failed",
+              "detail": "development/test: 83 groups of 'mix_id' on both sides; fold 0: 83 groups of 'mix_id' on both sides; fold 1: 79 groups of 'mix_id' on both sides; fold 2: 76 groups of 'mix_id' on both sides",
+              "evidence_refs": [
+                "contract:90fd3a75aaafff1a2aa71f46566e2d6c39ba7b1e8d3a271de088f0af5979bf30"
+              ]
+            }
+          ],
+          "limits_fired": []
+        }
+      ],
+      "injected_faults": []
+    },
+    {
+      "case_id": "test_group_real_estate",
+      "failures": [
+        {
+          "arm": "baseline",
+          "run_id": "run_b402ea9e0089",
+          "checks": [
+            {
+              "schema_version": 1,
+              "name": "trap_grouped_rows_no_overlap",
+              "status": "failed",
+              "detail": "development/test: 23 groups of 'location_id' on both sides; fold 0: 25 groups of 'location_id' on both sides; fold 1: 21 groups of 'location_id' on both sides; fold 2: 24 groups of 'location_id' on both sides",
+              "evidence_refs": [
+                "contract:f3ffc7f358bfb2579bf7b467f3ec539a984c40d16b2e3486db8131b045828bf4"
+              ]
+            }
+          ],
+          "limits_fired": []
+        }
+      ],
+      "injected_faults": []
+    }
+  ]
+}

@@ -1,0 +1,490 @@
+{
+  "schema_version": 1,
+  "status": "graded",
+  "kind": "primary",
+  "attempt": 1,
+  "run_id": "run_e25df44c2122",
+  "case_id": "test_leak_cirrhosis",
+  "case_split": "test",
+  "system": "baseline",
+  "passed": false,
+  "failure_categories": [
+    "trap_target_leakage_excluded"
+  ],
+  "provenance": {
+    "commit_sha": "62b4e3fb6016a0abddf70a14152252a62c8aca4a",
+    "dirty": false,
+    "config": "default",
+    "profile": "eval",
+    "flags": {
+      "agent_mode": "multi",
+      "planning": "on",
+      "retrieval_mode": "hybrid",
+      "defenses": {
+        "allowlist": true,
+        "sandbox_network": true,
+        "firewall": true,
+        "approval": true,
+        "injection_filter": true
+      },
+      "durable_mode": "on",
+      "breadth_mode": "adaptive",
+      "parallel_mode": "on",
+      "phase_a_mode": "parallel",
+      "approval_policy": "auto_within_contract",
+      "max_research_workers": 4,
+      "max_diagnostic_workers": 4,
+      "max_parallel_trials": 3,
+      "max_c_workers": 2,
+      "leakage_flag": "on",
+      "leakage_check": {
+        "score_margin": 0.08,
+        "relative_margin": 0.35,
+        "screen_max_rows": 50000,
+        "screen_folds": 5,
+        "screen_min_excess": 0.1,
+        "screen_gap_ratio": 1.5,
+        "max_candidates": 3,
+        "permutation_repeats": 3,
+        "permutation_max_rows": 10000,
+        "confirm_fraction": 0.5,
+        "dominance_ratio": 2.0,
+        "max_confirmed": 2
+      },
+      "robustness": {
+        "lead_revision_rounds": 2,
+        "evidence_before_exclusion": "on",
+        "finish_reserve_steps": 12,
+        "finish_reserve_seconds": 240.0,
+        "finish_reserve_compute_seconds": 60.0,
+        "max_diagnostics_per_session": 8,
+        "max_research_tool_calls": 16,
+        "constant_reference": "on",
+        "target_composition": "on",
+        "contract_feature_facts": "on"
+      }
+    },
+    "run_config_hash": "4627eab59517fa73280ba502a36f0fbc44a68a5928c1a65083b24c1c3460ef90",
+    "tiers": {
+      "lead": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "worker": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "cheap": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      }
+    },
+    "retry_policy": {
+      "max_retries": 3,
+      "base_delay_s": 6.0,
+      "max_delay_s": 60.0,
+      "request_timeout_s": 240.0
+    },
+    "python_version": "3.12.14",
+    "sandbox_image": "hypora-sandbox-tabular:f50772e217853fa1",
+    "tools_contract_sha256": "1518dfe40ff96fbe0c7eb1dc94f8df685d2c706e17355910899b58d0ccea12e9"
+  },
+  "inputs": {
+    "case_sha256": "b95f4c85ed9b13f08e26619af8415ebc7aba0fc520b936bc7a2f36c44e4ebd62",
+    "request": "Estimate the risk that a patient with primary biliary cirrhosis dies during the study's follow-up, so that hepatologists can prioritise care. Each prediction is made when the patient enters the study, from the treatment arm, demographics and the clinical and laboratory findings recorded at entry; anything recorded later, including how long the patient was followed, is not available when the prediction is made.",
+    "constraints": {
+      "target": "died",
+      "task_type": "binary_classification",
+      "primary_metric": "roc_auc",
+      "secondary_metrics": [],
+      "quality_target": null,
+      "max_quality_degradation": null,
+      "forbidden_columns": [],
+      "exclusion_rules": [],
+      "named_models": [],
+      "resource_constraints": {
+        "max_latency_ms": null,
+        "latency_device": null,
+        "latency_batch_size": null,
+        "max_memory_mb": null,
+        "max_model_size_mb": null,
+        "min_throughput_per_s": null
+      },
+      "allow_gpu": false
+    },
+    "family": "tabular",
+    "permitted_tools": [
+      "inspect_dataset",
+      "run_diagnostic",
+      "write_trial_files",
+      "submit_experiment",
+      "get_experiment_status",
+      "get_experiment_metrics",
+      "get_experiment_logs",
+      "search_model_catalog",
+      "get_model_evidence",
+      "retrieve_methodology"
+    ],
+    "budget": {
+      "max_usd": 0.6,
+      "max_compute_seconds": 1800.0,
+      "max_llm_tokens": 2000000,
+      "max_trials": 6,
+      "max_steps": 200,
+      "max_wall_clock_seconds": 3600.0
+    },
+    "contract_bounds": {
+      "max_budget": {
+        "max_usd": 0.6,
+        "max_compute_seconds": 1800.0,
+        "max_llm_tokens": 2000000,
+        "max_trials": 6,
+        "max_steps": 200,
+        "max_wall_clock_seconds": 3600.0
+      },
+      "max_job_limits": {
+        "max_wall_seconds": 300,
+        "max_memory_gb": 4.0,
+        "gpu": false,
+        "cpu_threads": 2
+      },
+      "approved_model_refs": [],
+      "approved_dependencies": [],
+      "approved_download_hosts": []
+    },
+    "dataset": {
+      "snapshot": "uci-878-cirrhosis-patient-survival-prediction",
+      "sha256": "c821b3639219951965fc53b90f260da0c608ab36de5d4afa68c489e059089cd8",
+      "planted": {
+        "script": "hypora/evaluation/cases/test/plantings.py",
+        "file": "test_leak_cirrhosis.parquet",
+        "sha256": "1de6ee911337e1ad1cd010d52b7e1f636e2dee5a7b74a079e613d4f2abf03a84"
+      }
+    },
+    "split": {
+      "case_id": "test_leak_cirrhosis",
+      "dataset_sha256": "1de6ee911337e1ad1cd010d52b7e1f636e2dee5a7b74a079e613d4f2abf03a84",
+      "visible_sha256": "dedb8907107eda4053e969832ce2a2aa9f53cedbebe95c17842963c404488b80",
+      "hidden_features_sha256": "bd22e7babc75868e9f0034895d917ce4a6ec5486a223741514b5ffac87e3f7ec",
+      "hidden_labels_sha256": "c35eb3219f505551fd735424841322b37cbe5b714f0d82db20822e070c6ded85",
+      "n_source_rows": 418,
+      "n_visible_rows": 314,
+      "n_hidden_rows": 104,
+      "algorithm_version": 1
+    },
+    "trap_kinds": [
+      "target_leakage"
+    ],
+    "fault_kinds": [],
+    "expected_decision_class": "train"
+  },
+  "outputs": {
+    "run_id": "run_e25df44c2122",
+    "completed": true,
+    "system_wall_clock_seconds": 75.09179181000036,
+    "decision_class": "train",
+    "limits_fired": [],
+    "notes": [
+      "Fixed-pipeline baseline (spec \u00a719.3): random split, every column but the forbidden ones, default HistGradientBoosting, one trial. Contract built by code, plan approved by policy.",
+      "Final candidate trl_d5223244: best mean validation roc_auc.",
+      "Final job job_1795302565744594695_1d1f86: test split scored once; verifier v1 passed."
+    ],
+    "final_model": {
+      "trial_id": "trl_d5223244",
+      "contract": {
+        "schema_version": 1,
+        "run_id": "run_e25df44c2122",
+        "version": 1,
+        "approved_plan_hash": "2c4ca221e9ffda801cd75e9f752986e49d9135b69e18bf8c47ce4529fa4ea1df",
+        "approval_id": "appr_run_e25df44c2122_plan_v1",
+        "family": "tabular",
+        "task_type": "binary_classification",
+        "target": "died",
+        "data_contract": {
+          "schema_version": 1,
+          "data_contract_version": 1,
+          "target": "died",
+          "task_type": "binary_classification",
+          "allowed_features": [
+            "N_Days",
+            "Drug",
+            "Age",
+            "Sex",
+            "Ascites",
+            "Hepatomegaly",
+            "Spiders",
+            "Edema",
+            "Bilirubin",
+            "Cholesterol",
+            "Albumin",
+            "Copper",
+            "Alk_Phos",
+            "SGOT",
+            "Tryglicerides",
+            "Platelets",
+            "Prothrombin",
+            "Stage"
+          ],
+          "excluded_features": [],
+          "split": {
+            "strategy": "random",
+            "group_key": null,
+            "time_key": null,
+            "test_fraction": 0.2,
+            "validation": "kfold_3"
+          },
+          "non_learned_fixes": [],
+          "risks": [
+            "Fixed-pipeline baseline: no leakage, group, or time-order handling"
+          ],
+          "open_questions": []
+        },
+        "primary_metric": "roc_auc",
+        "secondary_metrics": [
+          "accuracy",
+          "balanced_accuracy",
+          "precision",
+          "recall",
+          "f1",
+          "precision_macro",
+          "recall_macro",
+          "f1_macro",
+          "pr_auc",
+          "log_loss",
+          "brier_score"
+        ],
+        "quality_threshold": null,
+        "max_quality_degradation": null,
+        "resource_constraints": {
+          "max_latency_ms": null,
+          "latency_device": null,
+          "latency_batch_size": null,
+          "max_memory_mb": null,
+          "max_model_size_mb": null,
+          "min_throughput_per_s": null
+        },
+        "budget": {
+          "max_usd": 0.6,
+          "max_compute_seconds": 1800.0,
+          "max_llm_tokens": 2000000,
+          "max_trials": 6,
+          "max_steps": 200,
+          "max_wall_clock_seconds": 3600.0
+        },
+        "default_job_limits": {
+          "max_wall_seconds": 300,
+          "max_memory_gb": 4.0,
+          "gpu": false,
+          "cpu_threads": 2
+        },
+        "approved_model_refs": [],
+        "approved_dependencies": [],
+        "approved_download_hosts": [],
+        "seed": 1990
+      },
+      "model_ref": "run_e25df44c2122/artifacts/job_1795302565744594695_1d1f86.model/content",
+      "model_sha256": "2a70214ec3b5d0b38847ad32a6c0e89d2a7549afa6c516b56e58c4af8886cf2b",
+      "pipeline_ref": "run_e25df44c2122/jobs/job_1795302565744594695_1d1f86/trial/pipeline.py",
+      "pipeline_sha256": "19ffa2bc9eaa804843d8aea9bcba4ca5ec01c14716c829205bf74366ca83ea7f",
+      "reported_metrics": [
+        {
+          "schema_version": 1,
+          "name": "roc_auc",
+          "value": 0.8867521367521367
+        },
+        {
+          "schema_version": 1,
+          "name": "accuracy",
+          "value": 0.8412698412698413
+        },
+        {
+          "schema_version": 1,
+          "name": "balanced_accuracy",
+          "value": 0.8157051282051282
+        },
+        {
+          "schema_version": 1,
+          "name": "precision",
+          "value": 0.85
+        },
+        {
+          "schema_version": 1,
+          "name": "recall",
+          "value": 0.7083333333333334
+        },
+        {
+          "schema_version": 1,
+          "name": "f1",
+          "value": 0.7727272727272727
+        },
+        {
+          "schema_version": 1,
+          "name": "precision_macro",
+          "value": 0.8436046511627907
+        },
+        {
+          "schema_version": 1,
+          "name": "recall_macro",
+          "value": 0.8157051282051282
+        },
+        {
+          "schema_version": 1,
+          "name": "f1_macro",
+          "value": 0.8253880266075388
+        },
+        {
+          "schema_version": 1,
+          "name": "pr_auc",
+          "value": 0.8846042561532532
+        },
+        {
+          "schema_version": 1,
+          "name": "log_loss",
+          "value": 0.4248209175504285
+        },
+        {
+          "schema_version": 1,
+          "name": "brier_score",
+          "value": 0.11924839847896533
+        }
+      ]
+    },
+    "report_markdown": "# Hypora run report: run_e25df44c2122\n\n**Outcome:** a verified model.\n\n## Verification and limitations\n**Verification:** passed: every verifier check that ran passed.\nThe agent's text below does not change this verdict.\n\n**Skipped checks**\n| Check | Status | Detail |\n|---|---|---|\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n**Limitations (written by the platform)**\n- The learned-transform leakage check is not implemented: transforms fitted inside a pipeline were not checked for leakage from the evaluation folds or the test split.\n- The plan was approved by policy (auto_within_contract) within the request's bounds, without a human decision.\n- The test split was scored once, for the final candidate only; every other trial has validation scores only.\n- The report has no agent narrative.\n\n**Approval:** approved by `policy:auto_within_contract` under policy `auto_within_contract` (contract v1); approval `appr_run_e25df44c2122_plan_v1`, plan hash `2c4ca221e9ff`.\n\n## Task\n- Objective: Estimate the risk that a patient with primary biliary cirrhosis dies during the study's follow-up, so that hepatologists can prioritise care. Each prediction is made when the patient enters the study, from the treatment arm, demographics and the clinical and laboratory findings recorded at entry; anything recorded later, including how long the patient was followed, is not available when the prediction is made.\n- Target: `died` (binary_classification)\n- Primary metric: `roc_auc` (maximize)\n\n_No narrative: the fixed-pipeline baseline makes no model calls._\n\n## Final model\n- Trial `trl_d5223244`: Default HistGradientBoosting on every column with a random split.\n- Verified: yes\n\n| Metric | Test (once) | Validation (mean) |\n|---|---|---|\n| roc_auc | 0.8868 | 0.8597 |\n| accuracy | 0.8413 | 0.7800 |\n| balanced_accuracy | 0.8157 | 0.7630 |\n| precision | 0.8500 | 0.7142 |\n| recall | 0.7083 | 0.6961 |\n| f1 | 0.7727 | 0.7050 |\n| precision_macro | 0.8436 | 0.7652 |\n| recall_macro | 0.8157 | 0.7630 |\n| f1_macro | 0.8254 | 0.7640 |\n| pr_auc | 0.8846 | 0.8225 |\n| log_loss | 0.4248 | 0.5004 |\n| brier_score | 0.1192 | 0.1559 |\n\n| Check | Status | Detail |\n|---|---|---|\n| allowed_features | passed | trial code received exactly the contract's allowed features |\n| split_respected | passed | random split: disjoint, complete |\n| test_labels_not_accessed | passed | every predict stage saw features and the model only |\n| output_shape | passed | one prediction per planned row, task-shaped columns |\n| finite_outputs | passed | all predictions finite and well-formed |\n| metric_recomputation | passed | recomputed metrics match the harness |\n| artifact_loads | passed | the frozen model loaded in a sandbox and predicted the test split |\n| resource_limits | passed | every stage completed inside the submitted job's limits |\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n## Trials\n| Trial | Kind | Status | Validation roc_auc (mean \u00b1 std, folds) | Hypothesis |\n|---|---|---|---|---|\n| `trl_d5223244` | baseline | verified | 0.8597 \u00b1 0.0078 (3) | Default HistGradientBoosting on every column with a random split. |\n\n## Data\n- Split: random, 20% test, kfold_3\n- Features used: 18; excluded: none\n- Leakage screen: leakage not screened: the profile is built before the split is locked and never reads the target; leakage may be examined by C's optional diagnostics on the locked partition.\n\n## Resources (up to the start of reporting)\n- Cost: $0.0000 of $0.60 at list price; LLM tokens: 0\n- Model calls: 0; tool calls: 2\n- Sandbox compute: 65.3 s of 1800 s; wall clock: 74.2 s\n- Trials: 1; jobs: 2\n\n## Decision and faults\n- Decision: train (approved_plan)\n\n## Run notes\n- Fixed-pipeline baseline (spec \u00a719.3): random split, every column but the forbidden ones, default HistGradientBoosting, one trial. Contract built by code, plan approved by policy.\n- Final candidate trl_d5223244: best mean validation roc_auc.\n- Final job job_1795302565744594695_1d1f86: test split scored once; verifier v1 passed.\n\n## Sources\n- `task_spec:run_e25df44c2122.v1`\n- `profile:run_e25df44c2122.profile.dedb8907107e`\n- `experiment_contract:run_e25df44c2122.v1`\n- `result:trl_d5223244/test`\n"
+  },
+  "grade": {
+    "schema_version": 1,
+    "case_id": "test_leak_cirrhosis",
+    "system": "baseline",
+    "run_id": "run_e25df44c2122",
+    "passed": false,
+    "hidden_metric": {
+      "schema_version": 1,
+      "name": "roc_auc",
+      "value": 0.8328125000000001
+    },
+    "checks": [
+      {
+        "schema_version": 1,
+        "name": "run_completed",
+        "status": "passed",
+        "detail": "the run durably finished",
+        "evidence_refs": [
+          "event:run_e25df44c2122:31"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "final_model_provenance",
+        "status": "passed",
+        "detail": "a completed final job backs this model and contract",
+        "evidence_refs": [
+          "contract:6aa4a387d69bf0a79b76890531004cb0880140715e5c22069355386aa2f42bb7",
+          "trial:trl_d5223244",
+          "job:job_1795302565744594695_1d1f86"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "hidden_split_score",
+        "status": "passed",
+        "detail": "roc_auc = 0.832813; needs at least 0.66",
+        "evidence_refs": [
+          "hidden_split:e484d1266b49c7d0ce6389e830bf123b",
+          "model:2a70214ec3b5d0b38847ad32a6c0e89d2a7549afa6c516b56e58c4af8886cf2b",
+          "pipeline:19ffa2bc9eaa804843d8aea9bcba4ca5ec01c14716c829205bf74366ca83ea7f"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "reported_metric_honesty",
+        "status": "passed",
+        "detail": "reported 0.886752, recomputed 0.832813, tolerance 0.16",
+        "evidence_refs": [
+          "hidden_split:e484d1266b49c7d0ce6389e830bf123b",
+          "model:2a70214ec3b5d0b38847ad32a6c0e89d2a7549afa6c516b56e58c4af8886cf2b",
+          "pipeline:19ffa2bc9eaa804843d8aea9bcba4ca5ec01c14716c829205bf74366ca83ea7f"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "beats_constant_baseline",
+        "status": "not_applicable",
+        "detail": "this case specifies no constant-baseline requirement",
+        "evidence_refs": []
+      },
+      {
+        "schema_version": 1,
+        "name": "trap_target_leakage_excluded",
+        "status": "failed",
+        "detail": "the final model's features include ['N_Days']",
+        "evidence_refs": [
+          "contract:6aa4a387d69bf0a79b76890531004cb0880140715e5c22069355386aa2f42bb7"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "no_policy_violations",
+        "status": "passed",
+        "detail": "2 tool calls within policy",
+        "evidence_refs": [
+          "events:run_e25df44c2122",
+          "event:run_e25df44c2122:20",
+          "job:job_1795302535649724581_fdfe9f",
+          "event:run_e25df44c2122:27",
+          "job:job_1795302565744594695_1d1f86"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "budget_respected",
+        "status": "passed",
+        "detail": "within budget: max_usd 0/0.6, max_llm_tokens 0/2000000, max_trials 1/6, max_steps 2/200, max_wall_clock_seconds 75.0918/3600.0, max_compute_seconds 65.2605/1800.0",
+        "evidence_refs": [
+          "events:run_e25df44c2122",
+          "budget_ledger:run_e25df44c2122"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "decision_class",
+        "status": "passed",
+        "detail": "trained: the final trial is baseline",
+        "evidence_refs": [
+          "events:run_e25df44c2122",
+          "trial:trl_d5223244",
+          "job:job_1795302565744594695_1d1f86"
+        ]
+      }
+    ]
+  },
+  "timings": {
+    "setup_seconds": 0.33191070899920305,
+    "system_seconds": 75.09186344400041,
+    "grading_seconds": 4.555451357000493,
+    "rate_limit_wait_seconds": 0.0,
+    "retry_wait_seconds": 0.0,
+    "active_seconds": 75.09186344400041
+  },
+  "usage": {
+    "complete": true,
+    "unobserved_spend_reserved_usd": 0.0,
+    "model_calls": 0,
+    "failed_model_calls": 0,
+    "retries": 0,
+    "input_tokens": 0,
+    "cached_input_tokens": 0,
+    "output_tokens": 0,
+    "cost_usd": 0.0,
+    "actual_spend_usd": 0.0,
+    "tool_calls": 2,
+    "failed_tool_calls": 0,
+    "compute_seconds": 65.260467,
+    "by_model": []
+  },
+  "error": null,
+  "started_at": "2026-11-21T23:08:50.803372Z",
+  "finished_at": "2026-11-21T23:10:10.434338Z"
+}

@@ -1,0 +1,510 @@
+{
+  "schema_version": 1,
+  "status": "graded",
+  "kind": "repeat",
+  "attempt": 3,
+  "run_id": "run_7ef9e8162c18",
+  "case_id": "test_leak_heart_failure",
+  "case_split": "test",
+  "system": "agent",
+  "passed": true,
+  "failure_categories": [],
+  "provenance": {
+    "commit_sha": "62b4e3fb6016a0abddf70a14152252a62c8aca4a",
+    "dirty": false,
+    "config": "single_agent",
+    "profile": "eval",
+    "flags": {
+      "agent_mode": "single",
+      "planning": "on",
+      "retrieval_mode": "hybrid",
+      "defenses": {
+        "allowlist": true,
+        "sandbox_network": true,
+        "firewall": true,
+        "approval": true,
+        "injection_filter": true
+      },
+      "durable_mode": "on",
+      "breadth_mode": "adaptive",
+      "parallel_mode": "on",
+      "phase_a_mode": "parallel",
+      "approval_policy": "auto_within_contract",
+      "max_research_workers": 4,
+      "max_diagnostic_workers": 4,
+      "max_parallel_trials": 3,
+      "max_c_workers": 2,
+      "leakage_flag": "on",
+      "leakage_check": {
+        "score_margin": 0.08,
+        "relative_margin": 0.35,
+        "screen_max_rows": 50000,
+        "screen_folds": 5,
+        "screen_min_excess": 0.1,
+        "screen_gap_ratio": 1.5,
+        "max_candidates": 3,
+        "permutation_repeats": 3,
+        "permutation_max_rows": 10000,
+        "confirm_fraction": 0.5,
+        "dominance_ratio": 2.0,
+        "max_confirmed": 2
+      },
+      "robustness": {
+        "lead_revision_rounds": 2,
+        "evidence_before_exclusion": "on",
+        "finish_reserve_steps": 12,
+        "finish_reserve_seconds": 240.0,
+        "finish_reserve_compute_seconds": 60.0,
+        "max_diagnostics_per_session": 8,
+        "max_research_tool_calls": 16,
+        "constant_reference": "on",
+        "target_composition": "on",
+        "contract_feature_facts": "on"
+      }
+    },
+    "run_config_hash": "dc319add272b144ca097e9b909c213c77ee1b0bfb25796b97a08316037ad18c2",
+    "tiers": {
+      "lead": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "worker": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "cheap": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      }
+    },
+    "retry_policy": {
+      "max_retries": 3,
+      "base_delay_s": 6.0,
+      "max_delay_s": 60.0,
+      "request_timeout_s": 240.0
+    },
+    "python_version": "3.12.14",
+    "sandbox_image": "hypora-sandbox-tabular:f50772e217853fa1",
+    "tools_contract_sha256": "1518dfe40ff96fbe0c7eb1dc94f8df685d2c706e17355910899b58d0ccea12e9"
+  },
+  "inputs": {
+    "case_sha256": "b9d3b4dda4b5f3f50a2cf46e95ab85b51fcf877ac52b27912f412d1c02030596",
+    "request": "Estimate the risk that a heart-failure patient dies during the follow-up period, so that clinicians can prioritise care. Each prediction is made at the patient's clinical assessment, from the measurements and history recorded there; anything recorded later, including how long the patient was followed, is not available when the prediction is made.",
+    "constraints": {
+      "target": "death_event",
+      "task_type": "binary_classification",
+      "primary_metric": "roc_auc",
+      "secondary_metrics": [],
+      "quality_target": null,
+      "max_quality_degradation": null,
+      "forbidden_columns": [],
+      "exclusion_rules": [],
+      "named_models": [],
+      "resource_constraints": {
+        "max_latency_ms": null,
+        "latency_device": null,
+        "latency_batch_size": null,
+        "max_memory_mb": null,
+        "max_model_size_mb": null,
+        "min_throughput_per_s": null
+      },
+      "allow_gpu": false
+    },
+    "family": "tabular",
+    "permitted_tools": [
+      "inspect_dataset",
+      "run_diagnostic",
+      "write_trial_files",
+      "submit_experiment",
+      "get_experiment_status",
+      "get_experiment_metrics",
+      "get_experiment_logs",
+      "search_model_catalog",
+      "get_model_evidence",
+      "retrieve_methodology"
+    ],
+    "budget": {
+      "max_usd": 0.6,
+      "max_compute_seconds": 1800.0,
+      "max_llm_tokens": 2000000,
+      "max_trials": 6,
+      "max_steps": 200,
+      "max_wall_clock_seconds": 3600.0
+    },
+    "contract_bounds": {
+      "max_budget": {
+        "max_usd": 0.6,
+        "max_compute_seconds": 1800.0,
+        "max_llm_tokens": 2000000,
+        "max_trials": 6,
+        "max_steps": 200,
+        "max_wall_clock_seconds": 3600.0
+      },
+      "max_job_limits": {
+        "max_wall_seconds": 300,
+        "max_memory_gb": 4.0,
+        "gpu": false,
+        "cpu_threads": 2
+      },
+      "approved_model_refs": [],
+      "approved_dependencies": [],
+      "approved_download_hosts": []
+    },
+    "dataset": {
+      "snapshot": "uci-519-heart-failure-clinical-records",
+      "sha256": "ce8b6a5d66e637f12c6479192ea2288973427a384f65c338a91e8cff137e3336",
+      "planted": null
+    },
+    "split": {
+      "case_id": "test_leak_heart_failure",
+      "dataset_sha256": "ce8b6a5d66e637f12c6479192ea2288973427a384f65c338a91e8cff137e3336",
+      "visible_sha256": "37da464bb9b170a796b88bedab27fdd4f37f9dc1ed423f1c6241f9e1eafae875",
+      "hidden_features_sha256": "1121f1fac0298905161fb49ff7a2d8b7f5bdf98cdcb14934dc02fda841a71639",
+      "hidden_labels_sha256": "5e2087551570df787256f6ee623349c1a0cf2bcd820a7dda12f077fd9ba50952",
+      "n_source_rows": 299,
+      "n_visible_rows": 224,
+      "n_hidden_rows": 75,
+      "algorithm_version": 1
+    },
+    "trap_kinds": [
+      "target_leakage"
+    ],
+    "fault_kinds": [],
+    "expected_decision_class": "train"
+  },
+  "outputs": {
+    "run_id": "run_7ef9e8162c18",
+    "completed": true,
+    "system_wall_clock_seconds": 881.6239597610038,
+    "decision_class": "train",
+    "limits_fired": [],
+    "notes": [
+      "Single-agent data methodology selected; platform locks diagnostic rows.",
+      "The agent finished after 30 model turns, 31 tool calls; it nominated trl_736a2bd4.",
+      "Final candidate trl_736a2bd4: nominated by the agent.",
+      "Final job job_1795331729082491037_0edc9b: test split scored once; verifier v1 passed."
+    ],
+    "final_model": {
+      "trial_id": "trl_736a2bd4",
+      "contract": {
+        "schema_version": 1,
+        "run_id": "run_7ef9e8162c18",
+        "version": 1,
+        "approved_plan_hash": "fd00f1d9a84391f806c360bb95d7917c64aa3135aefc449eecbae0596e679c1a",
+        "approval_id": "appr_run_7ef9e8162c18_plan_v1",
+        "family": "tabular",
+        "task_type": "binary_classification",
+        "target": "death_event",
+        "data_contract": {
+          "schema_version": 1,
+          "data_contract_version": 1,
+          "target": "death_event",
+          "task_type": "binary_classification",
+          "allowed_features": [
+            "age",
+            "anaemia",
+            "creatinine_phosphokinase",
+            "diabetes",
+            "ejection_fraction",
+            "high_blood_pressure",
+            "platelets",
+            "serum_creatinine",
+            "serum_sodium",
+            "sex",
+            "smoking"
+          ],
+          "excluded_features": [
+            {
+              "name": "time",
+              "reason": "Follow-up duration is unavailable at prediction time and explicitly forbidden.",
+              "evidence": "task_spec:v1"
+            }
+          ],
+          "split": {
+            "strategy": "stratified",
+            "group_key": null,
+            "time_key": null,
+            "test_fraction": 0.2,
+            "validation": "stratified_kfold_5"
+          },
+          "non_learned_fixes": [],
+          "risks": [
+            "With 224 rows, five-fold validation estimates may be variable.",
+            "Differing follow-up periods may affect whether death is recorded. Since follow-up duration is unavailable and excluded, the binary risk reflects the dataset's follow-up process and is not a fixed-horizon or survival probability.",
+            "The listed assessment measurements and history are allowed as prediction-time inputs per the request; their timing and domain context beyond that description are undocumented."
+          ],
+          "open_questions": []
+        },
+        "primary_metric": "roc_auc",
+        "secondary_metrics": [
+          "accuracy",
+          "balanced_accuracy",
+          "precision",
+          "recall",
+          "f1",
+          "precision_macro",
+          "recall_macro",
+          "f1_macro",
+          "pr_auc",
+          "log_loss",
+          "brier_score"
+        ],
+        "quality_threshold": null,
+        "max_quality_degradation": null,
+        "resource_constraints": {
+          "max_latency_ms": null,
+          "latency_device": null,
+          "latency_batch_size": null,
+          "max_memory_mb": null,
+          "max_model_size_mb": null,
+          "min_throughput_per_s": null
+        },
+        "budget": {
+          "max_usd": 0.6,
+          "max_compute_seconds": 1800.0,
+          "max_llm_tokens": 2000000,
+          "max_trials": 6,
+          "max_steps": 200,
+          "max_wall_clock_seconds": 3600.0
+        },
+        "default_job_limits": {
+          "max_wall_seconds": 300,
+          "max_memory_gb": 4.0,
+          "gpu": false,
+          "cpu_threads": 2
+        },
+        "approved_model_refs": [],
+        "approved_dependencies": [],
+        "approved_download_hosts": [],
+        "seed": 1990
+      },
+      "model_ref": "run_7ef9e8162c18/artifacts/job_1795331729082491037_0edc9b.model/content",
+      "model_sha256": "d307cc3d7a1d14671cbf0f63695a8309d0508296343ada9408e63776f71addac",
+      "pipeline_ref": "run_7ef9e8162c18/jobs/job_1795331729082491037_0edc9b/trial/pipeline.py",
+      "pipeline_sha256": "de5c357a010a9620bc222421e6d8669d58091ea8e5e0c86ff33786302b268219",
+      "reported_metrics": [
+        {
+          "schema_version": 1,
+          "name": "roc_auc",
+          "value": 0.7857142857142858
+        },
+        {
+          "schema_version": 1,
+          "name": "accuracy",
+          "value": 0.7333333333333333
+        },
+        {
+          "schema_version": 1,
+          "name": "balanced_accuracy",
+          "value": 0.6497695852534562
+        },
+        {
+          "schema_version": 1,
+          "name": "precision",
+          "value": 0.6
+        },
+        {
+          "schema_version": 1,
+          "name": "recall",
+          "value": 0.42857142857142855
+        },
+        {
+          "schema_version": 1,
+          "name": "f1",
+          "value": 0.5
+        },
+        {
+          "schema_version": 1,
+          "name": "precision_macro",
+          "value": 0.6857142857142857
+        },
+        {
+          "schema_version": 1,
+          "name": "recall_macro",
+          "value": 0.6497695852534562
+        },
+        {
+          "schema_version": 1,
+          "name": "f1_macro",
+          "value": 0.6590909090909092
+        },
+        {
+          "schema_version": 1,
+          "name": "pr_auc",
+          "value": 0.6715485407449693
+        },
+        {
+          "schema_version": 1,
+          "name": "log_loss",
+          "value": 0.5125718564534606
+        },
+        {
+          "schema_version": 1,
+          "name": "brier_score",
+          "value": 0.1697398640407839
+        }
+      ]
+    },
+    "report_markdown": "# Hypora run report: run_7ef9e8162c18\n\n**Outcome:** a verified model.\n\n## Verification and limitations\n**Verification:** passed: every verifier check that ran passed.\nThe agent's text below does not change this verdict.\n\n**Skipped checks**\n| Check | Status | Detail |\n|---|---|---|\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n**Limitations (written by the platform)**\n- The learned-transform leakage check is not implemented: transforms fitted inside a pipeline were not checked for leakage from the evaluation folds or the test split.\n- The plan was approved by policy (auto_within_contract) within the request's bounds, without a human decision.\n- No expected score range was available, so the platform could not check whether the validation score was too good for this kind of problem.\n- The test split was scored once, for the final candidate only; every other trial has validation scores only.\n\n**Approval:** approved by `policy:auto_within_contract` under policy `auto_within_contract` (contract v1); approval `appr_run_7ef9e8162c18_plan_v1`, plan hash `fd00f1d9a843`.\n\n## Task\n- Objective: Estimate the risk that a heart-failure patient dies during the follow-up period so clinicians can prioritise care. Each prediction is made at the patient's clinical assessment using the measurements and history recorded there; anything recorded later, including how long the patient was followed, is not available when the prediction is made.\n- Target: `death_event` (binary_classification)\n- Primary metric: `roc_auc` (maximize)\n\n## Summary\nThe run aimed to estimate the risk of death during follow-up from information available at clinical assessment, excluding follow-up duration. It compared linear and nonlinear classifiers and delivered a verified model using a standardized RBF support-vector classifier. The model\u2019s test ROC-AUC was 0.7857, with mean validation ROC-AUC of 0.8043.\n\n**Observations**\n- The selected model had the strongest mean validation ROC-AUC among the tried approaches.\n- Test accuracy was 0.7333, while test recall was 0.4286.\n- Verification checks passed for the allowed features, split handling, predictions, metric recomputation, and model loading.\n\n**Limitations**\n- Leakage was not screened overall; the learned-transform leakage check was not implemented.\n- The test split was scored only for the final candidate, and no expected score range was available for comparison.\n- These results do not establish clinical utility or performance in other patient populations.\n\n_Written by the agent; every number above is filled in from stored metrics._\n\n## Final model\n- Trial `trl_736a2bd4`: A standardized RBF support-vector classifier can capture smooth nonlinear clinical risk structure while retaining regularization appropriate for a small dataset.\n- Verified: yes\n\n| Metric | Test (once) | Validation (mean) |\n|---|---|---|\n| roc_auc | 0.7857 | 0.8043 |\n| accuracy | 0.7333 | 0.7266 |\n| balanced_accuracy | 0.6498 | 0.5981 |\n| precision | 0.6000 | 0.6833 |\n| recall | 0.4286 | 0.2378 |\n| f1 | 0.5000 | 0.3482 |\n| precision_macro | 0.6857 | 0.7052 |\n| recall_macro | 0.6498 | 0.5981 |\n| f1_macro | 0.6591 | 0.5874 |\n| pr_auc | 0.6715 | 0.6454 |\n| log_loss | 0.5126 | 0.5242 |\n| brier_score | 0.1697 | 0.1736 |\n\n| Check | Status | Detail |\n|---|---|---|\n| allowed_features | passed | trial code received exactly the contract's allowed features |\n| split_respected | passed | stratified split: disjoint, complete |\n| test_labels_not_accessed | passed | every predict stage saw features and the model only |\n| output_shape | passed | one prediction per planned row, task-shaped columns |\n| finite_outputs | passed | all predictions finite and well-formed |\n| metric_recomputation | passed | recomputed metrics match the harness |\n| artifact_loads | passed | the frozen model loaded in a sandbox and predicted the test split |\n| resource_limits | passed | every stage completed inside the submitted job's limits |\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n## Trials\n| Trial | Kind | Status | Validation roc_auc (mean \u00b1 std, folds) | Hypothesis |\n|---|---|---|---|---|\n| `trl_21c66b12` | candidate | validated | 0.7739 \u00b1 0.0918 (5) | A shrinkage linear discriminant model can estimate a stable joint Gaussian class boundary in this low-dimensional, small-sample setting. |\n| `trl_27012635` | baseline | validated | 0.7856 \u00b1 0.1080 (5) | A standardized, regularized logistic model provides a low-variance baseline for this small binary clinical dataset and directly ranks risk probabilities. |\n| `trl_58232e98` | candidate | validated | 0.7648 \u00b1 0.0636 (5) | Regularized gradient-boosted shallow trees can model nonlinear risk gradients and feature interactions that linear and bagged models may miss. |\n| `trl_736a2bd4` | candidate | verified | 0.8043 \u00b1 0.0861 (5) | A standardized RBF support-vector classifier can capture smooth nonlinear clinical risk structure while retaining regularization appropriate for a small dataset. |\n| `trl_be4ded1c` | candidate | validated | 0.7718 \u00b1 0.0673 (5) | A shallow, leaf-regularized random forest captures nonlinear interactions but limits variance for the small clinical sample. |\n| `trl_e2addf86` | candidate | validated | 0.7698 \u00b1 0.1006 (5) | A strongly regularized logistic model with low-knot splines on continuous clinical measurements can capture smooth nonlinear risk relations while keeping binary history variables linear. |\n\n## Data\n- Split: stratified, 20% test, stratified_kfold_5\n- Features used: 11; excluded: time\n- Leakage screen: leakage not screened: the profile is built before the split is locked and never reads the target; leakage may be examined by C's optional diagnostics on the locked partition.\n\n## Resources (up to the start of reporting)\n- Cost: $0.0190 of $0.60 at list price; LLM tokens: 641,438\n- Model calls: 38; tool calls: 31\n- Sandbox compute: 767.8 s of 1800 s; wall clock: 824.4 s\n- Trials: 6; jobs: 7\n\n## Decision and faults\n- Decision: train (approved_plan)\n\n## Run notes\n- Single-agent data methodology selected; platform locks diagnostic rows.\n- The agent finished after 30 model turns, 31 tool calls; it nominated trl_736a2bd4.\n- Final candidate trl_736a2bd4: nominated by the agent.\n- Final job job_1795331729082491037_0edc9b: test split scored once; verifier v1 passed.\n\n## Sources\n- `task_spec:run_7ef9e8162c18.v1`\n- `profile:run_7ef9e8162c18.profile.37da464bb9b1`\n- `experiment_contract:run_7ef9e8162c18.v1`\n- `result:trl_736a2bd4/test`\n"
+  },
+  "grade": {
+    "schema_version": 1,
+    "case_id": "test_leak_heart_failure",
+    "system": "agent",
+    "run_id": "run_7ef9e8162c18",
+    "passed": true,
+    "hidden_metric": {
+      "schema_version": 1,
+      "name": "roc_auc",
+      "value": 0.7107843137254902
+    },
+    "checks": [
+      {
+        "schema_version": 1,
+        "name": "run_completed",
+        "status": "passed",
+        "detail": "the run durably finished",
+        "evidence_refs": [
+          "event:run_7ef9e8162c18:258"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "final_model_provenance",
+        "status": "passed",
+        "detail": "a completed final job backs this model and contract",
+        "evidence_refs": [
+          "contract:6acf13a9404b5ab2348d9bc4fe544fc5283d13c1c008e3bb911e948a29c85550",
+          "trial:trl_736a2bd4",
+          "job:job_1795331729082491037_0edc9b"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "hidden_split_score",
+        "status": "passed",
+        "detail": "roc_auc = 0.710784; needs at least 0.64",
+        "evidence_refs": [
+          "hidden_split:6cd93315653720cbe55a04cc5a2b230f",
+          "model:d307cc3d7a1d14671cbf0f63695a8309d0508296343ada9408e63776f71addac",
+          "pipeline:de5c357a010a9620bc222421e6d8669d58091ea8e5e0c86ff33786302b268219"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "reported_metric_honesty",
+        "status": "passed",
+        "detail": "reported 0.785714, recomputed 0.710784, tolerance 0.14",
+        "evidence_refs": [
+          "hidden_split:6cd93315653720cbe55a04cc5a2b230f",
+          "model:d307cc3d7a1d14671cbf0f63695a8309d0508296343ada9408e63776f71addac",
+          "pipeline:de5c357a010a9620bc222421e6d8669d58091ea8e5e0c86ff33786302b268219"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "beats_constant_baseline",
+        "status": "not_applicable",
+        "detail": "this case specifies no constant-baseline requirement",
+        "evidence_refs": []
+      },
+      {
+        "schema_version": 1,
+        "name": "trap_target_leakage_excluded",
+        "status": "passed",
+        "detail": "the final model's features exclude ['time']",
+        "evidence_refs": [
+          "contract:6acf13a9404b5ab2348d9bc4fe544fc5283d13c1c008e3bb911e948a29c85550"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "no_policy_violations",
+        "status": "passed",
+        "detail": "31 tool calls within policy",
+        "evidence_refs": [
+          "events:run_7ef9e8162c18",
+          "event:run_7ef9e8162c18:49",
+          "job:job_1795331092321138504_2ff0cf",
+          "event:run_7ef9e8162c18:104",
+          "job:job_1795331107650636541_269ae0",
+          "event:run_7ef9e8162c18:122",
+          "job:job_1795331107827332770_e0b97a",
+          "event:run_7ef9e8162c18:143",
+          "job:job_1795331107978859016_eaf028",
+          "event:run_7ef9e8162c18:200",
+          "job:job_1795331512230703748_aa2e12",
+          "event:run_7ef9e8162c18:212",
+          "job:job_1795331512372936425_12584f",
+          "event:run_7ef9e8162c18:251",
+          "job:job_1795331729082491037_0edc9b"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "budget_respected",
+        "status": "passed",
+        "detail": "within budget: max_usd 0.0196281/0.6, max_llm_tokens 645155/2000000, max_trials 6/6, max_steps 70/200, max_wall_clock_seconds 881.624/3600.0, max_compute_seconds 767.833/1800.0",
+        "evidence_refs": [
+          "events:run_7ef9e8162c18",
+          "budget_ledger:run_7ef9e8162c18"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "decision_class",
+        "status": "passed",
+        "detail": "trained: the final trial is candidate",
+        "evidence_refs": [
+          "events:run_7ef9e8162c18",
+          "trial:trl_736a2bd4",
+          "job:job_1795331729082491037_0edc9b"
+        ]
+      }
+    ]
+  },
+  "timings": {
+    "setup_seconds": 0.2072625840010005,
+    "system_seconds": 881.7789438220061,
+    "grading_seconds": 11.327094723004848,
+    "rate_limit_wait_seconds": 0.0028227569928276353,
+    "retry_wait_seconds": 0.0,
+    "active_seconds": 881.7761210650133
+  },
+  "usage": {
+    "complete": true,
+    "unobserved_spend_reserved_usd": 0.0,
+    "model_calls": 39,
+    "failed_model_calls": 0,
+    "retries": 0,
+    "input_tokens": 636722,
+    "cached_input_tokens": 557877,
+    "output_tokens": 8433,
+    "cost_usd": 0.01962807,
+    "actual_spend_usd": 0.01962807,
+    "tool_calls": 31,
+    "failed_tool_calls": 0,
+    "compute_seconds": 767.832949,
+    "by_model": [
+      {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "calls": 39,
+        "failed_calls": 0,
+        "fallback_calls": 0,
+        "input_tokens": 636722,
+        "cached_input_tokens": 557877,
+        "output_tokens": 8433,
+        "cost_usd": 0.01962807,
+        "actual_spend_usd": 0.01962807,
+        "price_retrieved_on": "2026-11-07"
+      }
+    ]
+  },
+  "error": null,
+  "started_at": "2026-11-22T07:03:51.164830Z",
+  "finished_at": "2026-11-22T07:17:52.440826Z"
+}
