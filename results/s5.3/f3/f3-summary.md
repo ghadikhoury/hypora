@@ -1,4 +1,4 @@
-# S5.3 F3 Evidence — Multi-agent coordination
+# S5.3 F3 Evidence - Multi-agent coordination
 
 Frozen evaluation commit: `62b4e3fb6016a0abddf70a14152252a62c8aca4a` (`results/final/s5.2-summary.json`).
 
@@ -6,8 +6,8 @@ Frozen evaluation commit: `62b4e3fb6016a0abddf70a14152252a62c8aca4a` (`results/f
 
 | System | Primary Pass | 95% Wilson | Mean Latency | p95 Latency | Actual $/task | All-run $ |
 |---|---:|---|---:|---:|---:|---:|
-| `multi` (A/B/C) | 25 / 26 (96.2%) | 81.1%–99.3% | 634 s | 1019 s | $0.0364 | $1.6071 |
-| `single` (`single_agent`) | 23 / 26 (88.5%) | 71.0%–96.0% | 502 s | 1000 s | $0.0173 | $0.8076 |
+| `multi` (A/B/C) | 25 / 26 (96.2%) | 81.1% to 99.3% | 634 s | 1019 s | $0.0364 | $1.6071 |
+| `single` (`single_agent`) | 23 / 26 (88.5%) | 71.0% to 96.0% | 502 s | 1000 s | $0.0173 | $0.8076 |
 
 - **Paired bootstrap (10,000 resamples, seed 1990):** diff `+0.077` (-0.077 to +0.231), verdict `inconclusive` (both pass 22, multi-only 3, single-only 1, both fail 0).
 
@@ -40,10 +40,10 @@ Example: `test_clean_rice` (`run_2a2d5305864e`, `passed=True`, `258` total event
 
 | Scenario | Passed | Final Status | Final Model | Events | Errors |
 |---|---|---|---|---:|---:|
-| `agent_b_provider_failure` | `True` | `FAILED` | None | 64 | 0 |
+| `agent_b_provider_failure` | `True` | `FAILED` | None | 65 | 0 |
 | `agent_b_uncited_claim` | `True` | `FAILED` | None | 73 | 0 |
 | `agent_a_refused_assignment` | `True` | `FAILED` | None | 15 | 1 |
-| `agent_c_execution_failure` | `True` | `FAILED` | None | 66 | 1 |
+| `agent_c_execution_failure` | `True` | `FAILED` | None | 71 | 0 |
 
 ## 4. Helped / hurt coordination cases (Analysis, 2 pts)
 

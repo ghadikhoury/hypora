@@ -36,7 +36,7 @@ from hypora.core.llm import (
 from hypora.core.llm.providers.fake import json_result, text_result, tool_call_result
 from hypora.core.llm.types import MessageRole, ToolCall
 from hypora.core.schemas import ApprovalPolicy, Provider, TaskSpecification
-from hypora.core.schemas.events import ErrorEvent, HandoffEvent, RoleStartedEvent
+from hypora.core.schemas.events import ErrorEvent, HandoffEvent, ModelCallEvent, RoleStartedEvent
 from hypora.storage.database import Database
 from hypora.storage.events import EventLog
 from hypora.storage.migrate import migrate
@@ -323,10 +323,24 @@ async def _run_failure_scenario(scenario: str) -> dict[str, Any]:
                 if isinstance(e, HandoffEvent)
             ]
             roles = [e.actor_role.value for e in events if isinstance(e, RoleStartedEvent)]
+            failed_model_calls = [
+                {
+                    "seq": e.seq,
+                    "role": e.actor_role.value,
+                    "error_code": e.payload.error_code,
+                    "status": e.payload.status.value,
+                }
+                for e in events
+                if isinstance(e, ModelCallEvent) and e.payload.status.value == "error"
+            ]
             if scenario == "agent_b_provider_failure":
                 passed = (
                     "agent_b" in roles
-                    and any(h["from"] == "agent_b" and h["status"] == "failed" for h in handoffs)
+                    and any(c["role"] == "agent_b" for c in failed_model_calls)
+                    and any(
+                        h["from"] == "agent_b" and h["status"] in {"failed", "partial"}
+                        for h in handoffs
+                    )
                     and result.state.status.value == "FAILED"
                     and result.final_trial_id is None
                     and not result.verified
@@ -354,11 +368,12 @@ async def _run_failure_scenario(scenario: str) -> dict[str, Any]:
                 passed = (
                     "agent_b" in roles
                     and "agent_c" in roles
+                    and any(c["role"] == "agent_c" for c in failed_model_calls)
+                    and any(h["from"] == "agent_c" and h["status"] == "failed" for h in handoffs)
                     and result.state.status.value == "FAILED"
                     and result.final_trial_id is None
                     and not result.verified
                     and result.report_md.exists()
-                    and len(errors) >= 1
                 )
             return {
                 "scenario": scenario,
@@ -370,6 +385,7 @@ async def _run_failure_scenario(scenario: str) -> dict[str, Any]:
                 "event_count": len(events),
                 "roles_started": roles,
                 "error_events": errors,
+                "failed_model_calls": failed_model_calls,
                 "handoffs": handoffs,
                 "notes": list(result.notes),
             }

@@ -390,7 +390,7 @@
       "final_model_is_none": true,
       "verified": false,
       "report_exists": true,
-      "event_count": 64,
+      "event_count": 65,
       "roles_started": [
         "agent_a",
         "agent_a",
@@ -409,6 +409,14 @@
         "agent_a"
       ],
       "error_events": [],
+      "failed_model_calls": [
+        {
+          "seq": 17,
+          "role": "agent_b",
+          "error_code": "INVALID_MODEL_REQUEST",
+          "status": "error"
+        }
+      ],
       "handoffs": [
         {
           "seq": 4,
@@ -429,73 +437,73 @@
           "status": "complete"
         },
         {
-          "seq": 17,
+          "seq": 18,
           "from": "agent_b",
           "to": "controller",
-          "status": "failed"
+          "status": "partial"
         },
         {
-          "seq": 20,
+          "seq": 21,
           "from": "agent_a",
           "to": "controller",
           "status": "complete"
         },
         {
-          "seq": 25,
+          "seq": 26,
           "from": "agent_a",
           "to": "controller",
           "status": "complete"
         },
         {
-          "seq": 28,
+          "seq": 29,
           "from": "agent_c",
           "to": "controller",
           "status": "complete"
         },
         {
-          "seq": 31,
+          "seq": 32,
           "from": "agent_a",
           "to": "controller",
           "status": "complete"
         },
         {
-          "seq": 38,
+          "seq": 39,
           "from": "agent_a",
           "to": "controller",
           "status": "complete"
         },
         {
-          "seq": 41,
+          "seq": 42,
           "from": "agent_c",
           "to": "controller",
           "status": "complete"
         },
         {
-          "seq": 44,
+          "seq": 45,
           "from": "agent_a",
           "to": "controller",
           "status": "complete"
         },
         {
-          "seq": 50,
+          "seq": 51,
           "from": "agent_a",
           "to": "controller",
           "status": "complete"
         },
         {
-          "seq": 55,
+          "seq": 56,
           "from": "agent_c",
           "to": "controller",
           "status": "complete"
         },
         {
-          "seq": 59,
+          "seq": 60,
           "from": "agent_a",
           "to": "controller",
           "status": "complete"
         },
         {
-          "seq": 63,
+          "seq": 64,
           "from": "agent_a",
           "to": "controller",
           "status": "complete"
@@ -503,7 +511,7 @@
       ],
       "notes": [
         "Agent A decision: continue.",
-        "Research session failed (ExceptionGroup); A decides without it.",
+        "Research model failed: LLMCallError: INVALID_MODEL_REQUEST after 0 provider retries",
         "Agent A decision: continue.",
         "Agent A decision: continue.",
         "A reviewed C's data methodology; platform locks diagnostic rows.",
@@ -540,6 +548,20 @@
         "agent_a"
       ],
       "error_events": [],
+      "failed_model_calls": [
+        {
+          "seq": 24,
+          "role": "agent_b",
+          "error_code": "OUTPUT_SCHEMA_INVALID",
+          "status": "error"
+        },
+        {
+          "seq": 25,
+          "role": "agent_b",
+          "error_code": "OUTPUT_SCHEMA_INVALID",
+          "status": "error"
+        }
+      ],
       "handoffs": [
         {
           "seq": 4,
@@ -665,6 +687,7 @@
           "message": "CONTRACT: RoleTextRefused: role text cannot contain code; describe the work in prose"
         }
       ],
+      "failed_model_calls": [],
       "handoffs": [
         {
           "seq": 4,
@@ -690,7 +713,7 @@
       "final_model_is_none": true,
       "verified": false,
       "report_exists": true,
-      "event_count": 66,
+      "event_count": 71,
       "roles_started": [
         "agent_a",
         "agent_a",
@@ -705,14 +728,16 @@
         "agent_a",
         "agent_c",
         "agent_a",
+        "agent_a",
         "agent_a"
       ],
-      "error_events": [
+      "error_events": [],
+      "failed_model_calls": [
         {
           "seq": 61,
-          "role": "controller",
-          "code": "CONTROLLER_ERROR",
-          "message": "PHASE_B: ExceptionGroup"
+          "role": "agent_c",
+          "error_code": "INVALID_MODEL_REQUEST",
+          "status": "error"
         }
       ],
       "handoffs": [
@@ -789,7 +814,19 @@
           "status": "complete"
         },
         {
-          "seq": 65,
+          "seq": 62,
+          "from": "agent_c",
+          "to": "controller",
+          "status": "failed"
+        },
+        {
+          "seq": 66,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 70,
           "from": "agent_a",
           "to": "controller",
           "status": "complete"
@@ -802,7 +839,9 @@
         "A reviewed C's data methodology; platform locks diagnostic rows.",
         "Agent A decision: continue.",
         "A reconciled B's evidence (or its absence: research is advisory) with C's locked-split diagnostics and continued; that reconciliation is complete.",
-        "The PHASE_B stage failed: ExceptionGroup."
+        "The agent's model call failed after 0 model turns, 0 tool calls (LLMCallError).",
+        "Agent A decision: continue.",
+        "No final model: a completed baseline and candidate are required for comparison."
       ]
     }
   ],
