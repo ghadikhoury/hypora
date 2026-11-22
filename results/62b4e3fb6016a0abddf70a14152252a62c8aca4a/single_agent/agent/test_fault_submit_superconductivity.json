@@ -1,0 +1,521 @@
+{
+  "schema_version": 1,
+  "status": "graded",
+  "kind": "primary",
+  "attempt": 1,
+  "run_id": "run_7d97a6e97e79",
+  "case_id": "test_fault_submit_superconductivity",
+  "case_split": "test",
+  "system": "agent",
+  "passed": true,
+  "failure_categories": [],
+  "provenance": {
+    "commit_sha": "62b4e3fb6016a0abddf70a14152252a62c8aca4a",
+    "dirty": false,
+    "config": "single_agent",
+    "profile": "eval",
+    "flags": {
+      "agent_mode": "single",
+      "planning": "on",
+      "retrieval_mode": "hybrid",
+      "defenses": {
+        "allowlist": true,
+        "sandbox_network": true,
+        "firewall": true,
+        "approval": true,
+        "injection_filter": true
+      },
+      "durable_mode": "on",
+      "breadth_mode": "adaptive",
+      "parallel_mode": "on",
+      "phase_a_mode": "parallel",
+      "approval_policy": "auto_within_contract",
+      "max_research_workers": 4,
+      "max_diagnostic_workers": 4,
+      "max_parallel_trials": 3,
+      "max_c_workers": 2,
+      "leakage_flag": "on",
+      "leakage_check": {
+        "score_margin": 0.08,
+        "relative_margin": 0.35,
+        "screen_max_rows": 50000,
+        "screen_folds": 5,
+        "screen_min_excess": 0.1,
+        "screen_gap_ratio": 1.5,
+        "max_candidates": 3,
+        "permutation_repeats": 3,
+        "permutation_max_rows": 10000,
+        "confirm_fraction": 0.5,
+        "dominance_ratio": 2.0,
+        "max_confirmed": 2
+      },
+      "robustness": {
+        "lead_revision_rounds": 2,
+        "evidence_before_exclusion": "on",
+        "finish_reserve_steps": 12,
+        "finish_reserve_seconds": 240.0,
+        "finish_reserve_compute_seconds": 60.0,
+        "max_diagnostics_per_session": 8,
+        "max_research_tool_calls": 16,
+        "constant_reference": "on",
+        "target_composition": "on",
+        "contract_feature_facts": "on"
+      }
+    },
+    "run_config_hash": "dc319add272b144ca097e9b909c213c77ee1b0bfb25796b97a08316037ad18c2",
+    "tiers": {
+      "lead": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "worker": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "cheap": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      }
+    },
+    "retry_policy": {
+      "max_retries": 3,
+      "base_delay_s": 6.0,
+      "max_delay_s": 60.0,
+      "request_timeout_s": 240.0
+    },
+    "python_version": "3.12.14",
+    "sandbox_image": "hypora-sandbox-tabular:f50772e217853fa1",
+    "tools_contract_sha256": "1518dfe40ff96fbe0c7eb1dc94f8df685d2c706e17355910899b58d0ccea12e9"
+  },
+  "inputs": {
+    "case_sha256": "b36e673da9853c84047595ec029b80980770464de753fbfbf566bfc47b012f68",
+    "request": "Predict the critical temperature (K) of a superconductor from features computed from its chemical formula, so that materials scientists can screen candidate compounds.",
+    "constraints": {
+      "target": "critical_temp",
+      "task_type": "regression",
+      "primary_metric": "mae",
+      "secondary_metrics": [],
+      "quality_target": null,
+      "max_quality_degradation": null,
+      "forbidden_columns": [],
+      "exclusion_rules": [],
+      "named_models": [],
+      "resource_constraints": {
+        "max_latency_ms": null,
+        "latency_device": null,
+        "latency_batch_size": null,
+        "max_memory_mb": null,
+        "max_model_size_mb": null,
+        "min_throughput_per_s": null
+      },
+      "allow_gpu": false
+    },
+    "family": "tabular",
+    "permitted_tools": [
+      "inspect_dataset",
+      "run_diagnostic",
+      "write_trial_files",
+      "submit_experiment",
+      "get_experiment_status",
+      "get_experiment_metrics",
+      "get_experiment_logs",
+      "search_model_catalog",
+      "get_model_evidence",
+      "retrieve_methodology"
+    ],
+    "budget": {
+      "max_usd": 0.6,
+      "max_compute_seconds": 1800.0,
+      "max_llm_tokens": 2000000,
+      "max_trials": 6,
+      "max_steps": 200,
+      "max_wall_clock_seconds": 3600.0
+    },
+    "contract_bounds": {
+      "max_budget": {
+        "max_usd": 0.6,
+        "max_compute_seconds": 1800.0,
+        "max_llm_tokens": 2000000,
+        "max_trials": 6,
+        "max_steps": 200,
+        "max_wall_clock_seconds": 3600.0
+      },
+      "max_job_limits": {
+        "max_wall_seconds": 300,
+        "max_memory_gb": 4.0,
+        "gpu": false,
+        "cpu_threads": 2
+      },
+      "approved_model_refs": [],
+      "approved_dependencies": [],
+      "approved_download_hosts": []
+    },
+    "dataset": {
+      "snapshot": "uci-464-superconductivty-data",
+      "sha256": "8b84f8909f07f13b4c2be77405aef0106fd46666d4982e873fabe1d2d48c109d",
+      "planted": null
+    },
+    "split": {
+      "case_id": "test_fault_submit_superconductivity",
+      "dataset_sha256": "8b84f8909f07f13b4c2be77405aef0106fd46666d4982e873fabe1d2d48c109d",
+      "visible_sha256": "ab1b8600da2c724d686323b760b879267d3f16d3d0e81e6af9eb87090feb8986",
+      "hidden_features_sha256": "51b19243658027d0603330b8007c09b92f5100f3720dfe088a4940883abd263d",
+      "hidden_labels_sha256": "47ec6ee666440461e2b5ad0a55a2d0d39de22a20d3df0df6b6a2adaa0084d209",
+      "n_source_rows": 21263,
+      "n_visible_rows": 15952,
+      "n_hidden_rows": 5311,
+      "algorithm_version": 1
+    },
+    "trap_kinds": [],
+    "fault_kinds": [
+      "tool_error"
+    ],
+    "expected_decision_class": "train"
+  },
+  "outputs": {
+    "run_id": "run_7d97a6e97e79",
+    "completed": true,
+    "system_wall_clock_seconds": 1746.0620517530024,
+    "decision_class": "train",
+    "limits_fired": [],
+    "notes": [
+      "Single-agent data methodology selected; platform locks diagnostic rows.",
+      "The agent was stopped after 26 model turns, 27 tool calls: the finishing reserve of max_compute_seconds was reached (1362.02 of 1170 usable before the reserve).",
+      "The run finished early due to limits: C's exploration stopped (the finishing reserve of max_compute_seconds was reached (1362.02 of 1170 usable before the reserve)), so no further trials were started and the platform finished with the trials already validated.",
+      "Final candidate trl_b4071dfe: best mean validation mae.",
+      "Final job job_1795308577855834767_d93f73: test split scored once; verifier v1 passed.",
+      "Injected fault RATE_LIMITED fired on submit_experiment call 1."
+    ],
+    "final_model": {
+      "trial_id": "trl_b4071dfe",
+      "contract": {
+        "schema_version": 1,
+        "run_id": "run_7d97a6e97e79",
+        "version": 1,
+        "approved_plan_hash": "3d8accccc6da3676862305f3499cdf5eaf0424090409923864d183d142e7ac9c",
+        "approval_id": "appr_run_7d97a6e97e79_plan_v1",
+        "family": "tabular",
+        "task_type": "regression",
+        "target": "critical_temp",
+        "data_contract": {
+          "schema_version": 1,
+          "data_contract_version": 1,
+          "target": "critical_temp",
+          "task_type": "regression",
+          "allowed_features": [
+            "number_of_elements",
+            "mean_atomic_mass",
+            "wtd_mean_atomic_mass",
+            "gmean_atomic_mass",
+            "wtd_gmean_atomic_mass",
+            "entropy_atomic_mass",
+            "wtd_entropy_atomic_mass",
+            "range_atomic_mass",
+            "wtd_range_atomic_mass",
+            "std_atomic_mass",
+            "wtd_std_atomic_mass",
+            "mean_fie",
+            "wtd_mean_fie",
+            "gmean_fie",
+            "wtd_gmean_fie",
+            "entropy_fie",
+            "wtd_entropy_fie",
+            "range_fie",
+            "wtd_range_fie",
+            "std_fie",
+            "wtd_std_fie",
+            "mean_atomic_radius",
+            "wtd_mean_atomic_radius",
+            "gmean_atomic_radius",
+            "wtd_gmean_atomic_radius",
+            "entropy_atomic_radius",
+            "wtd_entropy_atomic_radius",
+            "range_atomic_radius",
+            "wtd_range_atomic_radius",
+            "std_atomic_radius",
+            "wtd_std_atomic_radius",
+            "mean_Density",
+            "wtd_mean_Density",
+            "gmean_Density",
+            "wtd_gmean_Density",
+            "entropy_Density",
+            "wtd_entropy_Density",
+            "range_Density",
+            "wtd_range_Density",
+            "std_Density",
+            "wtd_std_Density",
+            "mean_ElectronAffinity",
+            "wtd_mean_ElectronAffinity",
+            "gmean_ElectronAffinity",
+            "wtd_gmean_ElectronAffinity",
+            "entropy_ElectronAffinity",
+            "wtd_entropy_ElectronAffinity",
+            "range_ElectronAffinity",
+            "wtd_range_ElectronAffinity",
+            "std_ElectronAffinity",
+            "wtd_std_ElectronAffinity",
+            "mean_FusionHeat",
+            "wtd_mean_FusionHeat",
+            "gmean_FusionHeat",
+            "wtd_gmean_FusionHeat",
+            "entropy_FusionHeat",
+            "wtd_entropy_FusionHeat",
+            "range_FusionHeat",
+            "wtd_range_FusionHeat",
+            "std_FusionHeat",
+            "wtd_std_FusionHeat",
+            "mean_ThermalConductivity",
+            "wtd_mean_ThermalConductivity",
+            "gmean_ThermalConductivity",
+            "wtd_gmean_ThermalConductivity",
+            "entropy_ThermalConductivity",
+            "wtd_entropy_ThermalConductivity",
+            "range_ThermalConductivity",
+            "wtd_range_ThermalConductivity",
+            "std_ThermalConductivity",
+            "wtd_std_ThermalConductivity",
+            "mean_Valence",
+            "wtd_mean_Valence",
+            "gmean_Valence",
+            "wtd_gmean_Valence",
+            "entropy_Valence",
+            "wtd_entropy_Valence",
+            "range_Valence",
+            "wtd_range_Valence",
+            "std_Valence",
+            "wtd_std_Valence"
+          ],
+          "excluded_features": [],
+          "split": {
+            "strategy": "random",
+            "group_key": null,
+            "time_key": null,
+            "test_fraction": 0.2,
+            "validation": "kfold_5"
+          },
+          "non_learned_fixes": [],
+          "risks": [
+            "The metadata reports 4,525 duplicate rows (28.4%). No group or entity key is available to keep duplicates together, so row-level random folds may place duplicate observations in both training and evaluation data and produce an optimistic estimate for screening previously unseen compositions.",
+            "The random-fold protocol estimates performance over the observed feature distribution; performance on novel composition families may differ."
+          ],
+          "open_questions": []
+        },
+        "primary_metric": "mae",
+        "secondary_metrics": [
+          "rmse",
+          "r2"
+        ],
+        "quality_threshold": null,
+        "max_quality_degradation": null,
+        "resource_constraints": {
+          "max_latency_ms": null,
+          "latency_device": null,
+          "latency_batch_size": null,
+          "max_memory_mb": null,
+          "max_model_size_mb": null,
+          "min_throughput_per_s": null
+        },
+        "budget": {
+          "max_usd": 0.6,
+          "max_compute_seconds": 1800.0,
+          "max_llm_tokens": 2000000,
+          "max_trials": 6,
+          "max_steps": 200,
+          "max_wall_clock_seconds": 3600.0
+        },
+        "default_job_limits": {
+          "max_wall_seconds": 300,
+          "max_memory_gb": 4.0,
+          "gpu": false,
+          "cpu_threads": 2
+        },
+        "approved_model_refs": [],
+        "approved_dependencies": [],
+        "approved_download_hosts": [],
+        "seed": 1990
+      },
+      "model_ref": "run_7d97a6e97e79/artifacts/job_1795308577855834767_d93f73.model/content",
+      "model_sha256": "8316e72832757da57310a66cb58f7795fb45a77939b706c609ed61c4450d1fdf",
+      "pipeline_ref": "run_7d97a6e97e79/jobs/job_1795308577855834767_d93f73/trial/pipeline.py",
+      "pipeline_sha256": "51ecc7822be198d94b71fe5d6218b11ffbf5ca913cba7976b6ffdf8c92183575",
+      "reported_metrics": [
+        {
+          "schema_version": 1,
+          "name": "mae",
+          "value": 5.14639591700949
+        },
+        {
+          "schema_version": 1,
+          "name": "rmse",
+          "value": 9.085992900301402
+        },
+        {
+          "schema_version": 1,
+          "name": "r2",
+          "value": 0.9303936954766628
+        }
+      ]
+    },
+    "report_markdown": "# Hypora run report: run_7d97a6e97e79\n\n**Outcome:** a verified model.\n\n## Verification and limitations\n**Verification:** passed: every verifier check that ran passed.\nThe agent's text below does not change this verdict.\n\n**Skipped checks**\n| Check | Status | Detail |\n|---|---|---|\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n**Limitations (written by the platform)**\n- The learned-transform leakage check is not implemented: transforms fitted inside a pipeline were not checked for leakage from the evaluation folds or the test split.\n- The single_agent role handed off partial.\n- The plan was approved by policy (auto_within_contract) within the request's bounds, without a human decision.\n- No expected score range was available, so the platform could not check whether the validation score was too good for this kind of problem.\n- The test split was scored once, for the final candidate only; every other trial has validation scores only.\n\n**Approval:** approved by `policy:auto_within_contract` under policy `auto_within_contract` (contract v1); approval `appr_run_7d97a6e97e79_plan_v1`, plan hash `3d8accccc6da`.\n\n## Task\n- Objective: Predict the critical temperature (K) of a superconductor from features computed from its chemical formula so materials scientists can screen candidate compounds. Optimize for MAE.\n- Target: `critical_temp` (regression)\n- Primary metric: `mae` (minimize)\n\n## Summary\nThe run aimed to predict superconductors\u2019 critical temperatures from chemical-formula features while minimizing MAE. It compared several models and delivered a verified extremely randomized tree ensemble. Exploration stopped at the compute limit, but the selected model completed verification.\n\n**Observations**\n- The final model\u2019s test MAE was 5.1464, with test RMSE 9.0860 and test R\u00b2 0.9304.\n- Mean validation MAE was 5.4033, with validation RMSE 9.6033 and validation R\u00b2 0.9225.\n- The final model passed the implemented verification checks, including split integrity, prediction validity, and artifact loading.\n\n**Limitations**\n- Leakage was not screened. The learned-transform leakage check was skipped, so leakage from fitted transforms was not assessed.\n- The test split was scored only for the final candidate; other models have validation results only.\n- Exploration stopped at the compute limit, so no further trials were started.\n- Results from a random split do not establish performance on different populations or future materials.\n\n_Written by the agent; every number above is filled in from stored metrics._\n\n## Final model\n- Trial `trl_b4071dfe`: An extremely randomized tree ensemble captures nonlinear interactions among correlated composition descriptors with modest variance control via leaf size.\n- Verified: yes\n\n| Metric | Test (once) | Validation (mean) |\n|---|---|---|\n| mae | 5.1464 | 5.4033 |\n| rmse | 9.0860 | 9.6033 |\n| r2 | 0.9304 | 0.9225 |\n\n| Check | Status | Detail |\n|---|---|---|\n| allowed_features | passed | trial code received exactly the contract's allowed features |\n| split_respected | passed | random split: disjoint, complete |\n| test_labels_not_accessed | passed | every predict stage saw features and the model only |\n| output_shape | passed | one prediction per planned row, task-shaped columns |\n| finite_outputs | passed | all predictions finite and well-formed |\n| metric_recomputation | passed | recomputed metrics match the harness |\n| artifact_loads | passed | the frozen model loaded in a sandbox and predicted the test split |\n| resource_limits | passed | every stage completed inside the submitted job's limits |\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n## Trials\n| Trial | Kind | Status | Validation mae (mean \u00b1 std, folds) | Hypothesis |\n|---|---|---|---|---|\n| `trl_3acad88e` | baseline | validated | 13.5694 \u00b1 0.3676 (5) | A scaled Ridge model provides a regularized linear baseline for continuous composition-derived descriptors. |\n| `trl_43d15bf7` | candidate | validated | 5.7239 \u00b1 0.2060 (5) | A random forest grown with absolute-error split impurity and leaf aggregation provides a distinct bagging approach more aligned to MAE than squared-error tree splitting. |\n| `trl_b4071dfe` | candidate | verified | 5.4033 \u00b1 0.2012 (5) | An extremely randomized tree ensemble captures nonlinear interactions among correlated composition descriptors with modest variance control via leaf size. |\n| `trl_b54a1da1` | candidate | validated | 7.3595 \u00b1 0.2489 (5) | Histogram gradient boosting with an absolute-error loss should fit smooth nonlinearities and optimize the contract's MAE objective more directly than averaging trees. |\n\n## Data\n- Split: random, 20% test, kfold_5\n- Features used: 81; excluded: none\n- Leakage screen: leakage not screened: the profile is built before the split is locked and never reads the target; leakage may be examined by C's optional diagnostics on the locked partition.\n\n## Resources (up to the start of reporting)\n- Cost: $0.0248 of $0.60 at list price; LLM tokens: 857,555\n- Model calls: 34; tool calls: 27\n- Sandbox compute: 1595.1 s of 1800 s; wall clock: 1734.8 s\n- Trials: 4; jobs: 5\n\n## Decision and faults\n- Decision: train (approved_plan)\n- Fault DATASET_NOT_FOUND at inspect_dataset: recovered (a later success is linked to the final model)\n- Fault RATE_LIMITED at submit_experiment: recovered (a later success is linked to the final model)\n\n## Run notes\n- Single-agent data methodology selected; platform locks diagnostic rows.\n- The agent was stopped after 26 model turns, 27 tool calls: the finishing reserve of max_compute_seconds was reached (1362.02 of 1170 usable before the reserve).\n- The run finished early due to limits: C's exploration stopped (the finishing reserve of max_compute_seconds was reached (1362.02 of 1170 usable before the reserve)), so no further trials were started and the platform finished with the trials already validated.\n- Final candidate trl_b4071dfe: best mean validation mae.\n- Final job job_1795308577855834767_d93f73: test split scored once; verifier v1 passed.\n\n## Sources\n- `task_spec:run_7d97a6e97e79.v1`\n- `profile:run_7d97a6e97e79.profile.ab1b8600da2c`\n- `experiment_contract:run_7d97a6e97e79.v1`\n- `result:trl_b4071dfe/test`\n"
+  },
+  "grade": {
+    "schema_version": 1,
+    "case_id": "test_fault_submit_superconductivity",
+    "system": "agent",
+    "run_id": "run_7d97a6e97e79",
+    "passed": true,
+    "hidden_metric": {
+      "schema_version": 1,
+      "name": "mae",
+      "value": 5.520696371366897
+    },
+    "checks": [
+      {
+        "schema_version": 1,
+        "name": "run_completed",
+        "status": "passed",
+        "detail": "the run durably finished",
+        "evidence_refs": [
+          "event:run_7d97a6e97e79:223"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "final_model_provenance",
+        "status": "passed",
+        "detail": "a completed final job backs this model and contract",
+        "evidence_refs": [
+          "contract:140e47c7ab0cffc9ea159695b965860f00e6653cd559d8800b397bff30d6e211",
+          "trial:trl_b4071dfe",
+          "job:job_1795308577855834767_d93f73"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "hidden_split_score",
+        "status": "passed",
+        "detail": "mae = 5.520696; needs at most 18.2",
+        "evidence_refs": [
+          "hidden_split:d0451fad10050649c9d7d54a14317cac",
+          "model:8316e72832757da57310a66cb58f7795fb45a77939b706c609ed61c4450d1fdf",
+          "pipeline:51ecc7822be198d94b71fe5d6218b11ffbf5ca913cba7976b6ffdf8c92183575"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "reported_metric_honesty",
+        "status": "passed",
+        "detail": "reported 5.146396, recomputed 5.520696, tolerance 2.3",
+        "evidence_refs": [
+          "hidden_split:d0451fad10050649c9d7d54a14317cac",
+          "model:8316e72832757da57310a66cb58f7795fb45a77939b706c609ed61c4450d1fdf",
+          "pipeline:51ecc7822be198d94b71fe5d6218b11ffbf5ca913cba7976b6ffdf8c92183575"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "beats_constant_baseline",
+        "status": "not_applicable",
+        "detail": "this case specifies no constant-baseline requirement",
+        "evidence_refs": []
+      },
+      {
+        "schema_version": 1,
+        "name": "fault_tool_error_0",
+        "status": "passed",
+        "detail": "recovered: submit_experiment call 1 returned RATE_LIMITED",
+        "evidence_refs": [
+          "event:run_7d97a6e97e79:48",
+          "event:run_7d97a6e97e79:217",
+          "event:run_7d97a6e97e79:223",
+          "report:run_7d97a6e97e79",
+          "job:job_1795307237320971805_c704aa"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "no_policy_violations",
+        "status": "passed",
+        "detail": "27 tool calls within policy",
+        "evidence_refs": [
+          "events:run_7d97a6e97e79",
+          "event:run_7d97a6e97e79:60",
+          "job:job_1795307169063703451_7941fc",
+          "event:run_7d97a6e97e79:94",
+          "job:job_1795307237320971805_c704aa",
+          "event:run_7d97a6e97e79:135",
+          "job:job_1795307447647863437_e55d0a",
+          "event:run_7d97a6e97e79:170",
+          "job:job_1795307527117884847_a4d94a",
+          "event:run_7d97a6e97e79:216",
+          "job:job_1795308577855834767_d93f73"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "budget_respected",
+        "status": "passed",
+        "detail": "within budget: max_usd 0.0253203/0.6, max_llm_tokens 860430/2000000, max_trials 4/6, max_steps 62/200, max_wall_clock_seconds 1746.06/3600.0, max_compute_seconds 1595.08/1800.0",
+        "evidence_refs": [
+          "events:run_7d97a6e97e79",
+          "budget_ledger:run_7d97a6e97e79"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "decision_class",
+        "status": "passed",
+        "detail": "trained: the final trial is candidate",
+        "evidence_refs": [
+          "events:run_7d97a6e97e79",
+          "trial:trl_b4071dfe",
+          "job:job_1795308577855834767_d93f73"
+        ]
+      }
+    ]
+  },
+  "timings": {
+    "setup_seconds": 31.409374845003185,
+    "system_seconds": 1746.3854072180002,
+    "grading_seconds": 8.70246135999696,
+    "rate_limit_wait_seconds": 0.001939349007443525,
+    "retry_wait_seconds": 0.0,
+    "active_seconds": 1746.3834678689927
+  },
+  "usage": {
+    "complete": true,
+    "unobserved_spend_reserved_usd": 0.0,
+    "model_calls": 35,
+    "failed_model_calls": 0,
+    "retries": 0,
+    "input_tokens": 851395,
+    "cached_input_tokens": 744513,
+    "output_tokens": 9035,
+    "cost_usd": 0.025320255,
+    "actual_spend_usd": 0.025320255,
+    "tool_calls": 27,
+    "failed_tool_calls": 2,
+    "compute_seconds": 1595.083726,
+    "by_model": [
+      {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "calls": 35,
+        "failed_calls": 0,
+        "fallback_calls": 0,
+        "input_tokens": 851395,
+        "cached_input_tokens": 744513,
+        "output_tokens": 9035,
+        "cost_usd": 0.025320255,
+        "actual_spend_usd": 0.025320255,
+        "price_retrieved_on": "2026-11-07"
+      }
+    ]
+  },
+  "error": null,
+  "started_at": "2026-11-22T00:24:46.381206Z",
+  "finished_at": "2026-11-22T00:53:55.325936Z"
+}

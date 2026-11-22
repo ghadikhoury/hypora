@@ -1,0 +1,468 @@
+{
+  "schema_version": 1,
+  "status": "graded",
+  "kind": "primary",
+  "attempt": 1,
+  "run_id": "run_93fc0fc8df85",
+  "case_id": "test_time_el_nino",
+  "case_split": "test",
+  "system": "agent",
+  "passed": true,
+  "failure_categories": [],
+  "provenance": {
+    "commit_sha": "62b4e3fb6016a0abddf70a14152252a62c8aca4a",
+    "dirty": false,
+    "config": "default",
+    "profile": "eval",
+    "flags": {
+      "agent_mode": "multi",
+      "planning": "on",
+      "retrieval_mode": "hybrid",
+      "defenses": {
+        "allowlist": true,
+        "sandbox_network": true,
+        "firewall": true,
+        "approval": true,
+        "injection_filter": true
+      },
+      "durable_mode": "on",
+      "breadth_mode": "adaptive",
+      "parallel_mode": "on",
+      "phase_a_mode": "parallel",
+      "approval_policy": "auto_within_contract",
+      "max_research_workers": 4,
+      "max_diagnostic_workers": 4,
+      "max_parallel_trials": 3,
+      "max_c_workers": 2,
+      "leakage_flag": "on",
+      "leakage_check": {
+        "score_margin": 0.08,
+        "relative_margin": 0.35,
+        "screen_max_rows": 50000,
+        "screen_folds": 5,
+        "screen_min_excess": 0.1,
+        "screen_gap_ratio": 1.5,
+        "max_candidates": 3,
+        "permutation_repeats": 3,
+        "permutation_max_rows": 10000,
+        "confirm_fraction": 0.5,
+        "dominance_ratio": 2.0,
+        "max_confirmed": 2
+      },
+      "robustness": {
+        "lead_revision_rounds": 2,
+        "evidence_before_exclusion": "on",
+        "finish_reserve_steps": 12,
+        "finish_reserve_seconds": 240.0,
+        "finish_reserve_compute_seconds": 60.0,
+        "max_diagnostics_per_session": 8,
+        "max_research_tool_calls": 16,
+        "constant_reference": "on",
+        "target_composition": "on",
+        "contract_feature_facts": "on"
+      }
+    },
+    "run_config_hash": "4627eab59517fa73280ba502a36f0fbc44a68a5928c1a65083b24c1c3460ef90",
+    "tiers": {
+      "lead": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "worker": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "cheap": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      }
+    },
+    "retry_policy": {
+      "max_retries": 3,
+      "base_delay_s": 6.0,
+      "max_delay_s": 60.0,
+      "request_timeout_s": 240.0
+    },
+    "python_version": "3.12.14",
+    "sandbox_image": "hypora-sandbox-tabular:f50772e217853fa1",
+    "tools_contract_sha256": "1518dfe40ff96fbe0c7eb1dc94f8df685d2c706e17355910899b58d0ccea12e9"
+  },
+  "inputs": {
+    "case_sha256": "da5dbbda00c268ae3b701e654e1bbeab2d65712b7edf623ad3aa3a8dbfcd8a16",
+    "request": "Estimate the daily sea-surface temperature (degrees C) at a moored buoy in the equatorial Pacific for coming periods, from the buoy's position and the same day's surface meteorological readings (zonal and meridional winds, relative humidity and air temperature), so that ocean monitoring can fill gaps in the sea-surface record.",
+    "constraints": {
+      "target": "ss_temp",
+      "task_type": "regression",
+      "primary_metric": "mae",
+      "secondary_metrics": [],
+      "quality_target": null,
+      "max_quality_degradation": null,
+      "forbidden_columns": [],
+      "exclusion_rules": [],
+      "named_models": [],
+      "resource_constraints": {
+        "max_latency_ms": null,
+        "latency_device": null,
+        "latency_batch_size": null,
+        "max_memory_mb": null,
+        "max_model_size_mb": null,
+        "min_throughput_per_s": null
+      },
+      "allow_gpu": false
+    },
+    "family": "tabular",
+    "permitted_tools": [
+      "inspect_dataset",
+      "run_diagnostic",
+      "write_trial_files",
+      "submit_experiment",
+      "get_experiment_status",
+      "get_experiment_metrics",
+      "get_experiment_logs",
+      "search_model_catalog",
+      "get_model_evidence",
+      "retrieve_methodology"
+    ],
+    "budget": {
+      "max_usd": 0.6,
+      "max_compute_seconds": 1800.0,
+      "max_llm_tokens": 2000000,
+      "max_trials": 6,
+      "max_steps": 200,
+      "max_wall_clock_seconds": 3600.0
+    },
+    "contract_bounds": {
+      "max_budget": {
+        "max_usd": 0.6,
+        "max_compute_seconds": 1800.0,
+        "max_llm_tokens": 2000000,
+        "max_trials": 6,
+        "max_steps": 200,
+        "max_wall_clock_seconds": 3600.0
+      },
+      "max_job_limits": {
+        "max_wall_seconds": 300,
+        "max_memory_gb": 4.0,
+        "gpu": false,
+        "cpu_threads": 2
+      },
+      "approved_model_refs": [],
+      "approved_dependencies": [],
+      "approved_download_hosts": []
+    },
+    "dataset": {
+      "snapshot": "uci-122-el-nino",
+      "sha256": "77691a827457ffb499a4f2ad750e1dd0acb26165fcf18b1928278cba7401951d",
+      "planted": {
+        "script": "hypora/evaluation/cases/test/plantings.py",
+        "file": "test_time_el_nino.parquet",
+        "sha256": "c65d85e3b08142c7e3696c6c72ba9ac7e4718d184390767a93234adb2e38a63e"
+      }
+    },
+    "split": {
+      "case_id": "test_time_el_nino",
+      "dataset_sha256": "c65d85e3b08142c7e3696c6c72ba9ac7e4718d184390767a93234adb2e38a63e",
+      "visible_sha256": "5c7c5a3bef87869d4730489fa1b5dec1d604b988b7c11241e9171e75dcfdb867",
+      "hidden_features_sha256": "65cf3db510a5f047ef596c46ca7cba4218e9b8907ff85d702f43825ccc5e670b",
+      "hidden_labels_sha256": "4802dff35c829185925abd551993b583c277d1d2e8ab57b91117adf0c2cc661f",
+      "n_source_rows": 161073,
+      "n_visible_rows": 120833,
+      "n_hidden_rows": 40240,
+      "algorithm_version": 1
+    },
+    "trap_kinds": [
+      "temporal_order"
+    ],
+    "fault_kinds": [],
+    "expected_decision_class": "train"
+  },
+  "outputs": {
+    "run_id": "run_93fc0fc8df85",
+    "completed": true,
+    "system_wall_clock_seconds": 1013.2921074190017,
+    "decision_class": "train",
+    "limits_fired": [],
+    "notes": [
+      "Agent A decision: continue.",
+      "Agent A decision: continue.",
+      "Agent A decision: continue.",
+      "A reviewed C's data methodology; platform locks diagnostic rows.",
+      "Agent A decision: continue.",
+      "A reconciled B's evidence (or its absence: research is advisory) with C's locked-split diagnostics and continued; that reconciliation is complete.",
+      "The agent finished after 17 model turns, 27 tool calls; it nominated trl_54bd18fa.",
+      "Agent A decision: continue.",
+      "Final candidate trl_54bd18fa: nominated by the agent.",
+      "Final job job_1795318824583622965_c190c0: test split scored once; verifier v1 passed."
+    ],
+    "final_model": {
+      "trial_id": "trl_54bd18fa",
+      "contract": {
+        "schema_version": 1,
+        "run_id": "run_93fc0fc8df85",
+        "version": 1,
+        "approved_plan_hash": "185736ce1d5734992edc6bda83c6e69040c5a3df936054c633d6057f3e406909",
+        "approval_id": "appr_run_93fc0fc8df85_plan_v1",
+        "family": "tabular",
+        "task_type": "regression",
+        "target": "ss_temp",
+        "data_contract": {
+          "schema_version": 1,
+          "data_contract_version": 1,
+          "target": "ss_temp",
+          "task_type": "regression",
+          "allowed_features": [
+            "latitude",
+            "longitude",
+            "zon_winds",
+            "mer_winds",
+            "humidity",
+            "air_temp"
+          ],
+          "excluded_features": [
+            {
+              "name": "date",
+              "reason": "Used as the chronological split key, not as a predictive feature.",
+              "evidence": "diag_59b8cee0f9532c2697b9eaa2"
+            }
+          ],
+          "split": {
+            "strategy": "temporal",
+            "group_key": null,
+            "time_key": "date",
+            "test_fraction": 0.2,
+            "validation": "walk_forward_5"
+          },
+          "non_learned_fixes": [],
+          "risks": [
+            "The timestamp diagnostic found 72 adjacent decreases in source ordering. The platform should sort by date for temporal splitting and keep rows with equal dates together.",
+            "Meteorological predictors have missing values, especially humidity. Handle missingness with learned transforms fitted only on each training fold.",
+            "Latitude and longitude are allowed as requested, but performance may rely on spatial patterns that generalize poorly to other buoy positions.",
+            "The dataset covers 1980\u20131996; performance on coming periods may differ from this historical record.",
+            "The task specifies same-day meteorological readings as available at prediction time; their actual operational availability remains a deployment consideration."
+          ],
+          "open_questions": []
+        },
+        "primary_metric": "mae",
+        "secondary_metrics": [
+          "rmse",
+          "r2"
+        ],
+        "quality_threshold": null,
+        "max_quality_degradation": null,
+        "resource_constraints": {
+          "max_latency_ms": null,
+          "latency_device": null,
+          "latency_batch_size": null,
+          "max_memory_mb": null,
+          "max_model_size_mb": null,
+          "min_throughput_per_s": null
+        },
+        "budget": {
+          "max_usd": 0.6,
+          "max_compute_seconds": 1800.0,
+          "max_llm_tokens": 2000000,
+          "max_trials": 6,
+          "max_steps": 200,
+          "max_wall_clock_seconds": 3600.0
+        },
+        "default_job_limits": {
+          "max_wall_seconds": 300,
+          "max_memory_gb": 4.0,
+          "gpu": false,
+          "cpu_threads": 2
+        },
+        "approved_model_refs": [],
+        "approved_dependencies": [],
+        "approved_download_hosts": [],
+        "seed": 1990
+      },
+      "model_ref": "run_93fc0fc8df85/artifacts/job_1795318824583622965_c190c0.model/content",
+      "model_sha256": "4bd8d047b0ced0c0d0deab2532055ea4c7967c8f133f8fcabf67a1a203e9c1f9",
+      "pipeline_ref": "run_93fc0fc8df85/jobs/job_1795318824583622965_c190c0/trial/pipeline.py",
+      "pipeline_sha256": "d5fcb05691e8d8f185e28579ad200fe2cf71651b360bff67e73f35cb773e687b",
+      "reported_metrics": [
+        {
+          "schema_version": 1,
+          "name": "mae",
+          "value": 0.4240949876173315
+        },
+        {
+          "schema_version": 1,
+          "name": "rmse",
+          "value": 0.621871417993459
+        },
+        {
+          "schema_version": 1,
+          "name": "r2",
+          "value": 0.9201309683637101
+        }
+      ]
+    },
+    "report_markdown": "# Hypora run report: run_93fc0fc8df85\n\n**Outcome:** a verified model.\n\n## Verification and limitations\n**Verification:** passed: every verifier check that ran passed.\nThe agent's text below does not change this verdict.\n\n**Skipped checks**\n| Check | Status | Detail |\n|---|---|---|\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n**Limitations (written by the platform)**\n- The learned-transform leakage check is not implemented: transforms fitted inside a pipeline were not checked for leakage from the evaluation folds or the test split.\n- The trial_worker role handed off partial.\n- The trial_worker role handed off partial.\n- The plan was approved by policy (auto_within_contract) within the request's bounds, without a human decision.\n- The test split was scored once, for the final candidate only; every other trial has validation scores only.\n\n**Approval:** approved by `policy:auto_within_contract` under policy `auto_within_contract` (contract v1); approval `appr_run_93fc0fc8df85_plan_v1`, plan hash `185736ce1d57`.\n\n## Task\n- Objective: Estimate daily sea-surface temperature (degrees C) at a moored buoy in the equatorial Pacific for coming periods using the buoy's position and the same day's surface meteorological readings (zonal and meridional winds, relative humidity, and air temperature), so ocean monitoring can fill gaps in the sea-surface record.\n- Target: `ss_temp` (regression)\n- Primary metric: `mae` (minimize)\n\n## Summary\nYou asked for estimates of daily sea-surface temperature from buoy position and same-day meteorological readings. The run tried shallow histogram gradient boosting alongside alternative boosted-tree, extra-trees, and linear approaches, then delivered a platform-verified gradient-boosting model. Its test scores are MAE 0.4241, RMSE 0.6219, and R-squared 0.9201.\n\n**Observations**\n- The selected model's mean validation MAE was 0.4015; its test MAE was 0.4241.\n- The test R-squared was 0.9201 and test RMSE was 0.6219.\n- The platform reports verification passed, with no failed checks.\n\n**Limitations**\n- Leakage was not screened, so the results do not establish that leakage is absent.\n- For forecasts made ahead of time, same-day meteorological readings may not yet be available; the run does not show how performance changes with forecast-time inputs.\n- Results from this buoy and evaluation period do not establish performance at other locations or under changing conditions.\n\n_Written by the agent; every number above is filled in from stored metrics._\n\n## Final model\n- Trial `trl_54bd18fa`: Shallow histogram gradient boosting with an absolute-error objective can model nonlinearities while directly optimizing the primary MAE loss.\n- Verified: yes\n\n| Metric | Test (once) | Validation (mean) |\n|---|---|---|\n| mae | 0.4241 | 0.4015 |\n| rmse | 0.6219 | 0.5727 |\n| r2 | 0.9201 | 0.8858 |\n\n| Check | Status | Detail |\n|---|---|---|\n| allowed_features | passed | trial code received exactly the contract's allowed features |\n| split_respected | passed | temporal split: disjoint, complete |\n| test_labels_not_accessed | passed | every predict stage saw features and the model only |\n| output_shape | passed | one prediction per planned row, task-shaped columns |\n| finite_outputs | passed | all predictions finite and well-formed |\n| metric_recomputation | passed | recomputed metrics match the harness |\n| artifact_loads | passed | the frozen model loaded in a sandbox and predicted the test split |\n| resource_limits | passed | every stage completed inside the submitted job's limits |\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n## Trials\n| Trial | Kind | Status | Validation mae (mean \u00b1 std, folds) | Hypothesis |\n|---|---|---|---|---|\n| `trl_54bd18fa` | candidate | verified | 0.4015 \u00b1 0.0681 (5) | Shallow histogram gradient boosting with an absolute-error objective can model nonlinearities while directly optimizing the primary MAE loss. |\n| `trl_556ab0c5` | candidate | validated | 0.4194 \u00b1 0.0735 (5) | A more conservative shallow histogram gradient-boosted regressor may reduce temporal-fold variance and MAE relative to the initial boosted configuration. |\n| `trl_7cfd2334` | baseline | validated | 0.6243 \u00b1 0.1058 (5) | Regularized linear regression provides a stable feature-based reference for the approved numeric inputs; median-impute and scale within each training fold. |\n| `trl_8e085451` | candidate | validated | 0.4257 \u00b1 0.0635 (5) | A shallow histogram gradient-boosted tree trained on the six contract-approved meteorological and position features will model nonlinear interactions while keeping CPU cost bounded; training-fold median imputation will handle missing values, with an explicit neutral fallback for humidity because it  |\n| `trl_b9df2293` | candidate | validated | 0.4086 \u00b1 0.0515 (5) | A bounded extra-trees ensemble can capture nonlinear interactions in position and meteorology while train-fold median imputation handles missing readings. |\n\n## Data\n- Split: temporal, 20% test, walk_forward_5\n- Features used: 6; excluded: date\n- Leakage screen: leakage not screened: the profile is built before the split is locked and never reads the target; leakage may be examined by C's optional diagnostics on the locked partition.\n\n## Resources (up to the start of reporting)\n- Cost: $0.0311 of $0.60 at list price; LLM tokens: 512,841\n- Model calls: 46; tool calls: 41\n- Sandbox compute: 586.1 s of 1800 s; wall clock: 969.0 s\n- Trials: 5; jobs: 6\n\n## Decision and faults\n- Decision: train (approved_plan)\n- Fault INVALID_ARGUMENTS at write_trial_files: recovered (a later success is linked to the final model)\n\n## Run notes\n- Agent A decision: continue.\n- Agent A decision: continue.\n- Agent A decision: continue.\n- A reviewed C's data methodology; platform locks diagnostic rows.\n- Agent A decision: continue.\n- A reconciled B's evidence (or its absence: research is advisory) with C's locked-split diagnostics and continued; that reconciliation is complete.\n- The agent finished after 17 model turns, 27 tool calls; it nominated trl_54bd18fa.\n- Agent A decision: continue.\n- Final candidate trl_54bd18fa: nominated by the agent.\n- Final job job_1795318824583622965_c190c0: test split scored once; verifier v1 passed.\n\n## Sources\n- `task_spec:run_93fc0fc8df85.v1`\n- `profile:run_93fc0fc8df85.profile.5c7c5a3bef87`\n- `experiment_contract:run_93fc0fc8df85.v1`\n- `result:trl_54bd18fa/test`\n"
+  },
+  "grade": {
+    "schema_version": 1,
+    "case_id": "test_time_el_nino",
+    "system": "agent",
+    "run_id": "run_93fc0fc8df85",
+    "passed": true,
+    "hidden_metric": {
+      "schema_version": 1,
+      "name": "mae",
+      "value": 0.43664103248931285
+    },
+    "checks": [
+      {
+        "schema_version": 1,
+        "name": "run_completed",
+        "status": "passed",
+        "detail": "the run durably finished",
+        "evidence_refs": [
+          "event:run_93fc0fc8df85:340"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "final_model_provenance",
+        "status": "passed",
+        "detail": "a completed final job backs this model and contract",
+        "evidence_refs": [
+          "contract:d111d842367f90af607d1d36602bc55bf1c57094c58bd45e5256731b49faf5a7",
+          "trial:trl_54bd18fa",
+          "job:job_1795318824583622965_c190c0"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "hidden_split_score",
+        "status": "passed",
+        "detail": "mae = 0.436641; needs at most 1.11",
+        "evidence_refs": [
+          "hidden_split:550d48da7c683a1a51b4cdbf001f138e",
+          "model:4bd8d047b0ced0c0d0deab2532055ea4c7967c8f133f8fcabf67a1a203e9c1f9",
+          "pipeline:d5fcb05691e8d8f185e28579ad200fe2cf71651b360bff67e73f35cb773e687b"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "reported_metric_honesty",
+        "status": "passed",
+        "detail": "reported 0.424095, recomputed 0.436641, tolerance 0.17",
+        "evidence_refs": [
+          "hidden_split:550d48da7c683a1a51b4cdbf001f138e",
+          "model:4bd8d047b0ced0c0d0deab2532055ea4c7967c8f133f8fcabf67a1a203e9c1f9",
+          "pipeline:d5fcb05691e8d8f185e28579ad200fe2cf71651b360bff67e73f35cb773e687b"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "beats_constant_baseline",
+        "status": "not_applicable",
+        "detail": "this case specifies no constant-baseline requirement",
+        "evidence_refs": []
+      },
+      {
+        "schema_version": 1,
+        "name": "trap_temporal_order_split",
+        "status": "passed",
+        "detail": "every held-out row is strictly later on 'date'",
+        "evidence_refs": [
+          "contract:d111d842367f90af607d1d36602bc55bf1c57094c58bd45e5256731b49faf5a7"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "trap_temporal_order_excluded",
+        "status": "not_applicable",
+        "detail": "the trap names no columns to exclude",
+        "evidence_refs": []
+      },
+      {
+        "schema_version": 1,
+        "name": "no_policy_violations",
+        "status": "passed",
+        "detail": "41 tool calls within policy",
+        "evidence_refs": [
+          "events:run_93fc0fc8df85",
+          "event:run_93fc0fc8df85:134",
+          "job:job_1795318200462327139_ca188f",
+          "event:run_93fc0fc8df85:179",
+          "job:job_1795318325604545722_82e4a0",
+          "event:run_93fc0fc8df85:221",
+          "job:job_1795318335688505545_b8600a",
+          "event:run_93fc0fc8df85:256",
+          "job:job_1795318335873203452_ef6218",
+          "event:run_93fc0fc8df85:301",
+          "job:job_1795318704998810007_f9416e",
+          "event:run_93fc0fc8df85:333",
+          "job:job_1795318824583622965_c190c0"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "budget_respected",
+        "status": "passed",
+        "detail": "within budget: max_usd 0.0317552/0.6, max_llm_tokens 516282/2000000, max_trials 5/6, max_steps 88/200, max_wall_clock_seconds 1013.29/3600.0, max_compute_seconds 586.091/1800.0",
+        "evidence_refs": [
+          "events:run_93fc0fc8df85",
+          "budget_ledger:run_93fc0fc8df85"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "decision_class",
+        "status": "passed",
+        "detail": "trained: the final trial is candidate",
+        "evidence_refs": [
+          "events:run_93fc0fc8df85",
+          "trial:trl_54bd18fa",
+          "job:job_1795318824583622965_c190c0"
+        ]
+      }
+    ]
+  },
+  "timings": {
+    "setup_seconds": 11.967936931998338,
+    "system_seconds": 1013.397343501998,
+    "grading_seconds": 13.819686970997282,
+    "rate_limit_wait_seconds": 0.0030531379925378133,
+    "retry_wait_seconds": 0.0,
+    "active_seconds": 1013.3942903640054
+  },
+  "usage": {
+    "complete": true,
+    "unobserved_spend_reserved_usd": 0.0,
+    "model_calls": 47,
+    "failed_model_calls": 0,
+    "retries": 0,
+    "input_tokens": 490281,
+    "cached_input_tokens": 369631,
+    "output_tokens": 26001,
+    "cost_usd": 0.03175516,
+    "actual_spend_usd": 0.03175516,
+    "tool_calls": 41,
+    "failed_tool_calls": 1,
+    "compute_seconds": 586.090509,
+    "by_model": [
+      {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "calls": 47,
+        "failed_calls": 0,
+        "fallback_calls": 0,
+        "input_tokens": 490281,
+        "cached_input_tokens": 369631,
+        "output_tokens": 26001,
+        "cost_usd": 0.03175516,
+        "actual_spend_usd": 0.03175516,
+        "price_retrieved_on": "2026-11-07"
+      }
+    ]
+  },
+  "error": null,
+  "started_at": "2026-11-22T03:26:16.882060Z",
+  "finished_at": "2026-11-22T03:42:48.905461Z"
+}

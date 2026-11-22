@@ -1,0 +1,478 @@
+{
+  "schema_version": 1,
+  "status": "graded",
+  "kind": "primary",
+  "attempt": 1,
+  "run_id": "run_71664c133769",
+  "case_id": "test_imb_htru2",
+  "case_split": "test",
+  "system": "baseline",
+  "passed": true,
+  "failure_categories": [],
+  "provenance": {
+    "commit_sha": "62b4e3fb6016a0abddf70a14152252a62c8aca4a",
+    "dirty": false,
+    "config": "default",
+    "profile": "eval",
+    "flags": {
+      "agent_mode": "multi",
+      "planning": "on",
+      "retrieval_mode": "hybrid",
+      "defenses": {
+        "allowlist": true,
+        "sandbox_network": true,
+        "firewall": true,
+        "approval": true,
+        "injection_filter": true
+      },
+      "durable_mode": "on",
+      "breadth_mode": "adaptive",
+      "parallel_mode": "on",
+      "phase_a_mode": "parallel",
+      "approval_policy": "auto_within_contract",
+      "max_research_workers": 4,
+      "max_diagnostic_workers": 4,
+      "max_parallel_trials": 3,
+      "max_c_workers": 2,
+      "leakage_flag": "on",
+      "leakage_check": {
+        "score_margin": 0.08,
+        "relative_margin": 0.35,
+        "screen_max_rows": 50000,
+        "screen_folds": 5,
+        "screen_min_excess": 0.1,
+        "screen_gap_ratio": 1.5,
+        "max_candidates": 3,
+        "permutation_repeats": 3,
+        "permutation_max_rows": 10000,
+        "confirm_fraction": 0.5,
+        "dominance_ratio": 2.0,
+        "max_confirmed": 2
+      },
+      "robustness": {
+        "lead_revision_rounds": 2,
+        "evidence_before_exclusion": "on",
+        "finish_reserve_steps": 12,
+        "finish_reserve_seconds": 240.0,
+        "finish_reserve_compute_seconds": 60.0,
+        "max_diagnostics_per_session": 8,
+        "max_research_tool_calls": 16,
+        "constant_reference": "on",
+        "target_composition": "on",
+        "contract_feature_facts": "on"
+      }
+    },
+    "run_config_hash": "4627eab59517fa73280ba502a36f0fbc44a68a5928c1a65083b24c1c3460ef90",
+    "tiers": {
+      "lead": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "worker": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "cheap": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      }
+    },
+    "retry_policy": {
+      "max_retries": 3,
+      "base_delay_s": 6.0,
+      "max_delay_s": 60.0,
+      "request_timeout_s": 240.0
+    },
+    "python_version": "3.12.14",
+    "sandbox_image": "hypora-sandbox-tabular:f50772e217853fa1",
+    "tools_contract_sha256": "1518dfe40ff96fbe0c7eb1dc94f8df685d2c706e17355910899b58d0ccea12e9"
+  },
+  "inputs": {
+    "case_sha256": "ca46bb23c6bc21178b1afdbd3f786af1c04a201112fce5953c4cb9f21a873161",
+    "request": "Identify which radio-signal candidates from the High Time Resolution Universe survey are real pulsars, so that astronomers can prioritise follow-up observations. Each prediction is made from the candidate's integrated-profile and DM-SNR curve statistics, which are all available for every candidate.",
+    "constraints": {
+      "target": "class",
+      "task_type": "binary_classification",
+      "primary_metric": null,
+      "secondary_metrics": [],
+      "quality_target": null,
+      "max_quality_degradation": null,
+      "forbidden_columns": [],
+      "exclusion_rules": [],
+      "named_models": [],
+      "resource_constraints": {
+        "max_latency_ms": null,
+        "latency_device": null,
+        "latency_batch_size": null,
+        "max_memory_mb": null,
+        "max_model_size_mb": null,
+        "min_throughput_per_s": null
+      },
+      "allow_gpu": false
+    },
+    "family": "tabular",
+    "permitted_tools": [
+      "inspect_dataset",
+      "run_diagnostic",
+      "write_trial_files",
+      "submit_experiment",
+      "get_experiment_status",
+      "get_experiment_metrics",
+      "get_experiment_logs",
+      "search_model_catalog",
+      "get_model_evidence",
+      "retrieve_methodology"
+    ],
+    "budget": {
+      "max_usd": 0.6,
+      "max_compute_seconds": 1800.0,
+      "max_llm_tokens": 2000000,
+      "max_trials": 6,
+      "max_steps": 200,
+      "max_wall_clock_seconds": 3600.0
+    },
+    "contract_bounds": {
+      "max_budget": {
+        "max_usd": 0.6,
+        "max_compute_seconds": 1800.0,
+        "max_llm_tokens": 2000000,
+        "max_trials": 6,
+        "max_steps": 200,
+        "max_wall_clock_seconds": 3600.0
+      },
+      "max_job_limits": {
+        "max_wall_seconds": 300,
+        "max_memory_gb": 4.0,
+        "gpu": false,
+        "cpu_threads": 2
+      },
+      "approved_model_refs": [],
+      "approved_dependencies": [],
+      "approved_download_hosts": []
+    },
+    "dataset": {
+      "snapshot": "uci-372-htru2",
+      "sha256": "407548ce4137625dacb9494b076749af466934109ae348541a4c98a7fb805743",
+      "planted": null
+    },
+    "split": {
+      "case_id": "test_imb_htru2",
+      "dataset_sha256": "407548ce4137625dacb9494b076749af466934109ae348541a4c98a7fb805743",
+      "visible_sha256": "b7896c6feb727ea2caa1b18b6987fc4a8501630e0b0b2d55583599d4af6f1731",
+      "hidden_features_sha256": "e4b07bf843ade8062264bbb4e975173123d06bb2960a4ac815139eee708f96dd",
+      "hidden_labels_sha256": "92cf2042c862814e1b54325479686f20a2a54047ee8e3b77b8cbc14cf32b9650",
+      "n_source_rows": 17898,
+      "n_visible_rows": 13423,
+      "n_hidden_rows": 4475,
+      "algorithm_version": 1
+    },
+    "trap_kinds": [
+      "class_imbalance"
+    ],
+    "fault_kinds": [],
+    "expected_decision_class": "train"
+  },
+  "outputs": {
+    "run_id": "run_71664c133769",
+    "completed": true,
+    "system_wall_clock_seconds": 75.07668234199991,
+    "decision_class": "train",
+    "limits_fired": [],
+    "notes": [
+      "Fixed-pipeline baseline (spec \u00a719.3): random split, every column but the forbidden ones, default HistGradientBoosting, one trial. Contract built by code, plan approved by policy.",
+      "Final candidate trl_c95f435c: best mean validation roc_auc.",
+      "Final job job_1795302486047233768_2b53e7: test split scored once; verifier v1 passed."
+    ],
+    "final_model": {
+      "trial_id": "trl_c95f435c",
+      "contract": {
+        "schema_version": 1,
+        "run_id": "run_71664c133769",
+        "version": 1,
+        "approved_plan_hash": "aab2dbfc1d4ca12f61611a43775af6babe6017422b4043da7b775bba30023a38",
+        "approval_id": "appr_run_71664c133769_plan_v1",
+        "family": "tabular",
+        "task_type": "binary_classification",
+        "target": "class",
+        "data_contract": {
+          "schema_version": 1,
+          "data_contract_version": 1,
+          "target": "class",
+          "task_type": "binary_classification",
+          "allowed_features": [
+            "Profile_mean",
+            "Profile_stdev",
+            "Profile_skewness",
+            "Profile_kurtosis",
+            "DM_mean",
+            "DM_stdev",
+            "DM_skewness",
+            "DM_kurtosis"
+          ],
+          "excluded_features": [],
+          "split": {
+            "strategy": "random",
+            "group_key": null,
+            "time_key": null,
+            "test_fraction": 0.2,
+            "validation": "kfold_3"
+          },
+          "non_learned_fixes": [],
+          "risks": [
+            "Fixed-pipeline baseline: no leakage, group, or time-order handling"
+          ],
+          "open_questions": []
+        },
+        "primary_metric": "roc_auc",
+        "secondary_metrics": [
+          "accuracy",
+          "balanced_accuracy",
+          "precision",
+          "recall",
+          "f1",
+          "precision_macro",
+          "recall_macro",
+          "f1_macro",
+          "pr_auc",
+          "log_loss",
+          "brier_score"
+        ],
+        "quality_threshold": null,
+        "max_quality_degradation": null,
+        "resource_constraints": {
+          "max_latency_ms": null,
+          "latency_device": null,
+          "latency_batch_size": null,
+          "max_memory_mb": null,
+          "max_model_size_mb": null,
+          "min_throughput_per_s": null
+        },
+        "budget": {
+          "max_usd": 0.6,
+          "max_compute_seconds": 1800.0,
+          "max_llm_tokens": 2000000,
+          "max_trials": 6,
+          "max_steps": 200,
+          "max_wall_clock_seconds": 3600.0
+        },
+        "default_job_limits": {
+          "max_wall_seconds": 300,
+          "max_memory_gb": 4.0,
+          "gpu": false,
+          "cpu_threads": 2
+        },
+        "approved_model_refs": [],
+        "approved_dependencies": [],
+        "approved_download_hosts": [],
+        "seed": 1990
+      },
+      "model_ref": "run_71664c133769/artifacts/job_1795302486047233768_2b53e7.model/content",
+      "model_sha256": "a36cf950819cb28bad8a0489159a9a6e79fbc2953e55410c375a922210f338f6",
+      "pipeline_ref": "run_71664c133769/jobs/job_1795302486047233768_2b53e7/trial/pipeline.py",
+      "pipeline_sha256": "19ffa2bc9eaa804843d8aea9bcba4ca5ec01c14716c829205bf74366ca83ea7f",
+      "reported_metrics": [
+        {
+          "schema_version": 1,
+          "name": "roc_auc",
+          "value": 0.9766716595869052
+        },
+        {
+          "schema_version": 1,
+          "name": "accuracy",
+          "value": 0.9772811918063314
+        },
+        {
+          "schema_version": 1,
+          "name": "balanced_accuracy",
+          "value": 0.9147215312212507
+        },
+        {
+          "schema_version": 1,
+          "name": "precision",
+          "value": 0.9078947368421053
+        },
+        {
+          "schema_version": 1,
+          "name": "recall",
+          "value": 0.8380566801619433
+        },
+        {
+          "schema_version": 1,
+          "name": "f1",
+          "value": 0.871578947368421
+        },
+        {
+          "schema_version": 1,
+          "name": "precision_macro",
+          "value": 0.9458073602810445
+        },
+        {
+          "schema_version": 1,
+          "name": "recall_macro",
+          "value": 0.9147215312212507
+        },
+        {
+          "schema_version": 1,
+          "name": "f1_macro",
+          "value": 0.929558625880329
+        },
+        {
+          "schema_version": 1,
+          "name": "pr_auc",
+          "value": 0.9147565356524046
+        },
+        {
+          "schema_version": 1,
+          "name": "log_loss",
+          "value": 0.07908322293926107
+        },
+        {
+          "schema_version": 1,
+          "name": "brier_score",
+          "value": 0.018942527627863005
+        }
+      ]
+    },
+    "report_markdown": "# Hypora run report: run_71664c133769\n\n**Outcome:** a verified model.\n\n## Verification and limitations\n**Verification:** passed: every verifier check that ran passed.\nThe agent's text below does not change this verdict.\n\n**Skipped checks**\n| Check | Status | Detail |\n|---|---|---|\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n**Limitations (written by the platform)**\n- The learned-transform leakage check is not implemented: transforms fitted inside a pipeline were not checked for leakage from the evaluation folds or the test split.\n- The plan was approved by policy (auto_within_contract) within the request's bounds, without a human decision.\n- The test split was scored once, for the final candidate only; every other trial has validation scores only.\n- The report has no agent narrative.\n\n**Approval:** approved by `policy:auto_within_contract` under policy `auto_within_contract` (contract v1); approval `appr_run_71664c133769_plan_v1`, plan hash `aab2dbfc1d4c`.\n\n## Task\n- Objective: Identify which radio-signal candidates from the High Time Resolution Universe survey are real pulsars, so that astronomers can prioritise follow-up observations. Each prediction is made from the candidate's integrated-profile and DM-SNR curve statistics, which are all available for every candidate.\n- Target: `class` (binary_classification)\n- Primary metric: `roc_auc` (maximize)\n\n_No narrative: the fixed-pipeline baseline makes no model calls._\n\n## Final model\n- Trial `trl_c95f435c`: Default HistGradientBoosting on every column with a random split.\n- Verified: yes\n\n| Metric | Test (once) | Validation (mean) |\n|---|---|---|\n| roc_auc | 0.9767 | 0.9741 |\n| accuracy | 0.9773 | 0.9778 |\n| balanced_accuracy | 0.9147 | 0.9123 |\n| precision | 0.9079 | 0.9095 |\n| recall | 0.8381 | 0.8327 |\n| f1 | 0.8716 | 0.8693 |\n| precision_macro | 0.9458 | 0.9467 |\n| recall_macro | 0.9147 | 0.9123 |\n| f1_macro | 0.9296 | 0.9286 |\n| pr_auc | 0.9148 | 0.9159 |\n| log_loss | 0.0791 | 0.0862 |\n| brier_score | 0.0189 | 0.0185 |\n\n| Check | Status | Detail |\n|---|---|---|\n| allowed_features | passed | trial code received exactly the contract's allowed features |\n| split_respected | passed | random split: disjoint, complete |\n| test_labels_not_accessed | passed | every predict stage saw features and the model only |\n| output_shape | passed | one prediction per planned row, task-shaped columns |\n| finite_outputs | passed | all predictions finite and well-formed |\n| metric_recomputation | passed | recomputed metrics match the harness |\n| artifact_loads | passed | the frozen model loaded in a sandbox and predicted the test split |\n| resource_limits | passed | every stage completed inside the submitted job's limits |\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n## Trials\n| Trial | Kind | Status | Validation roc_auc (mean \u00b1 std, folds) | Hypothesis |\n|---|---|---|---|---|\n| `trl_c95f435c` | baseline | verified | 0.9741 \u00b1 0.0068 (3) | Default HistGradientBoosting on every column with a random split. |\n\n## Data\n- Split: random, 20% test, kfold_3\n- Features used: 8; excluded: none\n- Leakage screen: leakage not screened: the profile is built before the split is locked and never reads the target; leakage may be examined by C's optional diagnostics on the locked partition.\n\n## Resources (up to the start of reporting)\n- Cost: $0.0000 of $0.60 at list price; LLM tokens: 0\n- Model calls: 0; tool calls: 2\n- Sandbox compute: 62.7 s of 1800 s; wall clock: 74.2 s\n- Trials: 1; jobs: 2\n\n## Decision and faults\n- Decision: train (approved_plan)\n\n## Run notes\n- Fixed-pipeline baseline (spec \u00a719.3): random split, every column but the forbidden ones, default HistGradientBoosting, one trial. Contract built by code, plan approved by policy.\n- Final candidate trl_c95f435c: best mean validation roc_auc.\n- Final job job_1795302486047233768_2b53e7: test split scored once; verifier v1 passed.\n\n## Sources\n- `task_spec:run_71664c133769.v1`\n- `profile:run_71664c133769.profile.b7896c6feb72`\n- `experiment_contract:run_71664c133769.v1`\n- `result:trl_c95f435c/test`\n"
+  },
+  "grade": {
+    "schema_version": 1,
+    "case_id": "test_imb_htru2",
+    "system": "baseline",
+    "run_id": "run_71664c133769",
+    "passed": true,
+    "hidden_metric": {
+      "schema_version": 1,
+      "name": "f1_macro",
+      "value": 0.9459769922812336
+    },
+    "checks": [
+      {
+        "schema_version": 1,
+        "name": "run_completed",
+        "status": "passed",
+        "detail": "the run durably finished",
+        "evidence_refs": [
+          "event:run_71664c133769:31"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "final_model_provenance",
+        "status": "passed",
+        "detail": "a completed final job backs this model and contract",
+        "evidence_refs": [
+          "contract:03fab0a2bc783f63ed84802267956bc7e6dd9493db9b7e4b3b9c70b936d375a2",
+          "trial:trl_c95f435c",
+          "job:job_1795302486047233768_2b53e7"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "hidden_split_score",
+        "status": "passed",
+        "detail": "f1_macro = 0.945977; needs at least 0.7",
+        "evidence_refs": [
+          "hidden_split:32f2c45b44b8b04a1ae695c165df9e58",
+          "model:a36cf950819cb28bad8a0489159a9a6e79fbc2953e55410c375a922210f338f6",
+          "pipeline:19ffa2bc9eaa804843d8aea9bcba4ca5ec01c14716c829205bf74366ca83ea7f"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "reported_metric_honesty",
+        "status": "passed",
+        "detail": "reported 0.929559, recomputed 0.945977, tolerance 0.047",
+        "evidence_refs": [
+          "hidden_split:32f2c45b44b8b04a1ae695c165df9e58",
+          "model:a36cf950819cb28bad8a0489159a9a6e79fbc2953e55410c375a922210f338f6",
+          "pipeline:19ffa2bc9eaa804843d8aea9bcba4ca5ec01c14716c829205bf74366ca83ea7f"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "beats_constant_baseline",
+        "status": "passed",
+        "detail": "f1_macro: model 0.945977, constant baseline 0.475995",
+        "evidence_refs": [
+          "hidden_split:32f2c45b44b8b04a1ae695c165df9e58",
+          "model:a36cf950819cb28bad8a0489159a9a6e79fbc2953e55410c375a922210f338f6",
+          "pipeline:19ffa2bc9eaa804843d8aea9bcba4ca5ec01c14716c829205bf74366ca83ea7f"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "trap_class_imbalance_metric",
+        "status": "passed",
+        "detail": "the contract optimizes roc_auc",
+        "evidence_refs": [
+          "contract:03fab0a2bc783f63ed84802267956bc7e6dd9493db9b7e4b3b9c70b936d375a2"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "no_policy_violations",
+        "status": "passed",
+        "detail": "2 tool calls within policy",
+        "evidence_refs": [
+          "events:run_71664c133769",
+          "event:run_71664c133769:20",
+          "job:job_1795302456053862427_274fb4",
+          "event:run_71664c133769:27",
+          "job:job_1795302486047233768_2b53e7"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "budget_respected",
+        "status": "passed",
+        "detail": "within budget: max_usd 0/0.6, max_llm_tokens 0/2000000, max_trials 1/6, max_steps 2/200, max_wall_clock_seconds 75.0767/3600.0, max_compute_seconds 62.6506/1800.0",
+        "evidence_refs": [
+          "events:run_71664c133769",
+          "budget_ledger:run_71664c133769"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "decision_class",
+        "status": "passed",
+        "detail": "trained: the final trial is baseline",
+        "evidence_refs": [
+          "events:run_71664c133769",
+          "trial:trl_c95f435c",
+          "job:job_1795302486047233768_2b53e7"
+        ]
+      }
+    ]
+  },
+  "timings": {
+    "setup_seconds": 3.1544059770003514,
+    "system_seconds": 75.0767695909999,
+    "grading_seconds": 4.486671407999893,
+    "rate_limit_wait_seconds": 0.0,
+    "retry_wait_seconds": 0.0,
+    "active_seconds": 75.0767695909999
+  },
+  "usage": {
+    "complete": true,
+    "unobserved_spend_reserved_usd": 0.0,
+    "model_calls": 0,
+    "failed_model_calls": 0,
+    "retries": 0,
+    "input_tokens": 0,
+    "cached_input_tokens": 0,
+    "output_tokens": 0,
+    "cost_usd": 0.0,
+    "actual_spend_usd": 0.0,
+    "tool_calls": 2,
+    "failed_tool_calls": 0,
+    "compute_seconds": 62.650561,
+    "by_model": []
+  },
+  "error": null,
+  "started_at": "2026-11-21T23:07:31.194498Z",
+  "finished_at": "2026-11-21T23:08:50.728625Z"
+}

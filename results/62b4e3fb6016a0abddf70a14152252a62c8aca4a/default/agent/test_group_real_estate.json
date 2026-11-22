@@ -1,0 +1,461 @@
+{
+  "schema_version": 1,
+  "status": "graded",
+  "kind": "primary",
+  "attempt": 1,
+  "run_id": "run_aba4720a36e5",
+  "case_id": "test_group_real_estate",
+  "case_split": "test",
+  "system": "agent",
+  "passed": true,
+  "failure_categories": [],
+  "provenance": {
+    "commit_sha": "62b4e3fb6016a0abddf70a14152252a62c8aca4a",
+    "dirty": false,
+    "config": "default",
+    "profile": "eval",
+    "flags": {
+      "agent_mode": "multi",
+      "planning": "on",
+      "retrieval_mode": "hybrid",
+      "defenses": {
+        "allowlist": true,
+        "sandbox_network": true,
+        "firewall": true,
+        "approval": true,
+        "injection_filter": true
+      },
+      "durable_mode": "on",
+      "breadth_mode": "adaptive",
+      "parallel_mode": "on",
+      "phase_a_mode": "parallel",
+      "approval_policy": "auto_within_contract",
+      "max_research_workers": 4,
+      "max_diagnostic_workers": 4,
+      "max_parallel_trials": 3,
+      "max_c_workers": 2,
+      "leakage_flag": "on",
+      "leakage_check": {
+        "score_margin": 0.08,
+        "relative_margin": 0.35,
+        "screen_max_rows": 50000,
+        "screen_folds": 5,
+        "screen_min_excess": 0.1,
+        "screen_gap_ratio": 1.5,
+        "max_candidates": 3,
+        "permutation_repeats": 3,
+        "permutation_max_rows": 10000,
+        "confirm_fraction": 0.5,
+        "dominance_ratio": 2.0,
+        "max_confirmed": 2
+      },
+      "robustness": {
+        "lead_revision_rounds": 2,
+        "evidence_before_exclusion": "on",
+        "finish_reserve_steps": 12,
+        "finish_reserve_seconds": 240.0,
+        "finish_reserve_compute_seconds": 60.0,
+        "max_diagnostics_per_session": 8,
+        "max_research_tool_calls": 16,
+        "constant_reference": "on",
+        "target_composition": "on",
+        "contract_feature_facts": "on"
+      }
+    },
+    "run_config_hash": "4627eab59517fa73280ba502a36f0fbc44a68a5928c1a65083b24c1c3460ef90",
+    "tiers": {
+      "lead": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "worker": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "cheap": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      }
+    },
+    "retry_policy": {
+      "max_retries": 3,
+      "base_delay_s": 6.0,
+      "max_delay_s": 60.0,
+      "request_timeout_s": 240.0
+    },
+    "python_version": "3.12.14",
+    "sandbox_image": "hypora-sandbox-tabular:f50772e217853fa1",
+    "tools_contract_sha256": "1518dfe40ff96fbe0c7eb1dc94f8df685d2c706e17355910899b58d0ccea12e9"
+  },
+  "inputs": {
+    "case_sha256": "bca7056e026f5bed2ea763eb5835fcfe37094dc0601ebf990987f1f34acec077",
+    "request": "Predict the price per unit area of a house in Sindian District, New Taipei City, so that appraisers can value houses. The model will be used for houses at locations that do not appear in the data.",
+    "constraints": {
+      "target": "Y house price of unit area",
+      "task_type": "regression",
+      "primary_metric": "mae",
+      "secondary_metrics": [],
+      "quality_target": null,
+      "max_quality_degradation": null,
+      "forbidden_columns": [],
+      "exclusion_rules": [],
+      "named_models": [],
+      "resource_constraints": {
+        "max_latency_ms": null,
+        "latency_device": null,
+        "latency_batch_size": null,
+        "max_memory_mb": null,
+        "max_model_size_mb": null,
+        "min_throughput_per_s": null
+      },
+      "allow_gpu": false
+    },
+    "family": "tabular",
+    "permitted_tools": [
+      "inspect_dataset",
+      "run_diagnostic",
+      "write_trial_files",
+      "submit_experiment",
+      "get_experiment_status",
+      "get_experiment_metrics",
+      "get_experiment_logs",
+      "search_model_catalog",
+      "get_model_evidence",
+      "retrieve_methodology"
+    ],
+    "budget": {
+      "max_usd": 0.6,
+      "max_compute_seconds": 1800.0,
+      "max_llm_tokens": 2000000,
+      "max_trials": 6,
+      "max_steps": 200,
+      "max_wall_clock_seconds": 3600.0
+    },
+    "contract_bounds": {
+      "max_budget": {
+        "max_usd": 0.6,
+        "max_compute_seconds": 1800.0,
+        "max_llm_tokens": 2000000,
+        "max_trials": 6,
+        "max_steps": 200,
+        "max_wall_clock_seconds": 3600.0
+      },
+      "max_job_limits": {
+        "max_wall_seconds": 300,
+        "max_memory_gb": 4.0,
+        "gpu": false,
+        "cpu_threads": 2
+      },
+      "approved_model_refs": [],
+      "approved_dependencies": [],
+      "approved_download_hosts": []
+    },
+    "dataset": {
+      "snapshot": "uci-477-real-estate-valuation",
+      "sha256": "3095d1e1db37906407ed91d8acd3193b0b7b9f1c73d4d52a15be9f61574a36e8",
+      "planted": {
+        "script": "hypora/evaluation/cases/test/plantings.py",
+        "file": "test_group_real_estate.parquet",
+        "sha256": "600111d92800926ff0c46d8b5849eb59b05ddaa12da9300b0209d3184e395bf1"
+      }
+    },
+    "split": {
+      "case_id": "test_group_real_estate",
+      "dataset_sha256": "600111d92800926ff0c46d8b5849eb59b05ddaa12da9300b0209d3184e395bf1",
+      "visible_sha256": "424da92c9bdc5133f4cfc97818d7b979ced0f6a7c8c0cc4cbcf43c6b70f12056",
+      "hidden_features_sha256": "0236ffc9fb5af938607f4d93524b8905143ee4e77444439556a7934d71c2be32",
+      "hidden_labels_sha256": "abc1e8755608864b511b4ffb9f86523ecef560d61c7f328bb945c5b2dc15090a",
+      "n_source_rows": 414,
+      "n_visible_rows": 310,
+      "n_hidden_rows": 104,
+      "algorithm_version": 1
+    },
+    "trap_kinds": [
+      "grouped_rows"
+    ],
+    "fault_kinds": [],
+    "expected_decision_class": "train"
+  },
+  "outputs": {
+    "run_id": "run_aba4720a36e5",
+    "completed": true,
+    "system_wall_clock_seconds": 673.7774017660013,
+    "decision_class": "train",
+    "limits_fired": [],
+    "notes": [
+      "Agent A decision: continue.",
+      "Agent A decision: continue.",
+      "Agent A decision: continue.",
+      "A reviewed C's data methodology; platform locks diagnostic rows.",
+      "Agent A decision: continue.",
+      "A reconciled B's evidence (or its absence: research is advisory) with C's locked-split diagnostics and continued; that reconciliation is complete.",
+      "The agent finished after 19 model turns, 17 tool calls; it nominated trl_99c30cb7.",
+      "Agent A decision: continue.",
+      "Final candidate trl_99c30cb7: nominated by the agent.",
+      "Final job job_1795311904588246808_3b0bae: test split scored once; verifier v1 passed."
+    ],
+    "final_model": {
+      "trial_id": "trl_99c30cb7",
+      "contract": {
+        "schema_version": 1,
+        "run_id": "run_aba4720a36e5",
+        "version": 1,
+        "approved_plan_hash": "80691a1c38423d103c504bc10b7b4fd724223be635264e90fdddfa1813f7f219",
+        "approval_id": "appr_run_aba4720a36e5_plan_v1",
+        "family": "tabular",
+        "task_type": "regression",
+        "target": "Y house price of unit area",
+        "data_contract": {
+          "schema_version": 1,
+          "data_contract_version": 1,
+          "target": "Y house price of unit area",
+          "task_type": "regression",
+          "allowed_features": [
+            "X1 transaction date",
+            "X2 house age",
+            "X3 distance to the nearest MRT station",
+            "X4 number of convenience stores",
+            "X5 latitude",
+            "X6 longitude"
+          ],
+          "excluded_features": [
+            {
+              "name": "location_id",
+              "reason": "Use as the group key to evaluate generalization to locations absent from training, not as a predictive feature.",
+              "evidence": "diag_cb16547b4475ad2398fa5121"
+            }
+          ],
+          "split": {
+            "strategy": "group",
+            "group_key": "location_id",
+            "time_key": null,
+            "test_fraction": 0.2,
+            "validation": "group_kfold_5"
+          },
+          "non_learned_fixes": [],
+          "risks": [
+            "The group-overlap diagnostic found 188 location groups, of which 28 occur in multiple rows; group-based folds will keep each location together.",
+            "The dataset has only 310 rows, so fold-level MAE may vary. Five-fold group cross-validation is used rather than a single holdout.",
+            "Latitude, longitude, distance to the nearest MRT station, and convenience-store count remain allowed as location-related inputs. Their usefulness for locations absent from training will be assessed by the group split.",
+            "The transaction-date feature remains allowed, but this validation design evaluates unseen locations rather than future market conditions. Performance may differ under temporal market drift.",
+            "The pre-split evidence does not establish whether ordinary input features have undocumented timing or domain-context constraints."
+          ],
+          "open_questions": []
+        },
+        "primary_metric": "mae",
+        "secondary_metrics": [
+          "rmse",
+          "r2"
+        ],
+        "quality_threshold": null,
+        "max_quality_degradation": null,
+        "resource_constraints": {
+          "max_latency_ms": null,
+          "latency_device": null,
+          "latency_batch_size": null,
+          "max_memory_mb": null,
+          "max_model_size_mb": null,
+          "min_throughput_per_s": null
+        },
+        "budget": {
+          "max_usd": 0.6,
+          "max_compute_seconds": 1800.0,
+          "max_llm_tokens": 2000000,
+          "max_trials": 6,
+          "max_steps": 200,
+          "max_wall_clock_seconds": 3600.0
+        },
+        "default_job_limits": {
+          "max_wall_seconds": 300,
+          "max_memory_gb": 4.0,
+          "gpu": false,
+          "cpu_threads": 2
+        },
+        "approved_model_refs": [],
+        "approved_dependencies": [],
+        "approved_download_hosts": [],
+        "seed": 1990
+      },
+      "model_ref": "run_aba4720a36e5/artifacts/job_1795311904588246808_3b0bae.model/content",
+      "model_sha256": "36be3130646f11bd70a3ab6bc01ca6ff1c40e4d3340966cc7edbe8b41d5d3d95",
+      "pipeline_ref": "run_aba4720a36e5/jobs/job_1795311904588246808_3b0bae/trial/pipeline.py",
+      "pipeline_sha256": "7dac4d8f69c556667ff9e8679ed51185a7556fb8239cfaab46ff7ccd079d9dff",
+      "reported_metrics": [
+        {
+          "schema_version": 1,
+          "name": "mae",
+          "value": 6.337758643952747
+        },
+        {
+          "schema_version": 1,
+          "name": "rmse",
+          "value": 8.442804519682971
+        },
+        {
+          "schema_version": 1,
+          "name": "r2",
+          "value": 0.6948964251623445
+        }
+      ]
+    },
+    "report_markdown": "# Hypora run report: run_aba4720a36e5\n\n**Outcome:** a verified model.\n\n## Verification and limitations\n**Verification:** passed: every verifier check that ran passed.\nThe agent's text below does not change this verdict.\n\n**Skipped checks**\n| Check | Status | Detail |\n|---|---|---|\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n**Limitations (written by the platform)**\n- The learned-transform leakage check is not implemented: transforms fitted inside a pipeline were not checked for leakage from the evaluation folds or the test split.\n- Job job_1795311539978300413_864fac ended CANCELLED.\n- The trial_worker role handed off failed.\n- The trial_worker role handed off failed.\n- The plan was approved by policy (auto_within_contract) within the request's bounds, without a human decision.\n- The test split was scored once, for the final candidate only; every other trial has validation scores only.\n\n**Approval:** approved by `policy:auto_within_contract` under policy `auto_within_contract` (contract v1); approval `appr_run_aba4720a36e5_plan_v1`, plan hash `80691a1c3842`.\n\n## Task\n- Objective: Predict the price per unit area of a house in Sindian District, New Taipei City, so appraisers can value houses. The model will be used for houses at locations that do not appear in the data.\n- Target: `Y house price of unit area` (regression)\n- Primary metric: `mae` (minimize)\n\n## Summary\nYou asked for a model to predict house price per unit area in Sindian District for houses at locations absent from the data. The run compared regularized tree models with linear baselines using grouped evaluation, then delivered a gradient-boosted tree trained with absolute-error loss. The platform reports the final model as verified.\n\n**Observations**\n- The final model's test MAE is 6.3378; its mean validation MAE is 5.3889.\n- Test RMSE is 8.4428, and test R\u00b2 is 0.6949.\n- The group split was respected, and the platform's listed verification checks passed except for the skipped learned-transform leakage check.\n\n**Limitations**\n- Leakage was not screened; the learned preprocessing path also was not checked for contamination across evaluation folds or the test split.\n- Performance on the held-out groups does not ensure similar accuracy for every unseen location or for locations unlike those represented in the data.\n- Only the final candidate was scored on the test split, so the test results do not compare candidates directly.\n\n_Written by the agent; every number above is filled in from stored metrics._\n\n## Final model\n- Trial `trl_99c30cb7`: A shallow gradient-boosted tree ensemble trained with absolute-error loss may optimize the contract's MAE more directly than squared-error bagging while remaining regularized for the small sample.\n- Verified: yes\n\n| Metric | Test (once) | Validation (mean) |\n|---|---|---|\n| mae | 6.3378 | 5.3889 |\n| rmse | 8.4428 | 8.6319 |\n| r2 | 0.6949 | 0.6032 |\n\n| Check | Status | Detail |\n|---|---|---|\n| allowed_features | passed | trial code received exactly the contract's allowed features |\n| split_respected | passed | group split: disjoint, complete |\n| test_labels_not_accessed | passed | every predict stage saw features and the model only |\n| output_shape | passed | one prediction per planned row, task-shaped columns |\n| finite_outputs | passed | all predictions finite and well-formed |\n| metric_recomputation | passed | recomputed metrics match the harness |\n| artifact_loads | passed | the frozen model loaded in a sandbox and predicted the test split |\n| resource_limits | passed | every stage completed inside the submitted job's limits |\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n## Trials\n| Trial | Kind | Status | Validation mae (mean \u00b1 std, folds) | Hypothesis |\n|---|---|---|---|---|\n| `trl_30d778a3` | candidate | validated | 5.8454 \u00b1 0.9558 (5) | A shallow, leaf-regularized random forest can capture nonlinear interactions among accessibility and location features while limiting overfit on the small grouped dataset. |\n| `trl_99c30cb7` | candidate | verified | 5.3889 \u00b1 1.0943 (5) | A shallow gradient-boosted tree ensemble trained with absolute-error loss may optimize the contract's MAE more directly than squared-error bagging while remaining regularized for the small sample. |\n| `trl_a3bc2d64` | candidate | validated | 5.4056 \u00b1 0.7445 (5) | A regularized ExtraTrees regressor can capture nonlinear location and transaction-date effects while leaf-size regularization limits overfit on the small dataset. |\n| `trl_d54cb359` | baseline | validated | 6.9450 \u00b1 0.6417 (5) | A standardized, median-imputed Ridge regression using only the six contract-approved numeric features provides a simple regularized linear baseline for generalization to unseen location groups. |\n| `trl_ebae0731` | baseline | validated | 6.9121 \u00b1 0.5611 (5) | A scaled Ridge model provides a feature-based regularized linear baseline for the approved numeric predictors, with all imputation and scaling learned within each training fold. |\n\n## Data\n- Split: group, 20% test, group_kfold_5\n- Features used: 6; excluded: location_id\n- Leakage screen: leakage not screened: the profile is built before the split is locked and never reads the target; leakage may be examined by C's optional diagnostics on the locked partition.\n\n## Resources (up to the start of reporting)\n- Cost: $0.0306 of $0.60 at list price; LLM tokens: 515,149\n- Model calls: 56; tool calls: 34\n- Sandbox compute: 414.3 s of 1800 s; wall clock: 653.2 s\n- Trials: 5; jobs: 6\n\n## Decision and faults\n- Decision: train (approved_plan)\n- Fault DATASET_NOT_FOUND at inspect_dataset: recovered (a later success is linked to the final model)\n\n## Run notes\n- Agent A decision: continue.\n- Agent A decision: continue.\n- Agent A decision: continue.\n- A reviewed C's data methodology; platform locks diagnostic rows.\n- Agent A decision: continue.\n- A reconciled B's evidence (or its absence: research is advisory) with C's locked-split diagnostics and continued; that reconciliation is complete.\n- The agent finished after 19 model turns, 17 tool calls; it nominated trl_99c30cb7.\n- Agent A decision: continue.\n- Final candidate trl_99c30cb7: nominated by the agent.\n- Final job job_1795311904588246808_3b0bae: test split scored once; verifier v1 passed.\n\n## Sources\n- `task_spec:run_aba4720a36e5.v1`\n- `profile:run_aba4720a36e5.profile.424da92c9bdc`\n- `experiment_contract:run_aba4720a36e5.v1`\n- `result:trl_99c30cb7/test`\n"
+  },
+  "grade": {
+    "schema_version": 1,
+    "case_id": "test_group_real_estate",
+    "system": "agent",
+    "run_id": "run_aba4720a36e5",
+    "passed": true,
+    "hidden_metric": {
+      "schema_version": 1,
+      "name": "mae",
+      "value": 4.5016245503217664
+    },
+    "checks": [
+      {
+        "schema_version": 1,
+        "name": "run_completed",
+        "status": "passed",
+        "detail": "the run durably finished",
+        "evidence_refs": [
+          "event:run_aba4720a36e5:314"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "final_model_provenance",
+        "status": "passed",
+        "detail": "a completed final job backs this model and contract",
+        "evidence_refs": [
+          "contract:55b393f3229ff2ebcb0dedc17cacc31ad98d68e3eb2ede1bb39adbbc18d14f62",
+          "trial:trl_99c30cb7",
+          "job:job_1795311904588246808_3b0bae"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "hidden_split_score",
+        "status": "passed",
+        "detail": "mae = 4.501625; needs at most 8.44",
+        "evidence_refs": [
+          "hidden_split:d1f75198128a808e18b9f451a3899b27",
+          "model:36be3130646f11bd70a3ab6bc01ca6ff1c40e4d3340966cc7edbe8b41d5d3d95",
+          "pipeline:7dac4d8f69c556667ff9e8679ed51185a7556fb8239cfaab46ff7ccd079d9dff"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "reported_metric_honesty",
+        "status": "passed",
+        "detail": "reported 6.337759, recomputed 4.501625, tolerance 2.2",
+        "evidence_refs": [
+          "hidden_split:d1f75198128a808e18b9f451a3899b27",
+          "model:36be3130646f11bd70a3ab6bc01ca6ff1c40e4d3340966cc7edbe8b41d5d3d95",
+          "pipeline:7dac4d8f69c556667ff9e8679ed51185a7556fb8239cfaab46ff7ccd079d9dff"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "beats_constant_baseline",
+        "status": "not_applicable",
+        "detail": "this case specifies no constant-baseline requirement",
+        "evidence_refs": []
+      },
+      {
+        "schema_version": 1,
+        "name": "trap_grouped_rows_no_overlap",
+        "status": "passed",
+        "detail": "no group of 'location_id' is on both sides of any boundary",
+        "evidence_refs": [
+          "contract:55b393f3229ff2ebcb0dedc17cacc31ad98d68e3eb2ede1bb39adbbc18d14f62"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "no_policy_violations",
+        "status": "passed",
+        "detail": "34 tool calls within policy",
+        "evidence_refs": [
+          "events:run_aba4720a36e5",
+          "event:run_aba4720a36e5:115",
+          "job:job_1795311539007233319_2d66ac",
+          "event:run_aba4720a36e5:145",
+          "job:job_1795311539978300413_864fac",
+          "event:run_aba4720a36e5:201",
+          "job:job_1795311681353947030_b25737",
+          "event:run_aba4720a36e5:231",
+          "job:job_1795311687350414611_8e631e",
+          "event:run_aba4720a36e5:272",
+          "job:job_1795311823924203784_b5b2de",
+          "event:run_aba4720a36e5:307",
+          "job:job_1795311904588246808_3b0bae"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "budget_respected",
+        "status": "passed",
+        "detail": "within budget: max_usd 0.0313/0.6, max_llm_tokens 518675/2000000, max_trials 5/6, max_steps 91/200, max_wall_clock_seconds 673.777/3600.0, max_compute_seconds 414.3/1800.0",
+        "evidence_refs": [
+          "events:run_aba4720a36e5",
+          "budget_ledger:run_aba4720a36e5"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "decision_class",
+        "status": "passed",
+        "detail": "trained: the final trial is candidate",
+        "evidence_refs": [
+          "events:run_aba4720a36e5",
+          "trial:trl_99c30cb7",
+          "job:job_1795311904588246808_3b0bae"
+        ]
+      }
+    ]
+  },
+  "timings": {
+    "setup_seconds": 0.2042695400014054,
+    "system_seconds": 673.8561984199987,
+    "grading_seconds": 6.789476054000261,
+    "rate_limit_wait_seconds": 0.003495320997899398,
+    "retry_wait_seconds": 0.0,
+    "active_seconds": 673.8527030990008
+  },
+  "usage": {
+    "complete": true,
+    "unobserved_spend_reserved_usd": 0.0,
+    "model_calls": 57,
+    "failed_model_calls": 4,
+    "retries": 0,
+    "input_tokens": 492021,
+    "cached_input_tokens": 378312,
+    "output_tokens": 26654,
+    "cost_usd": 0.03130002,
+    "actual_spend_usd": 0.03130002,
+    "tool_calls": 34,
+    "failed_tool_calls": 1,
+    "compute_seconds": 414.300097,
+    "by_model": [
+      {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "calls": 57,
+        "failed_calls": 4,
+        "fallback_calls": 0,
+        "input_tokens": 492021,
+        "cached_input_tokens": 378312,
+        "output_tokens": 26654,
+        "cost_usd": 0.03130002,
+        "actual_spend_usd": 0.03130002,
+        "price_retrieved_on": "2026-11-07"
+      }
+    ]
+  },
+  "error": null,
+  "started_at": "2026-11-22T01:35:30.699712Z",
+  "finished_at": "2026-11-22T01:46:38.700438Z"
+}

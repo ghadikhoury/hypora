@@ -1,0 +1,528 @@
+{
+  "schema_version": 1,
+  "status": "graded",
+  "kind": "primary",
+  "attempt": 1,
+  "run_id": "run_b0524dd4d1f6",
+  "case_id": "test_leak_bank_marketing",
+  "case_split": "test",
+  "system": "agent",
+  "passed": true,
+  "failure_categories": [],
+  "provenance": {
+    "commit_sha": "62b4e3fb6016a0abddf70a14152252a62c8aca4a",
+    "dirty": false,
+    "config": "single_agent",
+    "profile": "eval",
+    "flags": {
+      "agent_mode": "single",
+      "planning": "on",
+      "retrieval_mode": "hybrid",
+      "defenses": {
+        "allowlist": true,
+        "sandbox_network": true,
+        "firewall": true,
+        "approval": true,
+        "injection_filter": true
+      },
+      "durable_mode": "on",
+      "breadth_mode": "adaptive",
+      "parallel_mode": "on",
+      "phase_a_mode": "parallel",
+      "approval_policy": "auto_within_contract",
+      "max_research_workers": 4,
+      "max_diagnostic_workers": 4,
+      "max_parallel_trials": 3,
+      "max_c_workers": 2,
+      "leakage_flag": "on",
+      "leakage_check": {
+        "score_margin": 0.08,
+        "relative_margin": 0.35,
+        "screen_max_rows": 50000,
+        "screen_folds": 5,
+        "screen_min_excess": 0.1,
+        "screen_gap_ratio": 1.5,
+        "max_candidates": 3,
+        "permutation_repeats": 3,
+        "permutation_max_rows": 10000,
+        "confirm_fraction": 0.5,
+        "dominance_ratio": 2.0,
+        "max_confirmed": 2
+      },
+      "robustness": {
+        "lead_revision_rounds": 2,
+        "evidence_before_exclusion": "on",
+        "finish_reserve_steps": 12,
+        "finish_reserve_seconds": 240.0,
+        "finish_reserve_compute_seconds": 60.0,
+        "max_diagnostics_per_session": 8,
+        "max_research_tool_calls": 16,
+        "constant_reference": "on",
+        "target_composition": "on",
+        "contract_feature_facts": "on"
+      }
+    },
+    "run_config_hash": "dc319add272b144ca097e9b909c213c77ee1b0bfb25796b97a08316037ad18c2",
+    "tiers": {
+      "lead": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "worker": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "cheap": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      }
+    },
+    "retry_policy": {
+      "max_retries": 3,
+      "base_delay_s": 6.0,
+      "max_delay_s": 60.0,
+      "request_timeout_s": 240.0
+    },
+    "python_version": "3.12.14",
+    "sandbox_image": "hypora-sandbox-tabular:f50772e217853fa1",
+    "tools_contract_sha256": "1518dfe40ff96fbe0c7eb1dc94f8df685d2c706e17355910899b58d0ccea12e9"
+  },
+  "inputs": {
+    "case_sha256": "b2cabc2dac5204a8ad1453218bc8702eac87edb1a2feb3eead56d22e3da0886b",
+    "request": "Identify which bank clients will subscribe to a term deposit, so that the bank can decide whom to call in its marketing campaign. Each prediction is made before the client is called, from the client's profile and account details, the planned contact, and the record of earlier contacts; what happens during the call itself is not known when the prediction is made.",
+    "constraints": {
+      "target": "y",
+      "task_type": "binary_classification",
+      "primary_metric": null,
+      "secondary_metrics": [],
+      "quality_target": null,
+      "max_quality_degradation": null,
+      "forbidden_columns": [],
+      "exclusion_rules": [],
+      "named_models": [],
+      "resource_constraints": {
+        "max_latency_ms": null,
+        "latency_device": null,
+        "latency_batch_size": null,
+        "max_memory_mb": null,
+        "max_model_size_mb": null,
+        "min_throughput_per_s": null
+      },
+      "allow_gpu": false
+    },
+    "family": "tabular",
+    "permitted_tools": [
+      "inspect_dataset",
+      "run_diagnostic",
+      "write_trial_files",
+      "submit_experiment",
+      "get_experiment_status",
+      "get_experiment_metrics",
+      "get_experiment_logs",
+      "search_model_catalog",
+      "get_model_evidence",
+      "retrieve_methodology"
+    ],
+    "budget": {
+      "max_usd": 0.6,
+      "max_compute_seconds": 1800.0,
+      "max_llm_tokens": 2000000,
+      "max_trials": 6,
+      "max_steps": 200,
+      "max_wall_clock_seconds": 3600.0
+    },
+    "contract_bounds": {
+      "max_budget": {
+        "max_usd": 0.6,
+        "max_compute_seconds": 1800.0,
+        "max_llm_tokens": 2000000,
+        "max_trials": 6,
+        "max_steps": 200,
+        "max_wall_clock_seconds": 3600.0
+      },
+      "max_job_limits": {
+        "max_wall_seconds": 300,
+        "max_memory_gb": 4.0,
+        "gpu": false,
+        "cpu_threads": 2
+      },
+      "approved_model_refs": [],
+      "approved_dependencies": [],
+      "approved_download_hosts": []
+    },
+    "dataset": {
+      "snapshot": "uci-222-bank-marketing",
+      "sha256": "e97ebad3ce5e1447b68a407f38dac395a113cd62785c8407cf9f8b8cf1719cda",
+      "planted": null
+    },
+    "split": {
+      "case_id": "test_leak_bank_marketing",
+      "dataset_sha256": "e97ebad3ce5e1447b68a407f38dac395a113cd62785c8407cf9f8b8cf1719cda",
+      "visible_sha256": "984136ffedb9aca0c633bb50cc1e81f95ecf697fc2d8403b7f6531f317b53733",
+      "hidden_features_sha256": "2e5eeea5f4a3cc4d4af19527bf564a58366e170e22373e87a43ad07e7a9e380d",
+      "hidden_labels_sha256": "d2b43f4736f06ce9db59c37042ce94e71c90e9965f05e0b09800f3cab1c89447",
+      "n_source_rows": 45211,
+      "n_visible_rows": 33908,
+      "n_hidden_rows": 11303,
+      "algorithm_version": 1
+    },
+    "trap_kinds": [
+      "target_leakage",
+      "class_imbalance"
+    ],
+    "fault_kinds": [],
+    "expected_decision_class": "train"
+  },
+  "outputs": {
+    "run_id": "run_b0524dd4d1f6",
+    "completed": true,
+    "system_wall_clock_seconds": 329.0529626549978,
+    "decision_class": "train",
+    "limits_fired": [],
+    "notes": [
+      "Single-agent data methodology selected; platform locks diagnostic rows.",
+      "The agent finished after 29 model turns, 27 tool calls; it nominated trl_051bf697.",
+      "Final candidate trl_051bf697: nominated by the agent.",
+      "Final job job_1795312372627916760_be3258: test split scored once; verifier v1 passed."
+    ],
+    "final_model": {
+      "trial_id": "trl_051bf697",
+      "contract": {
+        "schema_version": 1,
+        "run_id": "run_b0524dd4d1f6",
+        "version": 1,
+        "approved_plan_hash": "e09d81669755a94c9d34e6c37af7317bbd484bc21142493a78cd84b8fc43b6a1",
+        "approval_id": "appr_run_b0524dd4d1f6_plan_v1",
+        "family": "tabular",
+        "task_type": "binary_classification",
+        "target": "y",
+        "data_contract": {
+          "schema_version": 1,
+          "data_contract_version": 1,
+          "target": "y",
+          "task_type": "binary_classification",
+          "allowed_features": [
+            "age",
+            "job",
+            "marital",
+            "education",
+            "default",
+            "balance",
+            "housing",
+            "loan",
+            "contact",
+            "day_of_week",
+            "month",
+            "campaign",
+            "pdays",
+            "previous",
+            "poutcome"
+          ],
+          "excluded_features": [
+            {
+              "name": "duration",
+              "reason": "Call duration is only known during or after the call, not when the pre-call prediction is made; it is also explicitly forbidden.",
+              "evidence": "task_spec:v1"
+            }
+          ],
+          "split": {
+            "strategy": "stratified",
+            "group_key": null,
+            "time_key": null,
+            "test_fraction": 0.2,
+            "validation": "holdout"
+          },
+          "non_learned_fixes": [],
+          "risks": [
+            "The dataset has no identified group key or absolute timestamp suitable for group-based or temporal splitting. Stratified holdout estimates performance on a random sample of rows and may not reflect performance on a later campaign if customer composition or campaign conditions change.",
+            "The user identifies profile and account details, planned contact, and earlier-contact records as available at prediction time. Those features remain allowed. The timing and domain meaning of ordinary inputs such as month and day_of_week are not fully documented; day_of_week has values from 1 to 31.",
+            "poutcome is retained as an earlier-contact feature, as requested, but is missing for many rows."
+          ],
+          "open_questions": []
+        },
+        "primary_metric": "roc_auc",
+        "secondary_metrics": [
+          "accuracy",
+          "balanced_accuracy",
+          "precision",
+          "recall",
+          "f1",
+          "precision_macro",
+          "recall_macro",
+          "f1_macro",
+          "pr_auc",
+          "log_loss",
+          "brier_score"
+        ],
+        "quality_threshold": null,
+        "max_quality_degradation": null,
+        "resource_constraints": {
+          "max_latency_ms": null,
+          "latency_device": null,
+          "latency_batch_size": null,
+          "max_memory_mb": null,
+          "max_model_size_mb": null,
+          "min_throughput_per_s": null
+        },
+        "budget": {
+          "max_usd": 0.6,
+          "max_compute_seconds": 1800.0,
+          "max_llm_tokens": 2000000,
+          "max_trials": 6,
+          "max_steps": 200,
+          "max_wall_clock_seconds": 3600.0
+        },
+        "default_job_limits": {
+          "max_wall_seconds": 300,
+          "max_memory_gb": 4.0,
+          "gpu": false,
+          "cpu_threads": 2
+        },
+        "approved_model_refs": [],
+        "approved_dependencies": [],
+        "approved_download_hosts": [],
+        "seed": 1990
+      },
+      "model_ref": "run_b0524dd4d1f6/artifacts/job_1795312372627916760_be3258.model/content",
+      "model_sha256": "4027fa66fe516109aa51bb25d1d86c7af029aa75009bdc32469cf6bb5cc2ec2e",
+      "pipeline_ref": "run_b0524dd4d1f6/jobs/job_1795312372627916760_be3258/trial/pipeline.py",
+      "pipeline_sha256": "d3f5cfcff482e8b56eab0930ef667a095405341b28fe4019324bf63f2f6a7a51",
+      "reported_metrics": [
+        {
+          "schema_version": 1,
+          "name": "roc_auc",
+          "value": 0.7905382229758341
+        },
+        {
+          "schema_version": 1,
+          "name": "accuracy",
+          "value": 0.8938366263639045
+        },
+        {
+          "schema_version": 1,
+          "name": "balanced_accuracy",
+          "value": 0.6089362654568263
+        },
+        {
+          "schema_version": 1,
+          "name": "precision",
+          "value": 0.6204620462046204
+        },
+        {
+          "schema_version": 1,
+          "name": "recall",
+          "value": 0.23707440100882723
+        },
+        {
+          "schema_version": 1,
+          "name": "f1",
+          "value": 0.34306569343065696
+        },
+        {
+          "schema_version": 1,
+          "name": "precision_macro",
+          "value": 0.7635417191973866
+        },
+        {
+          "schema_version": 1,
+          "name": "recall_macro",
+          "value": 0.6089362654568263
+        },
+        {
+          "schema_version": 1,
+          "name": "f1_macro",
+          "value": 0.6426589294872245
+        },
+        {
+          "schema_version": 1,
+          "name": "pr_auc",
+          "value": 0.44009194947096497
+        },
+        {
+          "schema_version": 1,
+          "name": "log_loss",
+          "value": 0.2887776234269311
+        },
+        {
+          "schema_version": 1,
+          "name": "brier_score",
+          "value": 0.08248782434282419
+        }
+      ]
+    },
+    "report_markdown": "# Hypora run report: run_b0524dd4d1f6\n\n**Outcome:** a verified model.\n\n## Verification and limitations\n**Verification:** passed: every verifier check that ran passed.\nThe agent's text below does not change this verdict.\n\n**Skipped checks**\n| Check | Status | Detail |\n|---|---|---|\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n**Limitations (written by the platform)**\n- The learned-transform leakage check is not implemented: transforms fitted inside a pipeline were not checked for leakage from the evaluation folds or the test split.\n- The plan was approved by policy (auto_within_contract) within the request's bounds, without a human decision.\n- No expected score range was available, so the platform could not check whether the validation score was too good for this kind of problem.\n- The test split was scored once, for the final candidate only; every other trial has validation scores only.\n\n**Approval:** approved by `policy:auto_within_contract` under policy `auto_within_contract` (contract v1); approval `appr_run_b0524dd4d1f6_plan_v1`, plan hash `e09d81669755`.\n\n## Task\n- Objective: Identify which bank clients will subscribe to a term deposit so the bank can decide whom to call in its marketing campaign. Make each prediction before the client is called, using the client's profile and account details, the planned contact, and the record of earlier contacts; what happens during the call itself is not known when the prediction is made.\n- Target: `y` (binary_classification)\n- Primary metric: `roc_auc` (maximize)\n\n## Summary\nThe goal was to predict, before a marketing call, which bank clients would subscribe to a term deposit, using only information available at that point. Several classifiers were tried, and a shallow, regularized histogram gradient boosting model was selected and verified on a stratified holdout split. The model artifact passed the platform\u2019s verification checks.\n\n**Observations**\n- The final model achieved a test ROC-AUC of 0.7905, close to its mean validation ROC-AUC of 0.7903.\n- Test accuracy was 0.8938, while recall was 0.2371 and balanced accuracy was 0.6089; accuracy alone may therefore overstate performance on the less common class.\n- The call-duration feature was excluded because it is not available before a call.\n\n**Limitations**\n- Leakage was not screened. The learned-transform leakage check was skipped, so leakage from transformations fitted across evaluation folds or the test split was not ruled out.\n- Validation results are based on a single fold, which limits assessment of score stability.\n- The test split was scored once, for the final model only; other trials have validation scores but no test scores.\n- The model\u2019s scores do not establish that using its predictions will improve campaign outcomes.\n\n_Written by the agent; every number above is filled in from stored metrics._\n\n## Final model\n- Trial `trl_051bf697`: Shallow, regularized histogram gradient boosting on one-hot categoricals and continuous numeric variables can capture nonlinear interactions and threshold effects that the linear baseline misses.\n- Verified: yes\n\n| Metric | Test (once) | Validation (mean) |\n|---|---|---|\n| roc_auc | 0.7905 | 0.7903 |\n| accuracy | 0.8938 | 0.8942 |\n| balanced_accuracy | 0.6089 | 0.6097 |\n| precision | 0.6205 | 0.6269 |\n| recall | 0.2371 | 0.2382 |\n| f1 | 0.3431 | 0.3452 |\n| precision_macro | 0.7635 | 0.7668 |\n| recall_macro | 0.6089 | 0.6097 |\n| f1_macro | 0.6427 | 0.6438 |\n| pr_auc | 0.4401 | 0.4436 |\n| log_loss | 0.2888 | 0.2871 |\n| brier_score | 0.0825 | 0.0819 |\n\n| Check | Status | Detail |\n|---|---|---|\n| allowed_features | passed | trial code received exactly the contract's allowed features |\n| split_respected | passed | stratified split: disjoint, complete |\n| test_labels_not_accessed | passed | every predict stage saw features and the model only |\n| output_shape | passed | one prediction per planned row, task-shaped columns |\n| finite_outputs | passed | all predictions finite and well-formed |\n| metric_recomputation | passed | recomputed metrics match the harness |\n| artifact_loads | passed | the frozen model loaded in a sandbox and predicted the test split |\n| resource_limits | passed | every stage completed inside the submitted job's limits |\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n## Trials\n| Trial | Kind | Status | Validation roc_auc (mean \u00b1 std, folds) | Hypothesis |\n|---|---|---|---|---|\n| `trl_051bf697` | candidate | verified | 0.7903 \u00b1 0.0000 (1) | Shallow, regularized histogram gradient boosting on one-hot categoricals and continuous numeric variables can capture nonlinear interactions and threshold effects that the linear baseline misses. |\n| `trl_1b6363b8` | candidate | validated | 0.7576 \u00b1 0.0000 (1) | An ExtraTrees ensemble can capture nonlinear categorical-numeric interactions and reduce variance through randomized split thresholds; leaf-size regularization should help generalization. |\n| `trl_a60b7446` | candidate | validated | 0.7715 \u00b1 0.0000 (1) | Conventional gradient boosting with shallow trees and row subsampling may rank well on the mixed tabular interactions while maintaining conservative capacity. |\n| `trl_bc90ecb2` | candidate | validated | 0.7772 \u00b1 0.0000 (1) | A bagged random forest with somewhat larger leaves may give a more stable nonlinear ranking than fully randomized ExtraTrees, using class-aware splitting to make minority structure visible. |\n| `trl_e8f88ed0` | candidate | validated | 0.7861 \u00b1 0.0000 (1) | A moderately more flexible histogram gradient booster may recover additional interactions missed by the current shallow regularized configuration, while early capacity and leaf-size controls limit overfitting. |\n| `trl_e9ceabab` | baseline | validated | 0.7477 \u00b1 0.0000 (1) | Regularized logistic regression on standardized numeric features and capped one-hot categorical features provides a calibrated, low-variance linear baseline for the imbalanced binary task. |\n\n## Data\n- Split: stratified, 20% test, holdout\n- Features used: 15; excluded: duration\n- Leakage screen: leakage not screened: the profile is built before the split is locked and never reads the target; leakage may be examined by C's optional diagnostics on the locked partition.\n\n## Resources (up to the start of reporting)\n- Cost: $0.0185 of $0.60 at list price; LLM tokens: 579,020\n- Model calls: 37; tool calls: 27\n- Sandbox compute: 170.7 s of 1800 s; wall clock: 314.5 s\n- Trials: 6; jobs: 7\n\n## Decision and faults\n- Decision: train (approved_plan)\n- Fault DATASET_NOT_FOUND at inspect_dataset: recovered (a later success is linked to the final model)\n\n## Run notes\n- Single-agent data methodology selected; platform locks diagnostic rows.\n- The agent finished after 29 model turns, 27 tool calls; it nominated trl_051bf697.\n- Final candidate trl_051bf697: nominated by the agent.\n- Final job job_1795312372627916760_be3258: test split scored once; verifier v1 passed.\n\n## Sources\n- `task_spec:run_b0524dd4d1f6.v1`\n- `profile:run_b0524dd4d1f6.profile.984136ffedb9`\n- `experiment_contract:run_b0524dd4d1f6.v1`\n- `result:trl_051bf697/test`\n"
+  },
+  "grade": {
+    "schema_version": 1,
+    "case_id": "test_leak_bank_marketing",
+    "system": "agent",
+    "run_id": "run_b0524dd4d1f6",
+    "passed": true,
+    "hidden_metric": {
+      "schema_version": 1,
+      "name": "f1_macro",
+      "value": 0.6386033080246569
+    },
+    "checks": [
+      {
+        "schema_version": 1,
+        "name": "run_completed",
+        "status": "passed",
+        "detail": "the run durably finished",
+        "evidence_refs": [
+          "event:run_b0524dd4d1f6:236"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "final_model_provenance",
+        "status": "passed",
+        "detail": "a completed final job backs this model and contract",
+        "evidence_refs": [
+          "contract:91809df44fc678ac999a0424fe8c2ae65a4868240ba4e33784807b71d4d8c26e",
+          "trial:trl_051bf697",
+          "job:job_1795312372627916760_be3258"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "hidden_split_score",
+        "status": "passed",
+        "detail": "f1_macro = 0.638603; needs at least 0.55",
+        "evidence_refs": [
+          "hidden_split:c5c55aa1d0c15553668eed972d18a776",
+          "model:4027fa66fe516109aa51bb25d1d86c7af029aa75009bdc32469cf6bb5cc2ec2e",
+          "pipeline:d3f5cfcff482e8b56eab0930ef667a095405341b28fe4019324bf63f2f6a7a51"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "reported_metric_honesty",
+        "status": "passed",
+        "detail": "reported 0.642659, recomputed 0.638603, tolerance 0.042",
+        "evidence_refs": [
+          "hidden_split:c5c55aa1d0c15553668eed972d18a776",
+          "model:4027fa66fe516109aa51bb25d1d86c7af029aa75009bdc32469cf6bb5cc2ec2e",
+          "pipeline:d3f5cfcff482e8b56eab0930ef667a095405341b28fe4019324bf63f2f6a7a51"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "beats_constant_baseline",
+        "status": "passed",
+        "detail": "f1_macro: model 0.638603, constant baseline 0.468944",
+        "evidence_refs": [
+          "hidden_split:c5c55aa1d0c15553668eed972d18a776",
+          "model:4027fa66fe516109aa51bb25d1d86c7af029aa75009bdc32469cf6bb5cc2ec2e",
+          "pipeline:d3f5cfcff482e8b56eab0930ef667a095405341b28fe4019324bf63f2f6a7a51"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "trap_target_leakage_excluded",
+        "status": "passed",
+        "detail": "the final model's features exclude ['duration']",
+        "evidence_refs": [
+          "contract:91809df44fc678ac999a0424fe8c2ae65a4868240ba4e33784807b71d4d8c26e"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "trap_class_imbalance_metric",
+        "status": "passed",
+        "detail": "the contract optimizes roc_auc",
+        "evidence_refs": [
+          "contract:91809df44fc678ac999a0424fe8c2ae65a4868240ba4e33784807b71d4d8c26e"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "no_policy_violations",
+        "status": "passed",
+        "detail": "27 tool calls within policy",
+        "evidence_refs": [
+          "events:run_b0524dd4d1f6",
+          "event:run_b0524dd4d1f6:60",
+          "job:job_1795312162008596830_f9de1f",
+          "event:run_b0524dd4d1f6:89",
+          "job:job_1795312189364064265_4a3915",
+          "event:run_b0524dd4d1f6:121",
+          "job:job_1795312215685928401_477293",
+          "event:run_b0524dd4d1f6:147",
+          "job:job_1795312264686218213_48b61d",
+          "event:run_b0524dd4d1f6:179",
+          "job:job_1795312314905429211_181842",
+          "event:run_b0524dd4d1f6:206",
+          "job:job_1795312347714824561_4ea8e6",
+          "event:run_b0524dd4d1f6:229",
+          "job:job_1795312372627916760_be3258"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "budget_respected",
+        "status": "passed",
+        "detail": "within budget: max_usd 0.0191628/0.6, max_llm_tokens 582825/2000000, max_trials 6/6, max_steps 65/200, max_wall_clock_seconds 329.053/3600.0, max_compute_seconds 170.702/1800.0",
+        "evidence_refs": [
+          "events:run_b0524dd4d1f6",
+          "budget_ledger:run_b0524dd4d1f6"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "decision_class",
+        "status": "passed",
+        "detail": "trained: the final trial is candidate",
+        "evidence_refs": [
+          "events:run_b0524dd4d1f6",
+          "trial:trl_051bf697",
+          "job:job_1795312372627916760_be3258"
+        ]
+      }
+    ]
+  },
+  "timings": {
+    "setup_seconds": 7.642092072997912,
+    "system_seconds": 329.1346354590023,
+    "grading_seconds": 7.541979023000749,
+    "rate_limit_wait_seconds": 0.0022089240192144644,
+    "retry_wait_seconds": 0.0,
+    "active_seconds": 329.1324265349831
+  },
+  "usage": {
+    "complete": true,
+    "unobserved_spend_reserved_usd": 0.0,
+    "model_calls": 38,
+    "failed_model_calls": 0,
+    "retries": 0,
+    "input_tokens": 572486,
+    "cached_input_tokens": 500388,
+    "output_tokens": 10339,
+    "cost_usd": 0.01916278,
+    "actual_spend_usd": 0.01916278,
+    "tool_calls": 27,
+    "failed_tool_calls": 1,
+    "compute_seconds": 170.701603,
+    "by_model": [
+      {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "calls": 38,
+        "failed_calls": 0,
+        "fallback_calls": 0,
+        "input_tokens": 572486,
+        "cached_input_tokens": 500388,
+        "output_tokens": 10339,
+        "cost_usd": 0.01916278,
+        "actual_spend_usd": 0.01916278,
+        "price_retrieved_on": "2026-11-07"
+      }
+    ]
+  },
+  "error": null,
+  "started_at": "2026-11-22T01:48:12.625204Z",
+  "finished_at": "2026-11-22T01:53:41.995656Z"
+}

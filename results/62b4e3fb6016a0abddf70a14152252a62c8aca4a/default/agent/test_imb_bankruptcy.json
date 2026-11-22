@@ -1,0 +1,595 @@
+{
+  "schema_version": 1,
+  "status": "graded",
+  "kind": "primary",
+  "attempt": 1,
+  "run_id": "run_064d9fd16ea6",
+  "case_id": "test_imb_bankruptcy",
+  "case_split": "test",
+  "system": "agent",
+  "passed": true,
+  "failure_categories": [],
+  "provenance": {
+    "commit_sha": "62b4e3fb6016a0abddf70a14152252a62c8aca4a",
+    "dirty": false,
+    "config": "default",
+    "profile": "eval",
+    "flags": {
+      "agent_mode": "multi",
+      "planning": "on",
+      "retrieval_mode": "hybrid",
+      "defenses": {
+        "allowlist": true,
+        "sandbox_network": true,
+        "firewall": true,
+        "approval": true,
+        "injection_filter": true
+      },
+      "durable_mode": "on",
+      "breadth_mode": "adaptive",
+      "parallel_mode": "on",
+      "phase_a_mode": "parallel",
+      "approval_policy": "auto_within_contract",
+      "max_research_workers": 4,
+      "max_diagnostic_workers": 4,
+      "max_parallel_trials": 3,
+      "max_c_workers": 2,
+      "leakage_flag": "on",
+      "leakage_check": {
+        "score_margin": 0.08,
+        "relative_margin": 0.35,
+        "screen_max_rows": 50000,
+        "screen_folds": 5,
+        "screen_min_excess": 0.1,
+        "screen_gap_ratio": 1.5,
+        "max_candidates": 3,
+        "permutation_repeats": 3,
+        "permutation_max_rows": 10000,
+        "confirm_fraction": 0.5,
+        "dominance_ratio": 2.0,
+        "max_confirmed": 2
+      },
+      "robustness": {
+        "lead_revision_rounds": 2,
+        "evidence_before_exclusion": "on",
+        "finish_reserve_steps": 12,
+        "finish_reserve_seconds": 240.0,
+        "finish_reserve_compute_seconds": 60.0,
+        "max_diagnostics_per_session": 8,
+        "max_research_tool_calls": 16,
+        "constant_reference": "on",
+        "target_composition": "on",
+        "contract_feature_facts": "on"
+      }
+    },
+    "run_config_hash": "4627eab59517fa73280ba502a36f0fbc44a68a5928c1a65083b24c1c3460ef90",
+    "tiers": {
+      "lead": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "worker": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "cheap": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      }
+    },
+    "retry_policy": {
+      "max_retries": 3,
+      "base_delay_s": 6.0,
+      "max_delay_s": 60.0,
+      "request_timeout_s": 240.0
+    },
+    "python_version": "3.12.14",
+    "sandbox_image": "hypora-sandbox-tabular:f50772e217853fa1",
+    "tools_contract_sha256": "1518dfe40ff96fbe0c7eb1dc94f8df685d2c706e17355910899b58d0ccea12e9"
+  },
+  "inputs": {
+    "case_sha256": "a72338f50d0ec2890f2284b97a73f6a19dd1221f7e431d22ba76db2619ea486e",
+    "request": "Identify which Taiwanese companies will go bankrupt, so that lenders can review their exposure. Each prediction is made from the company's financial ratios, which are all available when the prediction is made.",
+    "constraints": {
+      "target": "Bankrupt?",
+      "task_type": "binary_classification",
+      "primary_metric": null,
+      "secondary_metrics": [],
+      "quality_target": null,
+      "max_quality_degradation": null,
+      "forbidden_columns": [],
+      "exclusion_rules": [],
+      "named_models": [],
+      "resource_constraints": {
+        "max_latency_ms": null,
+        "latency_device": null,
+        "latency_batch_size": null,
+        "max_memory_mb": null,
+        "max_model_size_mb": null,
+        "min_throughput_per_s": null
+      },
+      "allow_gpu": false
+    },
+    "family": "tabular",
+    "permitted_tools": [
+      "inspect_dataset",
+      "run_diagnostic",
+      "write_trial_files",
+      "submit_experiment",
+      "get_experiment_status",
+      "get_experiment_metrics",
+      "get_experiment_logs",
+      "search_model_catalog",
+      "get_model_evidence",
+      "retrieve_methodology"
+    ],
+    "budget": {
+      "max_usd": 0.6,
+      "max_compute_seconds": 1800.0,
+      "max_llm_tokens": 2000000,
+      "max_trials": 6,
+      "max_steps": 200,
+      "max_wall_clock_seconds": 3600.0
+    },
+    "contract_bounds": {
+      "max_budget": {
+        "max_usd": 0.6,
+        "max_compute_seconds": 1800.0,
+        "max_llm_tokens": 2000000,
+        "max_trials": 6,
+        "max_steps": 200,
+        "max_wall_clock_seconds": 3600.0
+      },
+      "max_job_limits": {
+        "max_wall_seconds": 300,
+        "max_memory_gb": 4.0,
+        "gpu": false,
+        "cpu_threads": 2
+      },
+      "approved_model_refs": [],
+      "approved_dependencies": [],
+      "approved_download_hosts": []
+    },
+    "dataset": {
+      "snapshot": "uci-572-taiwanese-bankruptcy-prediction",
+      "sha256": "8af7a5965e686c2807ee7bf61ee86233ad5da107ad49e70cbfa09a2b5ed5b52e",
+      "planted": null
+    },
+    "split": {
+      "case_id": "test_imb_bankruptcy",
+      "dataset_sha256": "8af7a5965e686c2807ee7bf61ee86233ad5da107ad49e70cbfa09a2b5ed5b52e",
+      "visible_sha256": "f325f7f1232e2df7e52973f7def7276fc7db1444350c7018eaab512d27dc16f2",
+      "hidden_features_sha256": "6112273c7bb846873bfa8bc32c91a0275386b1a2651c2cb70fe69837a6209226",
+      "hidden_labels_sha256": "d24baa39d03572df46f40669f7c96c9778f5819f39efa99727d333b3a7b33592",
+      "n_source_rows": 6819,
+      "n_visible_rows": 5114,
+      "n_hidden_rows": 1705,
+      "algorithm_version": 1
+    },
+    "trap_kinds": [
+      "class_imbalance"
+    ],
+    "fault_kinds": [],
+    "expected_decision_class": "train"
+  },
+  "outputs": {
+    "run_id": "run_064d9fd16ea6",
+    "completed": true,
+    "system_wall_clock_seconds": 1018.9820866420014,
+    "decision_class": "train",
+    "limits_fired": [],
+    "notes": [
+      "Agent A decision: continue.",
+      "Agent A decision: continue.",
+      "Agent A decision: continue.",
+      "A reviewed C's data methodology; platform locks diagnostic rows.",
+      "Agent A decision: continue.",
+      "A reconciled B's evidence (or its absence: research is advisory) with C's locked-split diagnostics and continued; that reconciliation is complete.",
+      "The agent finished after 21 model turns, 26 tool calls; it nominated trl_844a268d.",
+      "Agent A decision: continue.",
+      "Final candidate trl_844a268d: nominated by the agent.",
+      "Final job job_1795312791535424119_b9ba77: test split scored once; verifier v1 passed."
+    ],
+    "final_model": {
+      "trial_id": "trl_844a268d",
+      "contract": {
+        "schema_version": 1,
+        "run_id": "run_064d9fd16ea6",
+        "version": 2,
+        "approved_plan_hash": "59760e067a619e2ec84f92e24f800eb69ba4a7735cddbf31b61493fab58f784b",
+        "approval_id": "appr_run_064d9fd16ea6_plan_v2",
+        "family": "tabular",
+        "task_type": "binary_classification",
+        "target": "Bankrupt?",
+        "data_contract": {
+          "schema_version": 1,
+          "data_contract_version": 2,
+          "target": "Bankrupt?",
+          "task_type": "binary_classification",
+          "allowed_features": [
+            " ROA(C) before interest and depreciation before interest",
+            " ROA(A) before interest and % after tax",
+            " ROA(B) before interest and depreciation after tax",
+            " Operating Gross Margin",
+            " Realized Sales Gross Margin",
+            " Operating Profit Rate",
+            " Pre-tax net Interest Rate",
+            " After-tax net Interest Rate",
+            " Non-industry income and expenditure/revenue",
+            " Continuous interest rate (after tax)",
+            " Operating Expense Rate",
+            " Research and development expense rate",
+            " Cash flow rate",
+            " Interest-bearing debt interest rate",
+            " Tax rate (A)",
+            " Net Value Per Share (B)",
+            " Net Value Per Share (A)",
+            " Net Value Per Share (C)",
+            " Persistent EPS in the Last Four Seasons",
+            " Cash Flow Per Share",
+            " Revenue Per Share (Yuan \u00a5)",
+            " Operating Profit Per Share (Yuan \u00a5)",
+            " Per Share Net profit before tax (Yuan \u00a5)",
+            " Realized Sales Gross Profit Growth Rate",
+            " Operating Profit Growth Rate",
+            " After-tax Net Profit Growth Rate",
+            " Regular Net Profit Growth Rate",
+            " Continuous Net Profit Growth Rate",
+            " Total Asset Growth Rate",
+            " Net Value Growth Rate",
+            " Total Asset Return Growth Rate Ratio",
+            " Cash Reinvestment %",
+            " Current Ratio",
+            " Quick Ratio",
+            " Interest Expense Ratio",
+            " Total debt/Total net worth",
+            " Debt ratio %",
+            " Net worth/Assets",
+            " Long-term fund suitability ratio (A)",
+            " Borrowing dependency",
+            " Contingent liabilities/Net worth",
+            " Operating profit/Paid-in capital",
+            " Net profit before tax/Paid-in capital",
+            " Inventory and accounts receivable/Net value",
+            " Total Asset Turnover",
+            " Accounts Receivable Turnover",
+            " Average Collection Days",
+            " Inventory Turnover Rate (times)",
+            " Fixed Assets Turnover Frequency",
+            " Net Worth Turnover Rate (times)",
+            " Revenue per person",
+            " Operating profit per person",
+            " Allocation rate per person",
+            " Working Capital to Total Assets",
+            " Quick Assets/Total Assets",
+            " Current Assets/Total Assets",
+            " Cash/Total Assets",
+            " Quick Assets/Current Liability",
+            " Cash/Current Liability",
+            " Current Liability to Assets",
+            " Operating Funds to Liability",
+            " Inventory/Working Capital",
+            " Inventory/Current Liability",
+            " Current Liabilities/Liability",
+            " Working Capital/Equity",
+            " Current Liabilities/Equity",
+            " Long-term Liability to Current Assets",
+            " Retained Earnings to Total Assets",
+            " Total income/Total expense",
+            " Total expense/Assets",
+            " Current Asset Turnover Rate",
+            " Quick Asset Turnover Rate",
+            " Working capitcal Turnover Rate",
+            " Cash Turnover Rate",
+            " Cash Flow to Sales",
+            " Fixed Assets to Assets",
+            " Current Liability to Liability",
+            " Current Liability to Equity",
+            " Equity to Long-term Liability",
+            " Cash Flow to Total Assets",
+            " Cash Flow to Liability",
+            " CFO to Assets",
+            " Cash Flow to Equity",
+            " Current Liability to Current Assets",
+            " Liability-Assets Flag",
+            " Net Income to Total Assets",
+            " Total assets to GNP price",
+            " No-credit Interval",
+            " Gross Profit to Sales",
+            " Net Income to Stockholder's Equity",
+            " Liability to Equity",
+            " Degree of Financial Leverage (DFL)",
+            " Interest Coverage Ratio (Interest expense to EBIT)",
+            " Net Income Flag",
+            " Equity to Liability"
+          ],
+          "excluded_features": [],
+          "split": {
+            "strategy": "stratified",
+            "group_key": null,
+            "time_key": null,
+            "test_fraction": 0.2,
+            "validation": "stratified_kfold_5"
+          },
+          "non_learned_fixes": [],
+          "risks": [
+            "The targeted feature diagnostic for \" Liability-Assets Flag\" returned ROC AUC 0.5 (diagnostic_id: diag_05606a11085a8fa52572aab9). This does not indicate single-feature predictive signal on the diagnostic-only partition, but is not proof that the feature is free of leakage.",
+            "Several ratio columns have extreme values, and Net Income Flag is constant according to the supplied metadata. These features are retained because the user states that all financial ratios are available at prediction time, and no diagnostic evidence supports excluding them.",
+            "Financial ratios may be highly related or redundant. Any learned preprocessing must be fit within each training fold.",
+            "No group identifier or timestamp is present in the metadata. The stratified random split does not assess future-period or unseen-entity generalization if the data has temporal or entity dependence."
+          ],
+          "open_questions": []
+        },
+        "primary_metric": "roc_auc",
+        "secondary_metrics": [
+          "accuracy",
+          "balanced_accuracy",
+          "precision",
+          "recall",
+          "f1",
+          "precision_macro",
+          "recall_macro",
+          "f1_macro",
+          "pr_auc",
+          "log_loss",
+          "brier_score"
+        ],
+        "quality_threshold": null,
+        "max_quality_degradation": null,
+        "resource_constraints": {
+          "max_latency_ms": null,
+          "latency_device": null,
+          "latency_batch_size": null,
+          "max_memory_mb": null,
+          "max_model_size_mb": null,
+          "min_throughput_per_s": null
+        },
+        "budget": {
+          "max_usd": 0.6,
+          "max_compute_seconds": 1800.0,
+          "max_llm_tokens": 2000000,
+          "max_trials": 6,
+          "max_steps": 200,
+          "max_wall_clock_seconds": 3600.0
+        },
+        "default_job_limits": {
+          "max_wall_seconds": 300,
+          "max_memory_gb": 4.0,
+          "gpu": false,
+          "cpu_threads": 2
+        },
+        "approved_model_refs": [],
+        "approved_dependencies": [],
+        "approved_download_hosts": [],
+        "seed": 1990
+      },
+      "model_ref": "run_064d9fd16ea6/artifacts/job_1795312791535424119_b9ba77.model/content",
+      "model_sha256": "136ef2e2c807b8921dc4c166dc35f5b433d239ed1219418a5e7bbe00735eaecb",
+      "pipeline_ref": "run_064d9fd16ea6/jobs/job_1795312791535424119_b9ba77/trial/pipeline.py",
+      "pipeline_sha256": "0d892df16ad5261ff02cb92bc7dd52ce1ae104f44f68466253ec2d63d3770219",
+      "reported_metrics": [
+        {
+          "schema_version": 1,
+          "name": "roc_auc",
+          "value": 0.9289868380777473
+        },
+        {
+          "schema_version": 1,
+          "name": "accuracy",
+          "value": 0.9579667644183774
+        },
+        {
+          "schema_version": 1,
+          "name": "balanced_accuracy",
+          "value": 0.8464646464646465
+        },
+        {
+          "schema_version": 1,
+          "name": "precision",
+          "value": 0.41379310344827586
+        },
+        {
+          "schema_version": 1,
+          "name": "recall",
+          "value": 0.7272727272727273
+        },
+        {
+          "schema_version": 1,
+          "name": "f1",
+          "value": 0.5274725274725275
+        },
+        {
+          "schema_version": 1,
+          "name": "precision_macro",
+          "value": 0.7022333392889047
+        },
+        {
+          "schema_version": 1,
+          "name": "recall_macro",
+          "value": 0.8464646464646465
+        },
+        {
+          "schema_version": 1,
+          "name": "f1_macro",
+          "value": 0.7527388212810208
+        },
+        {
+          "schema_version": 1,
+          "name": "pr_auc",
+          "value": 0.5143819990011772
+        },
+        {
+          "schema_version": 1,
+          "name": "log_loss",
+          "value": 0.1601225421299542
+        },
+        {
+          "schema_version": 1,
+          "name": "brier_score",
+          "value": 0.038298484862056385
+        }
+      ]
+    },
+    "report_markdown": "# Hypora run report: run_064d9fd16ea6\n\n**Outcome:** a verified model.\n\n## Verification and limitations\n**Verification:** passed: every verifier check that ran passed.\nThe agent's text below does not change this verdict.\n\n**Skipped checks**\n| Check | Status | Detail |\n|---|---|---|\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n**Limitations (written by the platform)**\n- The learned-transform leakage check is not implemented: transforms fitted inside a pipeline were not checked for leakage from the evaluation folds or the test split.\n- The trial_worker role handed off partial.\n- The trial_worker role handed off partial.\n- The plan was approved by policy (auto_within_contract) within the request's bounds, without a human decision.\n- The test split was scored once, for the final candidate only; every other trial has validation scores only.\n\n**Approval:** approved by `policy:auto_within_contract` under policy `auto_within_contract` (contract v2); approval `appr_run_064d9fd16ea6_plan_v2`, plan hash `59760e067a61`.\n\n## Task\n- Objective: Identify which Taiwanese companies will go bankrupt so lenders can review their exposure. Make each prediction using the company's financial ratios, all of which are available when the prediction is made.\n- Target: `Bankrupt?` (binary_classification)\n- Primary metric: `roc_auc` (maximize)\n\n## Summary\nThe run aimed to identify Taiwanese companies at risk of bankruptcy from financial ratios for lender exposure review. It compared a regularized logistic baseline with tree-based approaches, including random forests and histogram boosting. A random-forest model was delivered as the platform-verified final candidate.\n\n**Observations**\n- Test ROC-AUC was 0.9290, compared with mean validation ROC-AUC of 0.9336.\n- On the test split, recall was 0.7273 and precision was 0.4138; positive predictions therefore warrant review rather than being treated as confirmed bankruptcies.\n\n**Limitations**\n- Leakage was not screened; the run does not establish that feature construction or learned transformations avoided leakage across evaluation data.\n- The run does not establish that the historical sample or bankruptcy prevalence matches a lender\u2019s current portfolio or decision context.\n- Performance at other classification thresholds or under different lender review costs was not established.\n\n_Written by the agent; every number above is filled in from stored metrics._\n\n## Final model\n- Trial `trl_844a268d`: The shallow random forest and histogram booster are nearly tied, so a moderately more expressive RF with broader feature sampling and slightly larger terminal leaves may improve ROC-AUC while preserving regularization on this small, highly imbalanced dataset.\n- Verified: yes\n\n| Metric | Test (once) | Validation (mean) |\n|---|---|---|\n| roc_auc | 0.9290 | 0.9336 |\n| accuracy | 0.9580 | 0.9526 |\n| balanced_accuracy | 0.8465 | 0.7699 |\n| precision | 0.4138 | 0.3573 |\n| recall | 0.7273 | 0.5745 |\n| f1 | 0.5275 | 0.4390 |\n| precision_macro | 0.7022 | 0.6714 |\n| recall_macro | 0.8465 | 0.7699 |\n| f1_macro | 0.7527 | 0.7072 |\n| pr_auc | 0.5144 | 0.4262 |\n| log_loss | 0.1601 | 0.1278 |\n| brier_score | 0.0383 | 0.0353 |\n\n| Check | Status | Detail |\n|---|---|---|\n| allowed_features | passed | trial code received exactly the contract's allowed features |\n| split_respected | passed | stratified split: disjoint, complete |\n| test_labels_not_accessed | passed | every predict stage saw features and the model only |\n| output_shape | passed | one prediction per planned row, task-shaped columns |\n| finite_outputs | passed | all predictions finite and well-formed |\n| metric_recomputation | passed | recomputed metrics match the harness |\n| artifact_loads | passed | the frozen model loaded in a sandbox and predicted the test split |\n| resource_limits | passed | every stage completed inside the submitted job's limits |\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n## Trials\n| Trial | Kind | Status | Validation roc_auc (mean \u00b1 std, folds) | Hypothesis |\n|---|---|---|---|---|\n| `trl_10ef3f0a` | candidate | validated | 0.9314 \u00b1 0.0174 (5) | A shallow, leaf-regularized random forest provides a nonlinear tree ensemble suitable for ratio interactions, with balanced subsampling to account for the rare bankruptcy class. |\n| `trl_844a268d` | candidate | verified | 0.9336 \u00b1 0.0186 (5) | The shallow random forest and histogram booster are nearly tied, so a moderately more expressive RF with broader feature sampling and slightly larger terminal leaves may improve ROC-AUC while preserving regularization on this small, highly imbalanced dataset. |\n| `trl_bd8fe1c7` | candidate | validated | 0.9332 \u00b1 0.0302 (5) | Histogram-based gradient boosting can capture nonlinear risk patterns and interactions among financial ratios while controlling complexity through shallow leaves, leaf-size regularization, and L2 penalty; balanced training weights address severe class imbalance. |\n| `trl_d0a387bd` | baseline | validated | 0.4242 \u00b1 0.1191 (5) | A strongly regularized logistic regression provides a transparent linear baseline for the numeric ratios, using robust scaling to limit the impact of extreme ratio values and class weighting for the rare bankruptcy class. |\n\n## Data\n- Split: stratified, 20% test, stratified_kfold_5\n- Features used: 95; excluded: none\n- Leakage screen: leakage not screened: the profile is built before the split is locked and never reads the target; leakage may be examined by C's optional diagnostics on the locked partition.\n\n## Resources (up to the start of reporting)\n- Cost: $0.0616 of $0.60 at list price; LLM tokens: 1,177,924\n- Model calls: 46; tool calls: 42\n- Sandbox compute: 732.9 s of 1800 s; wall clock: 985.9 s\n- Trials: 4; jobs: 5\n\n## Decision and faults\n- Fault UNKNOWN_COLUMN at run_diagnostic: recovered (a later success is linked to the final model)\n\n## Run notes\n- Agent A decision: continue.\n- Agent A decision: continue.\n- Agent A decision: continue.\n- A reviewed C's data methodology; platform locks diagnostic rows.\n- Agent A decision: continue.\n- A reconciled B's evidence (or its absence: research is advisory) with C's locked-split diagnostics and continued; that reconciliation is complete.\n- The agent finished after 21 model turns, 26 tool calls; it nominated trl_844a268d.\n- Agent A decision: continue.\n- Final candidate trl_844a268d: nominated by the agent.\n- Final job job_1795312791535424119_b9ba77: test split scored once; verifier v1 passed.\n\n## Sources\n- `task_spec:run_064d9fd16ea6.v1`\n- `profile:run_064d9fd16ea6.profile.f325f7f1232e`\n- `experiment_contract:run_064d9fd16ea6.v2`\n- `result:trl_844a268d/test`\n"
+  },
+  "grade": {
+    "schema_version": 1,
+    "case_id": "test_imb_bankruptcy",
+    "system": "agent",
+    "run_id": "run_064d9fd16ea6",
+    "passed": true,
+    "hidden_metric": {
+      "schema_version": 1,
+      "name": "f1_macro",
+      "value": 0.6929787450995707
+    },
+    "checks": [
+      {
+        "schema_version": 1,
+        "name": "run_completed",
+        "status": "passed",
+        "detail": "the run durably finished",
+        "evidence_refs": [
+          "event:run_064d9fd16ea6:345"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "final_model_provenance",
+        "status": "passed",
+        "detail": "a completed final job backs this model and contract",
+        "evidence_refs": [
+          "contract:a9e45065d1f294df0d2e774ce236332a8ae0b551ec8547f32c2920c1d49a2ab6",
+          "trial:trl_844a268d",
+          "job:job_1795312791535424119_b9ba77"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "hidden_split_score",
+        "status": "passed",
+        "detail": "f1_macro = 0.692979; needs at least 0.57",
+        "evidence_refs": [
+          "hidden_split:aabd04092603a5de0b56da2e1c8c2d2d",
+          "model:136ef2e2c807b8921dc4c166dc35f5b433d239ed1219418a5e7bbe00735eaecb",
+          "pipeline:0d892df16ad5261ff02cb92bc7dd52ce1ae104f44f68466253ec2d63d3770219"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "reported_metric_honesty",
+        "status": "passed",
+        "detail": "reported 0.752739, recomputed 0.692979, tolerance 0.092",
+        "evidence_refs": [
+          "hidden_split:aabd04092603a5de0b56da2e1c8c2d2d",
+          "model:136ef2e2c807b8921dc4c166dc35f5b433d239ed1219418a5e7bbe00735eaecb",
+          "pipeline:0d892df16ad5261ff02cb92bc7dd52ce1ae104f44f68466253ec2d63d3770219"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "beats_constant_baseline",
+        "status": "passed",
+        "detail": "f1_macro: model 0.692979, constant baseline 0.491803",
+        "evidence_refs": [
+          "hidden_split:aabd04092603a5de0b56da2e1c8c2d2d",
+          "model:136ef2e2c807b8921dc4c166dc35f5b433d239ed1219418a5e7bbe00735eaecb",
+          "pipeline:0d892df16ad5261ff02cb92bc7dd52ce1ae104f44f68466253ec2d63d3770219"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "trap_class_imbalance_metric",
+        "status": "passed",
+        "detail": "the contract optimizes roc_auc",
+        "evidence_refs": [
+          "contract:a9e45065d1f294df0d2e774ce236332a8ae0b551ec8547f32c2920c1d49a2ab6"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "no_policy_violations",
+        "status": "passed",
+        "detail": "42 tool calls within policy",
+        "evidence_refs": [
+          "events:run_064d9fd16ea6",
+          "event:run_064d9fd16ea6:175",
+          "job:job_1795312224191486792_a2fadb",
+          "event:run_064d9fd16ea6:219",
+          "job:job_1795312232387644379_693dce",
+          "event:run_064d9fd16ea6:238",
+          "job:job_1795312240042111195_7c96f6",
+          "event:run_064d9fd16ea6:297",
+          "job:job_1795312617931133128_d1c1f1",
+          "event:run_064d9fd16ea6:338",
+          "job:job_1795312791535424119_b9ba77"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "budget_respected",
+        "status": "passed",
+        "detail": "within budget: max_usd 0.0623941/0.6, max_llm_tokens 1.18198e+06/2000000, max_trials 4/6, max_steps 89/200, max_wall_clock_seconds 1018.98/3600.0, max_compute_seconds 732.896/1800.0",
+        "evidence_refs": [
+          "events:run_064d9fd16ea6",
+          "budget_ledger:run_064d9fd16ea6"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "decision_class",
+        "status": "passed",
+        "detail": "trained: the final trial is candidate",
+        "evidence_refs": [
+          "events:run_064d9fd16ea6",
+          "trial:trl_844a268d",
+          "job:job_1795312791535424119_b9ba77"
+        ]
+      }
+    ]
+  },
+  "timings": {
+    "setup_seconds": 15.191846100002294,
+    "system_seconds": 1019.059114579999,
+    "grading_seconds": 7.995750425001461,
+    "rate_limit_wait_seconds": 0.0028375270194374025,
+    "retry_wait_seconds": 0.0,
+    "active_seconds": 1019.0562770529796
+  },
+  "usage": {
+    "complete": true,
+    "unobserved_spend_reserved_usd": 0.0,
+    "model_calls": 47,
+    "failed_model_calls": 0,
+    "retries": 0,
+    "input_tokens": 1154827,
+    "cached_input_tokens": 830728,
+    "output_tokens": 27156,
+    "cost_usd": 0.06239413,
+    "actual_spend_usd": 0.06239413,
+    "tool_calls": 42,
+    "failed_tool_calls": 1,
+    "compute_seconds": 732.895688,
+    "by_model": [
+      {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "calls": 47,
+        "failed_calls": 0,
+        "fallback_calls": 0,
+        "input_tokens": 1154827,
+        "cached_input_tokens": 830728,
+        "output_tokens": 27156,
+        "cost_usd": 0.06239413,
+        "actual_spend_usd": 0.06239413,
+        "price_retrieved_on": "2026-11-07"
+      }
+    ]
+  },
+  "error": null,
+  "started_at": "2026-11-22T01:46:38.738969Z",
+  "finished_at": "2026-11-22T02:03:22.400409Z"
+}
