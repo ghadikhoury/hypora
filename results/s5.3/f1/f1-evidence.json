@@ -1,0 +1,5452 @@
+{
+  "feature": "F1",
+  "title": "Retrieval-augmented generation (RAG)",
+  "freeze_commit": "62b4e3fb6016a0abddf70a14152252a62c8aca4a",
+  "benchmark": {
+    "path": "hypora/evaluation/cases/rag/questions.json",
+    "total_questions": 30,
+    "subsets": {
+      "public_sklearn": 20,
+      "hypora_local": 10
+    },
+    "repeat_question_ids": [
+      "q01",
+      "q08",
+      "q16",
+      "q21",
+      "q25",
+      "q27"
+    ]
+  },
+  "retrieval_comparison": {
+    "persisted_index_verified": true,
+    "passage_count": 30,
+    "modes": {
+      "tfidf": {
+        "total": 30,
+        "hit_at_5": 30,
+        "hit_at_5_rate": 1.0,
+        "hit_at_5_wilson": [
+          0.8865,
+          1.0
+        ],
+        "hit_at_1": 28,
+        "hit_at_1_rate": 0.9333,
+        "hit_at_1_wilson": [
+          0.7868,
+          0.9815
+        ],
+        "mrr_at_5": 0.9667,
+        "latency_mean_ms": 2.65,
+        "latency_p95_ms": 3.226,
+        "per_question": [
+          {
+            "question_id": "q01",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:1"
+            ],
+            "returned_refs": [
+              "passage:19",
+              "passage:1",
+              "passage:2",
+              "passage:22",
+              "passage:6"
+            ],
+            "top1_score": 0.477026,
+            "rank": 2,
+            "hit_at_5": true,
+            "hit_at_1": false,
+            "latency_ms": 3.786
+          },
+          {
+            "question_id": "q02",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:2"
+            ],
+            "returned_refs": [
+              "passage:2",
+              "passage:1",
+              "passage:19",
+              "passage:6",
+              "passage:23"
+            ],
+            "top1_score": 0.475678,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.513
+          },
+          {
+            "question_id": "q03",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:3"
+            ],
+            "returned_refs": [
+              "passage:3",
+              "passage:5",
+              "passage:27",
+              "passage:25",
+              "passage:24"
+            ],
+            "top1_score": 0.443449,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.913
+          },
+          {
+            "question_id": "q04",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:4"
+            ],
+            "returned_refs": [
+              "passage:4",
+              "passage:7"
+            ],
+            "top1_score": 0.90175,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.604
+          },
+          {
+            "question_id": "q05",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:5"
+            ],
+            "returned_refs": [
+              "passage:5",
+              "passage:4",
+              "passage:6",
+              "passage:3",
+              "passage:7"
+            ],
+            "top1_score": 0.428963,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.825
+          },
+          {
+            "question_id": "q06",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:6"
+            ],
+            "returned_refs": [
+              "passage:6",
+              "passage:5",
+              "passage:3",
+              "passage:23"
+            ],
+            "top1_score": 0.630722,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.686
+          },
+          {
+            "question_id": "q07",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:7"
+            ],
+            "returned_refs": [
+              "passage:7",
+              "passage:6",
+              "passage:4",
+              "passage:18",
+              "passage:5"
+            ],
+            "top1_score": 0.534257,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.368
+          },
+          {
+            "question_id": "q08",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:8"
+            ],
+            "returned_refs": [
+              "passage:8",
+              "passage:12",
+              "passage:11",
+              "passage:9",
+              "passage:10"
+            ],
+            "top1_score": 0.433664,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.725
+          },
+          {
+            "question_id": "q09",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:9"
+            ],
+            "returned_refs": [
+              "passage:9",
+              "passage:11",
+              "passage:10",
+              "passage:26",
+              "passage:24"
+            ],
+            "top1_score": 0.867843,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.601
+          },
+          {
+            "question_id": "q10",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:10"
+            ],
+            "returned_refs": [
+              "passage:10",
+              "passage:12",
+              "passage:11",
+              "passage:9",
+              "passage:5"
+            ],
+            "top1_score": 0.404986,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.395
+          },
+          {
+            "question_id": "q11",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:11"
+            ],
+            "returned_refs": [
+              "passage:11",
+              "passage:12",
+              "passage:10",
+              "passage:26",
+              "passage:24"
+            ],
+            "top1_score": 0.511004,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.495
+          },
+          {
+            "question_id": "q12",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:12"
+            ],
+            "returned_refs": [
+              "passage:12",
+              "passage:11",
+              "passage:16",
+              "passage:8",
+              "passage:9"
+            ],
+            "top1_score": 0.709043,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.313
+          },
+          {
+            "question_id": "q13",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:13"
+            ],
+            "returned_refs": [
+              "passage:13",
+              "passage:15",
+              "passage:14"
+            ],
+            "top1_score": 0.596002,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.202
+          },
+          {
+            "question_id": "q14",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:14"
+            ],
+            "returned_refs": [
+              "passage:14",
+              "passage:22"
+            ],
+            "top1_score": 0.951715,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.357
+          },
+          {
+            "question_id": "q15",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:15"
+            ],
+            "returned_refs": [
+              "passage:15",
+              "passage:17",
+              "passage:13"
+            ],
+            "top1_score": 1.0,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 3.226
+          },
+          {
+            "question_id": "q16",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:16"
+            ],
+            "returned_refs": [
+              "passage:16"
+            ],
+            "top1_score": 1.0,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.409
+          },
+          {
+            "question_id": "q17",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:17"
+            ],
+            "returned_refs": [
+              "passage:15",
+              "passage:17",
+              "passage:13"
+            ],
+            "top1_score": 0.639735,
+            "rank": 2,
+            "hit_at_5": true,
+            "hit_at_1": false,
+            "latency_ms": 2.309
+          },
+          {
+            "question_id": "q18",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:18"
+            ],
+            "returned_refs": [
+              "passage:18",
+              "passage:15",
+              "passage:19",
+              "passage:13",
+              "passage:7"
+            ],
+            "top1_score": 0.492869,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.654
+          },
+          {
+            "question_id": "q19",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:19"
+            ],
+            "returned_refs": [
+              "passage:19",
+              "passage:17",
+              "passage:16",
+              "passage:1"
+            ],
+            "top1_score": 0.420982,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.364
+          },
+          {
+            "question_id": "q20",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:20"
+            ],
+            "returned_refs": [
+              "passage:20",
+              "passage:7",
+              "passage:14",
+              "passage:8",
+              "passage:1"
+            ],
+            "top1_score": 0.73066,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.702
+          },
+          {
+            "question_id": "q21",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:21"
+            ],
+            "returned_refs": [
+              "passage:21",
+              "passage:23",
+              "passage:27",
+              "passage:2",
+              "passage:1"
+            ],
+            "top1_score": 0.244536,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.806
+          },
+          {
+            "question_id": "q22",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:22"
+            ],
+            "returned_refs": [
+              "passage:22",
+              "passage:6",
+              "passage:27",
+              "passage:23",
+              "passage:28"
+            ],
+            "top1_score": 0.408415,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.732
+          },
+          {
+            "question_id": "q23",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:23"
+            ],
+            "returned_refs": [
+              "passage:23",
+              "passage:24",
+              "passage:22",
+              "passage:27",
+              "passage:30"
+            ],
+            "top1_score": 0.654683,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.688
+          },
+          {
+            "question_id": "q24",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:24"
+            ],
+            "returned_refs": [
+              "passage:24",
+              "passage:23",
+              "passage:6",
+              "passage:27",
+              "passage:26"
+            ],
+            "top1_score": 0.544547,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.567
+          },
+          {
+            "question_id": "q25",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:25"
+            ],
+            "returned_refs": [
+              "passage:25",
+              "passage:30",
+              "passage:26",
+              "passage:28",
+              "passage:24"
+            ],
+            "top1_score": 0.398578,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.844
+          },
+          {
+            "question_id": "q26",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:26"
+            ],
+            "returned_refs": [
+              "passage:26",
+              "passage:27",
+              "passage:24",
+              "passage:28",
+              "passage:22"
+            ],
+            "top1_score": 0.600689,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.82
+          },
+          {
+            "question_id": "q27",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:27"
+            ],
+            "returned_refs": [
+              "passage:27",
+              "passage:30",
+              "passage:23",
+              "passage:26",
+              "passage:22"
+            ],
+            "top1_score": 0.583631,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.763
+          },
+          {
+            "question_id": "q28",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:28"
+            ],
+            "returned_refs": [
+              "passage:28",
+              "passage:27",
+              "passage:25",
+              "passage:29",
+              "passage:5"
+            ],
+            "top1_score": 0.377227,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.913
+          },
+          {
+            "question_id": "q29",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:29"
+            ],
+            "returned_refs": [
+              "passage:29",
+              "passage:6",
+              "passage:23",
+              "passage:27",
+              "passage:15"
+            ],
+            "top1_score": 0.496506,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.528
+          },
+          {
+            "question_id": "q30",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:30"
+            ],
+            "returned_refs": [
+              "passage:30",
+              "passage:6",
+              "passage:29",
+              "passage:28",
+              "passage:27"
+            ],
+            "top1_score": 0.590883,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.406
+          }
+        ]
+      },
+      "bm25": {
+        "total": 30,
+        "hit_at_5": 30,
+        "hit_at_5_rate": 1.0,
+        "hit_at_5_wilson": [
+          0.8865,
+          1.0
+        ],
+        "hit_at_1": 28,
+        "hit_at_1_rate": 0.9333,
+        "hit_at_1_wilson": [
+          0.7868,
+          0.9815
+        ],
+        "mrr_at_5": 0.9667,
+        "latency_mean_ms": 2.547,
+        "latency_p95_ms": 2.954,
+        "per_question": [
+          {
+            "question_id": "q01",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:1"
+            ],
+            "returned_refs": [
+              "passage:19",
+              "passage:1",
+              "passage:2",
+              "passage:22",
+              "passage:6"
+            ],
+            "top1_score": 10.075519,
+            "rank": 2,
+            "hit_at_5": true,
+            "hit_at_1": false,
+            "latency_ms": 2.408
+          },
+          {
+            "question_id": "q02",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:2"
+            ],
+            "returned_refs": [
+              "passage:2",
+              "passage:1",
+              "passage:19",
+              "passage:6",
+              "passage:23"
+            ],
+            "top1_score": 8.41865,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.742
+          },
+          {
+            "question_id": "q03",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:3"
+            ],
+            "returned_refs": [
+              "passage:3",
+              "passage:5",
+              "passage:15",
+              "passage:17",
+              "passage:29"
+            ],
+            "top1_score": 8.124831,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.274
+          },
+          {
+            "question_id": "q04",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:4"
+            ],
+            "returned_refs": [
+              "passage:4",
+              "passage:7",
+              "passage:15",
+              "passage:17",
+              "passage:5"
+            ],
+            "top1_score": 22.095725,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.622
+          },
+          {
+            "question_id": "q05",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:5"
+            ],
+            "returned_refs": [
+              "passage:5",
+              "passage:4",
+              "passage:6",
+              "passage:3",
+              "passage:15"
+            ],
+            "top1_score": 9.425103,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.607
+          },
+          {
+            "question_id": "q06",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:6"
+            ],
+            "returned_refs": [
+              "passage:6",
+              "passage:5",
+              "passage:3",
+              "passage:23"
+            ],
+            "top1_score": 13.478704,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.534
+          },
+          {
+            "question_id": "q07",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:7"
+            ],
+            "returned_refs": [
+              "passage:7",
+              "passage:6",
+              "passage:4",
+              "passage:18",
+              "passage:5"
+            ],
+            "top1_score": 9.268378,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.262
+          },
+          {
+            "question_id": "q08",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:8"
+            ],
+            "returned_refs": [
+              "passage:8",
+              "passage:12",
+              "passage:9",
+              "passage:11",
+              "passage:10"
+            ],
+            "top1_score": 7.646805,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.722
+          },
+          {
+            "question_id": "q09",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:9"
+            ],
+            "returned_refs": [
+              "passage:9",
+              "passage:11",
+              "passage:10",
+              "passage:1",
+              "passage:2"
+            ],
+            "top1_score": 14.704413,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.266
+          },
+          {
+            "question_id": "q10",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:10"
+            ],
+            "returned_refs": [
+              "passage:10",
+              "passage:12",
+              "passage:9",
+              "passage:11",
+              "passage:30"
+            ],
+            "top1_score": 6.465111,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.288
+          },
+          {
+            "question_id": "q11",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:11"
+            ],
+            "returned_refs": [
+              "passage:11",
+              "passage:10",
+              "passage:12",
+              "passage:8",
+              "passage:9"
+            ],
+            "top1_score": 8.736079,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.623
+          },
+          {
+            "question_id": "q12",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:12"
+            ],
+            "returned_refs": [
+              "passage:12",
+              "passage:16",
+              "passage:8",
+              "passage:9",
+              "passage:11"
+            ],
+            "top1_score": 13.696615,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.537
+          },
+          {
+            "question_id": "q13",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:13"
+            ],
+            "returned_refs": [
+              "passage:13",
+              "passage:14",
+              "passage:15"
+            ],
+            "top1_score": 11.559319,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.217
+          },
+          {
+            "question_id": "q14",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:14"
+            ],
+            "returned_refs": [
+              "passage:14",
+              "passage:22"
+            ],
+            "top1_score": 19.724616,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.484
+          },
+          {
+            "question_id": "q15",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:15"
+            ],
+            "returned_refs": [
+              "passage:15",
+              "passage:17",
+              "passage:13",
+              "passage:4",
+              "passage:5"
+            ],
+            "top1_score": 12.974846,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.287
+          },
+          {
+            "question_id": "q16",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:16"
+            ],
+            "returned_refs": [
+              "passage:16",
+              "passage:30"
+            ],
+            "top1_score": 24.495891,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.656
+          },
+          {
+            "question_id": "q17",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:17"
+            ],
+            "returned_refs": [
+              "passage:15",
+              "passage:17",
+              "passage:13",
+              "passage:4",
+              "passage:5"
+            ],
+            "top1_score": 9.333953,
+            "rank": 2,
+            "hit_at_5": true,
+            "hit_at_1": false,
+            "latency_ms": 2.178
+          },
+          {
+            "question_id": "q18",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:18"
+            ],
+            "returned_refs": [
+              "passage:18",
+              "passage:15",
+              "passage:13",
+              "passage:19",
+              "passage:7"
+            ],
+            "top1_score": 8.974109,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.56
+          },
+          {
+            "question_id": "q19",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:19"
+            ],
+            "returned_refs": [
+              "passage:19",
+              "passage:17",
+              "passage:16",
+              "passage:1",
+              "passage:15"
+            ],
+            "top1_score": 6.565458,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.218
+          },
+          {
+            "question_id": "q20",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:20"
+            ],
+            "returned_refs": [
+              "passage:20",
+              "passage:7",
+              "passage:14",
+              "passage:8",
+              "passage:1"
+            ],
+            "top1_score": 15.220424,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.954
+          },
+          {
+            "question_id": "q21",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:21"
+            ],
+            "returned_refs": [
+              "passage:21",
+              "passage:26",
+              "passage:23",
+              "passage:27",
+              "passage:1"
+            ],
+            "top1_score": 12.508863,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.88
+          },
+          {
+            "question_id": "q22",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:22"
+            ],
+            "returned_refs": [
+              "passage:22",
+              "passage:26",
+              "passage:27",
+              "passage:6",
+              "passage:21"
+            ],
+            "top1_score": 16.054277,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.461
+          },
+          {
+            "question_id": "q23",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:23"
+            ],
+            "returned_refs": [
+              "passage:23",
+              "passage:26",
+              "passage:24",
+              "passage:29",
+              "passage:22"
+            ],
+            "top1_score": 27.590679,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.784
+          },
+          {
+            "question_id": "q24",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:24"
+            ],
+            "returned_refs": [
+              "passage:24",
+              "passage:26",
+              "passage:23",
+              "passage:25",
+              "passage:27"
+            ],
+            "top1_score": 31.597761,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.638
+          },
+          {
+            "question_id": "q25",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:25"
+            ],
+            "returned_refs": [
+              "passage:25",
+              "passage:26",
+              "passage:24",
+              "passage:30",
+              "passage:28"
+            ],
+            "top1_score": 17.760457,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 3.011
+          },
+          {
+            "question_id": "q26",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:26"
+            ],
+            "returned_refs": [
+              "passage:26",
+              "passage:24",
+              "passage:27",
+              "passage:22",
+              "passage:28"
+            ],
+            "top1_score": 28.275181,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.9
+          },
+          {
+            "question_id": "q27",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:27"
+            ],
+            "returned_refs": [
+              "passage:27",
+              "passage:26",
+              "passage:30",
+              "passage:28",
+              "passage:22"
+            ],
+            "top1_score": 19.798154,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.434
+          },
+          {
+            "question_id": "q28",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:28"
+            ],
+            "returned_refs": [
+              "passage:28",
+              "passage:27",
+              "passage:25",
+              "passage:26",
+              "passage:12"
+            ],
+            "top1_score": 11.224012,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.69
+          },
+          {
+            "question_id": "q29",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:29"
+            ],
+            "returned_refs": [
+              "passage:29",
+              "passage:23",
+              "passage:30",
+              "passage:26",
+              "passage:25"
+            ],
+            "top1_score": 21.194025,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.73
+          },
+          {
+            "question_id": "q30",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:30"
+            ],
+            "returned_refs": [
+              "passage:30",
+              "passage:29",
+              "passage:26",
+              "passage:6",
+              "passage:12"
+            ],
+            "top1_score": 25.219798,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.461
+          }
+        ]
+      },
+      "embedding": {
+        "total": 30,
+        "hit_at_5": 30,
+        "hit_at_5_rate": 1.0,
+        "hit_at_5_wilson": [
+          0.8865,
+          1.0
+        ],
+        "hit_at_1": 28,
+        "hit_at_1_rate": 0.9333,
+        "hit_at_1_wilson": [
+          0.7868,
+          0.9815
+        ],
+        "mrr_at_5": 0.9667,
+        "latency_mean_ms": 2.49,
+        "latency_p95_ms": 2.891,
+        "per_question": [
+          {
+            "question_id": "q01",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:1"
+            ],
+            "returned_refs": [
+              "passage:19",
+              "passage:1",
+              "passage:2",
+              "passage:22",
+              "passage:6"
+            ],
+            "top1_score": 0.774414,
+            "rank": 2,
+            "hit_at_5": true,
+            "hit_at_1": false,
+            "latency_ms": 2.803
+          },
+          {
+            "question_id": "q02",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:2"
+            ],
+            "returned_refs": [
+              "passage:2",
+              "passage:1",
+              "passage:19",
+              "passage:6",
+              "passage:23"
+            ],
+            "top1_score": 0.920028,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.23
+          },
+          {
+            "question_id": "q03",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:3"
+            ],
+            "returned_refs": [
+              "passage:3",
+              "passage:5",
+              "passage:27",
+              "passage:25",
+              "passage:24"
+            ],
+            "top1_score": 0.956202,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.343
+          },
+          {
+            "question_id": "q04",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:4"
+            ],
+            "returned_refs": [
+              "passage:4",
+              "passage:7",
+              "passage:17",
+              "passage:13",
+              "passage:18"
+            ],
+            "top1_score": 0.98443,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.891
+          },
+          {
+            "question_id": "q05",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:5"
+            ],
+            "returned_refs": [
+              "passage:5",
+              "passage:4",
+              "passage:6",
+              "passage:3",
+              "passage:7"
+            ],
+            "top1_score": 0.761918,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.272
+          },
+          {
+            "question_id": "q06",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:6"
+            ],
+            "returned_refs": [
+              "passage:6",
+              "passage:5",
+              "passage:3",
+              "passage:23",
+              "passage:15"
+            ],
+            "top1_score": 0.924669,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.392
+          },
+          {
+            "question_id": "q07",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:7"
+            ],
+            "returned_refs": [
+              "passage:7",
+              "passage:6",
+              "passage:4",
+              "passage:18",
+              "passage:5"
+            ],
+            "top1_score": 0.880208,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.188
+          },
+          {
+            "question_id": "q08",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:8"
+            ],
+            "returned_refs": [
+              "passage:8",
+              "passage:12",
+              "passage:11",
+              "passage:9",
+              "passage:10"
+            ],
+            "top1_score": 0.78855,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.822
+          },
+          {
+            "question_id": "q09",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:9"
+            ],
+            "returned_refs": [
+              "passage:9",
+              "passage:11",
+              "passage:10",
+              "passage:26",
+              "passage:24"
+            ],
+            "top1_score": 0.956356,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.233
+          },
+          {
+            "question_id": "q10",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:10"
+            ],
+            "returned_refs": [
+              "passage:10",
+              "passage:12",
+              "passage:11",
+              "passage:9",
+              "passage:5"
+            ],
+            "top1_score": 0.706726,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.434
+          },
+          {
+            "question_id": "q11",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:11"
+            ],
+            "returned_refs": [
+              "passage:11",
+              "passage:12",
+              "passage:10",
+              "passage:26",
+              "passage:24"
+            ],
+            "top1_score": 0.747371,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.947
+          },
+          {
+            "question_id": "q12",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:12"
+            ],
+            "returned_refs": [
+              "passage:12",
+              "passage:11",
+              "passage:16",
+              "passage:8",
+              "passage:9"
+            ],
+            "top1_score": 0.955818,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.637
+          },
+          {
+            "question_id": "q13",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:13"
+            ],
+            "returned_refs": [
+              "passage:13",
+              "passage:15",
+              "passage:14",
+              "passage:17",
+              "passage:18"
+            ],
+            "top1_score": 0.928407,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.24
+          },
+          {
+            "question_id": "q14",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:14"
+            ],
+            "returned_refs": [
+              "passage:14",
+              "passage:22",
+              "passage:17",
+              "passage:13",
+              "passage:18"
+            ],
+            "top1_score": 0.989491,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.447
+          },
+          {
+            "question_id": "q15",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:15"
+            ],
+            "returned_refs": [
+              "passage:15",
+              "passage:17",
+              "passage:13",
+              "passage:18",
+              "passage:6"
+            ],
+            "top1_score": 1.0,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.47
+          },
+          {
+            "question_id": "q16",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:16"
+            ],
+            "returned_refs": [
+              "passage:16",
+              "passage:25",
+              "passage:23",
+              "passage:21",
+              "passage:8"
+            ],
+            "top1_score": 1.0,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.58
+          },
+          {
+            "question_id": "q17",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:17"
+            ],
+            "returned_refs": [
+              "passage:15",
+              "passage:17",
+              "passage:13",
+              "passage:19",
+              "passage:3"
+            ],
+            "top1_score": 0.989417,
+            "rank": 2,
+            "hit_at_5": true,
+            "hit_at_1": false,
+            "latency_ms": 2.211
+          },
+          {
+            "question_id": "q18",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:18"
+            ],
+            "returned_refs": [
+              "passage:18",
+              "passage:15",
+              "passage:13",
+              "passage:19",
+              "passage:7"
+            ],
+            "top1_score": 0.867627,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.43
+          },
+          {
+            "question_id": "q19",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:19"
+            ],
+            "returned_refs": [
+              "passage:19",
+              "passage:17",
+              "passage:16",
+              "passage:1",
+              "passage:15"
+            ],
+            "top1_score": 0.750476,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.189
+          },
+          {
+            "question_id": "q20",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:20"
+            ],
+            "returned_refs": [
+              "passage:20",
+              "passage:7",
+              "passage:14",
+              "passage:8",
+              "passage:1"
+            ],
+            "top1_score": 0.983125,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.377
+          },
+          {
+            "question_id": "q21",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:21"
+            ],
+            "returned_refs": [
+              "passage:21",
+              "passage:23",
+              "passage:27",
+              "passage:2",
+              "passage:1"
+            ],
+            "top1_score": 0.586408,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.862
+          },
+          {
+            "question_id": "q22",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:22"
+            ],
+            "returned_refs": [
+              "passage:22",
+              "passage:6",
+              "passage:27",
+              "passage:23",
+              "passage:28"
+            ],
+            "top1_score": 0.859018,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.393
+          },
+          {
+            "question_id": "q23",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:23"
+            ],
+            "returned_refs": [
+              "passage:23",
+              "passage:24",
+              "passage:22",
+              "passage:27",
+              "passage:30"
+            ],
+            "top1_score": 0.942173,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.448
+          },
+          {
+            "question_id": "q24",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:24"
+            ],
+            "returned_refs": [
+              "passage:24",
+              "passage:23",
+              "passage:6",
+              "passage:27",
+              "passage:26"
+            ],
+            "top1_score": 0.853643,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.853
+          },
+          {
+            "question_id": "q25",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:25"
+            ],
+            "returned_refs": [
+              "passage:25",
+              "passage:30",
+              "passage:26",
+              "passage:28",
+              "passage:24"
+            ],
+            "top1_score": 0.787169,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.438
+          },
+          {
+            "question_id": "q26",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:26"
+            ],
+            "returned_refs": [
+              "passage:26",
+              "passage:27",
+              "passage:24",
+              "passage:28",
+              "passage:22"
+            ],
+            "top1_score": 0.897791,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.551
+          },
+          {
+            "question_id": "q27",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:27"
+            ],
+            "returned_refs": [
+              "passage:27",
+              "passage:30",
+              "passage:23",
+              "passage:26",
+              "passage:22"
+            ],
+            "top1_score": 0.928182,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.339
+          },
+          {
+            "question_id": "q28",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:28"
+            ],
+            "returned_refs": [
+              "passage:28",
+              "passage:27",
+              "passage:25",
+              "passage:29",
+              "passage:5"
+            ],
+            "top1_score": 0.830561,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.3
+          },
+          {
+            "question_id": "q29",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:29"
+            ],
+            "returned_refs": [
+              "passage:29",
+              "passage:6",
+              "passage:23",
+              "passage:15",
+              "passage:27"
+            ],
+            "top1_score": 0.853145,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.775
+          },
+          {
+            "question_id": "q30",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:30"
+            ],
+            "returned_refs": [
+              "passage:30",
+              "passage:6",
+              "passage:29",
+              "passage:28",
+              "passage:27"
+            ],
+            "top1_score": 0.920593,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.612
+          }
+        ]
+      },
+      "hybrid": {
+        "total": 30,
+        "hit_at_5": 30,
+        "hit_at_5_rate": 1.0,
+        "hit_at_5_wilson": [
+          0.8865,
+          1.0
+        ],
+        "hit_at_1": 28,
+        "hit_at_1_rate": 0.9333,
+        "hit_at_1_wilson": [
+          0.7868,
+          0.9815
+        ],
+        "mrr_at_5": 0.9667,
+        "latency_mean_ms": 2.498,
+        "latency_p95_ms": 2.83,
+        "per_question": [
+          {
+            "question_id": "q01",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:1"
+            ],
+            "returned_refs": [
+              "passage:19",
+              "passage:1",
+              "passage:2",
+              "passage:22",
+              "passage:6"
+            ],
+            "top1_score": 0.032787,
+            "rank": 2,
+            "hit_at_5": true,
+            "hit_at_1": false,
+            "latency_ms": 2.666
+          },
+          {
+            "question_id": "q02",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:2"
+            ],
+            "returned_refs": [
+              "passage:2",
+              "passage:1",
+              "passage:19",
+              "passage:6",
+              "passage:23"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.491
+          },
+          {
+            "question_id": "q03",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:3"
+            ],
+            "returned_refs": [
+              "passage:3",
+              "passage:5",
+              "passage:27",
+              "passage:25",
+              "passage:29"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.634
+          },
+          {
+            "question_id": "q04",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:4"
+            ],
+            "returned_refs": [
+              "passage:4",
+              "passage:7",
+              "passage:17",
+              "passage:20",
+              "passage:29"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.321
+          },
+          {
+            "question_id": "q05",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:5"
+            ],
+            "returned_refs": [
+              "passage:5",
+              "passage:4",
+              "passage:6",
+              "passage:3",
+              "passage:7"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.42
+          },
+          {
+            "question_id": "q06",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:6"
+            ],
+            "returned_refs": [
+              "passage:6",
+              "passage:5",
+              "passage:3",
+              "passage:23",
+              "passage:15"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.338
+          },
+          {
+            "question_id": "q07",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:7"
+            ],
+            "returned_refs": [
+              "passage:7",
+              "passage:6",
+              "passage:4",
+              "passage:18",
+              "passage:5"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.205
+          },
+          {
+            "question_id": "q08",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:8"
+            ],
+            "returned_refs": [
+              "passage:8",
+              "passage:12",
+              "passage:9",
+              "passage:11",
+              "passage:10"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.734
+          },
+          {
+            "question_id": "q09",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:9"
+            ],
+            "returned_refs": [
+              "passage:9",
+              "passage:11",
+              "passage:10",
+              "passage:26",
+              "passage:2"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.221
+          },
+          {
+            "question_id": "q10",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:10"
+            ],
+            "returned_refs": [
+              "passage:10",
+              "passage:12",
+              "passage:9",
+              "passage:11",
+              "passage:5"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.56
+          },
+          {
+            "question_id": "q11",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:11"
+            ],
+            "returned_refs": [
+              "passage:11",
+              "passage:10",
+              "passage:12",
+              "passage:9",
+              "passage:8"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.27
+          },
+          {
+            "question_id": "q12",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:12"
+            ],
+            "returned_refs": [
+              "passage:12",
+              "passage:16",
+              "passage:11",
+              "passage:8",
+              "passage:9"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.342
+          },
+          {
+            "question_id": "q13",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:13"
+            ],
+            "returned_refs": [
+              "passage:13",
+              "passage:14",
+              "passage:15",
+              "passage:17",
+              "passage:18"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.536
+          },
+          {
+            "question_id": "q14",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:14"
+            ],
+            "returned_refs": [
+              "passage:14",
+              "passage:22",
+              "passage:17",
+              "passage:13",
+              "passage:18"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.607
+          },
+          {
+            "question_id": "q15",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:15"
+            ],
+            "returned_refs": [
+              "passage:15",
+              "passage:17",
+              "passage:13",
+              "passage:20",
+              "passage:29"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.274
+          },
+          {
+            "question_id": "q16",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:16"
+            ],
+            "returned_refs": [
+              "passage:16",
+              "passage:25",
+              "passage:30",
+              "passage:23",
+              "passage:21"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.509
+          },
+          {
+            "question_id": "q17",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:17"
+            ],
+            "returned_refs": [
+              "passage:15",
+              "passage:17",
+              "passage:13",
+              "passage:5",
+              "passage:23"
+            ],
+            "top1_score": 0.032787,
+            "rank": 2,
+            "hit_at_5": true,
+            "hit_at_1": false,
+            "latency_ms": 2.222
+          },
+          {
+            "question_id": "q18",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:18"
+            ],
+            "returned_refs": [
+              "passage:18",
+              "passage:15",
+              "passage:13",
+              "passage:19",
+              "passage:7"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.445
+          },
+          {
+            "question_id": "q19",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:19"
+            ],
+            "returned_refs": [
+              "passage:19",
+              "passage:17",
+              "passage:16",
+              "passage:1",
+              "passage:15"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.24
+          },
+          {
+            "question_id": "q20",
+            "subset": "public_sklearn",
+            "expected_refs": [
+              "passage:20"
+            ],
+            "returned_refs": [
+              "passage:20",
+              "passage:7",
+              "passage:14",
+              "passage:8",
+              "passage:1"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.579
+          },
+          {
+            "question_id": "q21",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:21"
+            ],
+            "returned_refs": [
+              "passage:21",
+              "passage:23",
+              "passage:27",
+              "passage:2",
+              "passage:1"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.536
+          },
+          {
+            "question_id": "q22",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:22"
+            ],
+            "returned_refs": [
+              "passage:22",
+              "passage:6",
+              "passage:27",
+              "passage:23",
+              "passage:30"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.544
+          },
+          {
+            "question_id": "q23",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:23"
+            ],
+            "returned_refs": [
+              "passage:23",
+              "passage:24",
+              "passage:22",
+              "passage:26",
+              "passage:27"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.701
+          },
+          {
+            "question_id": "q24",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:24"
+            ],
+            "returned_refs": [
+              "passage:24",
+              "passage:23",
+              "passage:26",
+              "passage:27",
+              "passage:6"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.795
+          },
+          {
+            "question_id": "q25",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:25"
+            ],
+            "returned_refs": [
+              "passage:25",
+              "passage:26",
+              "passage:30",
+              "passage:24",
+              "passage:28"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.363
+          },
+          {
+            "question_id": "q26",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:26"
+            ],
+            "returned_refs": [
+              "passage:26",
+              "passage:24",
+              "passage:27",
+              "passage:22",
+              "passage:28"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.916
+          },
+          {
+            "question_id": "q27",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:27"
+            ],
+            "returned_refs": [
+              "passage:27",
+              "passage:30",
+              "passage:26",
+              "passage:28",
+              "passage:22"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.83
+          },
+          {
+            "question_id": "q28",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:28"
+            ],
+            "returned_refs": [
+              "passage:28",
+              "passage:27",
+              "passage:25",
+              "passage:29",
+              "passage:26"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.429
+          },
+          {
+            "question_id": "q29",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:29"
+            ],
+            "returned_refs": [
+              "passage:29",
+              "passage:23",
+              "passage:6",
+              "passage:25",
+              "passage:27"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.653
+          },
+          {
+            "question_id": "q30",
+            "subset": "hypora_local",
+            "expected_refs": [
+              "passage:30"
+            ],
+            "returned_refs": [
+              "passage:30",
+              "passage:29",
+              "passage:6",
+              "passage:26",
+              "passage:28"
+            ],
+            "top1_score": 0.032787,
+            "rank": 1,
+            "hit_at_5": true,
+            "hit_at_1": true,
+            "latency_ms": 2.546
+          }
+        ]
+      }
+    },
+    "paired_hit_at_5": [
+      {
+        "comparison": "hybrid vs tfidf",
+        "both_pass": 30,
+        "first_only": 0,
+        "second_only": 0,
+        "both_fail": 0,
+        "difference": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0,
+        "verdict": "inconclusive"
+      },
+      {
+        "comparison": "hybrid vs bm25",
+        "both_pass": 30,
+        "first_only": 0,
+        "second_only": 0,
+        "both_fail": 0,
+        "difference": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0,
+        "verdict": "inconclusive"
+      },
+      {
+        "comparison": "hybrid vs embedding",
+        "both_pass": 30,
+        "first_only": 0,
+        "second_only": 0,
+        "both_fail": 0,
+        "difference": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0,
+        "verdict": "inconclusive"
+      },
+      {
+        "comparison": "embedding vs bm25",
+        "both_pass": 30,
+        "first_only": 0,
+        "second_only": 0,
+        "both_fail": 0,
+        "difference": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0,
+        "verdict": "inconclusive"
+      }
+    ],
+    "boundary_queries": [
+      {
+        "query_id": "b01",
+        "category": "lexical_paraphrase",
+        "query": "prevent patient leakage between training and validation partitions",
+        "filters": {},
+        "expected_refs": [
+          "passage:8"
+        ],
+        "returned_refs_by_mode": {
+          "tfidf": [
+            "passage:12",
+            "passage:27",
+            "passage:25",
+            "passage:3",
+            "passage:24"
+          ],
+          "bm25": [
+            "passage:12",
+            "passage:3",
+            "passage:27",
+            "passage:25",
+            "passage:30"
+          ],
+          "embedding": [
+            "passage:12",
+            "passage:27",
+            "passage:25",
+            "passage:3",
+            "passage:24"
+          ],
+          "hybrid": [
+            "passage:12",
+            "passage:27",
+            "passage:3",
+            "passage:25",
+            "passage:24"
+          ]
+        },
+        "note": "No shared 'patient', 'leakage', or 'partitions' tokens with GroupKFold docstring."
+      },
+      {
+        "query_id": "b02",
+        "category": "lexical_paraphrase",
+        "query": "chain preprocessing steps together with a final estimator",
+        "filters": {},
+        "expected_refs": [
+          "passage:20"
+        ],
+        "returned_refs_by_mode": {
+          "tfidf": [
+            "passage:20",
+            "passage:29",
+            "passage:14",
+            "passage:8",
+            "passage:1"
+          ],
+          "bm25": [
+            "passage:20",
+            "passage:29",
+            "passage:23",
+            "passage:14",
+            "passage:8"
+          ],
+          "embedding": [
+            "passage:20",
+            "passage:29",
+            "passage:14",
+            "passage:8",
+            "passage:1"
+          ],
+          "hybrid": [
+            "passage:20",
+            "passage:29",
+            "passage:14",
+            "passage:23",
+            "passage:8"
+          ]
+        },
+        "note": "Paraphrase of Pipeline ('sequence of data transformers with an optional final predictor')."
+      },
+      {
+        "query_id": "b03",
+        "category": "metadata_filter",
+        "query": "retry policy timeout and delay",
+        "filters": {
+          "revision": "eval-freeze-62b4e3f",
+          "license": "MIT"
+        },
+        "expected_refs": [
+          "passage:26"
+        ],
+        "returned_refs_by_mode": {
+          "tfidf": [
+            "passage:26",
+            "passage:28",
+            "passage:27",
+            "passage:25",
+            "passage:24"
+          ],
+          "bm25": [
+            "passage:26",
+            "passage:27",
+            "passage:28",
+            "passage:25",
+            "passage:30"
+          ],
+          "embedding": [
+            "passage:26",
+            "passage:28",
+            "passage:27",
+            "passage:25",
+            "passage:24"
+          ],
+          "hybrid": [
+            "passage:26",
+            "passage:27",
+            "passage:28",
+            "passage:25",
+            "passage:24"
+          ]
+        },
+        "note": "Filtered to frozen Hypora MIT corpus only."
+      },
+      {
+        "query_id": "b04",
+        "category": "metadata_filter",
+        "query": "time series cross validation",
+        "filters": {
+          "revision": "scikit-learn-1.9.1",
+          "license": "BSD-3-Clause"
+        },
+        "expected_refs": [
+          "passage:9"
+        ],
+        "returned_refs_by_mode": {
+          "tfidf": [
+            "passage:9",
+            "passage:12",
+            "passage:11",
+            "passage:10"
+          ],
+          "bm25": [
+            "passage:9",
+            "passage:12",
+            "passage:11",
+            "passage:10"
+          ],
+          "embedding": [
+            "passage:9",
+            "passage:12",
+            "passage:11",
+            "passage:10",
+            "passage:17"
+          ],
+          "hybrid": [
+            "passage:9",
+            "passage:12",
+            "passage:11",
+            "passage:10",
+            "passage:17"
+          ]
+        },
+        "note": "Filtered to pinned scikit-learn 1.9.1 BSD-3-Clause corpus only."
+      },
+      {
+        "query_id": "b05",
+        "category": "out_of_corpus",
+        "query": "PyTorch DataLoader pin_memory and num_workers CUDA settings",
+        "filters": {},
+        "expected_refs": [],
+        "returned_refs_by_mode": {
+          "tfidf": [
+            "passage:27",
+            "passage:25",
+            "passage:3",
+            "passage:24",
+            "passage:28"
+          ],
+          "bm25": [
+            "passage:3",
+            "passage:27",
+            "passage:25",
+            "passage:30",
+            "passage:24"
+          ],
+          "embedding": [
+            "passage:27",
+            "passage:25",
+            "passage:3",
+            "passage:24",
+            "passage:28"
+          ],
+          "hybrid": [
+            "passage:27",
+            "passage:3",
+            "passage:25",
+            "passage:24",
+            "passage:30"
+          ]
+        },
+        "note": "Topic absent from corpus; tests abstention/false-positive lexical overlap."
+      },
+      {
+        "query_id": "b06",
+        "category": "out_of_corpus",
+        "query": "PostgreSQL write-ahead log checkpoint_completion_target tuning",
+        "filters": {},
+        "expected_refs": [],
+        "returned_refs_by_mode": {
+          "tfidf": [],
+          "bm25": [],
+          "embedding": [],
+          "hybrid": []
+        },
+        "note": "Topic completely outside corpus; retrieval should return empty or low-relevance hits."
+      }
+    ]
+  },
+  "answer_comparison": {
+    "model_id": "openai/gpt-6-luna",
+    "price_retrieved_on": "2026-11-07",
+    "total_spent_usd": 0.010195,
+    "primary_overall": {
+      "factual_hybrid": {
+        "passed": 29,
+        "total": 30,
+        "rate": 0.9667,
+        "wilson_95": [
+          0.8333,
+          0.9941
+        ],
+        "latency_mean_s": 1.591,
+        "latency_p95_s": 2.081,
+        "cost_total_usd": 0.003833,
+        "cost_per_task_usd": 0.000128
+      },
+      "factual_off": {
+        "passed": 12,
+        "total": 30,
+        "rate": 0.4,
+        "wilson_95": [
+          0.2459,
+          0.5768
+        ],
+        "latency_mean_s": 1.71,
+        "latency_p95_s": 2.754,
+        "cost_total_usd": 0.002424,
+        "cost_per_task_usd": 8.1e-05
+      },
+      "factual_paired": {
+        "comparison": "hybrid vs off (factual, n=30)",
+        "cases": 30,
+        "both_pass": 12,
+        "first_only": 17,
+        "second_only": 0,
+        "both_fail": 1,
+        "difference": 0.5667,
+        "ci_low": 0.4,
+        "ci_high": 0.7333,
+        "verdict": "first_higher"
+      },
+      "grounded_hybrid": {
+        "passed": 29,
+        "total": 30,
+        "rate": 0.9667,
+        "wilson_95": [
+          0.8333,
+          0.9941
+        ],
+        "latency_mean_s": 1.591,
+        "latency_p95_s": 2.081,
+        "cost_total_usd": 0.003833,
+        "cost_per_task_usd": 0.000128
+      },
+      "grounded_off": {
+        "passed": 0,
+        "total": 30,
+        "rate": 0.0,
+        "wilson_95": [
+          0.0,
+          0.1135
+        ],
+        "latency_mean_s": 1.71,
+        "latency_p95_s": 2.754,
+        "cost_total_usd": 0.002424,
+        "cost_per_task_usd": 8.1e-05
+      },
+      "grounded_paired": {
+        "comparison": "hybrid vs off (grounded, n=30)",
+        "cases": 30,
+        "both_pass": 0,
+        "first_only": 29,
+        "second_only": 0,
+        "both_fail": 1,
+        "difference": 0.9667,
+        "ci_low": 0.9,
+        "ci_high": 1.0,
+        "verdict": "first_higher"
+      }
+    },
+    "subsets": {
+      "public_sklearn": {
+        "factual_hybrid": {
+          "passed": 20,
+          "total": 20,
+          "rate": 1.0,
+          "wilson_95": [
+            0.8389,
+            1.0
+          ],
+          "latency_mean_s": 1.505,
+          "latency_p95_s": 1.864,
+          "cost_total_usd": 0.002141,
+          "cost_per_task_usd": 0.000107
+        },
+        "factual_off": {
+          "passed": 12,
+          "total": 20,
+          "rate": 0.6,
+          "wilson_95": [
+            0.3866,
+            0.7812
+          ],
+          "latency_mean_s": 1.82,
+          "latency_p95_s": 2.754,
+          "cost_total_usd": 0.001704,
+          "cost_per_task_usd": 8.5e-05
+        },
+        "factual_paired": {
+          "comparison": "public_sklearn: hybrid vs off (factual)",
+          "cases": 20,
+          "both_pass": 12,
+          "first_only": 8,
+          "second_only": 0,
+          "both_fail": 0,
+          "difference": 0.4,
+          "ci_low": 0.2,
+          "ci_high": 0.6,
+          "verdict": "first_higher"
+        },
+        "grounded_hybrid": {
+          "passed": 20,
+          "total": 20,
+          "rate": 1.0,
+          "wilson_95": [
+            0.8389,
+            1.0
+          ],
+          "latency_mean_s": 1.505,
+          "latency_p95_s": 1.864,
+          "cost_total_usd": 0.002141,
+          "cost_per_task_usd": 0.000107
+        },
+        "grounded_off": {
+          "passed": 0,
+          "total": 20,
+          "rate": 0.0,
+          "wilson_95": [
+            0.0,
+            0.1611
+          ],
+          "latency_mean_s": 1.82,
+          "latency_p95_s": 2.754,
+          "cost_total_usd": 0.001704,
+          "cost_per_task_usd": 8.5e-05
+        },
+        "grounded_paired": {
+          "comparison": "public_sklearn: hybrid vs off (grounded)",
+          "cases": 20,
+          "both_pass": 0,
+          "first_only": 20,
+          "second_only": 0,
+          "both_fail": 0,
+          "difference": 1.0,
+          "ci_low": 1.0,
+          "ci_high": 1.0,
+          "verdict": "first_higher"
+        }
+      },
+      "hypora_local": {
+        "factual_hybrid": {
+          "passed": 9,
+          "total": 10,
+          "rate": 0.9,
+          "wilson_95": [
+            0.5958,
+            0.9821
+          ],
+          "latency_mean_s": 1.763,
+          "latency_p95_s": 2.081,
+          "cost_total_usd": 0.001692,
+          "cost_per_task_usd": 0.000169
+        },
+        "factual_off": {
+          "passed": 0,
+          "total": 10,
+          "rate": 0.0,
+          "wilson_95": [
+            0.0,
+            0.2775
+          ],
+          "latency_mean_s": 1.492,
+          "latency_p95_s": 1.747,
+          "cost_total_usd": 0.00072,
+          "cost_per_task_usd": 7.2e-05
+        },
+        "factual_paired": {
+          "comparison": "hypora_local: hybrid vs off (factual)",
+          "cases": 10,
+          "both_pass": 0,
+          "first_only": 9,
+          "second_only": 0,
+          "both_fail": 1,
+          "difference": 0.9,
+          "ci_low": 0.7,
+          "ci_high": 1.0,
+          "verdict": "first_higher"
+        },
+        "grounded_hybrid": {
+          "passed": 9,
+          "total": 10,
+          "rate": 0.9,
+          "wilson_95": [
+            0.5958,
+            0.9821
+          ],
+          "latency_mean_s": 1.763,
+          "latency_p95_s": 2.081,
+          "cost_total_usd": 0.001692,
+          "cost_per_task_usd": 0.000169
+        },
+        "grounded_off": {
+          "passed": 0,
+          "total": 10,
+          "rate": 0.0,
+          "wilson_95": [
+            0.0,
+            0.2775
+          ],
+          "latency_mean_s": 1.492,
+          "latency_p95_s": 1.747,
+          "cost_total_usd": 0.00072,
+          "cost_per_task_usd": 7.2e-05
+        },
+        "grounded_paired": {
+          "comparison": "hypora_local: hybrid vs off (grounded)",
+          "cases": 10,
+          "both_pass": 0,
+          "first_only": 9,
+          "second_only": 0,
+          "both_fail": 1,
+          "difference": 0.9,
+          "ci_low": 0.7,
+          "ci_high": 1.0,
+          "verdict": "first_higher"
+        }
+      }
+    },
+    "repeat_sample_6x3": {
+      "factual_hybrid": {
+        "passed": 18,
+        "total": 18,
+        "rate": 1.0,
+        "wilson_95": [
+          0.8241,
+          1.0
+        ],
+        "latency_mean_s": 1.67,
+        "latency_p95_s": 2.282,
+        "cost_total_usd": 0.002604,
+        "cost_per_task_usd": 0.000145
+      },
+      "factual_off": {
+        "passed": 6,
+        "total": 18,
+        "rate": 0.3333,
+        "wilson_95": [
+          0.1628,
+          0.5625
+        ],
+        "latency_mean_s": 1.544,
+        "latency_p95_s": 1.781,
+        "cost_total_usd": 0.001341,
+        "cost_per_task_usd": 7.4e-05
+      },
+      "grounded_hybrid": {
+        "passed": 18,
+        "total": 18,
+        "rate": 1.0,
+        "wilson_95": [
+          0.8241,
+          1.0
+        ],
+        "latency_mean_s": 1.67,
+        "latency_p95_s": 2.282,
+        "cost_total_usd": 0.002604,
+        "cost_per_task_usd": 0.000145
+      },
+      "grounded_off": {
+        "passed": 0,
+        "total": 18,
+        "rate": 0.0,
+        "wilson_95": [
+          0.0,
+          0.1759
+        ],
+        "latency_mean_s": 1.544,
+        "latency_p95_s": 1.781,
+        "cost_total_usd": 0.001341,
+        "cost_per_task_usd": 7.4e-05
+      }
+    },
+    "records": {
+      "profile": "eval",
+      "model_id": "openai/gpt-6-luna",
+      "price_retrieved_on": "2026-11-07",
+      "total_spent_usd": 0.010195,
+      "cap_usd": 1.0,
+      "primary": {
+        "hybrid": [
+          {
+            "question_id": "q01",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.945,
+            "total_seconds": 1.864,
+            "cost_usd": 0.000122,
+            "input_tokens": 607,
+            "output_tokens": 122,
+            "parsed": {
+              "answer": "Univariate imputation with `SimpleImputer` fills missing entries using simple per-column strategies.",
+              "key_value": "SimpleImputer (univariate imputation)",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.impute.SimpleImputer.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q02",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.777,
+            "total_seconds": 2.423,
+            "cost_usd": 0.000148,
+            "input_tokens": 611,
+            "output_tokens": 174,
+            "parsed": {
+              "answer": "Use a k-nearest-neighbors imputer: for each missing value, find nearby observations using the other available features and estimate the value from neighbors that have it. In scikit-learn, use `KNNImputer`; its `n_neighbors` setting controls how many neighbors are considered.",
+              "key_value": "KNNImputer",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.impute.KNNImputer.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q03",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.574,
+            "total_seconds": 1.355,
+            "cost_usd": 0.000118,
+            "input_tokens": 783,
+            "output_tokens": 80,
+            "parsed": {
+              "answer": "StandardScaler centers each feature by removing its mean and scales it to unit variance.",
+              "key_value": "StandardScaler",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.preprocessing.StandardScaler.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q04",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.821,
+            "total_seconds": 1.637,
+            "cost_usd": 0.000121,
+            "input_tokens": 610,
+            "output_tokens": 120,
+            "parsed": {
+              "answer": "Use scikit-learn\u2019s `OneHotEncoder` (`sklearn.preprocessing.OneHotEncoder`) to encode categorical features as a one-hot numeric array.",
+              "key_value": "OneHotEncoder",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.preprocessing.OneHotEncoder.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q05",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.727,
+            "total_seconds": 1.57,
+            "cost_usd": 0.000104,
+            "input_tokens": 518,
+            "output_tokens": 104,
+            "parsed": {
+              "answer": "MinMaxScaler",
+              "key_value": "Scales each feature to a specified numeric range.",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.preprocessing.MinMaxScaler.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q06",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.792,
+            "total_seconds": 1.329,
+            "cost_usd": 9.8e-05,
+            "input_tokens": 598,
+            "output_tokens": 77,
+            "parsed": {
+              "answer": "RobustScaler uses statistics robust to outliers.",
+              "key_value": "RobustScaler",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.preprocessing.RobustScaler.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q07",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.554,
+            "total_seconds": 1.689,
+            "cost_usd": 0.000115,
+            "input_tokens": 516,
+            "output_tokens": 127,
+            "parsed": {
+              "answer": "Categorical features are converted to integer codes using `OrdinalEncoder`, which encodes each category as an integer.",
+              "key_value": "OrdinalEncoder",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.preprocessing.OrdinalEncoder.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q08",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 4.28,
+            "total_seconds": 1.734,
+            "cost_usd": 0.0001,
+            "input_tokens": 517,
+            "output_tokens": 96,
+            "parsed": {
+              "answer": "GroupKFold keeps groups from overlapping across folds.",
+              "key_value": "GroupKFold",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.model_selection.GroupKFold.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q09",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.788,
+            "total_seconds": 1.375,
+            "cost_usd": 0.000102,
+            "input_tokens": 580,
+            "output_tokens": 89,
+            "parsed": {
+              "answer": "TimeSeriesSplit",
+              "key_value": "TimeSeriesSplit",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.model_selection.TimeSeriesSplit.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q10",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.807,
+            "total_seconds": 1.293,
+            "cost_usd": 9.3e-05,
+            "input_tokens": 516,
+            "output_tokens": 82,
+            "parsed": {
+              "answer": "StratifiedKFold stratifies splits by class.",
+              "key_value": "StratifiedKFold",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.model_selection.StratifiedKFold.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q11",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.246,
+            "total_seconds": 1.803,
+            "cost_usd": 0.000118,
+            "input_tokens": 516,
+            "output_tokens": 133,
+            "parsed": {
+              "answer": "The general k-fold cross-validation splitter is `KFold`.",
+              "key_value": "KFold",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.model_selection.KFold.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q12",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.327,
+            "total_seconds": 1.274,
+            "cost_usd": 9.1e-05,
+            "input_tokens": 515,
+            "output_tokens": 78,
+            "parsed": {
+              "answer": "GroupShuffleSplit randomizes group-based train/test splits.",
+              "key_value": "GroupShuffleSplit",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.model_selection.GroupShuffleSplit.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q13",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.448,
+            "total_seconds": 1.641,
+            "cost_usd": 9.5e-05,
+            "input_tokens": 510,
+            "output_tokens": 87,
+            "parsed": {
+              "answer": "LogisticRegression (sklearn.linear_model.LogisticRegression) implements logistic regression.",
+              "key_value": "sklearn.linear_model.LogisticRegression",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.linear_model.LogisticRegression.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q14",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.539,
+            "total_seconds": 1.375,
+            "cost_usd": 9.8e-05,
+            "input_tokens": 594,
+            "output_tokens": 78,
+            "parsed": {
+              "answer": "Ridge regression.",
+              "key_value": "Ridge applies L2 regularization to linear least squares.",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.linear_model.Ridge.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q15",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.263,
+            "total_seconds": 1.176,
+            "cost_usd": 9.9e-05,
+            "input_tokens": 607,
+            "output_tokens": 76,
+            "parsed": {
+              "answer": "The RandomForestClassifier uses a random forest.",
+              "key_value": "RandomForestClassifier",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.ensemble.RandomForestClassifier.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q16",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 5.384,
+            "total_seconds": 1.302,
+            "cost_usd": 0.000127,
+            "input_tokens": 840,
+            "output_tokens": 86,
+            "parsed": {
+              "answer": "HistGradientBoostingClassifier uses histogram-based gradient boosting for classification trees.",
+              "key_value": "HistGradientBoostingClassifier",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.ensemble.HistGradientBoostingClassifier.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q17",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.347,
+            "total_seconds": 1.185,
+            "cost_usd": 0.000101,
+            "input_tokens": 595,
+            "output_tokens": 82,
+            "parsed": {
+              "answer": "RandomForestRegressor",
+              "key_value": "The RandomForestRegressor estimator uses a random forest for regression.",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.ensemble.RandomForestRegressor.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q18",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.863,
+            "total_seconds": 1.397,
+            "cost_usd": 8.6e-05,
+            "input_tokens": 514,
+            "output_tokens": 69,
+            "parsed": {
+              "answer": "DummyClassifier",
+              "key_value": "DummyClassifier",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.dummy.DummyClassifier.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q19",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.467,
+            "total_seconds": 1.358,
+            "cost_usd": 0.000101,
+            "input_tokens": 519,
+            "output_tokens": 98,
+            "parsed": {
+              "answer": "DummyRegressor",
+              "key_value": "DummyRegressor",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.dummy.DummyRegressor.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q20",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.358,
+            "total_seconds": 1.318,
+            "cost_usd": 0.000104,
+            "input_tokens": 513,
+            "output_tokens": 105,
+            "parsed": {
+              "answer": "A Pipeline composes a sequence of data transformations with an optional final predictor.",
+              "key_value": "Pipeline",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.pipeline.Pipeline.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q21",
+            "subset": "hypora_local",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.506,
+            "total_seconds": 1.539,
+            "cost_usd": 0.000152,
+            "input_tokens": 782,
+            "output_tokens": 148,
+            "parsed": {
+              "answer": "The too-good-score check uses score_margin = 0.08 and relative_margin = 0.35.",
+              "key_value": "score_margin=0.08; relative_margin=0.35",
+              "cited_source_url": "https://github.com/ghadikhoury/hypora/blob/62b4e3fb6016a0abddf70a14152252a62c8aca4a/configs/flags.yaml",
+              "cited_revision": "eval-freeze-62b4e3f",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q22",
+            "subset": "hypora_local",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.945,
+            "total_seconds": 1.72,
+            "cost_usd": 0.000157,
+            "input_tokens": 817,
+            "output_tokens": 150,
+            "parsed": {
+              "answer": "confirm_fraction is 0.5, and dominance_ratio is 2.0.",
+              "key_value": "confirm_fraction=0.5; dominance_ratio=2.0",
+              "cited_source_url": "https://github.com/ghadikhoury/hypora/blob/62b4e3fb6016a0abddf70a14152252a62c8aca4a/configs/flags.yaml#L35-L37",
+              "cited_revision": "eval-freeze-62b4e3f",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q23",
+            "subset": "hypora_local",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.465,
+            "total_seconds": 1.906,
+            "cost_usd": 0.000171,
+            "input_tokens": 889,
+            "output_tokens": 165,
+            "parsed": {
+              "answer": "The floor is 60.0 seconds, and the reserve is capped at 35% of the compute budget.",
+              "key_value": "finish_reserve_compute_seconds floor: 60.0 seconds; maximum: 35% of compute budget",
+              "cited_source_url": "https://github.com/ghadikhoury/hypora/blob/62b4e3fb6016a0abddf70a14152252a62c8aca4a/hypora/core/config/flags.py",
+              "cited_revision": "eval-freeze-62b4e3f",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q24",
+            "subset": "hypora_local",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 4.143,
+            "total_seconds": 1.583,
+            "cost_usd": 0.000155,
+            "input_tokens": 817,
+            "output_tokens": 147,
+            "parsed": {
+              "answer": "The pinned caps are: lead_revision_rounds = 2, max_diagnostics_per_session = 8, and max_research_tool_calls = 16.",
+              "key_value": "lead_revision_rounds=2; max_diagnostics_per_session=8; max_research_tool_calls=16",
+              "cited_source_url": "https://github.com/ghadikhoury/hypora/blob/62b4e3fb6016a0abddf70a14152252a62c8aca4a/configs/flags.yaml#L38-L45",
+              "cited_revision": "eval-freeze-62b4e3f",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q25",
+            "subset": "hypora_local",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.67,
+            "total_seconds": 1.901,
+            "cost_usd": 0.000184,
+            "input_tokens": 884,
+            "output_tokens": 191,
+            "parsed": {
+              "answer": "MAX_INDEX_PASSAGES is 80 passages. _INDEX_LICENSES contains mit, apache-2.0, bsd-2-clause, bsd-3-clause, cc-by-4.0, and cc0-1.0.",
+              "key_value": "MAX_INDEX_PASSAGES=80; _INDEX_LICENSES=[mit, apache-2.0, bsd-2-clause, bsd-3-clause, cc-by-4.0, cc0-1.0]",
+              "cited_source_url": "https://github.com/ghadikhoury/hypora/blob/62b4e3fb6016a0abddf70a14152252a62c8aca4a/hypora/research/mcp_tools.py",
+              "cited_revision": "eval-freeze-62b4e3f",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q26",
+            "subset": "hypora_local",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 4.319,
+            "total_seconds": 1.808,
+            "cost_usd": 0.000167,
+            "input_tokens": 883,
+            "output_tokens": 158,
+            "parsed": {
+              "answer": "The retry policy values are: max_retries = 3, base_delay_s = 6.0, max_delay_s = 60.0, and request_timeout_s = 240.0 seconds.",
+              "key_value": "max_retries=3; base_delay_s=6.0; max_delay_s=60.0; request_timeout_s=240.0",
+              "cited_source_url": "https://github.com/ghadikhoury/hypora/blob/62b4e3fb6016a0abddf70a14152252a62c8aca4a/configs/models.yaml",
+              "cited_revision": "eval-freeze-62b4e3f",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q27",
+            "subset": "hypora_local",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 5.34,
+            "total_seconds": 1.7,
+            "cost_usd": 0.000171,
+            "input_tokens": 876,
+            "output_tokens": 167,
+            "parsed": {
+              "answer": "INJECTION_MARKER is `[line withheld by the injection filter: instruction-like untrusted text]`. The four InjectionCategory values are `override`, `role_marker`, `tool_call`, and `approval_claim`.",
+              "key_value": "INJECTION_MARKER: [line withheld by the injection filter: instruction-like untrusted text]; InjectionCategory: override, role_marker, tool_call, approval_claim",
+              "cited_source_url": "https://github.com/ghadikhoury/hypora/blob/62b4e3fb6016a0abddf70a14152252a62c8aca4a/hypora/core/policy/injection.py",
+              "cited_revision": "eval-freeze-62b4e3f",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q28",
+            "subset": "hypora_local",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.669,
+            "total_seconds": 2.081,
+            "cost_usd": 0.000185,
+            "input_tokens": 925,
+            "output_tokens": 184,
+            "parsed": {
+              "answer": "The six SCREENED_TOOLS are: get_model_evidence, retrieve_methodology, get_experiment_logs, get_experiment_status, inspect_dataset, and get_experiment_metrics.",
+              "key_value": "get_model_evidence; retrieve_methodology; get_experiment_logs; get_experiment_status; inspect_dataset; get_experiment_metrics",
+              "cited_source_url": "https://github.com/ghadikhoury/hypora/blob/62b4e3fb6016a0abddf70a14152252a62c8aca4a/hypora/core/policy/injection.py#L43-L52",
+              "cited_revision": "eval-freeze-62b4e3f",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q29",
+            "subset": "hypora_local",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 4.148,
+            "total_seconds": 1.91,
+            "cost_usd": 0.000194,
+            "input_tokens": 889,
+            "output_tokens": 211,
+            "parsed": {
+              "answer": "All 26 cases use a 25% hidden split with random seed 20261120. The limits are 1,800 compute seconds and 3,600 wall-clock seconds.",
+              "key_value": "Hidden split: 25%; random seed: 20261120; compute limit: 1,800 seconds; wall-clock limit: 3,600 seconds.",
+              "cited_source_url": "https://github.com/ghadikhoury/hypora/blob/62b4e3fb6016a0abddf70a14152252a62c8aca4a/hypora/evaluation/cases/test/README.md",
+              "cited_revision": "eval-freeze-62b4e3f",
+              "abstained": false
+            },
+            "factual_correct": false,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q30",
+            "subset": "hypora_local",
+            "mode": "hybrid",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 4.046,
+            "total_seconds": 1.48,
+            "cost_usd": 0.000156,
+            "input_tokens": 830,
+            "output_tokens": 146,
+            "parsed": {
+              "answer": "DEFAULT_RESAMPLES is 10000, DEFAULT_BOOTSTRAP_SEED is 1990, and LATENCY_METHOD is \"nearest-rank\".",
+              "key_value": "DEFAULT_RESAMPLES=10000; DEFAULT_BOOTSTRAP_SEED=1990; LATENCY_METHOD=nearest-rank",
+              "cited_source_url": "https://github.com/ghadikhoury/hypora/blob/62b4e3fb6016a0abddf70a14152252a62c8aca4a/hypora/evaluation/stats/core.py",
+              "cited_revision": "eval-freeze-62b4e3f",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          }
+        ],
+        "off": [
+          {
+            "question_id": "q01",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 2.754,
+            "cost_usd": 9.3e-05,
+            "input_tokens": 228,
+            "output_tokens": 141,
+            "parsed": {
+              "answer": "Simple (univariate) imputation fills missing entries using per-column rules, such as replacing them with the column mean, median, mode, or a constant.",
+              "key_value": "Simple imputation",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q02",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 2.223,
+            "cost_usd": 0.000111,
+            "input_tokens": 225,
+            "output_tokens": 176,
+            "parsed": {
+              "answer": "Use interpolation: find the nearest known observations before and after the missing value, then estimate the missing value between them (for example, linear interpolation for numeric data). For time series, forward-fill or backward-fill can instead copy the nearest preceding or following value.",
+              "key_value": "Neighbor-based imputation (interpolation; optionally forward-fill/backward-fill)",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q03",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 2.096,
+            "cost_usd": 7.4e-05,
+            "input_tokens": 226,
+            "output_tokens": 102,
+            "parsed": {
+              "answer": "Standardization (z-score scaling) centers each feature by subtracting its mean and scales it to unit variance.",
+              "key_value": "Standardization / z-score scaling",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q04",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.001,
+            "total_seconds": 2.007,
+            "cost_usd": 0.000103,
+            "input_tokens": 228,
+            "output_tokens": 161,
+            "parsed": {
+              "answer": "Choose a fixed ordering of the categories and represent each value as a numeric vector of that length: put 1 in the position for the value\u2019s category and 0 in every other position. For example, with categories [red, green, blue], green becomes [0, 1, 0].",
+              "key_value": "One-hot encoding: one numeric position per category; set the matching position to 1 and all others to 0.",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q05",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.625,
+            "cost_usd": 6.7e-05,
+            "input_tokens": 225,
+            "output_tokens": 88,
+            "parsed": {
+              "answer": "Min-max scaling (for example, using `MinMaxScaler`) maps features to a specified numeric range.",
+              "key_value": "Min-max scaling",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q06",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.698,
+            "cost_usd": 8.1e-05,
+            "input_tokens": 225,
+            "output_tokens": 116,
+            "parsed": {
+              "answer": "Robust scaling, typically using the median and interquartile range (IQR), is robust to outliers.",
+              "key_value": "RobustScaler (median and IQR)",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q07",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 3.171,
+            "cost_usd": 0.000162,
+            "input_tokens": 224,
+            "output_tokens": 280,
+            "parsed": {
+              "answer": "Categorical features are typically converted by assigning each distinct category a unique integer code, often from 0 to the number of categories minus 1. The exact mapping and treatment of unseen or missing categories depend on the implementation.",
+              "key_value": "Each distinct category receives an integer code; exact behavior is implementation-dependent.",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q08",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.674,
+            "cost_usd": 7.3e-05,
+            "input_tokens": 226,
+            "output_tokens": 101,
+            "parsed": {
+              "answer": "GroupKFold (grouped cross-validation) keeps each group entirely within a single fold, preventing groups from overlapping across folds.",
+              "key_value": "GroupKFold",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q09",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.296,
+            "cost_usd": 6.4e-05,
+            "input_tokens": 224,
+            "output_tokens": 84,
+            "parsed": {
+              "answer": "TimeSeriesSplit is designed for time-series cross-validation.",
+              "key_value": "TimeSeriesSplit",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q10",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.001,
+            "total_seconds": 1.425,
+            "cost_usd": 6.9e-05,
+            "input_tokens": 225,
+            "output_tokens": 93,
+            "parsed": {
+              "answer": "Stratified K-fold cross-validation stratifies splits by class.",
+              "key_value": "StratifiedKFold",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q11",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.912,
+            "cost_usd": 9.2e-05,
+            "input_tokens": 225,
+            "output_tokens": 140,
+            "parsed": {
+              "answer": "The general k-fold cross-validation splitter is KFold: it divides the data into k folds, then trains and evaluates k times, using each fold once for validation and the remaining k\u22121 folds for training.",
+              "key_value": "KFold",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q12",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.489,
+            "cost_usd": 7.4e-05,
+            "input_tokens": 225,
+            "output_tokens": 104,
+            "parsed": {
+              "answer": "GroupShuffleSplit randomizes train/test splits while keeping groups intact.",
+              "key_value": "GroupShuffleSplit",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q13",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.584,
+            "cost_usd": 7.1e-05,
+            "input_tokens": 222,
+            "output_tokens": 97,
+            "parsed": {
+              "answer": "Logistic regression is implemented by the `LogisticRegression` linear classifier.",
+              "key_value": "LogisticRegression",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q14",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.274,
+            "cost_usd": 6.6e-05,
+            "input_tokens": 227,
+            "output_tokens": 87,
+            "parsed": {
+              "answer": "Ridge regression is the linear least-squares estimator that applies L2 regularization.",
+              "key_value": "Ridge regression",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q15",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.286,
+            "cost_usd": 6.9e-05,
+            "input_tokens": 222,
+            "output_tokens": 93,
+            "parsed": {
+              "answer": "I can\u2019t determine which classifier uses a random forest from the information provided.",
+              "key_value": "",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": true
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q16",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.353,
+            "cost_usd": 7.8e-05,
+            "input_tokens": 225,
+            "output_tokens": 112,
+            "parsed": {
+              "answer": "HistGradientBoostingClassifier uses histogram-based gradient boosting for classification.",
+              "key_value": "HistGradientBoostingClassifier",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q17",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.902,
+            "cost_usd": 8.2e-05,
+            "input_tokens": 223,
+            "output_tokens": 119,
+            "parsed": {
+              "answer": "The RandomForestRegressor estimator uses a random forest for regression.",
+              "key_value": "RandomForestRegressor",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q18",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.882,
+            "cost_usd": 8.4e-05,
+            "input_tokens": 225,
+            "output_tokens": 123,
+            "parsed": {
+              "answer": "The ZeroR (majority-class) classifier ignores input features and always predicts the most frequent class.",
+              "key_value": "ZeroR classifier",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q19",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.001,
+            "total_seconds": 1.915,
+            "cost_usd": 0.000107,
+            "input_tokens": 225,
+            "output_tokens": 168,
+            "parsed": {
+              "answer": "A decision tree regressor provides a simple, rule-based baseline.",
+              "key_value": "DecisionTreeRegressor",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q20",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.824,
+            "cost_usd": 8.4e-05,
+            "input_tokens": 225,
+            "output_tokens": 124,
+            "parsed": {
+              "answer": "A Pipeline composes transformations and can include an optional final predictor (estimator).",
+              "key_value": "Pipeline",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q21",
+            "subset": "hypora_local",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.216,
+            "cost_usd": 6.1e-05,
+            "input_tokens": 242,
+            "output_tokens": 73,
+            "parsed": {
+              "answer": "I can\u2019t determine the exact values because no Hypora configuration passage was provided.",
+              "key_value": "",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": true
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q22",
+            "subset": "hypora_local",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.356,
+            "cost_usd": 7e-05,
+            "input_tokens": 235,
+            "output_tokens": 93,
+            "parsed": {
+              "answer": "I can\u2019t verify the exact `confirm_fraction` and `dominance_ratio` thresholds from the available information.",
+              "key_value": "",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": true
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q23",
+            "subset": "hypora_local",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.546,
+            "cost_usd": 7.1e-05,
+            "input_tokens": 247,
+            "output_tokens": 93,
+            "parsed": {
+              "answer": "I can\u2019t verify the D-059 values because no source passage was provided.",
+              "key_value": "",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": true
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q24",
+            "subset": "hypora_local",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.248,
+            "cost_usd": 6e-05,
+            "input_tokens": 247,
+            "output_tokens": 70,
+            "parsed": {
+              "answer": "I can\u2019t determine the exact caps because no source passage was provided.",
+              "key_value": "",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": true
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q25",
+            "subset": "hypora_local",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.615,
+            "cost_usd": 8.5e-05,
+            "input_tokens": 242,
+            "output_tokens": 121,
+            "parsed": {
+              "answer": "I can\u2019t determine the value of MAX_INDEX_PASSAGES or the six identifiers in _INDEX_LICENSES because no source passage was provided.",
+              "key_value": "Unavailable without a source passage.",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": true
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q26",
+            "subset": "hypora_local",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.597,
+            "cost_usd": 8.1e-05,
+            "input_tokens": 247,
+            "output_tokens": 112,
+            "parsed": {
+              "answer": "I can\u2019t determine the exact retry-policy values without a source or the configs/models.yaml file.",
+              "key_value": "",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": true
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q27",
+            "subset": "hypora_local",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.607,
+            "cost_usd": 6.9e-05,
+            "input_tokens": 241,
+            "output_tokens": 89,
+            "parsed": {
+              "answer": "I can\u2019t verify the exact INJECTION_MARKER string or the four InjectionCategory values because no source passage was provided.",
+              "key_value": "",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": true
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q28",
+            "subset": "hypora_local",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.42,
+            "cost_usd": 6.4e-05,
+            "input_tokens": 234,
+            "output_tokens": 82,
+            "parsed": {
+              "answer": "I can\u2019t determine the exact six MCP tool names without a source passage.",
+              "key_value": "",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": true
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q29",
+            "subset": "hypora_local",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.565,
+            "cost_usd": 8e-05,
+            "input_tokens": 251,
+            "output_tokens": 109,
+            "parsed": {
+              "answer": "I can\u2019t determine the hidden split fraction, random seed, compute limit, or wall-clock limit without a source for Hypora\u2019s S5.1 test set.",
+              "key_value": "",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": true
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q30",
+            "subset": "hypora_local",
+            "mode": "off",
+            "tag": "primary",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.747,
+            "cost_usd": 7.9e-05,
+            "input_tokens": 241,
+            "output_tokens": 110,
+            "parsed": {
+              "answer": "I can\u2019t determine the values of DEFAULT_RESAMPLES, DEFAULT_BOOTSTRAP_SEED, or LATENCY_METHOD from the information provided.",
+              "key_value": "",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": true
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          }
+        ]
+      },
+      "repeats": {
+        "hybrid": [
+          {
+            "question_id": "q01",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "repeat_1",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.286,
+            "total_seconds": 1.287,
+            "cost_usd": 0.000109,
+            "input_tokens": 607,
+            "output_tokens": 96,
+            "parsed": {
+              "answer": "A univariate imputation approach, such as `SimpleImputer`, fills missing values using simple per-column strategies.",
+              "key_value": "SimpleImputer (univariate imputation)",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.impute.SimpleImputer.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q01",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "repeat_2",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.303,
+            "total_seconds": 1.779,
+            "cost_usd": 0.000124,
+            "input_tokens": 607,
+            "output_tokens": 127,
+            "parsed": {
+              "answer": "A univariate imputation approach, such as scikit-learn\u2019s `SimpleImputer`, fills missing entries using simple per-column strategies.",
+              "key_value": "SimpleImputer",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.impute.SimpleImputer.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q01",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "repeat_3",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.285,
+            "total_seconds": 1.468,
+            "cost_usd": 0.000123,
+            "input_tokens": 607,
+            "output_tokens": 124,
+            "parsed": {
+              "answer": "A univariate imputation approach, such as scikit-learn\u2019s SimpleImputer, fills missing entries using simple per-column strategies.",
+              "key_value": "SimpleImputer",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.impute.SimpleImputer.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q08",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "repeat_1",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.269,
+            "total_seconds": 1.693,
+            "cost_usd": 0.000104,
+            "input_tokens": 517,
+            "output_tokens": 105,
+            "parsed": {
+              "answer": "GroupKFold keeps groups from overlapping across folds.",
+              "key_value": "GroupKFold",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.model_selection.GroupKFold.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q08",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "repeat_2",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.244,
+            "total_seconds": 1.293,
+            "cost_usd": 9.8e-05,
+            "input_tokens": 517,
+            "output_tokens": 92,
+            "parsed": {
+              "answer": "GroupKFold keeps groups from overlapping across folds.",
+              "key_value": "GroupKFold",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.model_selection.GroupKFold.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q08",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "repeat_3",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.313,
+            "total_seconds": 1.636,
+            "cost_usd": 0.000104,
+            "input_tokens": 517,
+            "output_tokens": 105,
+            "parsed": {
+              "answer": "GroupKFold keeps groups from overlapping across folds.",
+              "key_value": "GroupKFold",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.model_selection.GroupKFold.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q16",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "repeat_1",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.226,
+            "total_seconds": 1.501,
+            "cost_usd": 0.000129,
+            "input_tokens": 840,
+            "output_tokens": 89,
+            "parsed": {
+              "answer": "HistGradientBoostingClassifier is the classification tree method that uses histogram-based gradient boosting.",
+              "key_value": "HistGradientBoostingClassifier",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.ensemble.HistGradientBoostingClassifier.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q16",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "repeat_2",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.191,
+            "total_seconds": 1.119,
+            "cost_usd": 0.000129,
+            "input_tokens": 840,
+            "output_tokens": 89,
+            "parsed": {
+              "answer": "HistGradientBoostingClassifier is the classification tree method that uses histogram-based gradient boosting.",
+              "key_value": "HistGradientBoostingClassifier",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.ensemble.HistGradientBoostingClassifier.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q16",
+            "subset": "public_sklearn",
+            "mode": "hybrid",
+            "tag": "repeat_3",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.883,
+            "total_seconds": 1.18,
+            "cost_usd": 0.000127,
+            "input_tokens": 840,
+            "output_tokens": 86,
+            "parsed": {
+              "answer": "HistGradientBoostingClassifier uses histogram-based gradient boosting for classification trees.",
+              "key_value": "HistGradientBoostingClassifier",
+              "cited_source_url": "https://scikit-learn.org/1.9/modules/generated/sklearn.ensemble.HistGradientBoostingClassifier.html",
+              "cited_revision": "scikit-learn-1.9.1",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q21",
+            "subset": "hypora_local",
+            "mode": "hybrid",
+            "tag": "repeat_1",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.664,
+            "total_seconds": 1.772,
+            "cost_usd": 0.000155,
+            "input_tokens": 782,
+            "output_tokens": 153,
+            "parsed": {
+              "answer": "The pinned leakage_check config uses score_margin = 0.08 and relative_margin = 0.35.",
+              "key_value": "score_margin=0.08; relative_margin=0.35",
+              "cited_source_url": "https://github.com/ghadikhoury/hypora/blob/62b4e3fb6016a0abddf70a14152252a62c8aca4a/configs/flags.yaml",
+              "cited_revision": "eval-freeze-62b4e3f",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q21",
+            "subset": "hypora_local",
+            "mode": "hybrid",
+            "tag": "repeat_2",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 4.163,
+            "total_seconds": 1.806,
+            "cost_usd": 0.000153,
+            "input_tokens": 782,
+            "output_tokens": 149,
+            "parsed": {
+              "answer": "The pinned config uses score_margin = 0.08 and relative_margin = 0.35 for the too-good-score check.",
+              "key_value": "score_margin=0.08; relative_margin=0.35",
+              "cited_source_url": "https://github.com/ghadikhoury/hypora/blob/62b4e3fb6016a0abddf70a14152252a62c8aca4a/configs/flags.yaml",
+              "cited_revision": "eval-freeze-62b4e3f",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q21",
+            "subset": "hypora_local",
+            "mode": "hybrid",
+            "tag": "repeat_3",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.972,
+            "total_seconds": 1.595,
+            "cost_usd": 0.00015,
+            "input_tokens": 782,
+            "output_tokens": 143,
+            "parsed": {
+              "answer": "The too-good-score check uses score_margin = 0.08 and relative_margin = 0.35.",
+              "key_value": "score_margin=0.08; relative_margin=0.35",
+              "cited_source_url": "https://github.com/ghadikhoury/hypora/blob/62b4e3fb6016a0abddf70a14152252a62c8aca4a/configs/flags.yaml",
+              "cited_revision": "eval-freeze-62b4e3f",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q25",
+            "subset": "hypora_local",
+            "mode": "hybrid",
+            "tag": "repeat_1",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.643,
+            "total_seconds": 2.282,
+            "cost_usd": 0.000185,
+            "input_tokens": 884,
+            "output_tokens": 194,
+            "parsed": {
+              "answer": "MAX_INDEX_PASSAGES is 80 passages. _INDEX_LICENSES contains six identifiers: mit, apache-2.0, bsd-2-clause, bsd-3-clause, cc-by-4.0, and cc0-1.0.",
+              "key_value": "MAX_INDEX_PASSAGES=80; _INDEX_LICENSES=[mit, apache-2.0, bsd-2-clause, bsd-3-clause, cc-by-4.0, cc0-1.0]",
+              "cited_source_url": "https://github.com/ghadikhoury/hypora/blob/62b4e3fb6016a0abddf70a14152252a62c8aca4a/hypora/research/mcp_tools.py",
+              "cited_revision": "eval-freeze-62b4e3f",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q25",
+            "subset": "hypora_local",
+            "mode": "hybrid",
+            "tag": "repeat_2",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.465,
+            "total_seconds": 2.064,
+            "cost_usd": 0.000195,
+            "input_tokens": 884,
+            "output_tokens": 214,
+            "parsed": {
+              "answer": "MAX_INDEX_PASSAGES is 80 passages. _INDEX_LICENSES contains mit, apache-2.0, bsd-2-clause, bsd-3-clause, cc-by-4.0, and cc0-1.0.",
+              "key_value": "MAX_INDEX_PASSAGES=80; _INDEX_LICENSES=[mit, apache-2.0, bsd-2-clause, bsd-3-clause, cc-by-4.0, cc0-1.0]",
+              "cited_source_url": "https://github.com/ghadikhoury/hypora/blob/62b4e3fb6016a0abddf70a14152252a62c8aca4a/hypora/research/mcp_tools.py",
+              "cited_revision": "eval-freeze-62b4e3f",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q25",
+            "subset": "hypora_local",
+            "mode": "hybrid",
+            "tag": "repeat_3",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.493,
+            "total_seconds": 1.905,
+            "cost_usd": 0.0002,
+            "input_tokens": 884,
+            "output_tokens": 223,
+            "parsed": {
+              "answer": "MAX_INDEX_PASSAGES is 80 passages. _INDEX_LICENSES contains six identifiers: mit, apache-2.0, bsd-2-clause, bsd-3-clause, cc-by-4.0, and cc0-1.0.",
+              "key_value": "MAX_INDEX_PASSAGES=80; _INDEX_LICENSES=[mit, apache-2.0, bsd-2-clause, bsd-3-clause, cc-by-4.0, cc0-1.0]",
+              "cited_source_url": "https://github.com/ghadikhoury/hypora/blob/62b4e3fb6016a0abddf70a14152252a62c8aca4a/hypora/research/mcp_tools.py",
+              "cited_revision": "eval-freeze-62b4e3f",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q27",
+            "subset": "hypora_local",
+            "mode": "hybrid",
+            "tag": "repeat_1",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.502,
+            "total_seconds": 1.77,
+            "cost_usd": 0.000173,
+            "input_tokens": 876,
+            "output_tokens": 170,
+            "parsed": {
+              "answer": "The exact INJECTION_MARKER string is `[line withheld by the injection filter: instruction-like untrusted text]`. The four InjectionCategory values are `override`, `role_marker`, `tool_call`, and `approval_claim`.",
+              "key_value": "INJECTION_MARKER: [line withheld by the injection filter: instruction-like untrusted text]; InjectionCategory: override, role_marker, tool_call, approval_claim",
+              "cited_source_url": "https://github.com/ghadikhoury/hypora/blob/62b4e3fb6016a0abddf70a14152252a62c8aca4a/hypora/core/policy/injection.py",
+              "cited_revision": "eval-freeze-62b4e3f",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q27",
+            "subset": "hypora_local",
+            "mode": "hybrid",
+            "tag": "repeat_2",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.47,
+            "total_seconds": 2.247,
+            "cost_usd": 0.000173,
+            "input_tokens": 876,
+            "output_tokens": 170,
+            "parsed": {
+              "answer": "The exact INJECTION_MARKER string is `[line withheld by the injection filter: instruction-like untrusted text]`. The four InjectionCategory values are `override`, `role_marker`, `tool_call`, and `approval_claim`.",
+              "key_value": "INJECTION_MARKER: [line withheld by the injection filter: instruction-like untrusted text]; InjectionCategory: override, role_marker, tool_call, approval_claim",
+              "cited_source_url": "https://github.com/ghadikhoury/hypora/blob/62b4e3fb6016a0abddf70a14152252a62c8aca4a/hypora/core/policy/injection.py",
+              "cited_revision": "eval-freeze-62b4e3f",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          },
+          {
+            "question_id": "q27",
+            "subset": "hypora_local",
+            "mode": "hybrid",
+            "tag": "repeat_3",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 3.935,
+            "total_seconds": 1.658,
+            "cost_usd": 0.000173,
+            "input_tokens": 876,
+            "output_tokens": 170,
+            "parsed": {
+              "answer": "The exact INJECTION_MARKER string is `[line withheld by the injection filter: instruction-like untrusted text]`. The four InjectionCategory values are `override`, `role_marker`, `tool_call`, and `approval_claim`.",
+              "key_value": "INJECTION_MARKER: [line withheld by the injection filter: instruction-like untrusted text]; InjectionCategory: override, role_marker, tool_call, approval_claim",
+              "cited_source_url": "https://github.com/ghadikhoury/hypora/blob/62b4e3fb6016a0abddf70a14152252a62c8aca4a/hypora/core/policy/injection.py",
+              "cited_revision": "eval-freeze-62b4e3f",
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": true,
+            "revision_matched": true,
+            "grounded_correct": true
+          }
+        ],
+        "off": [
+          {
+            "question_id": "q01",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "repeat_1",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.674,
+            "cost_usd": 9.2e-05,
+            "input_tokens": 228,
+            "output_tokens": 138,
+            "parsed": {
+              "answer": "Simple (univariate) imputation fills missing entries using per-column rules, such as replacing them with the column\u2019s mean, median, or most frequent value.",
+              "key_value": "Simple (univariate) imputation",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q01",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "repeat_2",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.691,
+            "cost_usd": 7.8e-05,
+            "input_tokens": 228,
+            "output_tokens": 111,
+            "parsed": {
+              "answer": "A univariate imputation approach fills missing entries using simple per-column rules, such as replacing values with each column\u2019s mean, median, or mode.",
+              "key_value": "Univariate imputation",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q01",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "repeat_3",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.625,
+            "cost_usd": 8e-05,
+            "input_tokens": 228,
+            "output_tokens": 115,
+            "parsed": {
+              "answer": "A simple, column-wise imputation approach fills missing entries using per-column rules, such as the mean for numeric columns or the mode for categorical columns.",
+              "key_value": "Column-wise imputation",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q08",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "repeat_1",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.501,
+            "cost_usd": 7.1e-05,
+            "input_tokens": 226,
+            "output_tokens": 96,
+            "parsed": {
+              "answer": "GroupKFold keeps groups from overlapping across folds.",
+              "key_value": "GroupKFold",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q08",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "repeat_2",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.001,
+            "total_seconds": 1.368,
+            "cost_usd": 6.8e-05,
+            "input_tokens": 226,
+            "output_tokens": 91,
+            "parsed": {
+              "answer": "GroupKFold keeps groups from overlapping across folds: each group appears in exactly one test fold.",
+              "key_value": "GroupKFold",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q08",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "repeat_3",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.62,
+            "cost_usd": 7e-05,
+            "input_tokens": 226,
+            "output_tokens": 95,
+            "parsed": {
+              "answer": "GroupKFold cross-validation keeps each group entirely within one fold, preventing groups from overlapping across folds.",
+              "key_value": "GroupKFold",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q16",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "repeat_1",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.392,
+            "cost_usd": 6.9e-05,
+            "input_tokens": 225,
+            "output_tokens": 93,
+            "parsed": {
+              "answer": "HistGradientBoostingClassifier",
+              "key_value": "HistGradientBoostingClassifier",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q16",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "repeat_2",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.749,
+            "cost_usd": 9.3e-05,
+            "input_tokens": 225,
+            "output_tokens": 141,
+            "parsed": {
+              "answer": "HistGradientBoostingClassifier uses histogram-based gradient boosting for classification.",
+              "key_value": "HistGradientBoostingClassifier",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q16",
+            "subset": "public_sklearn",
+            "mode": "off",
+            "tag": "repeat_3",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.433,
+            "cost_usd": 8.1e-05,
+            "input_tokens": 225,
+            "output_tokens": 116,
+            "parsed": {
+              "answer": "HistGradientBoostingClassifier uses histogram-based gradient boosting for classification.",
+              "key_value": "HistGradientBoostingClassifier",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": false
+            },
+            "factual_correct": true,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q21",
+            "subset": "hypora_local",
+            "mode": "off",
+            "tag": "repeat_1",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.305,
+            "cost_usd": 6.6e-05,
+            "input_tokens": 242,
+            "output_tokens": 83,
+            "parsed": {
+              "answer": "I can\u2019t determine the exact `score_margin` and `relative_margin` values because no source passage was provided.",
+              "key_value": "",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": true
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q21",
+            "subset": "hypora_local",
+            "mode": "off",
+            "tag": "repeat_2",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.001,
+            "total_seconds": 1.49,
+            "cost_usd": 6.7e-05,
+            "input_tokens": 242,
+            "output_tokens": 85,
+            "parsed": {
+              "answer": "I can\u2019t determine the exact values because no Hypora configuration passage was provided.",
+              "key_value": "Unknown: score_margin and relative_margin",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": true
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q21",
+            "subset": "hypora_local",
+            "mode": "off",
+            "tag": "repeat_3",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.169,
+            "cost_usd": 6.4e-05,
+            "input_tokens": 242,
+            "output_tokens": 80,
+            "parsed": {
+              "answer": "I can\u2019t determine the exact `score_margin` and `relative_margin` values because no source passage was provided.",
+              "key_value": "",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": true
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q25",
+            "subset": "hypora_local",
+            "mode": "off",
+            "tag": "repeat_1",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.727,
+            "cost_usd": 7.5e-05,
+            "input_tokens": 242,
+            "output_tokens": 101,
+            "parsed": {
+              "answer": "I can\u2019t verify the value of MAX_INDEX_PASSAGES or the six identifiers in _INDEX_LICENSES because no source passages were provided.",
+              "key_value": "",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": true
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q25",
+            "subset": "hypora_local",
+            "mode": "off",
+            "tag": "repeat_2",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.735,
+            "cost_usd": 8e-05,
+            "input_tokens": 242,
+            "output_tokens": 111,
+            "parsed": {
+              "answer": "I can\u2019t verify the value of MAX_INDEX_PASSAGES or the six identifiers in _INDEX_LICENSES because no source passage was provided.",
+              "key_value": "",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": true
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q25",
+            "subset": "hypora_local",
+            "mode": "off",
+            "tag": "repeat_3",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.781,
+            "cost_usd": 7.3e-05,
+            "input_tokens": 242,
+            "output_tokens": 97,
+            "parsed": {
+              "answer": "I can\u2019t determine the value of MAX_INDEX_PASSAGES or the six identifiers in _INDEX_LICENSES from the information provided.",
+              "key_value": "",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": true
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q27",
+            "subset": "hypora_local",
+            "mode": "off",
+            "tag": "repeat_1",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.599,
+            "cost_usd": 7.8e-05,
+            "input_tokens": 241,
+            "output_tokens": 107,
+            "parsed": {
+              "answer": "I can\u2019t determine the exact INJECTION_MARKER string or the four InjectionCategory values from the available information.",
+              "key_value": "",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": true
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q27",
+            "subset": "hypora_local",
+            "mode": "off",
+            "tag": "repeat_2",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.583,
+            "cost_usd": 7.2e-05,
+            "input_tokens": 241,
+            "output_tokens": 95,
+            "parsed": {
+              "answer": "I can\u2019t determine the exact INJECTION_MARKER string or the four InjectionCategory values from the available information.",
+              "key_value": "INJECTION_MARKER: unknown; InjectionCategory values: unknown",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": true
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          },
+          {
+            "question_id": "q27",
+            "subset": "hypora_local",
+            "mode": "off",
+            "tag": "repeat_3",
+            "model_id": "gpt-6-luna",
+            "served_model_id": "gpt-6-luna",
+            "retrieval_ms": 0.0,
+            "total_seconds": 1.344,
+            "cost_usd": 6.4e-05,
+            "input_tokens": 241,
+            "output_tokens": 80,
+            "parsed": {
+              "answer": "I can\u2019t verify Hypora\u2019s exact INJECTION_MARKER string or the four InjectionCategory enum values from the information provided.",
+              "key_value": "",
+              "cited_source_url": null,
+              "cited_revision": null,
+              "abstained": true
+            },
+            "factual_correct": false,
+            "url_matched": false,
+            "revision_matched": false,
+            "grounded_correct": false
+          }
+        ]
+      }
+    }
+  },
+  "failure_categories": [
+    {
+      "category": "lexical_mismatch_and_projection_rank_shift",
+      "description": "Vocabulary mismatch or SVD projection smoothing shifts an exact passage out of rank 1 (or top 5) when query wording differs from docstring phrasing.",
+      "examples": [
+        {
+          "mode": "tfidf",
+          "question_id": "q01",
+          "subset": "public_sklearn",
+          "expected_refs": [
+            "passage:1"
+          ],
+          "returned_refs": [
+            "passage:19",
+            "passage:1",
+            "passage:2",
+            "passage:22",
+            "passage:6"
+          ],
+          "top1_score": 0.477026,
+          "rank": 2,
+          "hit_at_5": true,
+          "hit_at_1": false,
+          "latency_ms": 3.786
+        },
+        {
+          "mode": "tfidf",
+          "question_id": "q17",
+          "subset": "public_sklearn",
+          "expected_refs": [
+            "passage:17"
+          ],
+          "returned_refs": [
+            "passage:15",
+            "passage:17",
+            "passage:13"
+          ],
+          "top1_score": 0.639735,
+          "rank": 2,
+          "hit_at_5": true,
+          "hit_at_1": false,
+          "latency_ms": 2.309
+        },
+        {
+          "mode": "bm25",
+          "question_id": "q01",
+          "subset": "public_sklearn",
+          "expected_refs": [
+            "passage:1"
+          ],
+          "returned_refs": [
+            "passage:19",
+            "passage:1",
+            "passage:2",
+            "passage:22",
+            "passage:6"
+          ],
+          "top1_score": 10.075519,
+          "rank": 2,
+          "hit_at_5": true,
+          "hit_at_1": false,
+          "latency_ms": 2.408
+        }
+      ]
+    },
+    {
+      "category": "zero_token_overlap_paraphrases",
+      "description": "Queries using domain synonyms ('patient leakage', 'partitions') with zero token overlap against the target docstring return empty hits in pure lexical modes.",
+      "examples": [
+        {
+          "query_id": "b01",
+          "category": "lexical_paraphrase",
+          "query": "prevent patient leakage between training and validation partitions",
+          "filters": {},
+          "expected_refs": [
+            "passage:8"
+          ],
+          "returned_refs_by_mode": {
+            "tfidf": [
+              "passage:12",
+              "passage:27",
+              "passage:25",
+              "passage:3",
+              "passage:24"
+            ],
+            "bm25": [
+              "passage:12",
+              "passage:3",
+              "passage:27",
+              "passage:25",
+              "passage:30"
+            ],
+            "embedding": [
+              "passage:12",
+              "passage:27",
+              "passage:25",
+              "passage:3",
+              "passage:24"
+            ],
+            "hybrid": [
+              "passage:12",
+              "passage:27",
+              "passage:3",
+              "passage:25",
+              "passage:24"
+            ]
+          },
+          "note": "No shared 'patient', 'leakage', or 'partitions' tokens with GroupKFold docstring."
+        },
+        {
+          "query_id": "b02",
+          "category": "lexical_paraphrase",
+          "query": "chain preprocessing steps together with a final estimator",
+          "filters": {},
+          "expected_refs": [
+            "passage:20"
+          ],
+          "returned_refs_by_mode": {
+            "tfidf": [
+              "passage:20",
+              "passage:29",
+              "passage:14",
+              "passage:8",
+              "passage:1"
+            ],
+            "bm25": [
+              "passage:20",
+              "passage:29",
+              "passage:23",
+              "passage:14",
+              "passage:8"
+            ],
+            "embedding": [
+              "passage:20",
+              "passage:29",
+              "passage:14",
+              "passage:8",
+              "passage:1"
+            ],
+            "hybrid": [
+              "passage:20",
+              "passage:29",
+              "passage:14",
+              "passage:23",
+              "passage:8"
+            ]
+          },
+          "note": "Paraphrase of Pipeline ('sequence of data transformers with an optional final predictor')."
+        }
+      ]
+    },
+    {
+      "category": "out_of_corpus_false_positive_candidates",
+      "description": "Out-of-corpus queries still return partial-score candidates when common words overlap unless a score threshold or abstention check rejects them.",
+      "examples": [
+        {
+          "query_id": "b05",
+          "category": "out_of_corpus",
+          "query": "PyTorch DataLoader pin_memory and num_workers CUDA settings",
+          "filters": {},
+          "expected_refs": [],
+          "returned_refs_by_mode": {
+            "tfidf": [
+              "passage:27",
+              "passage:25",
+              "passage:3",
+              "passage:24",
+              "passage:28"
+            ],
+            "bm25": [
+              "passage:3",
+              "passage:27",
+              "passage:25",
+              "passage:30",
+              "passage:24"
+            ],
+            "embedding": [
+              "passage:27",
+              "passage:25",
+              "passage:3",
+              "passage:24",
+              "passage:28"
+            ],
+            "hybrid": [
+              "passage:27",
+              "passage:3",
+              "passage:25",
+              "passage:24",
+              "passage:30"
+            ]
+          },
+          "note": "Topic absent from corpus; tests abstention/false-positive lexical overlap."
+        },
+        {
+          "query_id": "b06",
+          "category": "out_of_corpus",
+          "query": "PostgreSQL write-ahead log checkpoint_completion_target tuning",
+          "filters": {},
+          "expected_refs": [],
+          "returned_refs_by_mode": {
+            "tfidf": [],
+            "bm25": [],
+            "embedding": [],
+            "hybrid": []
+          },
+          "note": "Topic completely outside corpus; retrieval should return empty or low-relevance hits."
+        }
+      ]
+    }
+  ]
+}

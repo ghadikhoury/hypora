@@ -1,0 +1,3259 @@
+{
+  "feature": "F3",
+  "title": "Multi-agent coordination",
+  "freeze_commit": "62b4e3fb6016a0abddf70a14152252a62c8aca4a",
+  "core_comparison": {
+    "source": "results/final/s5.2-summary.json",
+    "primary_pass_rates": {
+      "multi": {
+        "graded": 26,
+        "passed": 25,
+        "rate": 0.9615384615384616,
+        "wilson_low": 0.8110722109696525,
+        "wilson_high": 0.9931780150064565,
+        "harness_errors": 0
+      },
+      "single": {
+        "graded": 26,
+        "passed": 23,
+        "rate": 0.8846153846153846,
+        "wilson_low": 0.7102409678828636,
+        "wilson_high": 0.9599675537638939,
+        "harness_errors": 0
+      }
+    },
+    "paired_multi_vs_single": {
+      "first": "multi",
+      "second": "single",
+      "cases": 26,
+      "excluded_cases": [],
+      "both_pass": 22,
+      "first_only": 3,
+      "second_only": 1,
+      "both_fail": 0,
+      "difference": 0.07692307692307693,
+      "ci_low": -0.07692307692307693,
+      "ci_high": 0.23076923076923078,
+      "resamples": 10000,
+      "seed": 1990,
+      "verdict": "inconclusive"
+    },
+    "cost_and_latency": {
+      "multi": {
+        "latency_seconds": {
+          "mean": 633.7092973751921,
+          "p95": 1019.059114579999,
+          "active_mean": 633.7064719509983,
+          "active_p95": 1019.0562770529796,
+          "method": "nearest-rank"
+        },
+        "cost_per_graded_task": {
+          "actual_usd": 0.036352697307692305,
+          "list_usd": 0.036352697307692305,
+          "tasks": 26
+        },
+        "spend_all_runs": {
+          "actual_usd": 1.607064525,
+          "list_usd": 1.607064525,
+          "unobserved_reserved_usd": 0.0,
+          "usage_complete": true,
+          "runs": 44
+        }
+      },
+      "single": {
+        "latency_seconds": {
+          "mean": 502.0080689808843,
+          "p95": 999.9944982769994,
+          "active_mean": 502.0060506068443,
+          "active_p95": 999.9913470439897,
+          "method": "nearest-rank"
+        },
+        "cost_per_graded_task": {
+          "actual_usd": 0.0172625775,
+          "list_usd": 0.0172625775,
+          "tasks": 26
+        },
+        "spend_all_runs": {
+          "actual_usd": 0.80762536,
+          "list_usd": 0.80762536,
+          "unobserved_reserved_usd": 0.0,
+          "usage_complete": true,
+          "runs": 44
+        }
+      }
+    }
+  },
+  "working_handoff_trace": {
+    "case_id": "test_clean_rice",
+    "run_id": "run_2a2d5305864e",
+    "passed": true,
+    "total_events": 258,
+    "roles_started": [
+      "agent_a",
+      "agent_a",
+      "agent_b",
+      "agent_a",
+      "agent_a",
+      "agent_c",
+      "agent_a",
+      "agent_a",
+      "agent_c",
+      "agent_a",
+      "agent_a",
+      "agent_c",
+      "agent_a",
+      "trial_worker",
+      "agent_a",
+      "agent_a"
+    ],
+    "handoff_timeline": [
+      {
+        "seq": 1,
+        "offset_s": 0.0,
+        "role": "controller",
+        "type": "stage_transition",
+        "detail": "-> INTAKE/INTAKE: run created"
+      },
+      {
+        "seq": 2,
+        "offset_s": 0.0,
+        "role": "agent_a",
+        "type": "role_started",
+        "detail": "ri_run_2a2d5305864e_agent_a_1 tier=cheap"
+      },
+      {
+        "seq": 4,
+        "offset_s": 2.0,
+        "role": "agent_a",
+        "type": "handoff",
+        "detail": "agent_a -> controller complete output=task_spec:run_2a2d5305864e.v1"
+      },
+      {
+        "seq": 5,
+        "offset_s": 2.1,
+        "role": "controller",
+        "type": "stage_transition",
+        "detail": "-> PROFILE/INTAKE: intake_done: task spec v1: binary_classification"
+      },
+      {
+        "seq": 6,
+        "offset_s": 2.1,
+        "role": "controller",
+        "type": "stage_transition",
+        "detail": "-> CONTRACT/WAITING_APPROVAL: profiled: profile 091c1353217b"
+      },
+      {
+        "seq": 9,
+        "offset_s": 2.2,
+        "role": "agent_a",
+        "type": "role_started",
+        "detail": "ri_run_2a2d5305864e_agent_a_2 tier=lead"
+      },
+      {
+        "seq": 11,
+        "offset_s": 6.1,
+        "role": "agent_a",
+        "type": "handoff",
+        "detail": "agent_a -> controller complete output=role_output:ri_run_2a2d5305864e_agent_a_2"
+      },
+      {
+        "seq": 12,
+        "offset_s": 10.7,
+        "role": "agent_b",
+        "type": "role_started",
+        "detail": "ri_run_2a2d5305864e_agent_b_3 tier=lead tools=3"
+      },
+      {
+        "seq": 13,
+        "offset_s": 10.7,
+        "role": "agent_a",
+        "type": "role_started",
+        "detail": "ri_run_2a2d5305864e_agent_a_4 tier=lead"
+      },
+      {
+        "seq": 16,
+        "offset_s": 13.9,
+        "role": "agent_a",
+        "type": "handoff",
+        "detail": "agent_a -> controller complete"
+      },
+      {
+        "seq": 61,
+        "offset_s": 107.8,
+        "role": "agent_b",
+        "type": "handoff",
+        "detail": "agent_b -> controller complete output=role_output:ri_run_2a2d5305864e_agent_b_3"
+      },
+      {
+        "seq": 62,
+        "offset_s": 107.9,
+        "role": "agent_a",
+        "type": "role_started",
+        "detail": "ri_run_2a2d5305864e_agent_a_5 tier=lead"
+      },
+      {
+        "seq": 64,
+        "offset_s": 115.5,
+        "role": "agent_a",
+        "type": "handoff",
+        "detail": "agent_a -> controller complete output=role_output:ri_run_2a2d5305864e_agent_a_5"
+      },
+      {
+        "seq": 65,
+        "offset_s": 119.6,
+        "role": "agent_c",
+        "type": "role_started",
+        "detail": "ri_run_2a2d5305864e_agent_c_6 tier=lead tools=1"
+      },
+      {
+        "seq": 66,
+        "offset_s": 119.6,
+        "role": "agent_a",
+        "type": "role_started",
+        "detail": "ri_run_2a2d5305864e_agent_a_7 tier=lead"
+      },
+      {
+        "seq": 69,
+        "offset_s": 126.8,
+        "role": "agent_a",
+        "type": "handoff",
+        "detail": "agent_a -> controller complete"
+      },
+      {
+        "seq": 72,
+        "offset_s": 135.9,
+        "role": "agent_c",
+        "type": "handoff",
+        "detail": "agent_c -> controller complete"
+      },
+      {
+        "seq": 73,
+        "offset_s": 136.6,
+        "role": "agent_a",
+        "type": "role_started",
+        "detail": "ri_run_2a2d5305864e_agent_a_8 tier=lead"
+      },
+      {
+        "seq": 75,
+        "offset_s": 139.9,
+        "role": "agent_a",
+        "type": "handoff",
+        "detail": "agent_a -> controller complete output=role_output:ri_run_2a2d5305864e_agent_a_8"
+      },
+      {
+        "seq": 78,
+        "offset_s": 143.7,
+        "role": "agent_c",
+        "type": "role_started",
+        "detail": "ri_run_2a2d5305864e_agent_c_9 tier=lead tools=1"
+      },
+      {
+        "seq": 79,
+        "offset_s": 143.7,
+        "role": "agent_a",
+        "type": "role_started",
+        "detail": "ri_run_2a2d5305864e_agent_a_10 tier=lead"
+      },
+      {
+        "seq": 82,
+        "offset_s": 150.4,
+        "role": "agent_a",
+        "type": "handoff",
+        "detail": "agent_a -> controller complete"
+      },
+      {
+        "seq": 85,
+        "offset_s": 156.8,
+        "role": "agent_c",
+        "type": "handoff",
+        "detail": "agent_c -> controller complete"
+      },
+      {
+        "seq": 86,
+        "offset_s": 157.5,
+        "role": "agent_a",
+        "type": "role_started",
+        "detail": "ri_run_2a2d5305864e_agent_a_11 tier=lead"
+      },
+      {
+        "seq": 88,
+        "offset_s": 161.8,
+        "role": "agent_a",
+        "type": "handoff",
+        "detail": "agent_a -> controller complete output=role_output:ri_run_2a2d5305864e_agent_a_11"
+      },
+      {
+        "seq": 89,
+        "offset_s": 161.8,
+        "role": "controller",
+        "type": "stage_transition",
+        "detail": "-> PHASE_B/PHASE_B: approved: plan approved by policy:auto_within_contract (auto_within_contract); A authorized C assignment: {\"chars\": 403, \"sha256\": \"5fb51218121af2a99256fed24a2e02df31ba8ec67f71187479165c159c57cfe4\"}"
+      },
+      {
+        "seq": 90,
+        "offset_s": 165.6,
+        "role": "agent_c",
+        "type": "role_started",
+        "detail": "ri_run_2a2d5305864e_agent_c_12 tier=lead tools=7"
+      },
+      {
+        "seq": 91,
+        "offset_s": 165.6,
+        "role": "agent_a",
+        "type": "role_started",
+        "detail": "ri_run_2a2d5305864e_agent_a_13 tier=lead"
+      },
+      {
+        "seq": 94,
+        "offset_s": 168.8,
+        "role": "agent_a",
+        "type": "handoff",
+        "detail": "agent_a -> controller complete"
+      },
+      {
+        "seq": 97,
+        "offset_s": 184.3,
+        "role": "trial_worker",
+        "type": "role_started",
+        "detail": "ri_run_2a2d5305864e_trial_worker_14 tier=worker tools=5"
+      },
+      {
+        "seq": 128,
+        "offset_s": 249.6,
+        "role": "trial_worker",
+        "type": "handoff",
+        "detail": "trial_worker -> agent_c partial output=worker_finding:brf_fba6b3b9d7bc47a9"
+      },
+      {
+        "seq": 237,
+        "offset_s": 443.6,
+        "role": "agent_c",
+        "type": "handoff",
+        "detail": "agent_c -> controller complete candidates=trial:trl_8b364ccb"
+      },
+      {
+        "seq": 241,
+        "offset_s": 443.8,
+        "role": "agent_a",
+        "type": "role_started",
+        "detail": "ri_run_2a2d5305864e_agent_a_15 tier=lead"
+      },
+      {
+        "seq": 243,
+        "offset_s": 446.5,
+        "role": "agent_a",
+        "type": "handoff",
+        "detail": "agent_a -> controller complete output=role_output:ri_run_2a2d5305864e_agent_a_15"
+      },
+      {
+        "seq": 252,
+        "offset_s": 511.2,
+        "role": "verifier",
+        "type": "handoff",
+        "detail": "verifier -> controller complete output=result:trl_8b364ccb/test candidates=trial:trl_8b364ccb"
+      },
+      {
+        "seq": 253,
+        "offset_s": 511.7,
+        "role": "controller",
+        "type": "stage_transition",
+        "detail": "-> REPORT/REPORTING: phase_b_done: Final job job_1795306539866743708_c4eaa6: test split scored once; verifier v1 passed."
+      },
+      {
+        "seq": 254,
+        "offset_s": 511.8,
+        "role": "agent_a",
+        "type": "role_started",
+        "detail": "ri_run_2a2d5305864e_agent_a_16 tier=cheap"
+      },
+      {
+        "seq": 257,
+        "offset_s": 521.1,
+        "role": "agent_a",
+        "type": "handoff",
+        "detail": "agent_a -> controller complete output=report:run_2a2d5305864e"
+      },
+      {
+        "seq": 258,
+        "offset_s": 521.1,
+        "role": "controller",
+        "type": "stage_transition",
+        "detail": "-> DONE: reported_verified: verified final model"
+      }
+    ]
+  },
+  "agent_failure_tests": [
+    {
+      "scenario": "agent_b_provider_failure",
+      "passed": true,
+      "final_status": "FAILED",
+      "final_model_is_none": true,
+      "verified": false,
+      "report_exists": true,
+      "event_count": 64,
+      "roles_started": [
+        "agent_a",
+        "agent_a",
+        "agent_b",
+        "agent_a",
+        "agent_a",
+        "agent_c",
+        "agent_a",
+        "agent_a",
+        "agent_c",
+        "agent_a",
+        "agent_a",
+        "agent_c",
+        "agent_a",
+        "agent_a",
+        "agent_a"
+      ],
+      "error_events": [],
+      "handoffs": [
+        {
+          "seq": 4,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 11,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 16,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 17,
+          "from": "agent_b",
+          "to": "controller",
+          "status": "failed"
+        },
+        {
+          "seq": 20,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 25,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 28,
+          "from": "agent_c",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 31,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 38,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 41,
+          "from": "agent_c",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 44,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 50,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 55,
+          "from": "agent_c",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 59,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 63,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        }
+      ],
+      "notes": [
+        "Agent A decision: continue.",
+        "Research session failed (ExceptionGroup); A decides without it.",
+        "Agent A decision: continue.",
+        "Agent A decision: continue.",
+        "A reviewed C's data methodology; platform locks diagnostic rows.",
+        "Agent A decision: continue.",
+        "A reconciled B's evidence (or its absence: research is advisory) with C's locked-split diagnostics and continued; that reconciliation is complete.",
+        "The agent finished after 2 model turns, 0 tool calls; it nominated no trial.",
+        "Agent A decision: continue.",
+        "No final model: a completed baseline and candidate are required for comparison."
+      ]
+    },
+    {
+      "scenario": "agent_b_uncited_claim",
+      "passed": true,
+      "final_status": "FAILED",
+      "final_model_is_none": true,
+      "verified": false,
+      "report_exists": true,
+      "event_count": 73,
+      "roles_started": [
+        "agent_a",
+        "agent_a",
+        "agent_b",
+        "agent_a",
+        "agent_a",
+        "agent_c",
+        "agent_a",
+        "agent_a",
+        "agent_c",
+        "agent_a",
+        "agent_a",
+        "agent_c",
+        "agent_a",
+        "agent_a",
+        "agent_a"
+      ],
+      "error_events": [],
+      "handoffs": [
+        {
+          "seq": 4,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 11,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 16,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 26,
+          "from": "agent_b",
+          "to": "controller",
+          "status": "partial"
+        },
+        {
+          "seq": 29,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 34,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 37,
+          "from": "agent_c",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 40,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 47,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 50,
+          "from": "agent_c",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 53,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 59,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 64,
+          "from": "agent_c",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 68,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 72,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        }
+      ],
+      "notes": [
+        "Agent A decision: continue.",
+        "Research model failed: StructuredOutputError: OUTPUT_SCHEMA_INVALID (the model's answer failed its schema twice)",
+        "Agent A decision: continue.",
+        "Agent A decision: continue.",
+        "A reviewed C's data methodology; platform locks diagnostic rows.",
+        "Agent A decision: continue.",
+        "A reconciled B's evidence (or its absence: research is advisory) with C's locked-split diagnostics and continued; that reconciliation is complete.",
+        "The agent finished after 2 model turns, 0 tool calls; it nominated no trial.",
+        "Agent A decision: continue.",
+        "No final model: a completed baseline and candidate are required for comparison."
+      ]
+    },
+    {
+      "scenario": "agent_a_refused_assignment",
+      "passed": true,
+      "final_status": "FAILED",
+      "final_model_is_none": true,
+      "verified": false,
+      "report_exists": true,
+      "event_count": 15,
+      "roles_started": [
+        "agent_a",
+        "agent_a"
+      ],
+      "error_events": [
+        {
+          "seq": 13,
+          "role": "controller",
+          "code": "CONTROLLER_ERROR",
+          "message": "CONTRACT: RoleTextRefused: role text cannot contain code; describe the work in prose"
+        }
+      ],
+      "handoffs": [
+        {
+          "seq": 4,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 12,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "failed"
+        }
+      ],
+      "notes": [
+        "The CONTRACT stage failed: RoleTextRefused: role text cannot contain code; describe the work in prose."
+      ]
+    },
+    {
+      "scenario": "agent_c_execution_failure",
+      "passed": true,
+      "final_status": "FAILED",
+      "final_model_is_none": true,
+      "verified": false,
+      "report_exists": true,
+      "event_count": 66,
+      "roles_started": [
+        "agent_a",
+        "agent_a",
+        "agent_b",
+        "agent_a",
+        "agent_a",
+        "agent_c",
+        "agent_a",
+        "agent_a",
+        "agent_c",
+        "agent_a",
+        "agent_a",
+        "agent_c",
+        "agent_a",
+        "agent_a"
+      ],
+      "error_events": [
+        {
+          "seq": 61,
+          "role": "controller",
+          "code": "CONTROLLER_ERROR",
+          "message": "PHASE_B: ExceptionGroup"
+        }
+      ],
+      "handoffs": [
+        {
+          "seq": 4,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 11,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 16,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 25,
+          "from": "agent_b",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 28,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 33,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 36,
+          "from": "agent_c",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 39,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 46,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 49,
+          "from": "agent_c",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 52,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 58,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        },
+        {
+          "seq": 65,
+          "from": "agent_a",
+          "to": "controller",
+          "status": "complete"
+        }
+      ],
+      "notes": [
+        "Agent A decision: continue.",
+        "Agent A decision: continue.",
+        "Agent A decision: continue.",
+        "A reviewed C's data methodology; platform locks diagnostic rows.",
+        "Agent A decision: continue.",
+        "A reconciled B's evidence (or its absence: research is advisory) with C's locked-split diagnostics and continued; that reconciliation is complete.",
+        "The PHASE_B stage failed: ExceptionGroup."
+      ]
+    }
+  ],
+  "helped_hurt_cases": [
+    {
+      "category": "helped",
+      "case_id": "test_fault_malformed_landsat",
+      "multi": {
+        "run_id": "run_3983f7c5c2b6",
+        "config": "default",
+        "passed": true,
+        "decision_class": "train",
+        "failed_checks": [],
+        "wall_seconds": 178.82,
+        "actual_spend_usd": 0.017814,
+        "model_calls": 14,
+        "tool_calls": 8,
+        "total_events": 83,
+        "roles_started": [
+          "agent_a",
+          "agent_a",
+          "agent_b",
+          "agent_a",
+          "agent_a",
+          "agent_c",
+          "agent_a",
+          "agent_a",
+          "agent_a"
+        ],
+        "error_events": [
+          {
+            "seq": 78,
+            "role": "controller",
+            "code": "DATA_MALFORMED",
+            "message": "CONTRACT: malformed data: the target column 'class' has 43 row(s) with missing values (TARGET_MISSING). Dropping or changing labels needs the user's decision, so nothing was trained"
+          }
+        ],
+        "key_timeline": [
+          {
+            "seq": 1,
+            "offset_s": 0.0,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> INTAKE/INTAKE: run created"
+          },
+          {
+            "seq": 2,
+            "offset_s": 0.0,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_3983f7c5c2b6_agent_a_1 tier=cheap"
+          },
+          {
+            "seq": 4,
+            "offset_s": 2.1,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=task_spec:run_3983f7c5c2b6.v1"
+          },
+          {
+            "seq": 5,
+            "offset_s": 2.2,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> PROFILE/INTAKE: intake_done: task spec v1: multiclass_classification"
+          },
+          {
+            "seq": 6,
+            "offset_s": 2.2,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> CONTRACT/WAITING_APPROVAL: profiled: profile 722e603730dd"
+          },
+          {
+            "seq": 9,
+            "offset_s": 2.3,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_3983f7c5c2b6_agent_a_2 tier=lead"
+          },
+          {
+            "seq": 11,
+            "offset_s": 7.4,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=role_output:ri_run_3983f7c5c2b6_agent_a_2"
+          },
+          {
+            "seq": 12,
+            "offset_s": 11.4,
+            "role": "agent_b",
+            "type": "role_started",
+            "detail": "ri_run_3983f7c5c2b6_agent_b_3 tier=lead tools=3"
+          },
+          {
+            "seq": 13,
+            "offset_s": 11.4,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_3983f7c5c2b6_agent_a_4 tier=lead"
+          },
+          {
+            "seq": 16,
+            "offset_s": 14.4,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete"
+          },
+          {
+            "seq": 61,
+            "offset_s": 138.0,
+            "role": "agent_b",
+            "type": "handoff",
+            "detail": "agent_b -> controller complete output=role_output:ri_run_3983f7c5c2b6_agent_b_3"
+          },
+          {
+            "seq": 62,
+            "offset_s": 138.1,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_3983f7c5c2b6_agent_a_5 tier=lead"
+          },
+          {
+            "seq": 64,
+            "offset_s": 146.5,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=role_output:ri_run_3983f7c5c2b6_agent_a_5"
+          },
+          {
+            "seq": 65,
+            "offset_s": 150.5,
+            "role": "agent_c",
+            "type": "role_started",
+            "detail": "ri_run_3983f7c5c2b6_agent_c_6 tier=lead tools=1"
+          },
+          {
+            "seq": 66,
+            "offset_s": 150.5,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_3983f7c5c2b6_agent_a_7 tier=lead"
+          },
+          {
+            "seq": 69,
+            "offset_s": 155.7,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete"
+          },
+          {
+            "seq": 72,
+            "offset_s": 166.7,
+            "role": "agent_c",
+            "type": "handoff",
+            "detail": "agent_c -> controller complete"
+          },
+          {
+            "seq": 73,
+            "offset_s": 167.5,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_3983f7c5c2b6_agent_a_8 tier=lead"
+          },
+          {
+            "seq": 75,
+            "offset_s": 174.0,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=role_output:ri_run_3983f7c5c2b6_agent_a_8"
+          },
+          {
+            "seq": 78,
+            "offset_s": 174.1,
+            "role": "controller",
+            "type": "error",
+            "detail": "DATA_MALFORMED [controller]: CONTRACT: malformed data: the target column 'class' has 43 row(s) with missing values (TARGET_MISSING). Dropping or changing labels needs the user's decision, so nothing was trained"
+          },
+          {
+            "seq": 79,
+            "offset_s": 174.1,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> REPORT/REPORTING: fail: CONTRACT failed: DataIntegrityError"
+          },
+          {
+            "seq": 80,
+            "offset_s": 174.2,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_3983f7c5c2b6_agent_a_9 tier=cheap"
+          },
+          {
+            "seq": 82,
+            "offset_s": 178.2,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=report:run_3983f7c5c2b6"
+          },
+          {
+            "seq": 83,
+            "offset_s": 178.2,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> FAILED: reported_unverified: no verified model"
+          }
+        ]
+      },
+      "single": {
+        "run_id": "run_897e438a300e",
+        "config": "single_agent",
+        "passed": false,
+        "decision_class": "infeasible",
+        "failed_checks": [
+          {
+            "name": "final_model_provenance",
+            "detail": "the run has no final model"
+          },
+          {
+            "name": "decision_class",
+            "detail": "the run decided infeasible; the case expects train"
+          }
+        ],
+        "wall_seconds": 29.12,
+        "actual_spend_usd": 0.003271,
+        "model_calls": 5,
+        "tool_calls": 0,
+        "total_events": 22,
+        "roles_started": [
+          "intake",
+          "single_agent",
+          "reporter"
+        ],
+        "error_events": [
+          {
+            "seq": 17,
+            "role": "controller",
+            "code": "DATA_MALFORMED",
+            "message": "CONTRACT: malformed data: the target column 'class' has 43 row(s) with missing values (TARGET_MISSING). Dropping or changing labels needs the user's decision, so nothing was trained"
+          }
+        ],
+        "key_timeline": [
+          {
+            "seq": 1,
+            "offset_s": 0.0,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> INTAKE/INTAKE: run created"
+          },
+          {
+            "seq": 2,
+            "offset_s": 0.0,
+            "role": "intake",
+            "type": "role_started",
+            "detail": "ri_run_897e438a300e_intake_1 tier=cheap"
+          },
+          {
+            "seq": 4,
+            "offset_s": 1.8,
+            "role": "intake",
+            "type": "handoff",
+            "detail": "intake -> controller complete output=task_spec:run_897e438a300e.v1"
+          },
+          {
+            "seq": 5,
+            "offset_s": 1.9,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> PROFILE/INTAKE: intake_done: task spec v1: multiclass_classification"
+          },
+          {
+            "seq": 6,
+            "offset_s": 1.9,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> CONTRACT/WAITING_APPROVAL: profiled: profile 722e603730dd"
+          },
+          {
+            "seq": 9,
+            "offset_s": 5.8,
+            "role": "single_agent",
+            "type": "role_started",
+            "detail": "ri_run_897e438a300e_single_agent_2 tier=lead tools=1"
+          },
+          {
+            "seq": 14,
+            "offset_s": 24.8,
+            "role": "single_agent",
+            "type": "handoff",
+            "detail": "single_agent -> controller complete"
+          },
+          {
+            "seq": 17,
+            "offset_s": 25.7,
+            "role": "controller",
+            "type": "error",
+            "detail": "DATA_MALFORMED [controller]: CONTRACT: malformed data: the target column 'class' has 43 row(s) with missing values (TARGET_MISSING). Dropping or changing labels needs the user's decision, so nothing was trained"
+          },
+          {
+            "seq": 18,
+            "offset_s": 25.7,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> REPORT/REPORTING: fail: CONTRACT failed: DataIntegrityError"
+          },
+          {
+            "seq": 19,
+            "offset_s": 25.7,
+            "role": "reporter",
+            "type": "role_started",
+            "detail": "ri_run_897e438a300e_reporter_3 tier=cheap"
+          },
+          {
+            "seq": 21,
+            "offset_s": 29.0,
+            "role": "reporter",
+            "type": "handoff",
+            "detail": "reporter -> controller complete output=report:run_897e438a300e"
+          },
+          {
+            "seq": 22,
+            "offset_s": 29.0,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> FAILED: reported_unverified: no verified model"
+          }
+        ]
+      },
+      "explanation": "Both multi and single hit `CONTRACT: malformed data (TARGET_MISSING)` and stopped safely without training (`fault_malformed_data_0` passed on both). However, single emitted `decision_class='infeasible'` instead of `'train'`, failing `decision_class` and `final_model_provenance`, whereas multi preserved `decision_class='train'` through Agent A's intake/planning flow and passed."
+    },
+    {
+      "category": "helped",
+      "case_id": "test_fault_malformed_maternal",
+      "multi": {
+        "run_id": "run_aa54d7c736e1",
+        "config": "default",
+        "passed": true,
+        "decision_class": "train",
+        "failed_checks": [],
+        "wall_seconds": 149.52,
+        "actual_spend_usd": 0.013194,
+        "model_calls": 14,
+        "tool_calls": 10,
+        "total_events": 93,
+        "roles_started": [
+          "agent_a",
+          "agent_a",
+          "agent_b",
+          "agent_a",
+          "agent_a",
+          "agent_c",
+          "agent_a",
+          "agent_a",
+          "agent_a"
+        ],
+        "error_events": [
+          {
+            "seq": 88,
+            "role": "controller",
+            "code": "DATA_MALFORMED",
+            "message": "CONTRACT: malformed data: the target column 'RiskLevel' has 15 row(s) with missing values (TARGET_MISSING). Dropping or changing labels needs the user's decision, so nothing was trained"
+          }
+        ],
+        "key_timeline": [
+          {
+            "seq": 1,
+            "offset_s": 0.0,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> INTAKE/INTAKE: run created"
+          },
+          {
+            "seq": 2,
+            "offset_s": 0.0,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_aa54d7c736e1_agent_a_1 tier=cheap"
+          },
+          {
+            "seq": 4,
+            "offset_s": 2.3,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=task_spec:run_aa54d7c736e1.v1"
+          },
+          {
+            "seq": 5,
+            "offset_s": 2.3,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> PROFILE/INTAKE: intake_done: task spec v1: multiclass_classification"
+          },
+          {
+            "seq": 6,
+            "offset_s": 2.4,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> CONTRACT/WAITING_APPROVAL: profiled: profile 99979a5bad5f"
+          },
+          {
+            "seq": 9,
+            "offset_s": 2.4,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_aa54d7c736e1_agent_a_2 tier=lead"
+          },
+          {
+            "seq": 11,
+            "offset_s": 8.8,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=role_output:ri_run_aa54d7c736e1_agent_a_2"
+          },
+          {
+            "seq": 12,
+            "offset_s": 12.8,
+            "role": "agent_b",
+            "type": "role_started",
+            "detail": "ri_run_aa54d7c736e1_agent_b_3 tier=lead tools=3"
+          },
+          {
+            "seq": 13,
+            "offset_s": 12.8,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_aa54d7c736e1_agent_a_4 tier=lead"
+          },
+          {
+            "seq": 16,
+            "offset_s": 15.8,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete"
+          },
+          {
+            "seq": 71,
+            "offset_s": 110.2,
+            "role": "agent_b",
+            "type": "handoff",
+            "detail": "agent_b -> controller complete output=role_output:ri_run_aa54d7c736e1_agent_b_3"
+          },
+          {
+            "seq": 72,
+            "offset_s": 110.2,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_aa54d7c736e1_agent_a_5 tier=lead"
+          },
+          {
+            "seq": 74,
+            "offset_s": 118.5,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=role_output:ri_run_aa54d7c736e1_agent_a_5"
+          },
+          {
+            "seq": 75,
+            "offset_s": 122.4,
+            "role": "agent_c",
+            "type": "role_started",
+            "detail": "ri_run_aa54d7c736e1_agent_c_6 tier=lead tools=1"
+          },
+          {
+            "seq": 76,
+            "offset_s": 122.4,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_aa54d7c736e1_agent_a_7 tier=lead"
+          },
+          {
+            "seq": 79,
+            "offset_s": 126.2,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete"
+          },
+          {
+            "seq": 82,
+            "offset_s": 138.4,
+            "role": "agent_c",
+            "type": "handoff",
+            "detail": "agent_c -> controller complete"
+          },
+          {
+            "seq": 83,
+            "offset_s": 139.1,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_aa54d7c736e1_agent_a_8 tier=lead"
+          },
+          {
+            "seq": 85,
+            "offset_s": 144.2,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=role_output:ri_run_aa54d7c736e1_agent_a_8"
+          },
+          {
+            "seq": 88,
+            "offset_s": 144.3,
+            "role": "controller",
+            "type": "error",
+            "detail": "DATA_MALFORMED [controller]: CONTRACT: malformed data: the target column 'RiskLevel' has 15 row(s) with missing values (TARGET_MISSING). Dropping or changing labels needs the user's decision, so nothing was trained"
+          },
+          {
+            "seq": 89,
+            "offset_s": 144.3,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> REPORT/REPORTING: fail: CONTRACT failed: DataIntegrityError"
+          },
+          {
+            "seq": 90,
+            "offset_s": 144.3,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_aa54d7c736e1_agent_a_9 tier=cheap"
+          },
+          {
+            "seq": 92,
+            "offset_s": 148.9,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=report:run_aa54d7c736e1"
+          },
+          {
+            "seq": 93,
+            "offset_s": 149.0,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> FAILED: reported_unverified: no verified model"
+          }
+        ]
+      },
+      "single": {
+        "run_id": "run_11272ab5e2d6",
+        "config": "single_agent",
+        "passed": false,
+        "decision_class": "infeasible",
+        "failed_checks": [
+          {
+            "name": "final_model_provenance",
+            "detail": "the run has no final model"
+          },
+          {
+            "name": "decision_class",
+            "detail": "the run decided infeasible; the case expects train"
+          }
+        ],
+        "wall_seconds": 25.83,
+        "actual_spend_usd": 0.001925,
+        "model_calls": 5,
+        "tool_calls": 0,
+        "total_events": 22,
+        "roles_started": [
+          "intake",
+          "single_agent",
+          "reporter"
+        ],
+        "error_events": [
+          {
+            "seq": 17,
+            "role": "controller",
+            "code": "DATA_MALFORMED",
+            "message": "CONTRACT: malformed data: the target column 'RiskLevel' has 15 row(s) with missing values (TARGET_MISSING). Dropping or changing labels needs the user's decision, so nothing was trained"
+          }
+        ],
+        "key_timeline": [
+          {
+            "seq": 1,
+            "offset_s": 0.0,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> INTAKE/INTAKE: run created"
+          },
+          {
+            "seq": 2,
+            "offset_s": 0.0,
+            "role": "intake",
+            "type": "role_started",
+            "detail": "ri_run_11272ab5e2d6_intake_1 tier=cheap"
+          },
+          {
+            "seq": 4,
+            "offset_s": 1.9,
+            "role": "intake",
+            "type": "handoff",
+            "detail": "intake -> controller complete output=task_spec:run_11272ab5e2d6.v1"
+          },
+          {
+            "seq": 5,
+            "offset_s": 1.9,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> PROFILE/INTAKE: intake_done: task spec v1: multiclass_classification"
+          },
+          {
+            "seq": 6,
+            "offset_s": 2.0,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> CONTRACT/WAITING_APPROVAL: profiled: profile 99979a5bad5f"
+          },
+          {
+            "seq": 9,
+            "offset_s": 5.9,
+            "role": "single_agent",
+            "type": "role_started",
+            "detail": "ri_run_11272ab5e2d6_single_agent_2 tier=lead tools=1"
+          },
+          {
+            "seq": 14,
+            "offset_s": 20.6,
+            "role": "single_agent",
+            "type": "handoff",
+            "detail": "single_agent -> controller complete"
+          },
+          {
+            "seq": 17,
+            "offset_s": 21.5,
+            "role": "controller",
+            "type": "error",
+            "detail": "DATA_MALFORMED [controller]: CONTRACT: malformed data: the target column 'RiskLevel' has 15 row(s) with missing values (TARGET_MISSING). Dropping or changing labels needs the user's decision, so nothing was trained"
+          },
+          {
+            "seq": 18,
+            "offset_s": 21.5,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> REPORT/REPORTING: fail: CONTRACT failed: DataIntegrityError"
+          },
+          {
+            "seq": 19,
+            "offset_s": 21.6,
+            "role": "reporter",
+            "type": "role_started",
+            "detail": "ri_run_11272ab5e2d6_reporter_3 tier=cheap"
+          },
+          {
+            "seq": 21,
+            "offset_s": 25.7,
+            "role": "reporter",
+            "type": "handoff",
+            "detail": "reporter -> controller complete output=report:run_11272ab5e2d6"
+          },
+          {
+            "seq": 22,
+            "offset_s": 25.7,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> FAILED: reported_unverified: no verified model"
+          }
+        ]
+      },
+      "explanation": "Both multi and single hit `CONTRACT: malformed data (TARGET_MISSING)` and stopped safely without training (`fault_malformed_data_0` passed on both). However, single emitted `decision_class='infeasible'` instead of `'train'`, failing `decision_class` and `final_model_provenance`, whereas multi preserved `decision_class='train'` through Agent A's intake/planning flow and passed."
+    },
+    {
+      "category": "helped",
+      "case_id": "test_imb_bankruptcy",
+      "multi": {
+        "run_id": "run_064d9fd16ea6",
+        "config": "default",
+        "passed": true,
+        "decision_class": "train",
+        "failed_checks": [],
+        "wall_seconds": 1019.06,
+        "actual_spend_usd": 0.062394,
+        "model_calls": 47,
+        "tool_calls": 42,
+        "total_events": 345,
+        "roles_started": [
+          "agent_a",
+          "agent_a",
+          "agent_b",
+          "agent_a",
+          "agent_a",
+          "agent_c",
+          "agent_a",
+          "agent_a",
+          "agent_c",
+          "agent_a",
+          "agent_a",
+          "agent_a",
+          "agent_c",
+          "agent_a",
+          "trial_worker",
+          "trial_worker",
+          "agent_a",
+          "agent_a"
+        ],
+        "error_events": [
+          {
+            "seq": 146,
+            "role": "trial_worker",
+            "code": "WORKER_LIMIT_REACHED",
+            "message": "Worker brief limit reached."
+          },
+          {
+            "seq": 151,
+            "role": "trial_worker",
+            "code": "WORKER_LIMIT_REACHED",
+            "message": "Worker brief limit reached."
+          }
+        ],
+        "key_timeline": [
+          {
+            "seq": 1,
+            "offset_s": 0.0,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> INTAKE/INTAKE: run created"
+          },
+          {
+            "seq": 2,
+            "offset_s": 0.0,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_064d9fd16ea6_agent_a_1 tier=cheap"
+          },
+          {
+            "seq": 4,
+            "offset_s": 2.8,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=task_spec:run_064d9fd16ea6.v1"
+          },
+          {
+            "seq": 5,
+            "offset_s": 2.8,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> PROFILE/INTAKE: intake_done: task spec v1: binary_classification"
+          },
+          {
+            "seq": 6,
+            "offset_s": 3.0,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> CONTRACT/WAITING_APPROVAL: profiled: profile f325f7f1232e"
+          },
+          {
+            "seq": 9,
+            "offset_s": 3.2,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_064d9fd16ea6_agent_a_2 tier=lead"
+          },
+          {
+            "seq": 11,
+            "offset_s": 7.2,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=role_output:ri_run_064d9fd16ea6_agent_a_2"
+          },
+          {
+            "seq": 12,
+            "offset_s": 11.2,
+            "role": "agent_b",
+            "type": "role_started",
+            "detail": "ri_run_064d9fd16ea6_agent_b_3 tier=lead tools=3"
+          },
+          {
+            "seq": 13,
+            "offset_s": 11.2,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_064d9fd16ea6_agent_a_4 tier=lead"
+          },
+          {
+            "seq": 16,
+            "offset_s": 15.7,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete"
+          },
+          {
+            "seq": 81,
+            "offset_s": 110.5,
+            "role": "agent_b",
+            "type": "handoff",
+            "detail": "agent_b -> controller complete output=role_output:ri_run_064d9fd16ea6_agent_b_3"
+          },
+          {
+            "seq": 82,
+            "offset_s": 110.5,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_064d9fd16ea6_agent_a_5 tier=lead"
+          },
+          {
+            "seq": 84,
+            "offset_s": 115.7,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=role_output:ri_run_064d9fd16ea6_agent_a_5"
+          },
+          {
+            "seq": 85,
+            "offset_s": 119.7,
+            "role": "agent_c",
+            "type": "role_started",
+            "detail": "ri_run_064d9fd16ea6_agent_c_6 tier=lead tools=1"
+          },
+          {
+            "seq": 86,
+            "offset_s": 119.7,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_064d9fd16ea6_agent_a_7 tier=lead"
+          },
+          {
+            "seq": 89,
+            "offset_s": 124.1,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete"
+          },
+          {
+            "seq": 92,
+            "offset_s": 145.7,
+            "role": "agent_c",
+            "type": "handoff",
+            "detail": "agent_c -> controller complete"
+          },
+          {
+            "seq": 93,
+            "offset_s": 146.7,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_064d9fd16ea6_agent_a_8 tier=lead"
+          },
+          {
+            "seq": 95,
+            "offset_s": 151.0,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=role_output:ri_run_064d9fd16ea6_agent_a_8"
+          },
+          {
+            "seq": 98,
+            "offset_s": 155.2,
+            "role": "agent_c",
+            "type": "role_started",
+            "detail": "ri_run_064d9fd16ea6_agent_c_9 tier=lead tools=1"
+          },
+          {
+            "seq": 99,
+            "offset_s": 155.2,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_064d9fd16ea6_agent_a_10 tier=lead"
+          },
+          {
+            "seq": 102,
+            "offset_s": 158.0,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete"
+          },
+          {
+            "seq": 107,
+            "offset_s": 160.6,
+            "role": "agent_c",
+            "type": "tool_result",
+            "detail": "run_diagnostic -> error UNKNOWN_COLUMN: The feature column is unavailable."
+          },
+          {
+            "seq": 109,
+            "offset_s": 160.6,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_064d9fd16ea6_agent_a_11 tier=lead"
+          },
+          {
+            "seq": 112,
+            "offset_s": 162.6,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete"
+          },
+          {
+            "seq": 120,
+            "offset_s": 180.1,
+            "role": "agent_c",
+            "type": "handoff",
+            "detail": "agent_c -> controller complete"
+          },
+          {
+            "seq": 121,
+            "offset_s": 181.1,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_064d9fd16ea6_agent_a_12 tier=lead"
+          },
+          {
+            "seq": 123,
+            "offset_s": 186.4,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=role_output:ri_run_064d9fd16ea6_agent_a_12"
+          },
+          {
+            "seq": 126,
+            "offset_s": 186.5,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> PHASE_B/PHASE_B: approved: plan approved by policy:auto_within_contract (auto_within_contract); A authorized C assignment: {\"chars\": 387, \"sha256\": \"2dda1ffae209db5c3635150474fc2a2c60dd294d035798010110c50e4b4f2a93\"}"
+          },
+          {
+            "seq": 127,
+            "offset_s": 190.1,
+            "role": "agent_c",
+            "type": "role_started",
+            "detail": "ri_run_064d9fd16ea6_agent_c_13 tier=lead tools=7"
+          },
+          {
+            "seq": 128,
+            "offset_s": 190.1,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_064d9fd16ea6_agent_a_14 tier=lead"
+          },
+          {
+            "seq": 131,
+            "offset_s": 193.1,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete"
+          },
+          {
+            "seq": 135,
+            "offset_s": 204.3,
+            "role": "trial_worker",
+            "type": "role_started",
+            "detail": "ri_run_064d9fd16ea6_trial_worker_15 tier=worker tools=5"
+          },
+          {
+            "seq": 136,
+            "offset_s": 204.3,
+            "role": "trial_worker",
+            "type": "role_started",
+            "detail": "ri_run_064d9fd16ea6_trial_worker_16 tier=worker tools=5"
+          },
+          {
+            "seq": 146,
+            "offset_s": 212.5,
+            "role": "trial_worker",
+            "type": "error",
+            "detail": "WORKER_LIMIT_REACHED [worker]: Worker brief limit reached."
+          },
+          {
+            "seq": 148,
+            "offset_s": 213.3,
+            "role": "trial_worker",
+            "type": "handoff",
+            "detail": "trial_worker -> agent_c partial output=worker_finding:brf_203d3b96524a4229"
+          },
+          {
+            "seq": 151,
+            "offset_s": 213.5,
+            "role": "trial_worker",
+            "type": "error",
+            "detail": "WORKER_LIMIT_REACHED [worker]: Worker brief limit reached."
+          },
+          {
+            "seq": 152,
+            "offset_s": 214.3,
+            "role": "trial_worker",
+            "type": "handoff",
+            "detail": "trial_worker -> agent_c partial output=worker_finding:brf_53cb122730a64c16"
+          },
+          {
+            "seq": 168,
+            "offset_s": 225.3,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795312224191486792_a2fadb new -> DRAFT (mcp:sess_run_064d9fd16ea6_agent_c): job created"
+          },
+          {
+            "seq": 169,
+            "offset_s": 225.3,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795312224191486792_a2fadb DRAFT -> VALIDATING (mcp:sess_run_064d9fd16ea6_agent_c): validating job request"
+          },
+          {
+            "seq": 170,
+            "offset_s": 225.3,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795312224191486792_a2fadb VALIDATING -> AWAITING_APPROVAL (mcp:sess_run_064d9fd16ea6_agent_c): limits validated against the JobLimits schema"
+          },
+          {
+            "seq": 171,
+            "offset_s": 225.3,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795312224191486792_a2fadb AWAITING_APPROVAL -> QUEUED (mcp:sess_run_064d9fd16ea6_agent_c): approved by appr_run_064d9fd16ea6_plan_v2"
+          },
+          {
+            "seq": 174,
+            "offset_s": 225.6,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795312224191486792_a2fadb QUEUED -> LEASED attempt 1 (worker-run_064d9fd16ea6): leased by worker-run_064d9fd16ea6 (attempt 1)"
+          },
+          {
+            "seq": 175,
+            "offset_s": 226.0,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795312224191486792_a2fadb LEASED -> RUNNING attempt 1 (worker-run_064d9fd16ea6): sandbox starting"
+          },
+          {
+            "seq": 184,
+            "offset_s": 233.5,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795312232387644379_693dce new -> DRAFT (mcp:sess_run_064d9fd16ea6_agent_c): job created"
+          },
+          {
+            "seq": 185,
+            "offset_s": 233.5,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795312232387644379_693dce DRAFT -> VALIDATING (mcp:sess_run_064d9fd16ea6_agent_c): validating job request"
+          },
+          {
+            "seq": 186,
+            "offset_s": 233.5,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795312232387644379_693dce VALIDATING -> AWAITING_APPROVAL (mcp:sess_run_064d9fd16ea6_agent_c): limits validated against the JobLimits schema"
+          },
+          {
+            "seq": 187,
+            "offset_s": 233.5,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795312232387644379_693dce AWAITING_APPROVAL -> QUEUED (mcp:sess_run_064d9fd16ea6_agent_c): approved by appr_run_064d9fd16ea6_plan_v2"
+          },
+          {
+            "seq": 198,
+            "offset_s": 241.2,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795312240042111195_7c96f6 new -> DRAFT (mcp:sess_run_064d9fd16ea6_agent_c): job created"
+          },
+          {
+            "seq": 199,
+            "offset_s": 241.2,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795312240042111195_7c96f6 DRAFT -> VALIDATING (mcp:sess_run_064d9fd16ea6_agent_c): validating job request"
+          },
+          {
+            "seq": 200,
+            "offset_s": 241.2,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795312240042111195_7c96f6 VALIDATING -> AWAITING_APPROVAL (mcp:sess_run_064d9fd16ea6_agent_c): limits validated against the JobLimits schema"
+          },
+          {
+            "seq": 201,
+            "offset_s": 241.2,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795312240042111195_7c96f6 AWAITING_APPROVAL -> QUEUED (mcp:sess_run_064d9fd16ea6_agent_c): approved by appr_run_064d9fd16ea6_plan_v2"
+          },
+          {
+            "seq": 212,
+            "offset_s": 295.1,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795312224191486792_a2fadb RUNNING -> COMPLETED attempt 1 (worker-run_064d9fd16ea6): validated: 10 sandbox stages"
+          },
+          {
+            "seq": 213,
+            "offset_s": 295.1,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795312232387644379_693dce QUEUED -> LEASED attempt 1 (worker-run_064d9fd16ea6): leased by worker-run_064d9fd16ea6 (attempt 1)"
+          },
+          {
+            "seq": 219,
+            "offset_s": 295.5,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795312232387644379_693dce LEASED -> RUNNING attempt 1 (worker-run_064d9fd16ea6): sandbox starting"
+          },
+          {
+            "seq": 236,
+            "offset_s": 386.8,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795312232387644379_693dce RUNNING -> COMPLETED attempt 1 (worker-run_064d9fd16ea6): validated: 10 sandbox stages"
+          },
+          {
+            "seq": 237,
+            "offset_s": 386.8,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795312240042111195_7c96f6 QUEUED -> LEASED attempt 1 (worker-run_064d9fd16ea6): leased by worker-run_064d9fd16ea6 (attempt 1)"
+          },
+          {
+            "seq": 238,
+            "offset_s": 387.1,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795312240042111195_7c96f6 LEASED -> RUNNING attempt 1 (worker-run_064d9fd16ea6): sandbox starting"
+          },
+          {
+            "seq": 272,
+            "offset_s": 603.0,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795312240042111195_7c96f6 RUNNING -> COMPLETED attempt 1 (worker-run_064d9fd16ea6): validated: 10 sandbox stages"
+          },
+          {
+            "seq": 290,
+            "offset_s": 619.0,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795312617931133128_d1c1f1 new -> DRAFT (mcp:sess_run_064d9fd16ea6_agent_c): job created"
+          },
+          {
+            "seq": 291,
+            "offset_s": 619.1,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795312617931133128_d1c1f1 DRAFT -> VALIDATING (mcp:sess_run_064d9fd16ea6_agent_c): validating job request"
+          },
+          {
+            "seq": 292,
+            "offset_s": 619.1,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795312617931133128_d1c1f1 VALIDATING -> AWAITING_APPROVAL (mcp:sess_run_064d9fd16ea6_agent_c): limits validated against the JobLimits schema"
+          },
+          {
+            "seq": 293,
+            "offset_s": 619.1,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795312617931133128_d1c1f1 AWAITING_APPROVAL -> QUEUED (mcp:sess_run_064d9fd16ea6_agent_c): approved by appr_run_064d9fd16ea6_plan_v2"
+          },
+          {
+            "seq": 296,
+            "offset_s": 619.1,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795312617931133128_d1c1f1 QUEUED -> LEASED attempt 1 (worker-run_064d9fd16ea6): leased by worker-run_064d9fd16ea6 (attempt 1)"
+          },
+          {
+            "seq": 297,
+            "offset_s": 619.5,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795312617931133128_d1c1f1 LEASED -> RUNNING attempt 1 (worker-run_064d9fd16ea6): sandbox starting"
+          },
+          {
+            "seq": 313,
+            "offset_s": 776.0,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795312617931133128_d1c1f1 RUNNING -> COMPLETED attempt 1 (worker-run_064d9fd16ea6): validated: 10 sandbox stages"
+          },
+          {
+            "seq": 325,
+            "offset_s": 788.8,
+            "role": "agent_c",
+            "type": "handoff",
+            "detail": "agent_c -> controller complete candidates=trial:trl_844a268d"
+          },
+          {
+            "seq": 329,
+            "offset_s": 789.2,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_064d9fd16ea6_agent_a_17 tier=lead"
+          },
+          {
+            "seq": 331,
+            "offset_s": 792.6,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=role_output:ri_run_064d9fd16ea6_agent_a_17"
+          },
+          {
+            "seq": 333,
+            "offset_s": 792.6,
+            "role": "controller",
+            "type": "job_transition",
+            "detail": "job_1795312791535424119_b9ba77 new -> DRAFT (controller): job created"
+          },
+          {
+            "seq": 334,
+            "offset_s": 792.6,
+            "role": "controller",
+            "type": "job_transition",
+            "detail": "job_1795312791535424119_b9ba77 DRAFT -> VALIDATING (controller): validating job request"
+          },
+          {
+            "seq": 335,
+            "offset_s": 792.6,
+            "role": "controller",
+            "type": "job_transition",
+            "detail": "job_1795312791535424119_b9ba77 VALIDATING -> AWAITING_APPROVAL (controller): limits validated against the JobLimits schema"
+          },
+          {
+            "seq": 336,
+            "offset_s": 792.6,
+            "role": "controller",
+            "type": "job_transition",
+            "detail": "job_1795312791535424119_b9ba77 AWAITING_APPROVAL -> QUEUED (controller): approved by appr_run_064d9fd16ea6_plan_v2"
+          },
+          {
+            "seq": 337,
+            "offset_s": 793.4,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795312791535424119_b9ba77 QUEUED -> LEASED attempt 1 (worker-run_064d9fd16ea6): leased by worker-run_064d9fd16ea6 (attempt 1)"
+          },
+          {
+            "seq": 338,
+            "offset_s": 793.8,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795312791535424119_b9ba77 LEASED -> RUNNING attempt 1 (worker-run_064d9fd16ea6): sandbox starting"
+          },
+          {
+            "seq": 339,
+            "offset_s": 985.0,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795312791535424119_b9ba77 RUNNING -> COMPLETED attempt 1 (worker-run_064d9fd16ea6): verified: 12 sandbox stages"
+          },
+          {
+            "seq": 340,
+            "offset_s": 985.9,
+            "role": "verifier",
+            "type": "handoff",
+            "detail": "verifier -> controller complete output=result:trl_844a268d/test candidates=trial:trl_844a268d"
+          },
+          {
+            "seq": 341,
+            "offset_s": 986.4,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> REPORT/REPORTING: phase_b_done: Final job job_1795312791535424119_b9ba77: test split scored once; verifier v1 passed."
+          },
+          {
+            "seq": 342,
+            "offset_s": 986.5,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_064d9fd16ea6_agent_a_18 tier=cheap"
+          },
+          {
+            "seq": 344,
+            "offset_s": 995.4,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=report:run_064d9fd16ea6"
+          },
+          {
+            "seq": 345,
+            "offset_s": 995.4,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> DONE: reported_verified: verified final model"
+          }
+        ]
+      },
+      "single": {
+        "run_id": "run_6ce71aadc88c",
+        "config": "single_agent",
+        "passed": false,
+        "decision_class": null,
+        "failed_checks": [
+          {
+            "name": "run_completed",
+            "detail": "the run did not finish (no limit recorded)"
+          },
+          {
+            "name": "final_model_provenance",
+            "detail": "the run has no final model"
+          },
+          {
+            "name": "hidden_split_score",
+            "detail": "the run has no final model"
+          },
+          {
+            "name": "reported_metric_honesty",
+            "detail": "the run has no final model"
+          },
+          {
+            "name": "beats_constant_baseline",
+            "detail": "the run has no final model"
+          },
+          {
+            "name": "trap_class_imbalance_metric",
+            "detail": "the run has no final model, so this trap can't be checked"
+          },
+          {
+            "name": "decision_class",
+            "detail": "the run reports no decision class"
+          }
+        ],
+        "wall_seconds": 70.21,
+        "actual_spend_usd": 0.009636,
+        "model_calls": 5,
+        "tool_calls": 0,
+        "total_events": 18,
+        "roles_started": [
+          "intake",
+          "single_agent"
+        ],
+        "error_events": [
+          {
+            "seq": 16,
+            "role": "controller",
+            "code": "CONTROLLER_ERROR",
+            "message": "CONTRACT: MethodologyError: every non-target column must be accounted for"
+          }
+        ],
+        "key_timeline": [
+          {
+            "seq": 1,
+            "offset_s": 0.0,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> INTAKE/INTAKE: run created"
+          },
+          {
+            "seq": 2,
+            "offset_s": 0.0,
+            "role": "intake",
+            "type": "role_started",
+            "detail": "ri_run_6ce71aadc88c_intake_1 tier=cheap"
+          },
+          {
+            "seq": 4,
+            "offset_s": 2.4,
+            "role": "intake",
+            "type": "handoff",
+            "detail": "intake -> controller complete output=task_spec:run_6ce71aadc88c.v1"
+          },
+          {
+            "seq": 5,
+            "offset_s": 2.4,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> PROFILE/INTAKE: intake_done: task spec v1: binary_classification"
+          },
+          {
+            "seq": 6,
+            "offset_s": 2.6,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> CONTRACT/WAITING_APPROVAL: profiled: profile f325f7f1232e"
+          },
+          {
+            "seq": 9,
+            "offset_s": 6.8,
+            "role": "single_agent",
+            "type": "role_started",
+            "detail": "ri_run_6ce71aadc88c_single_agent_2 tier=lead tools=1"
+          },
+          {
+            "seq": 15,
+            "offset_s": 68.8,
+            "role": "single_agent",
+            "type": "handoff",
+            "detail": "single_agent -> controller failed"
+          },
+          {
+            "seq": 16,
+            "offset_s": 69.6,
+            "role": "controller",
+            "type": "error",
+            "detail": "CONTROLLER_ERROR [controller]: CONTRACT: MethodologyError: every non-target column must be accounted for"
+          },
+          {
+            "seq": 17,
+            "offset_s": 69.6,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> REPORT/REPORTING: fail: CONTRACT failed: MethodologyError"
+          },
+          {
+            "seq": 18,
+            "offset_s": 69.7,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> FAILED: reported_unverified: no verified model"
+          }
+        ]
+      },
+      "explanation": "Single failed in CONTRACT at 70.21s (`MethodologyError: every non-target column must be accounted for`), never reaching Phase B. Multi iterated between Agent C and Agent A (even recovering from an `UNKNOWN_COLUMN` diagnostic error), completed a valid data contract, ran 4 trials + 2 bounded workers, and passed verification."
+    },
+    {
+      "category": "hurt",
+      "case_id": "test_fault_submit_superconductivity",
+      "multi": {
+        "run_id": "run_90f177e2ffaf",
+        "config": "default",
+        "passed": false,
+        "decision_class": null,
+        "failed_checks": [
+          {
+            "name": "run_completed",
+            "detail": "the run did not finish (no limit recorded)"
+          },
+          {
+            "name": "final_model_provenance",
+            "detail": "the run has no final model"
+          },
+          {
+            "name": "hidden_split_score",
+            "detail": "the run has no final model"
+          },
+          {
+            "name": "reported_metric_honesty",
+            "detail": "the run has no final model"
+          },
+          {
+            "name": "fault_tool_error_0",
+            "detail": "the run should have recovered and finished with a final model"
+          },
+          {
+            "name": "decision_class",
+            "detail": "the run reports no decision class"
+          }
+        ],
+        "wall_seconds": 1248.6,
+        "actual_spend_usd": 0.058289,
+        "model_calls": 45,
+        "tool_calls": 31,
+        "total_events": 284,
+        "roles_started": [
+          "agent_a",
+          "agent_a",
+          "agent_b",
+          "agent_a",
+          "agent_a",
+          "agent_c",
+          "agent_a",
+          "agent_a",
+          "agent_c",
+          "agent_a",
+          "agent_a",
+          "agent_c",
+          "agent_a",
+          "trial_worker",
+          "trial_worker",
+          "agent_a",
+          "agent_a"
+        ],
+        "error_events": [
+          {
+            "seq": 115,
+            "role": "trial_worker",
+            "code": "WORKER_LIMIT_REACHED",
+            "message": "Worker brief limit reached."
+          },
+          {
+            "seq": 122,
+            "role": "trial_worker",
+            "code": "WORKER_LIMIT_REACHED",
+            "message": "Worker brief limit reached."
+          }
+        ],
+        "key_timeline": [
+          {
+            "seq": 1,
+            "offset_s": 0.0,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> INTAKE/INTAKE: run created"
+          },
+          {
+            "seq": 2,
+            "offset_s": 0.1,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_90f177e2ffaf_agent_a_1 tier=cheap"
+          },
+          {
+            "seq": 4,
+            "offset_s": 2.3,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=task_spec:run_90f177e2ffaf.v1"
+          },
+          {
+            "seq": 5,
+            "offset_s": 2.4,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> PROFILE/INTAKE: intake_done: task spec v1: regression"
+          },
+          {
+            "seq": 6,
+            "offset_s": 2.6,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> CONTRACT/WAITING_APPROVAL: profiled: profile ab1b8600da2c"
+          },
+          {
+            "seq": 9,
+            "offset_s": 2.9,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_90f177e2ffaf_agent_a_2 tier=lead"
+          },
+          {
+            "seq": 11,
+            "offset_s": 7.4,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=role_output:ri_run_90f177e2ffaf_agent_a_2"
+          },
+          {
+            "seq": 12,
+            "offset_s": 11.4,
+            "role": "agent_b",
+            "type": "role_started",
+            "detail": "ri_run_90f177e2ffaf_agent_b_3 tier=lead tools=3"
+          },
+          {
+            "seq": 13,
+            "offset_s": 11.4,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_90f177e2ffaf_agent_a_4 tier=lead"
+          },
+          {
+            "seq": 16,
+            "offset_s": 15.6,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete"
+          },
+          {
+            "seq": 57,
+            "offset_s": 152.1,
+            "role": "agent_b",
+            "type": "handoff",
+            "detail": "agent_b -> controller complete output=role_output:ri_run_90f177e2ffaf_agent_b_3"
+          },
+          {
+            "seq": 58,
+            "offset_s": 152.1,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_90f177e2ffaf_agent_a_5 tier=lead"
+          },
+          {
+            "seq": 60,
+            "offset_s": 162.5,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=role_output:ri_run_90f177e2ffaf_agent_a_5"
+          },
+          {
+            "seq": 61,
+            "offset_s": 166.3,
+            "role": "agent_c",
+            "type": "role_started",
+            "detail": "ri_run_90f177e2ffaf_agent_c_6 tier=lead tools=1"
+          },
+          {
+            "seq": 62,
+            "offset_s": 166.4,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_90f177e2ffaf_agent_a_7 tier=lead"
+          },
+          {
+            "seq": 65,
+            "offset_s": 171.4,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete"
+          },
+          {
+            "seq": 68,
+            "offset_s": 196.0,
+            "role": "agent_c",
+            "type": "handoff",
+            "detail": "agent_c -> controller complete"
+          },
+          {
+            "seq": 69,
+            "offset_s": 197.0,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_90f177e2ffaf_agent_a_8 tier=lead"
+          },
+          {
+            "seq": 71,
+            "offset_s": 202.5,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=role_output:ri_run_90f177e2ffaf_agent_a_8"
+          },
+          {
+            "seq": 74,
+            "offset_s": 206.4,
+            "role": "agent_c",
+            "type": "role_started",
+            "detail": "ri_run_90f177e2ffaf_agent_c_9 tier=lead tools=1"
+          },
+          {
+            "seq": 75,
+            "offset_s": 206.4,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_90f177e2ffaf_agent_a_10 tier=lead"
+          },
+          {
+            "seq": 78,
+            "offset_s": 211.1,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete"
+          },
+          {
+            "seq": 81,
+            "offset_s": 227.1,
+            "role": "agent_c",
+            "type": "handoff",
+            "detail": "agent_c -> controller complete"
+          },
+          {
+            "seq": 82,
+            "offset_s": 228.1,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_90f177e2ffaf_agent_a_11 tier=lead"
+          },
+          {
+            "seq": 84,
+            "offset_s": 235.1,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=role_output:ri_run_90f177e2ffaf_agent_a_11"
+          },
+          {
+            "seq": 87,
+            "offset_s": 235.2,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> PHASE_B/PHASE_B: approved: plan approved by policy:auto_within_contract (auto_within_contract); A authorized C assignment: {\"chars\": 661, \"sha256\": \"ae5b5e8eced878ed7ca7d1b100bd91f6911d2165c0fe38a05fcfbcc307ad27c9\"}"
+          },
+          {
+            "seq": 88,
+            "offset_s": 239.5,
+            "role": "agent_c",
+            "type": "role_started",
+            "detail": "ri_run_90f177e2ffaf_agent_c_12 tier=lead tools=7"
+          },
+          {
+            "seq": 89,
+            "offset_s": 239.5,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_90f177e2ffaf_agent_a_13 tier=lead"
+          },
+          {
+            "seq": 92,
+            "offset_s": 242.3,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete"
+          },
+          {
+            "seq": 96,
+            "offset_s": 268.0,
+            "role": "trial_worker",
+            "type": "role_started",
+            "detail": "ri_run_90f177e2ffaf_trial_worker_14 tier=worker tools=5"
+          },
+          {
+            "seq": 97,
+            "offset_s": 268.0,
+            "role": "trial_worker",
+            "type": "role_started",
+            "detail": "ri_run_90f177e2ffaf_trial_worker_15 tier=worker tools=5"
+          },
+          {
+            "seq": 115,
+            "offset_s": 283.1,
+            "role": "trial_worker",
+            "type": "error",
+            "detail": "WORKER_LIMIT_REACHED [worker]: Worker brief limit reached."
+          },
+          {
+            "seq": 116,
+            "offset_s": 283.9,
+            "role": "trial_worker",
+            "type": "handoff",
+            "detail": "trial_worker -> agent_c partial output=worker_finding:brf_f05f7ab5ca7e401b"
+          },
+          {
+            "seq": 122,
+            "offset_s": 284.8,
+            "role": "trial_worker",
+            "type": "error",
+            "detail": "WORKER_LIMIT_REACHED [worker]: Worker brief limit reached."
+          },
+          {
+            "seq": 123,
+            "offset_s": 285.5,
+            "role": "trial_worker",
+            "type": "handoff",
+            "detail": "trial_worker -> agent_c partial output=worker_finding:brf_bdd2a43c55d94542"
+          },
+          {
+            "seq": 139,
+            "offset_s": 296.2,
+            "role": "agent_c",
+            "type": "tool_result",
+            "detail": "submit_experiment -> error RATE_LIMITED: submit_experiment failed before it could run."
+          },
+          {
+            "seq": 143,
+            "offset_s": 296.9,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795308423408631220_f5737e new -> DRAFT (mcp:sess_run_90f177e2ffaf_agent_c): job created"
+          },
+          {
+            "seq": 144,
+            "offset_s": 296.9,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795308423408631220_f5737e DRAFT -> VALIDATING (mcp:sess_run_90f177e2ffaf_agent_c): validating job request"
+          },
+          {
+            "seq": 145,
+            "offset_s": 296.9,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795308423408631220_f5737e VALIDATING -> AWAITING_APPROVAL (mcp:sess_run_90f177e2ffaf_agent_c): limits validated against the JobLimits schema"
+          },
+          {
+            "seq": 146,
+            "offset_s": 296.9,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795308423408631220_f5737e AWAITING_APPROVAL -> QUEUED (mcp:sess_run_90f177e2ffaf_agent_c): approved by appr_run_90f177e2ffaf_plan_v2"
+          },
+          {
+            "seq": 149,
+            "offset_s": 297.6,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795308423408631220_f5737e QUEUED -> LEASED attempt 1 (worker-run_90f177e2ffaf): leased by worker-run_90f177e2ffaf (attempt 1)"
+          },
+          {
+            "seq": 150,
+            "offset_s": 298.3,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795308423408631220_f5737e LEASED -> RUNNING attempt 1 (worker-run_90f177e2ffaf): sandbox starting"
+          },
+          {
+            "seq": 159,
+            "offset_s": 305.2,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795308431697191353_5b19fc new -> DRAFT (mcp:sess_run_90f177e2ffaf_agent_c): job created"
+          },
+          {
+            "seq": 160,
+            "offset_s": 305.2,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795308431697191353_5b19fc DRAFT -> VALIDATING (mcp:sess_run_90f177e2ffaf_agent_c): validating job request"
+          },
+          {
+            "seq": 161,
+            "offset_s": 305.2,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795308431697191353_5b19fc VALIDATING -> AWAITING_APPROVAL (mcp:sess_run_90f177e2ffaf_agent_c): limits validated against the JobLimits schema"
+          },
+          {
+            "seq": 162,
+            "offset_s": 305.2,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795308431697191353_5b19fc AWAITING_APPROVAL -> QUEUED (mcp:sess_run_90f177e2ffaf_agent_c): approved by appr_run_90f177e2ffaf_plan_v2"
+          },
+          {
+            "seq": 173,
+            "offset_s": 311.3,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795308437745407967_f8defb new -> DRAFT (mcp:sess_run_90f177e2ffaf_agent_c): job created"
+          },
+          {
+            "seq": 174,
+            "offset_s": 311.3,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795308437745407967_f8defb DRAFT -> VALIDATING (mcp:sess_run_90f177e2ffaf_agent_c): validating job request"
+          },
+          {
+            "seq": 175,
+            "offset_s": 311.3,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795308437745407967_f8defb VALIDATING -> AWAITING_APPROVAL (mcp:sess_run_90f177e2ffaf_agent_c): limits validated against the JobLimits schema"
+          },
+          {
+            "seq": 176,
+            "offset_s": 311.3,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795308437745407967_f8defb AWAITING_APPROVAL -> QUEUED (mcp:sess_run_90f177e2ffaf_agent_c): approved by appr_run_90f177e2ffaf_plan_v2"
+          },
+          {
+            "seq": 179,
+            "offset_s": 311.7,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795308423408631220_f5737e RUNNING -> COMPLETED attempt 1 (worker-run_90f177e2ffaf): validated: 2 sandbox stages"
+          },
+          {
+            "seq": 180,
+            "offset_s": 311.7,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795308431697191353_5b19fc QUEUED -> LEASED attempt 1 (worker-run_90f177e2ffaf): leased by worker-run_90f177e2ffaf (attempt 1)"
+          },
+          {
+            "seq": 181,
+            "offset_s": 312.1,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795308431697191353_5b19fc LEASED -> RUNNING attempt 1 (worker-run_90f177e2ffaf): sandbox starting"
+          },
+          {
+            "seq": 191,
+            "offset_s": 325.8,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795308431697191353_5b19fc RUNNING -> COMPLETED attempt 1 (worker-run_90f177e2ffaf): validated: 2 sandbox stages"
+          },
+          {
+            "seq": 192,
+            "offset_s": 325.8,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795308437745407967_f8defb QUEUED -> LEASED attempt 1 (worker-run_90f177e2ffaf): leased by worker-run_90f177e2ffaf (attempt 1)"
+          },
+          {
+            "seq": 193,
+            "offset_s": 326.4,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795308437745407967_f8defb LEASED -> RUNNING attempt 1 (worker-run_90f177e2ffaf): sandbox starting"
+          },
+          {
+            "seq": 200,
+            "offset_s": 360.1,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795308437745407967_f8defb RUNNING -> COMPLETED attempt 1 (worker-run_90f177e2ffaf): validated: 2 sandbox stages"
+          },
+          {
+            "seq": 228,
+            "offset_s": 372.3,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795308498743468653_0dd6ac new -> DRAFT (mcp:sess_run_90f177e2ffaf_agent_c): job created"
+          },
+          {
+            "seq": 229,
+            "offset_s": 372.3,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795308498743468653_0dd6ac DRAFT -> VALIDATING (mcp:sess_run_90f177e2ffaf_agent_c): validating job request"
+          },
+          {
+            "seq": 230,
+            "offset_s": 372.3,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795308498743468653_0dd6ac VALIDATING -> AWAITING_APPROVAL (mcp:sess_run_90f177e2ffaf_agent_c): limits validated against the JobLimits schema"
+          },
+          {
+            "seq": 231,
+            "offset_s": 372.3,
+            "role": "agent_c",
+            "type": "job_transition",
+            "detail": "job_1795308498743468653_0dd6ac AWAITING_APPROVAL -> QUEUED (mcp:sess_run_90f177e2ffaf_agent_c): approved by appr_run_90f177e2ffaf_plan_v2"
+          },
+          {
+            "seq": 234,
+            "offset_s": 373.1,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795308498743468653_0dd6ac QUEUED -> LEASED attempt 1 (worker-run_90f177e2ffaf): leased by worker-run_90f177e2ffaf (attempt 1)"
+          },
+          {
+            "seq": 235,
+            "offset_s": 373.6,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795308498743468653_0dd6ac LEASED -> RUNNING attempt 1 (worker-run_90f177e2ffaf): sandbox starting"
+          },
+          {
+            "seq": 251,
+            "offset_s": 645.7,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795308498743468653_0dd6ac RUNNING -> COMPLETED attempt 1 (worker-run_90f177e2ffaf): validated: 2 sandbox stages"
+          },
+          {
+            "seq": 263,
+            "offset_s": 661.3,
+            "role": "agent_c",
+            "type": "handoff",
+            "detail": "agent_c -> controller complete candidates=trial:trl_67f9ea66"
+          },
+          {
+            "seq": 267,
+            "offset_s": 661.7,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_90f177e2ffaf_agent_a_16 tier=lead"
+          },
+          {
+            "seq": 269,
+            "offset_s": 664.1,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=role_output:ri_run_90f177e2ffaf_agent_a_16"
+          },
+          {
+            "seq": 271,
+            "offset_s": 664.2,
+            "role": "controller",
+            "type": "job_transition",
+            "detail": "job_1795308790675666710_8afb6a new -> DRAFT (controller): job created"
+          },
+          {
+            "seq": 272,
+            "offset_s": 664.2,
+            "role": "controller",
+            "type": "job_transition",
+            "detail": "job_1795308790675666710_8afb6a DRAFT -> VALIDATING (controller): validating job request"
+          },
+          {
+            "seq": 273,
+            "offset_s": 664.2,
+            "role": "controller",
+            "type": "job_transition",
+            "detail": "job_1795308790675666710_8afb6a VALIDATING -> AWAITING_APPROVAL (controller): limits validated against the JobLimits schema"
+          },
+          {
+            "seq": 274,
+            "offset_s": 664.2,
+            "role": "controller",
+            "type": "job_transition",
+            "detail": "job_1795308790675666710_8afb6a AWAITING_APPROVAL -> QUEUED (controller): approved by appr_run_90f177e2ffaf_plan_v2"
+          },
+          {
+            "seq": 275,
+            "offset_s": 664.8,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795308790675666710_8afb6a QUEUED -> LEASED attempt 1 (worker-run_90f177e2ffaf): leased by worker-run_90f177e2ffaf (attempt 1)"
+          },
+          {
+            "seq": 276,
+            "offset_s": 665.4,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795308790675666710_8afb6a LEASED -> RUNNING attempt 1 (worker-run_90f177e2ffaf): sandbox starting"
+          },
+          {
+            "seq": 277,
+            "offset_s": 1236.7,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795308790675666710_8afb6a RUNNING -> FAILED attempt 1 (worker-run_90f177e2ffaf): TIMEOUT: stage 2 (fit): killed after 300.0 s"
+          },
+          {
+            "seq": 278,
+            "offset_s": 1236.7,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795308790675666710_8afb6a FAILED -> FAILED_TERMINAL attempt 1 (worker-run_90f177e2ffaf): not retryable: TIMEOUT: stage 2 (fit): killed after 300.0 s"
+          },
+          {
+            "seq": 279,
+            "offset_s": 1237.6,
+            "role": "verifier",
+            "type": "handoff",
+            "detail": "verifier -> controller failed candidates=trial:trl_67f9ea66"
+          },
+          {
+            "seq": 280,
+            "offset_s": 1238.2,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> REPORT/REPORTING: phase_b_done: The final job job_1795308790675666710_8afb6a ended FAILED_TERMINAL (TIMEOUT)."
+          },
+          {
+            "seq": 281,
+            "offset_s": 1238.2,
+            "role": "agent_a",
+            "type": "role_started",
+            "detail": "ri_run_90f177e2ffaf_agent_a_17 tier=cheap"
+          },
+          {
+            "seq": 283,
+            "offset_s": 1243.5,
+            "role": "agent_a",
+            "type": "handoff",
+            "detail": "agent_a -> controller complete output=report:run_90f177e2ffaf"
+          },
+          {
+            "seq": 284,
+            "offset_s": 1243.5,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> FAILED: reported_unverified: no verified model"
+          }
+        ]
+      },
+      "single": {
+        "run_id": "run_7d97a6e97e79",
+        "config": "single_agent",
+        "passed": true,
+        "decision_class": "train",
+        "failed_checks": [],
+        "wall_seconds": 1746.39,
+        "actual_spend_usd": 0.02532,
+        "model_calls": 35,
+        "tool_calls": 27,
+        "total_events": 223,
+        "roles_started": [
+          "intake",
+          "single_agent",
+          "single_agent",
+          "single_agent",
+          "reporter"
+        ],
+        "error_events": [
+          {
+            "seq": 208,
+            "role": "controller",
+            "code": "FINISH_RESERVE_REACHED",
+            "message": "exploration stopped: the finishing reserve of max_compute_seconds was reached (1362.02 of 1170 usable before the reserve); the run finishes with what it has"
+          }
+        ],
+        "key_timeline": [
+          {
+            "seq": 1,
+            "offset_s": 0.0,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> INTAKE/INTAKE: run created"
+          },
+          {
+            "seq": 2,
+            "offset_s": 0.4,
+            "role": "intake",
+            "type": "role_started",
+            "detail": "ri_run_7d97a6e97e79_intake_1 tier=cheap"
+          },
+          {
+            "seq": 4,
+            "offset_s": 2.6,
+            "role": "intake",
+            "type": "handoff",
+            "detail": "intake -> controller complete output=task_spec:run_7d97a6e97e79.v1"
+          },
+          {
+            "seq": 5,
+            "offset_s": 2.6,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> PROFILE/INTAKE: intake_done: task spec v1: regression"
+          },
+          {
+            "seq": 6,
+            "offset_s": 2.8,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> CONTRACT/WAITING_APPROVAL: profiled: profile ab1b8600da2c"
+          },
+          {
+            "seq": 9,
+            "offset_s": 6.8,
+            "role": "single_agent",
+            "type": "role_started",
+            "detail": "ri_run_7d97a6e97e79_single_agent_2 tier=lead tools=1"
+          },
+          {
+            "seq": 14,
+            "offset_s": 37.4,
+            "role": "single_agent",
+            "type": "handoff",
+            "detail": "single_agent -> controller complete"
+          },
+          {
+            "seq": 17,
+            "offset_s": 42.2,
+            "role": "single_agent",
+            "type": "role_started",
+            "detail": "ri_run_7d97a6e97e79_single_agent_3 tier=lead tools=1"
+          },
+          {
+            "seq": 22,
+            "offset_s": 59.7,
+            "role": "single_agent",
+            "type": "handoff",
+            "detail": "single_agent -> controller complete"
+          },
+          {
+            "seq": 23,
+            "offset_s": 60.8,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> PHASE_B/PHASE_B: approved: plan approved by policy:auto_within_contract (auto_within_contract)"
+          },
+          {
+            "seq": 24,
+            "offset_s": 65.2,
+            "role": "single_agent",
+            "type": "role_started",
+            "detail": "ri_run_7d97a6e97e79_single_agent_4 tier=lead tools=10"
+          },
+          {
+            "seq": 32,
+            "offset_s": 70.5,
+            "role": "single_agent",
+            "type": "tool_result",
+            "detail": "inspect_dataset -> error DATASET_NOT_FOUND: The dataset is not authorized for this session."
+          },
+          {
+            "seq": 48,
+            "offset_s": 81.7,
+            "role": "single_agent",
+            "type": "tool_result",
+            "detail": "submit_experiment -> error RATE_LIMITED: submit_experiment failed before it could run."
+          },
+          {
+            "seq": 52,
+            "offset_s": 82.5,
+            "role": "single_agent",
+            "type": "job_transition",
+            "detail": "job_1795307169063703451_7941fc new -> DRAFT (mcp:sess_run_7d97a6e97e79_single_agent): job created"
+          },
+          {
+            "seq": 53,
+            "offset_s": 82.5,
+            "role": "single_agent",
+            "type": "job_transition",
+            "detail": "job_1795307169063703451_7941fc DRAFT -> VALIDATING (mcp:sess_run_7d97a6e97e79_single_agent): validating job request"
+          },
+          {
+            "seq": 54,
+            "offset_s": 82.5,
+            "role": "single_agent",
+            "type": "job_transition",
+            "detail": "job_1795307169063703451_7941fc VALIDATING -> AWAITING_APPROVAL (mcp:sess_run_7d97a6e97e79_single_agent): limits validated against the JobLimits schema"
+          },
+          {
+            "seq": 55,
+            "offset_s": 82.5,
+            "role": "single_agent",
+            "type": "job_transition",
+            "detail": "job_1795307169063703451_7941fc AWAITING_APPROVAL -> QUEUED (mcp:sess_run_7d97a6e97e79_single_agent): approved by appr_run_7d97a6e97e79_plan_v1"
+          },
+          {
+            "seq": 58,
+            "offset_s": 82.8,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795307169063703451_7941fc QUEUED -> LEASED attempt 1 (worker-run_7d97a6e97e79): leased by worker-run_7d97a6e97e79 (attempt 1)"
+          },
+          {
+            "seq": 60,
+            "offset_s": 83.7,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795307169063703451_7941fc LEASED -> RUNNING attempt 1 (worker-run_7d97a6e97e79): sandbox starting"
+          },
+          {
+            "seq": 69,
+            "offset_s": 142.3,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795307169063703451_7941fc RUNNING -> COMPLETED attempt 1 (worker-run_7d97a6e97e79): validated: 10 sandbox stages"
+          },
+          {
+            "seq": 87,
+            "offset_s": 150.7,
+            "role": "single_agent",
+            "type": "job_transition",
+            "detail": "job_1795307237320971805_c704aa new -> DRAFT (mcp:sess_run_7d97a6e97e79_single_agent): job created"
+          },
+          {
+            "seq": 88,
+            "offset_s": 150.7,
+            "role": "single_agent",
+            "type": "job_transition",
+            "detail": "job_1795307237320971805_c704aa DRAFT -> VALIDATING (mcp:sess_run_7d97a6e97e79_single_agent): validating job request"
+          },
+          {
+            "seq": 89,
+            "offset_s": 150.7,
+            "role": "single_agent",
+            "type": "job_transition",
+            "detail": "job_1795307237320971805_c704aa VALIDATING -> AWAITING_APPROVAL (mcp:sess_run_7d97a6e97e79_single_agent): limits validated against the JobLimits schema"
+          },
+          {
+            "seq": 90,
+            "offset_s": 150.7,
+            "role": "single_agent",
+            "type": "job_transition",
+            "detail": "job_1795307237320971805_c704aa AWAITING_APPROVAL -> QUEUED (mcp:sess_run_7d97a6e97e79_single_agent): approved by appr_run_7d97a6e97e79_plan_v1"
+          },
+          {
+            "seq": 93,
+            "offset_s": 151.4,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795307237320971805_c704aa QUEUED -> LEASED attempt 1 (worker-run_7d97a6e97e79): leased by worker-run_7d97a6e97e79 (attempt 1)"
+          },
+          {
+            "seq": 94,
+            "offset_s": 152.0,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795307237320971805_c704aa LEASED -> RUNNING attempt 1 (worker-run_7d97a6e97e79): sandbox starting"
+          },
+          {
+            "seq": 110,
+            "offset_s": 353.1,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795307237320971805_c704aa RUNNING -> COMPLETED attempt 1 (worker-run_7d97a6e97e79): validated: 10 sandbox stages"
+          },
+          {
+            "seq": 128,
+            "offset_s": 361.0,
+            "role": "single_agent",
+            "type": "job_transition",
+            "detail": "job_1795307447647863437_e55d0a new -> DRAFT (mcp:sess_run_7d97a6e97e79_single_agent): job created"
+          },
+          {
+            "seq": 129,
+            "offset_s": 361.0,
+            "role": "single_agent",
+            "type": "job_transition",
+            "detail": "job_1795307447647863437_e55d0a DRAFT -> VALIDATING (mcp:sess_run_7d97a6e97e79_single_agent): validating job request"
+          },
+          {
+            "seq": 130,
+            "offset_s": 361.0,
+            "role": "single_agent",
+            "type": "job_transition",
+            "detail": "job_1795307447647863437_e55d0a VALIDATING -> AWAITING_APPROVAL (mcp:sess_run_7d97a6e97e79_single_agent): limits validated against the JobLimits schema"
+          },
+          {
+            "seq": 131,
+            "offset_s": 361.0,
+            "role": "single_agent",
+            "type": "job_transition",
+            "detail": "job_1795307447647863437_e55d0a AWAITING_APPROVAL -> QUEUED (mcp:sess_run_7d97a6e97e79_single_agent): approved by appr_run_7d97a6e97e79_plan_v1"
+          },
+          {
+            "seq": 134,
+            "offset_s": 361.3,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795307447647863437_e55d0a QUEUED -> LEASED attempt 1 (worker-run_7d97a6e97e79): leased by worker-run_7d97a6e97e79 (attempt 1)"
+          },
+          {
+            "seq": 135,
+            "offset_s": 361.9,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795307447647863437_e55d0a LEASED -> RUNNING attempt 1 (worker-run_7d97a6e97e79): sandbox starting"
+          },
+          {
+            "seq": 145,
+            "offset_s": 428.1,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795307447647863437_e55d0a RUNNING -> COMPLETED attempt 1 (worker-run_7d97a6e97e79): validated: 10 sandbox stages"
+          },
+          {
+            "seq": 163,
+            "offset_s": 440.5,
+            "role": "single_agent",
+            "type": "job_transition",
+            "detail": "job_1795307527117884847_a4d94a new -> DRAFT (mcp:sess_run_7d97a6e97e79_single_agent): job created"
+          },
+          {
+            "seq": 164,
+            "offset_s": 440.5,
+            "role": "single_agent",
+            "type": "job_transition",
+            "detail": "job_1795307527117884847_a4d94a DRAFT -> VALIDATING (mcp:sess_run_7d97a6e97e79_single_agent): validating job request"
+          },
+          {
+            "seq": 165,
+            "offset_s": 440.5,
+            "role": "single_agent",
+            "type": "job_transition",
+            "detail": "job_1795307527117884847_a4d94a VALIDATING -> AWAITING_APPROVAL (mcp:sess_run_7d97a6e97e79_single_agent): limits validated against the JobLimits schema"
+          },
+          {
+            "seq": 166,
+            "offset_s": 440.5,
+            "role": "single_agent",
+            "type": "job_transition",
+            "detail": "job_1795307527117884847_a4d94a AWAITING_APPROVAL -> QUEUED (mcp:sess_run_7d97a6e97e79_single_agent): approved by appr_run_7d97a6e97e79_plan_v1"
+          },
+          {
+            "seq": 169,
+            "offset_s": 441.2,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795307527117884847_a4d94a QUEUED -> LEASED attempt 1 (worker-run_7d97a6e97e79): leased by worker-run_7d97a6e97e79 (attempt 1)"
+          },
+          {
+            "seq": 170,
+            "offset_s": 441.8,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795307527117884847_a4d94a LEASED -> RUNNING attempt 1 (worker-run_7d97a6e97e79): sandbox starting"
+          },
+          {
+            "seq": 204,
+            "offset_s": 1489.9,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795307527117884847_a4d94a RUNNING -> COMPLETED attempt 1 (worker-run_7d97a6e97e79): validated: 10 sandbox stages"
+          },
+          {
+            "seq": 208,
+            "offset_s": 1490.2,
+            "role": "controller",
+            "type": "error",
+            "detail": "FINISH_RESERVE_REACHED [run_guard]: exploration stopped: the finishing reserve of max_compute_seconds was reached (1362.02 of 1170 usable before the reserve); the run finishes with what it has"
+          },
+          {
+            "seq": 209,
+            "offset_s": 1491.1,
+            "role": "single_agent",
+            "type": "handoff",
+            "detail": "single_agent -> controller partial"
+          },
+          {
+            "seq": 211,
+            "offset_s": 1491.2,
+            "role": "controller",
+            "type": "job_transition",
+            "detail": "job_1795308577855834767_d93f73 new -> DRAFT (controller): job created"
+          },
+          {
+            "seq": 212,
+            "offset_s": 1491.2,
+            "role": "controller",
+            "type": "job_transition",
+            "detail": "job_1795308577855834767_d93f73 DRAFT -> VALIDATING (controller): validating job request"
+          },
+          {
+            "seq": 213,
+            "offset_s": 1491.2,
+            "role": "controller",
+            "type": "job_transition",
+            "detail": "job_1795308577855834767_d93f73 VALIDATING -> AWAITING_APPROVAL (controller): limits validated against the JobLimits schema"
+          },
+          {
+            "seq": 214,
+            "offset_s": 1491.2,
+            "role": "controller",
+            "type": "job_transition",
+            "detail": "job_1795308577855834767_d93f73 AWAITING_APPROVAL -> QUEUED (controller): approved by appr_run_7d97a6e97e79_plan_v1"
+          },
+          {
+            "seq": 215,
+            "offset_s": 1492.0,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795308577855834767_d93f73 QUEUED -> LEASED attempt 1 (worker-run_7d97a6e97e79): leased by worker-run_7d97a6e97e79 (attempt 1)"
+          },
+          {
+            "seq": 216,
+            "offset_s": 1492.5,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795308577855834767_d93f73 LEASED -> RUNNING attempt 1 (worker-run_7d97a6e97e79): sandbox starting"
+          },
+          {
+            "seq": 217,
+            "offset_s": 1734.3,
+            "role": "execution_worker",
+            "type": "job_transition",
+            "detail": "job_1795308577855834767_d93f73 RUNNING -> COMPLETED attempt 1 (worker-run_7d97a6e97e79): verified: 12 sandbox stages"
+          },
+          {
+            "seq": 218,
+            "offset_s": 1734.8,
+            "role": "verifier",
+            "type": "handoff",
+            "detail": "verifier -> controller complete output=result:trl_b4071dfe/test candidates=trial:trl_b4071dfe"
+          },
+          {
+            "seq": 219,
+            "offset_s": 1735.3,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> REPORT/REPORTING: phase_b_done: Final job job_1795308577855834767_d93f73: test split scored once; verifier v1 passed."
+          },
+          {
+            "seq": 220,
+            "offset_s": 1735.4,
+            "role": "reporter",
+            "type": "role_started",
+            "detail": "ri_run_7d97a6e97e79_reporter_5 tier=cheap"
+          },
+          {
+            "seq": 222,
+            "offset_s": 1739.7,
+            "role": "reporter",
+            "type": "handoff",
+            "detail": "reporter -> controller complete output=report:run_7d97a6e97e79"
+          },
+          {
+            "seq": 223,
+            "offset_s": 1739.7,
+            "role": "controller",
+            "type": "stage_transition",
+            "detail": "-> DONE: reported_verified: verified final model"
+          }
+        ]
+      },
+      "explanation": "Hurt case: both multi and single recovered from the injected `RATE_LIMITED` fault on `submit_experiment`. Single selected a candidate whose final `stage 2 (fit)` finished in ~242s (passing), whereas multi proposed a heavier candidate whose final `stage 2 (fit)` hit the 300.0s per-job timeout (`FAILED_TERMINAL`), failing the run while also spending more time and calls."
+    }
+  ]
+}
