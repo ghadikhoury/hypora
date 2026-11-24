@@ -1,0 +1,51 @@
+# Malformed data: 40 seeded quality labels are blank (plantings.py). The platform must stop safely before any work and report it; no model is graded.
+id: f4_fault_malformed_wine_quality
+split: test
+request: "Predict wine quality scores from physicochemical properties such as acidity, sugar, chlorides and alcohol content, so that winemakers can grade batches consistently."
+constraints:
+  target: "quality"
+  task_type: multiclass_classification
+  primary_metric: f1_macro
+dataset:
+  snapshot: uci-186-wine-quality
+  sha256: "28ce093e6fc2787987302606aa9294522a721254a0840f997c49885b595ca12a"
+  planted:
+    script: hypora/evaluation/cases/f4_faults/plantings.py
+    file: f4_fault_malformed_wine_quality.parquet
+    sha256: "093a0add306cce0d854ae63bcf7389fdfa5d15f9614e5b6330f73217b00a6c07"
+family: tabular
+permitted_tools:
+  - inspect_dataset
+  - run_diagnostic
+  - write_trial_files
+  - submit_experiment
+  - get_experiment_status
+  - get_experiment_metrics
+  - get_experiment_logs
+  - search_model_catalog
+  - get_model_evidence
+  - retrieve_methodology
+budget: &budget
+  max_usd: 0.6
+  max_compute_seconds: 1800
+  max_llm_tokens: 2000000
+  max_trials: 6
+  max_steps: 200
+  max_wall_clock_seconds: 3600
+approval_policy: auto_within_contract
+contract_bounds:
+  max_budget: *budget
+  max_job_limits:
+    max_wall_seconds: 300
+    max_memory_gb: 4
+    cpu_threads: 2
+hidden_split:
+  strategy: random
+  fraction: 0.25
+  seed: 20261120
+grading:
+  hidden_metric: null
+injected_faults:
+  - kind: malformed_data
+    expected: fail_safely
+expected_decision_class: train

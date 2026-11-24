@@ -10,7 +10,7 @@ in `SystemContext`, which the channel below applies from outside the agent's vie
 Refused rather than run, because the result would look like something it isn't (`UnsupportedCase`
 becomes a `harness_error` record):
 - a family other than tabular: the controller only runs tabular;
-- a fault this path can't inject (only `tool_error`, and `malformed_data`, which is in the data);
+- a fault this path can't inject (`tool_error`, `timeout`, and `malformed_data`);
 The trusted session narrows role permissions to the case's permitted tools, except when the
 allowlist defense is deliberately disabled by the comparison config.
 """
@@ -18,6 +18,7 @@ allowlist defense is deliberately disabled by the comparison config.
 import hashlib
 import json
 import secrets
+import threading
 import time
 from collections import Counter
 from collections.abc import Callable, Mapping
@@ -36,7 +37,7 @@ from hypora.core.controller.controller import (
     RunRequest,
     RunResult,
 )
-from hypora.core.controller.local import WorkerFactory, WorkerProcess
+from hypora.core.controller.local import WorkerFactory, WorkerHandle, WorkerProcess
 from hypora.core.controller.methodology import open_question_notes
 from hypora.core.controller.states import DONE
 from hypora.core.llm import LLMAdapter, ProviderAdmission
@@ -74,20 +75,26 @@ from hypora.evaluation.system import (
     SystemRun,
 )
 from hypora.execution.protocol import experiments as protocol
+from hypora.execution.worker.pools import WorkerCapacity
 from hypora.storage.artifacts import ArtifactStore
 from hypora.storage.database import Database
 from hypora.storage.events import EventFilters, EventLog
+from hypora.storage.jobs import JobQueue
 from hypora.storage.migrate import migrate
 from hypora.storage.records import (
     list_trials,
     load_experiment_contract,
     run_jobs,
+    set_trial_status,
 )
 
 AGENT_SYSTEM: Final = "agent"
 AGENT_ROLE: Final = ActorRole.SINGLE_AGENT
-INJECTABLE_FAULTS: Final = frozenset({FaultKind.TOOL_ERROR, FaultKind.MALFORMED_DATA})
-"""Tool errors fire here; malformed data is planted in the dataset. Other fault kinds are not
+INJECTABLE_FAULTS: Final = frozenset(
+    {FaultKind.TOOL_ERROR, FaultKind.MALFORMED_DATA, FaultKind.TIMEOUT}
+)
+"""Tool errors fire in the tool channel, timeouts fail the chosen queued job before the real
+worker starts it, and malformed data is planted in the dataset. Other fault kinds are not
 injectable yet."""
 UNSUPPORTED_HARD_CONSTRAINTS: Final = (
     "max_quality_degradation",
@@ -144,6 +151,11 @@ def check_supported(system_input: SystemInput, context: SystemContext) -> None:
             f"faults {sorted(kind.value for kind in faults)} can't be injected yet; "
             "running without them would grade a fault that never happened"
         )
+    for fault in context.injected_faults:
+        if fault.kind is FaultKind.TIMEOUT and fault.occurrence != 1:
+            raise UnsupportedCase(
+                "only occurrence=1 timeout faults can be injected safely without racing the worker"
+            )
     if context.run_config.flags.approval_policy is not ApprovalPolicy.AUTO_WITHIN_CONTRACT:
         raise UnsupportedCase("eval runs require auto_within_contract (spec 10.3)")
 
@@ -298,6 +310,119 @@ class FaultInjectingChannel:
         return notes
 
 
+class TimeoutInjectingWorker:
+    """Injects `TIMEOUT` on the first `occurrence=1` queued experiment job, then delegates to
+    the inner worker so subsequent recovery and FINAL jobs run in the real sandbox worker.
+
+    Failing the first job before starting `inner` prevents any lease race with `WorkerProcess`.
+    """
+
+    def __init__(
+        self,
+        inner: WorkerHandle,
+        *,
+        database: Path,
+        runs_root: Path,
+        worker_id: str,
+        poll_seconds: float,
+        fired_jobs: list[str],
+    ) -> None:
+        self._inner = inner
+        self._database = database
+        self._runs_root = runs_root
+        self._worker_id = worker_id
+        self._poll_seconds = min(poll_seconds, 0.5)
+        self._fired_jobs = fired_jobs
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._inner_started = threading.Event()
+        self._lock = threading.Lock()
+
+    def start(self) -> None:
+        """Watch the job queue until the first job is failed with TIMEOUT, then start `inner`."""
+        self._thread = threading.Thread(
+            target=self._run, name=f"timeout-injector-{self._worker_id}", daemon=True
+        )
+        self._thread.start()
+
+    def _run(self) -> None:
+        db = Database(self._database)
+        queue = JobQueue(db, lease_seconds=60.0, max_attempts=3)
+        capacity = WorkerCapacity(cpu_slots=8, gpu_slots=1, memory_gb=64.0)
+        try:
+            while not self._stop.is_set():
+                job = queue.lease(self._worker_id, capacity)
+                if job is None:
+                    self._stop.wait(self._poll_seconds)
+                    continue
+                self._inject_timeout(db, queue, job.id, job.run_id, job.trial_id, job.attempts)
+                with self._lock:
+                    if not self._stop.is_set():
+                        self._inner.start()
+                        self._inner_started.set()
+                return
+        finally:
+            db.close()
+
+    def _inject_timeout(
+        self,
+        db: Database,
+        queue: JobQueue,
+        job_id: str,
+        run_id: str,
+        trial_id: str,
+        attempt: int,
+    ) -> None:
+        queue.start(job_id, self._worker_id)
+        folder = protocol.job_dir(self._runs_root, run_id, job_id)
+        request = protocol.read_request(folder)
+        wall_limit = float(request.request.limits.max_wall_seconds)
+        message = "stage 0 (fit): exceeded wall-clock time limit"
+        protocol.append_stage_log(
+            folder,
+            protocol.StageLog(
+                attempt=attempt,
+                stage=0,
+                action="fit",
+                status="timeout",
+                duration_s=wall_limit,
+                lines=["[harness] stage 0 (fit): exceeded wall-clock time limit"],
+                truncated=False,
+                inputs=[],
+            ),
+        )
+        protocol.write_json_once(
+            folder / protocol.OUTCOME_FILE,
+            protocol.ExperimentOutcome(
+                job_id=job_id,
+                succeeded=False,
+                error_code="TIMEOUT",
+                error_message=message,
+                stages=1,
+                limits=request.request.limits,
+            ),
+        )
+        queue.fail(job_id, self._worker_id, code="TIMEOUT", message=message, retryable=False)
+        set_trial_status(db, trial_id, "failed")
+        self._fired_jobs.append(job_id)
+
+    def alive(self) -> bool:
+        """Return whether either the timeout injector thread or the inner worker is active."""
+        thread_alive = self._thread is not None and self._thread.is_alive()
+        inner_alive = self._inner_started.is_set() and self._inner.alive()
+        return thread_alive or inner_alive
+
+    def stop(self) -> int | None:
+        """Stop polling and cleanly shut down the inner worker if it started."""
+        with self._lock:
+            self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=5.0)
+        if self._inner_started.is_set():
+            return self._inner.stop()
+        return None
+
+
 def _decision_class(database: Database, run_id: str, trial_id: str) -> DecisionClass:
     """The decision the final trial's kind records: reusing a model as it is, or training one."""
     kinds = {trial.trial_id: trial.kind for trial in list_trials(database, run_id)}
@@ -446,6 +571,35 @@ class AgentSystem:
             channels.append(channel)
             return channel
 
+        timeout_fired_jobs: list[str] = []
+        has_timeout_fault = any(
+            fault.kind is FaultKind.TIMEOUT for fault in context.injected_faults
+        )
+        worker_factory: WorkerFactory = self._worker_factory
+        if has_timeout_fault:
+
+            def wrapped_worker_factory(
+                database: Path,
+                runs_root: Path,
+                log: Path,
+                *,
+                worker_id: str = "experiment-worker",
+                poll_seconds: float = 0.5,
+            ) -> WorkerHandle:
+                inner = self._worker_factory(
+                    database, runs_root, log, worker_id=worker_id, poll_seconds=poll_seconds
+                )
+                return TimeoutInjectingWorker(
+                    inner,
+                    database=database,
+                    runs_root=runs_root,
+                    worker_id=worker_id,
+                    poll_seconds=poll_seconds,
+                    fired_jobs=timeout_fired_jobs,
+                )
+
+            worker_factory = wrapped_worker_factory
+
         adapter: LLMAdapter | None = None
         try:
             migrate(database)
@@ -455,7 +609,7 @@ class AgentSystem:
                 runs_root=context.runs_root,
                 adapter=adapter,
                 run_config=run_config,
-                worker_factory=self._worker_factory,
+                worker_factory=worker_factory,
                 poll_seconds=self._poll_seconds,
                 max_agent_turns=self._max_agent_turns,
                 tool_channel_wrapper=wrap,
@@ -463,7 +617,15 @@ class AgentSystem:
             started = time.perf_counter()
             result = await controller.run(request)
             wall_clock = time.perf_counter() - started
-            return self._system_run(system_input, context, database, result, wall_clock, channels)
+            return self._system_run(
+                system_input,
+                context,
+                database,
+                result,
+                wall_clock,
+                channels,
+                timeout_fired_jobs,
+            )
         finally:
             if adapter is not None:
                 self._retry_waits[context.run_id] = adapter.retry_wait_s
@@ -477,6 +639,7 @@ class AgentSystem:
         result: RunResult,
         wall_clock: float,
         channels: list[FaultInjectingChannel],
+        timeout_fired_jobs: list[str] | None = None,
     ) -> SystemRun:
         final_model = None
         decision = None
@@ -495,8 +658,13 @@ class AgentSystem:
         )
         if channels:
             notes += channels[-1].fault_notes()
-        elif context.injected_faults:  # the run stopped before the agent had a tool channel
+        elif any(fault.kind is FaultKind.TOOL_ERROR for fault in context.injected_faults):
             notes.append("Injected faults did NOT fire: the agent never started.")
+        if any(fault.kind is FaultKind.TIMEOUT for fault in context.injected_faults):
+            if timeout_fired_jobs:
+                notes.append(f"Injected fault TIMEOUT fired on job {timeout_fired_jobs[0]}.")
+            else:
+                notes.append("Injected fault TIMEOUT did NOT fire: no experiment job was queued.")
         return SystemRun(
             case_id=system_input.case_id,
             system=self.name,
@@ -519,6 +687,7 @@ __all__ = [
     "AgentSystem",
     "FaultInjectingChannel",
     "FaultLedger",
+    "TimeoutInjectingWorker",
     "UnsupportedCase",
     "bounded_run_config",
     "check_supported",

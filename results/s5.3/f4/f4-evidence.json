@@ -1,0 +1,2119 @@
+{
+  "feature": "F4",
+  "title": "Planning & Error Recovery",
+  "generated_at": "2026-11-24T04:09:10.136996+00:00",
+  "provenance": {
+    "code_commit_sha": "06bfaa54c5f242950b9ddb04f3ecb607a2a23413",
+    "frozen_s52_commit": "62b4e3fb6016a0abddf70a14152252a62c8aca4a",
+    "reused_primary_cases": [
+      "test_fault_submit_banknote",
+      "test_fault_submit_spambase",
+      "test_fault_submit_superconductivity",
+      "test_fault_write_retinopathy",
+      "test_fault_malformed_landsat",
+      "test_fault_malformed_maternal"
+    ],
+    "reused_repeat_cases": [
+      "test_fault_submit_spambase"
+    ],
+    "model_id": "gpt-6-luna",
+    "agent_mode": "multi",
+    "price_retrieved_on": "2026-11-07",
+    "cap_usd": 2.2,
+    "new_live_spend_usd": 1.617521,
+    "reused_s52_spend_usd": 0.346217
+  },
+  "arms": {
+    "planning_on": {
+      "overall": {
+        "passed": 14,
+        "total": 15,
+        "rate": 0.9333,
+        "wilson_ci_95": [
+          0.7018,
+          0.9881
+        ]
+      },
+      "by_fault_kind": {
+        "tool_error": {
+          "passed": 4,
+          "total": 5,
+          "rate": 0.8,
+          "wilson_ci_95": [
+            0.3755,
+            0.9638
+          ]
+        },
+        "timeout": {
+          "passed": 5,
+          "total": 5,
+          "rate": 1.0,
+          "wilson_ci_95": [
+            0.5655,
+            1.0
+          ]
+        },
+        "malformed_data": {
+          "passed": 5,
+          "total": 5,
+          "rate": 1.0,
+          "wilson_ci_95": [
+            0.5655,
+            1.0
+          ]
+        }
+      },
+      "recovery_cases_only": {
+        "passed": 9,
+        "total": 10,
+        "rate": 0.9,
+        "wilson_ci_95": [
+          0.5958,
+          0.9821
+        ]
+      },
+      "latency_seconds": {
+        "count": 15,
+        "mean": 639.4,
+        "p95": 1248.61,
+        "method": "nearest-rank"
+      },
+      "cost_usd": {
+        "total": 0.461302,
+        "mean_per_case": 0.030753,
+        "price_retrieved_on": "2026-11-07"
+      },
+      "mechanisms": {
+        "plan_events_total": 50,
+        "plan_before_first_tool_count": 15,
+        "plan_before_first_tool_eligible": 15,
+        "plan_revisions_total": 0,
+        "recovery_policy_decisions_total": 8,
+        "recovery_retries_total": 5,
+        "recovery_replans_total": 0,
+        "recovery_stops_total": 0,
+        "escalations_total": 0
+      }
+    },
+    "planning_off": {
+      "overall": {
+        "passed": 15,
+        "total": 15,
+        "rate": 1.0,
+        "wilson_ci_95": [
+          0.7961,
+          1.0
+        ]
+      },
+      "by_fault_kind": {
+        "tool_error": {
+          "passed": 5,
+          "total": 5,
+          "rate": 1.0,
+          "wilson_ci_95": [
+            0.5655,
+            1.0
+          ]
+        },
+        "timeout": {
+          "passed": 5,
+          "total": 5,
+          "rate": 1.0,
+          "wilson_ci_95": [
+            0.5655,
+            1.0
+          ]
+        },
+        "malformed_data": {
+          "passed": 5,
+          "total": 5,
+          "rate": 1.0,
+          "wilson_ci_95": [
+            0.5655,
+            1.0
+          ]
+        }
+      },
+      "recovery_cases_only": {
+        "passed": 10,
+        "total": 10,
+        "rate": 1.0,
+        "wilson_ci_95": [
+          0.7225,
+          1.0
+        ]
+      },
+      "latency_seconds": {
+        "count": 15,
+        "mean": 803.16,
+        "p95": 1856.4,
+        "method": "nearest-rank"
+      },
+      "cost_usd": {
+        "total": 0.448148,
+        "mean_per_case": 0.029877,
+        "price_retrieved_on": "2026-11-07"
+      },
+      "mechanisms": {
+        "plan_events_total": 0,
+        "plan_before_first_tool_count": 0,
+        "plan_before_first_tool_eligible": 15,
+        "plan_revisions_total": 0,
+        "recovery_policy_decisions_total": 0,
+        "recovery_retries_total": 0,
+        "recovery_replans_total": 0,
+        "recovery_stops_total": 0,
+        "escalations_total": 0
+      }
+    }
+  },
+  "paired_comparisons": {
+    "all_15": {
+      "paired_table": {
+        "both_pass": 14,
+        "planning_on_only": 0,
+        "planning_off_only": 1,
+        "both_fail": 0
+      },
+      "paired_difference": -0.0667,
+      "bootstrap_ci_95": [
+        -0.2,
+        0.0
+      ],
+      "verdict": "inconclusive",
+      "resamples": 10000,
+      "seed": 1990
+    },
+    "recovery_only_10": {
+      "paired_table": {
+        "both_pass": 9,
+        "planning_on_only": 0,
+        "planning_off_only": 1,
+        "both_fail": 0
+      },
+      "paired_difference": -0.1,
+      "bootstrap_ci_95": [
+        -0.3,
+        0.0
+      ],
+      "verdict": "inconclusive",
+      "resamples": 10000,
+      "seed": 1990
+    },
+    "by_fault_kind": {
+      "tool_error": {
+        "paired_table": {
+          "both_pass": 4,
+          "planning_on_only": 0,
+          "planning_off_only": 1,
+          "both_fail": 0
+        },
+        "paired_difference": -0.2,
+        "bootstrap_ci_95": [
+          -0.6,
+          0.0
+        ],
+        "verdict": "inconclusive",
+        "resamples": 10000,
+        "seed": 1990
+      },
+      "timeout": {
+        "paired_table": {
+          "both_pass": 5,
+          "planning_on_only": 0,
+          "planning_off_only": 0,
+          "both_fail": 0
+        },
+        "paired_difference": 0.0,
+        "bootstrap_ci_95": [
+          0.0,
+          0.0
+        ],
+        "verdict": "inconclusive",
+        "resamples": 10000,
+        "seed": 1990
+      },
+      "malformed_data": {
+        "paired_table": {
+          "both_pass": 5,
+          "planning_on_only": 0,
+          "planning_off_only": 0,
+          "both_fail": 0
+        },
+        "paired_difference": 0.0,
+        "bootstrap_ci_95": [
+          0.0,
+          0.0
+        ],
+        "verdict": "inconclusive",
+        "resamples": 10000,
+        "seed": 1990
+      }
+    },
+    "latency_seconds": {
+      "all_15": {
+        "n": 15,
+        "mean_on": 639.404,
+        "mean_off": 803.1562,
+        "mean_difference": -163.7522,
+        "bootstrap_ci_95": [
+          -292.193,
+          -53.9711
+        ],
+        "resamples": 10000,
+        "seed": 1990
+      },
+      "recovery_only_10": {
+        "n": 10,
+        "mean_on": 880.188,
+        "mean_off": 1133.2124,
+        "mean_difference": -253.0244,
+        "bootstrap_ci_95": [
+          -415.4967,
+          -110.2036
+        ],
+        "resamples": 10000,
+        "seed": 1990
+      }
+    },
+    "cost_usd": {
+      "all_15": {
+        "n": 15,
+        "mean_on": 0.0308,
+        "mean_off": 0.0299,
+        "mean_difference": 0.0009,
+        "bootstrap_ci_95": [
+          -0.0016,
+          0.0031
+        ],
+        "resamples": 10000,
+        "seed": 1990
+      },
+      "recovery_only_10": {
+        "n": 10,
+        "mean_on": 0.0384,
+        "mean_off": 0.038,
+        "mean_difference": 0.0004,
+        "bootstrap_ci_95": [
+          -0.0032,
+          0.0036
+        ],
+        "resamples": 10000,
+        "seed": 1990
+      }
+    }
+  },
+  "per_case_primary": {
+    "planning_on": [
+      {
+        "case_id": "test_fault_submit_banknote",
+        "run_id": "run_a8df1b6e3e6b",
+        "fault_kind": "tool_error",
+        "expected": "recover",
+        "reused_from": "62b4e3fb6016a0abddf70a14152252a62c8aca4a/default",
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: recovered: submit_experiment call 1 returned WORKER_UNAVAILABLE",
+        "hidden_score": {
+          "metric": "roc_auc",
+          "value": 0.999863
+        },
+        "wall_clock_seconds": 624.822,
+        "cost_usd": 0.029953,
+        "model_calls": 49,
+        "input_tokens": 407468,
+        "output_tokens": 23199,
+        "tool_calls": 34,
+        "failed_tool_calls": 2,
+        "plan_events": 4,
+        "plan_before_first_tool": true,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 2,
+        "recovery_retries": 1,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 0,
+        "events_count": 308
+      },
+      {
+        "case_id": "test_fault_submit_spambase",
+        "run_id": "run_84c78d50554b",
+        "fault_kind": "tool_error",
+        "expected": "recover",
+        "reused_from": "62b4e3fb6016a0abddf70a14152252a62c8aca4a/default",
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: recovered: submit_experiment call 1 returned TOOL_UNAVAILABLE",
+        "hidden_score": {
+          "metric": "roc_auc",
+          "value": 0.986606
+        },
+        "wall_clock_seconds": 544.59,
+        "cost_usd": 0.040052,
+        "model_calls": 42,
+        "input_tokens": 572420,
+        "output_tokens": 24980,
+        "tool_calls": 34,
+        "failed_tool_calls": 1,
+        "plan_events": 4,
+        "plan_before_first_tool": true,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 1,
+        "recovery_retries": 1,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 0,
+        "events_count": 298
+      },
+      {
+        "case_id": "test_fault_submit_superconductivity",
+        "run_id": "run_90f177e2ffaf",
+        "fault_kind": "tool_error",
+        "expected": "recover",
+        "reused_from": "62b4e3fb6016a0abddf70a14152252a62c8aca4a/default",
+        "passed": false,
+        "status": "graded",
+        "failure_categories": [
+          "run_completed",
+          "final_model_provenance",
+          "hidden_split_score",
+          "reported_metric_honesty",
+          "fault_tool_error_0",
+          "decision_class"
+        ],
+        "fault_check": "failed: the run should have recovered and finished with a final model",
+        "hidden_score": null,
+        "wall_clock_seconds": 1248.605,
+        "cost_usd": 0.058289,
+        "model_calls": 45,
+        "input_tokens": 955028,
+        "output_tokens": 31497,
+        "tool_calls": 31,
+        "failed_tool_calls": 1,
+        "plan_events": 4,
+        "plan_before_first_tool": true,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 1,
+        "recovery_retries": 1,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 1,
+        "events_count": 284
+      },
+      {
+        "case_id": "test_fault_write_retinopathy",
+        "run_id": "run_bd88b265d1d7",
+        "fault_kind": "tool_error",
+        "expected": "recover",
+        "reused_from": "62b4e3fb6016a0abddf70a14152252a62c8aca4a/default",
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: recovered: write_trial_files call 1 returned TOOL_UNAVAILABLE",
+        "hidden_score": {
+          "metric": "roc_auc",
+          "value": 0.783394
+        },
+        "wall_clock_seconds": 710.066,
+        "cost_usd": 0.041087,
+        "model_calls": 49,
+        "input_tokens": 515298,
+        "output_tokens": 30545,
+        "tool_calls": 39,
+        "failed_tool_calls": 1,
+        "plan_events": 4,
+        "plan_before_first_tool": true,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 1,
+        "recovery_retries": 1,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 0,
+        "events_count": 334
+      },
+      {
+        "case_id": "test_fault_malformed_landsat",
+        "run_id": "run_3983f7c5c2b6",
+        "fault_kind": "malformed_data",
+        "expected": "fail_safely",
+        "reused_from": "62b4e3fb6016a0abddf70a14152252a62c8aca4a/default",
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: stopped safely (controller_error): the platform stopped on DATA_MALFORMED",
+        "hidden_score": null,
+        "wall_clock_seconds": 178.82,
+        "cost_usd": 0.017814,
+        "model_calls": 14,
+        "input_tokens": 101103,
+        "output_tokens": 17624,
+        "tool_calls": 8,
+        "failed_tool_calls": 0,
+        "plan_events": 2,
+        "plan_before_first_tool": true,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 0,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 0,
+        "events_count": 83
+      },
+      {
+        "case_id": "test_fault_malformed_maternal",
+        "run_id": "run_aa54d7c736e1",
+        "fault_kind": "malformed_data",
+        "expected": "fail_safely",
+        "reused_from": "62b4e3fb6016a0abddf70a14152252a62c8aca4a/default",
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: stopped safely (controller_error): the platform stopped on DATA_MALFORMED",
+        "hidden_score": null,
+        "wall_clock_seconds": 149.515,
+        "cost_usd": 0.013194,
+        "model_calls": 14,
+        "input_tokens": 67521,
+        "output_tokens": 14557,
+        "tool_calls": 10,
+        "failed_tool_calls": 0,
+        "plan_events": 2,
+        "plan_before_first_tool": true,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 0,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 0,
+        "events_count": 93
+      },
+      {
+        "case_id": "f4_fault_inspect_rice",
+        "run_id": "run_25adbb76021f",
+        "fault_kind": "tool_error",
+        "expected": "recover",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: recovered: inspect_dataset call 1 returned TOOL_UNAVAILABLE",
+        "hidden_score": {
+          "metric": "roc_auc",
+          "value": 0.981674
+        },
+        "wall_clock_seconds": 1057.374,
+        "cost_usd": 0.032272,
+        "model_calls": 46,
+        "input_tokens": 541789,
+        "output_tokens": 23027,
+        "tool_calls": 42,
+        "failed_tool_calls": 1,
+        "plan_events": 4,
+        "plan_before_first_tool": true,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 1,
+        "recovery_retries": 1,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 0,
+        "events_count": 351
+      },
+      {
+        "case_id": "f4_fault_malformed_wine_quality",
+        "run_id": "run_00d0ca0f26b1",
+        "fault_kind": "malformed_data",
+        "expected": "fail_safely",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: stopped safely (controller_error): the platform stopped on DATA_MALFORMED",
+        "hidden_score": null,
+        "wall_clock_seconds": 146.686,
+        "cost_usd": 0.013639,
+        "model_calls": 14,
+        "input_tokens": 75643,
+        "output_tokens": 14351,
+        "tool_calls": 9,
+        "failed_tool_calls": 0,
+        "plan_events": 2,
+        "plan_before_first_tool": true,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 0,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 0,
+        "events_count": 88
+      },
+      {
+        "case_id": "f4_fault_malformed_dry_bean",
+        "run_id": "run_1c85672edc06",
+        "fault_kind": "malformed_data",
+        "expected": "fail_safely",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: stopped safely (controller_error): the platform stopped on DATA_MALFORMED",
+        "hidden_score": null,
+        "wall_clock_seconds": 123.444,
+        "cost_usd": 0.012222,
+        "model_calls": 14,
+        "input_tokens": 75438,
+        "output_tokens": 11709,
+        "tool_calls": 10,
+        "failed_tool_calls": 0,
+        "plan_events": 2,
+        "plan_before_first_tool": true,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 0,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 0,
+        "events_count": 93
+      },
+      {
+        "case_id": "f4_fault_malformed_student_dropout",
+        "run_id": "run_1874b101e431",
+        "fault_kind": "malformed_data",
+        "expected": "fail_safely",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: stopped safely (controller_error): the platform stopped on DATA_MALFORMED",
+        "hidden_score": null,
+        "wall_clock_seconds": 190.715,
+        "cost_usd": 0.020906,
+        "model_calls": 16,
+        "input_tokens": 135487,
+        "output_tokens": 19598,
+        "tool_calls": 13,
+        "failed_tool_calls": 1,
+        "plan_events": 2,
+        "plan_before_first_tool": true,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 1,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 0,
+        "events_count": 111
+      },
+      {
+        "case_id": "f4_fault_timeout_banknote",
+        "run_id": "run_b6a28b0a71b9",
+        "fault_kind": "timeout",
+        "expected": "recover",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: recovered: job job_1795478628578688749_1241b8 failed with TIMEOUT",
+        "hidden_score": {
+          "metric": "roc_auc",
+          "value": 0.999008
+        },
+        "wall_clock_seconds": 1030.155,
+        "cost_usd": 0.035885,
+        "model_calls": 61,
+        "input_tokens": 586795,
+        "output_tokens": 26752,
+        "tool_calls": 45,
+        "failed_tool_calls": 0,
+        "plan_events": 4,
+        "plan_before_first_tool": true,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 0,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 1,
+        "events_count": 380
+      },
+      {
+        "case_id": "f4_fault_timeout_breast_cancer",
+        "run_id": "run_9e61031f8018",
+        "fault_kind": "timeout",
+        "expected": "recover",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: recovered: job job_1795478650681942061_88afb0 failed with TIMEOUT",
+        "hidden_score": {
+          "metric": "roc_auc",
+          "value": 0.987068
+        },
+        "wall_clock_seconds": 850.167,
+        "cost_usd": 0.033454,
+        "model_calls": 41,
+        "input_tokens": 473152,
+        "output_tokens": 21700,
+        "tool_calls": 33,
+        "failed_tool_calls": 1,
+        "plan_events": 4,
+        "plan_before_first_tool": true,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 1,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 1,
+        "events_count": 295
+      },
+      {
+        "case_id": "f4_fault_timeout_rice",
+        "run_id": "run_539e4b3e3060",
+        "fault_kind": "timeout",
+        "expected": "recover",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: recovered: job job_1795477370807626426_f55c45 failed with TIMEOUT",
+        "hidden_score": {
+          "metric": "roc_auc",
+          "value": 0.973912
+        },
+        "wall_clock_seconds": 891.806,
+        "cost_usd": 0.032518,
+        "model_calls": 52,
+        "input_tokens": 507095,
+        "output_tokens": 22204,
+        "tool_calls": 40,
+        "failed_tool_calls": 0,
+        "plan_events": 4,
+        "plan_before_first_tool": true,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 0,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 1,
+        "events_count": 344
+      },
+      {
+        "case_id": "f4_fault_timeout_phishing",
+        "run_id": "run_6b300d66384c",
+        "fault_kind": "timeout",
+        "expected": "recover",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: recovered: job job_1795477386742463150_924b20 failed with TIMEOUT",
+        "hidden_score": {
+          "metric": "roc_auc",
+          "value": 0.992842
+        },
+        "wall_clock_seconds": 862.508,
+        "cost_usd": 0.03758,
+        "model_calls": 42,
+        "input_tokens": 601686,
+        "output_tokens": 23731,
+        "tool_calls": 38,
+        "failed_tool_calls": 0,
+        "plan_events": 4,
+        "plan_before_first_tool": true,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 0,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 1,
+        "events_count": 312
+      },
+      {
+        "case_id": "f4_fault_timeout_spambase",
+        "run_id": "run_622ab108cc97",
+        "fault_kind": "timeout",
+        "expected": "recover",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: recovered: job job_1795477562490365613_966aec failed with TIMEOUT",
+        "hidden_score": {
+          "metric": "roc_auc",
+          "value": 0.983085
+        },
+        "wall_clock_seconds": 981.787,
+        "cost_usd": 0.042437,
+        "model_calls": 48,
+        "input_tokens": 564773,
+        "output_tokens": 26623,
+        "tool_calls": 38,
+        "failed_tool_calls": 0,
+        "plan_events": 4,
+        "plan_before_first_tool": true,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 0,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 1,
+        "events_count": 329
+      }
+    ],
+    "planning_off": [
+      {
+        "case_id": "test_fault_submit_banknote",
+        "run_id": "run_3fbed92ed4b5",
+        "fault_kind": "tool_error",
+        "expected": "recover",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: recovered: submit_experiment call 1 returned WORKER_UNAVAILABLE",
+        "hidden_score": {
+          "metric": "roc_auc",
+          "value": 1.0
+        },
+        "wall_clock_seconds": 925.134,
+        "cost_usd": 0.030267,
+        "model_calls": 50,
+        "input_tokens": 458235,
+        "output_tokens": 22790,
+        "tool_calls": 40,
+        "failed_tool_calls": 2,
+        "plan_events": 0,
+        "plan_before_first_tool": false,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 0,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 0,
+        "events_count": 317
+      },
+      {
+        "case_id": "test_fault_submit_spambase",
+        "run_id": "run_e6922c89970d",
+        "fault_kind": "tool_error",
+        "expected": "recover",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: recovered: submit_experiment call 1 returned TOOL_UNAVAILABLE",
+        "hidden_score": {
+          "metric": "roc_auc",
+          "value": 0.985891
+        },
+        "wall_clock_seconds": 1302.506,
+        "cost_usd": 0.052182,
+        "model_calls": 60,
+        "input_tokens": 1026602,
+        "output_tokens": 32331,
+        "tool_calls": 49,
+        "failed_tool_calls": 1,
+        "plan_events": 0,
+        "plan_before_first_tool": false,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 0,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 0,
+        "events_count": 382
+      },
+      {
+        "case_id": "test_fault_submit_superconductivity",
+        "run_id": "run_ba6a29f3b434",
+        "fault_kind": "tool_error",
+        "expected": "recover",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: recovered: submit_experiment call 1 returned RATE_LIMITED",
+        "hidden_score": {
+          "metric": "mae",
+          "value": 5.808926
+        },
+        "wall_clock_seconds": 1856.401,
+        "cost_usd": 0.049243,
+        "model_calls": 57,
+        "input_tokens": 1373721,
+        "output_tokens": 23384,
+        "tool_calls": 43,
+        "failed_tool_calls": 1,
+        "plan_events": 0,
+        "plan_before_first_tool": false,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 0,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 0,
+        "events_count": 344
+      },
+      {
+        "case_id": "test_fault_write_retinopathy",
+        "run_id": "run_11e896a3c65b",
+        "fault_kind": "tool_error",
+        "expected": "recover",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: recovered: write_trial_files call 1 returned TOOL_UNAVAILABLE",
+        "hidden_score": {
+          "metric": "roc_auc",
+          "value": 0.803341
+        },
+        "wall_clock_seconds": 985.624,
+        "cost_usd": 0.035355,
+        "model_calls": 46,
+        "input_tokens": 425660,
+        "output_tokens": 30803,
+        "tool_calls": 48,
+        "failed_tool_calls": 1,
+        "plan_events": 0,
+        "plan_before_first_tool": false,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 0,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 0,
+        "events_count": 362
+      },
+      {
+        "case_id": "test_fault_malformed_landsat",
+        "run_id": "run_b40dc54bda69",
+        "fault_kind": "malformed_data",
+        "expected": "fail_safely",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: stopped safely (controller_error): the platform stopped on DATA_MALFORMED",
+        "hidden_score": null,
+        "wall_clock_seconds": 150.785,
+        "cost_usd": 0.014114,
+        "model_calls": 13,
+        "input_tokens": 86714,
+        "output_tokens": 15883,
+        "tool_calls": 6,
+        "failed_tool_calls": 0,
+        "plan_events": 0,
+        "plan_before_first_tool": false,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 0,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 0,
+        "events_count": 66
+      },
+      {
+        "case_id": "test_fault_malformed_maternal",
+        "run_id": "run_8ac15e1a98fe",
+        "fault_kind": "malformed_data",
+        "expected": "fail_safely",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: stopped safely (controller_error): the platform stopped on DATA_MALFORMED",
+        "hidden_score": null,
+        "wall_clock_seconds": 112.772,
+        "cost_usd": 0.011343,
+        "model_calls": 11,
+        "input_tokens": 54397,
+        "output_tokens": 12093,
+        "tool_calls": 6,
+        "failed_tool_calls": 0,
+        "plan_events": 0,
+        "plan_before_first_tool": false,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 0,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 0,
+        "events_count": 64
+      },
+      {
+        "case_id": "f4_fault_inspect_rice",
+        "run_id": "run_fcb202fdcb57",
+        "fault_kind": "tool_error",
+        "expected": "recover",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: recovered: inspect_dataset call 1 returned TOOL_UNAVAILABLE",
+        "hidden_score": {
+          "metric": "roc_auc",
+          "value": 0.981674
+        },
+        "wall_clock_seconds": 1218.268,
+        "cost_usd": 0.034391,
+        "model_calls": 59,
+        "input_tokens": 722260,
+        "output_tokens": 23695,
+        "tool_calls": 49,
+        "failed_tool_calls": 2,
+        "plan_events": 0,
+        "plan_before_first_tool": false,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 0,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 0,
+        "events_count": 382
+      },
+      {
+        "case_id": "f4_fault_malformed_wine_quality",
+        "run_id": "run_5ae213fa60c7",
+        "fault_kind": "malformed_data",
+        "expected": "fail_safely",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: stopped safely (controller_error): the platform stopped on DATA_MALFORMED",
+        "hidden_score": null,
+        "wall_clock_seconds": 133.762,
+        "cost_usd": 0.011572,
+        "model_calls": 11,
+        "input_tokens": 50956,
+        "output_tokens": 13724,
+        "tool_calls": 8,
+        "failed_tool_calls": 0,
+        "plan_events": 0,
+        "plan_before_first_tool": false,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 0,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 0,
+        "events_count": 75
+      },
+      {
+        "case_id": "f4_fault_malformed_dry_bean",
+        "run_id": "run_c0e312b09e6e",
+        "fault_kind": "malformed_data",
+        "expected": "fail_safely",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: stopped safely (controller_error): the platform stopped on DATA_MALFORMED",
+        "hidden_score": null,
+        "wall_clock_seconds": 146.815,
+        "cost_usd": 0.013706,
+        "model_calls": 13,
+        "input_tokens": 87174,
+        "output_tokens": 14283,
+        "tool_calls": 11,
+        "failed_tool_calls": 0,
+        "plan_events": 0,
+        "plan_before_first_tool": false,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 0,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 0,
+        "events_count": 91
+      },
+      {
+        "case_id": "f4_fault_malformed_student_dropout",
+        "run_id": "run_abcfa6d28ca0",
+        "fault_kind": "malformed_data",
+        "expected": "fail_safely",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: stopped safely (controller_error): the platform stopped on DATA_MALFORMED",
+        "hidden_score": null,
+        "wall_clock_seconds": 171.085,
+        "cost_usd": 0.017396,
+        "model_calls": 15,
+        "input_tokens": 117901,
+        "output_tokens": 17736,
+        "tool_calls": 16,
+        "failed_tool_calls": 3,
+        "plan_events": 0,
+        "plan_before_first_tool": false,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 0,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 0,
+        "events_count": 119
+      },
+      {
+        "case_id": "f4_fault_timeout_banknote",
+        "run_id": "run_114ecd1de62c",
+        "fault_kind": "timeout",
+        "expected": "recover",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: recovered: job job_1795485988703538625_ea87e8 failed with TIMEOUT",
+        "hidden_score": {
+          "metric": "roc_auc",
+          "value": 1.0
+        },
+        "wall_clock_seconds": 885.047,
+        "cost_usd": 0.031113,
+        "model_calls": 44,
+        "input_tokens": 455024,
+        "output_tokens": 27864,
+        "tool_calls": 35,
+        "failed_tool_calls": 1,
+        "plan_events": 0,
+        "plan_before_first_tool": false,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 0,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 1,
+        "events_count": 297
+      },
+      {
+        "case_id": "f4_fault_timeout_breast_cancer",
+        "run_id": "run_ea182c3acdd8",
+        "fault_kind": "timeout",
+        "expected": "recover",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: recovered: job job_1795486045027221570_d61645 failed with TIMEOUT",
+        "hidden_score": {
+          "metric": "roc_auc",
+          "value": 0.987068
+        },
+        "wall_clock_seconds": 969.517,
+        "cost_usd": 0.035867,
+        "model_calls": 46,
+        "input_tokens": 728907,
+        "output_tokens": 21818,
+        "tool_calls": 40,
+        "failed_tool_calls": 0,
+        "plan_events": 0,
+        "plan_before_first_tool": false,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 0,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 1,
+        "events_count": 319
+      },
+      {
+        "case_id": "f4_fault_timeout_rice",
+        "run_id": "run_9e4114615777",
+        "fault_kind": "timeout",
+        "expected": "recover",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: recovered: job job_1795486703020898358_16299c failed with TIMEOUT",
+        "hidden_score": {
+          "metric": "roc_auc",
+          "value": 0.973912
+        },
+        "wall_clock_seconds": 1070.891,
+        "cost_usd": 0.030869,
+        "model_calls": 50,
+        "input_tokens": 531088,
+        "output_tokens": 25987,
+        "tool_calls": 47,
+        "failed_tool_calls": 0,
+        "plan_events": 0,
+        "plan_before_first_tool": false,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 0,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 1,
+        "events_count": 368
+      },
+      {
+        "case_id": "f4_fault_timeout_phishing",
+        "run_id": "run_cf340b711989",
+        "fault_kind": "timeout",
+        "expected": "recover",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: recovered: job job_1795486852538962920_2df32e failed with TIMEOUT",
+        "hidden_score": {
+          "metric": "roc_auc",
+          "value": 0.992532
+        },
+        "wall_clock_seconds": 1013.401,
+        "cost_usd": 0.036967,
+        "model_calls": 49,
+        "input_tokens": 605544,
+        "output_tokens": 25600,
+        "tool_calls": 43,
+        "failed_tool_calls": 0,
+        "plan_events": 0,
+        "plan_before_first_tool": false,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 0,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 1,
+        "events_count": 340
+      },
+      {
+        "case_id": "f4_fault_timeout_spambase",
+        "run_id": "run_5db84701ff6c",
+        "fault_kind": "timeout",
+        "expected": "recover",
+        "reused_from": null,
+        "passed": true,
+        "status": "graded",
+        "failure_categories": [],
+        "fault_check": "passed: recovered: job job_1795487100683713284_950cf3 failed with TIMEOUT",
+        "hidden_score": {
+          "metric": "roc_auc",
+          "value": 0.978511
+        },
+        "wall_clock_seconds": 1105.335,
+        "cost_usd": 0.043763,
+        "model_calls": 46,
+        "input_tokens": 643465,
+        "output_tokens": 32324,
+        "tool_calls": 41,
+        "failed_tool_calls": 0,
+        "plan_events": 0,
+        "plan_before_first_tool": false,
+        "plan_revisions": 0,
+        "recovery_policy_decisions": 0,
+        "recovery_retries": 0,
+        "recovery_replans": 0,
+        "recovery_stops": 0,
+        "escalations": 0,
+        "timeout_job_failures": 1,
+        "events_count": 328
+      }
+    ]
+  },
+  "repeat_sample_6x3": {
+    "planning_on": {
+      "total_runs": 18,
+      "overall": {
+        "passed": 18,
+        "total": 18,
+        "rate": 1.0,
+        "wilson_ci_95": [
+          0.8241,
+          1.0
+        ]
+      },
+      "latency_mean_s": 674.18,
+      "latency_p95_s": 1130.27,
+      "total_cost_usd": 0.543632,
+      "per_case": {
+        "test_fault_submit_spambase": {
+          "runs": 3,
+          "passes": 3,
+          "reused_from_s52": true,
+          "run_ids": [
+            "run_3eb62e3ae326",
+            "run_06a9ad04fb92",
+            "run_83d2a09d8faa"
+          ]
+        },
+        "f4_fault_inspect_rice": {
+          "runs": 3,
+          "passes": 3,
+          "reused_from_s52": false,
+          "run_ids": [
+            "run_1a73caab62fe",
+            "run_999129d06d36",
+            "run_7913850b374e"
+          ]
+        },
+        "f4_fault_malformed_wine_quality": {
+          "runs": 3,
+          "passes": 3,
+          "reused_from_s52": false,
+          "run_ids": [
+            "run_898f43afabb1",
+            "run_752ed6729aef",
+            "run_44ba2d87239b"
+          ]
+        },
+        "f4_fault_malformed_student_dropout": {
+          "runs": 3,
+          "passes": 3,
+          "reused_from_s52": false,
+          "run_ids": [
+            "run_57e00fb7de2f",
+            "run_ec12444bcac1",
+            "run_01c32ec5c6a1"
+          ]
+        },
+        "f4_fault_timeout_banknote": {
+          "runs": 3,
+          "passes": 3,
+          "reused_from_s52": false,
+          "run_ids": [
+            "run_8f4438be1ce1",
+            "run_8d104315e489",
+            "run_78c9d22fec4b"
+          ]
+        },
+        "f4_fault_timeout_breast_cancer": {
+          "runs": 3,
+          "passes": 3,
+          "reused_from_s52": false,
+          "run_ids": [
+            "run_53e4f5c17fd9",
+            "run_d0ee2fd5406f",
+            "run_697050e555a8"
+          ]
+        }
+      }
+    },
+    "planning_off": {
+      "total_runs": 18,
+      "overall": {
+        "passed": 18,
+        "total": 18,
+        "rate": 1.0,
+        "wilson_ci_95": [
+          0.8241,
+          1.0
+        ]
+      },
+      "latency_mean_s": 826.69,
+      "latency_p95_s": 1468.95,
+      "total_cost_usd": 0.510656,
+      "per_case": {
+        "test_fault_submit_spambase": {
+          "runs": 3,
+          "passes": 3,
+          "reused_from_s52": false,
+          "run_ids": [
+            "run_c6deb4377b25",
+            "run_49e51820f57e",
+            "run_c36860f019c2"
+          ]
+        },
+        "f4_fault_inspect_rice": {
+          "runs": 3,
+          "passes": 3,
+          "reused_from_s52": false,
+          "run_ids": [
+            "run_f3b20254a51b",
+            "run_20ccb74de030",
+            "run_ec05d8dfaa06"
+          ]
+        },
+        "f4_fault_malformed_wine_quality": {
+          "runs": 3,
+          "passes": 3,
+          "reused_from_s52": false,
+          "run_ids": [
+            "run_9d25be02c228",
+            "run_06df6bf5b6a0",
+            "run_93a84bd2df90"
+          ]
+        },
+        "f4_fault_malformed_student_dropout": {
+          "runs": 3,
+          "passes": 3,
+          "reused_from_s52": false,
+          "run_ids": [
+            "run_b1baddb0d167",
+            "run_6f07ad62ae41",
+            "run_f868d8c59798"
+          ]
+        },
+        "f4_fault_timeout_banknote": {
+          "runs": 3,
+          "passes": 3,
+          "reused_from_s52": false,
+          "run_ids": [
+            "run_e6a6336c9e2c",
+            "run_842b9397af66",
+            "run_d463281d337a"
+          ]
+        },
+        "f4_fault_timeout_breast_cancer": {
+          "runs": 3,
+          "passes": 3,
+          "reused_from_s52": false,
+          "run_ids": [
+            "run_012cb43c6a41",
+            "run_8a22f3654a6e",
+            "run_43a447f3a3f6"
+          ]
+        }
+      }
+    }
+  },
+  "representative_traces": [
+    {
+      "label": "recovered_tool_error_planning_on",
+      "case_id": "test_fault_submit_banknote",
+      "run_id": "run_a8df1b6e3e6b",
+      "planning_flag": "on",
+      "total_events": 308,
+      "key_events": [
+        {
+          "seq": 1,
+          "offset_hint": "2026-11-22T00:22:28.264132+00:00",
+          "role": "controller",
+          "type": "stage_transition",
+          "summary": "stage=INTAKE reason=run created"
+        },
+        {
+          "seq": 5,
+          "offset_hint": "2026-11-22T00:22:30.200286+00:00",
+          "role": "controller",
+          "type": "stage_transition",
+          "summary": "stage=PROFILE reason=intake_done: task spec v1: binary_classification"
+        },
+        {
+          "seq": 6,
+          "offset_hint": "2026-11-22T00:22:30.235082+00:00",
+          "role": "controller",
+          "type": "stage_transition",
+          "summary": "stage=CONTRACT reason=profiled: profile 0a221116ef35"
+        },
+        {
+          "seq": 15,
+          "offset_hint": "2026-11-22T00:22:42.230661+00:00",
+          "role": "agent_a",
+          "type": "plan",
+          "summary": "plan_id=plan_9c6a272c17aa revises=None steps=4 Gather bounded research evidence for the task"
+        },
+        {
+          "seq": 63,
+          "offset_hint": "2026-11-22T00:24:40.415036+00:00",
+          "role": "agent_a",
+          "type": "plan",
+          "summary": "plan_id=plan_c9277b88af46 revises=None steps=2 Run a bounded experiment under the approved contract"
+        },
+        {
+          "seq": 76,
+          "offset_hint": "2026-11-22T00:25:04.568010+00:00",
+          "role": "agent_a",
+          "type": "plan",
+          "summary": "plan_id=plan_955df96b3dcf revises=None steps=2 Run a bounded experiment under the approved contract"
+        },
+        {
+          "seq": 86,
+          "offset_hint": "2026-11-22T00:25:18.604523+00:00",
+          "role": "controller",
+          "type": "stage_transition",
+          "summary": "stage=PHASE_B reason=approved: plan approved by policy:auto_within_contract (auto_within_contract); A authorized C assignment: {\"chars\": 457, \"sha256\": \"7c12708d6837f2121a36f39ea0a8fdc2105fd1663438bf9050b635c0b85dda66\"}"
+        },
+        {
+          "seq": 90,
+          "offset_hint": "2026-11-22T00:25:26.030283+00:00",
+          "role": "agent_a",
+          "type": "plan",
+          "summary": "plan_id=plan_855933709f1a revises=None steps=4 Run a bounded experiment under the approved contract"
+        },
+        {
+          "seq": 103,
+          "offset_hint": "2026-11-22T00:25:49.939454+00:00",
+          "role": "trial_worker",
+          "type": "tool_call",
+          "summary": "tool=submit_experiment"
+        },
+        {
+          "seq": 106,
+          "offset_hint": "2026-11-22T00:25:49.998348+00:00",
+          "role": "trial_worker",
+          "type": "tool_result",
+          "summary": "tool=submit_experiment ERROR code=WORKER_UNAVAILABLE retryable=True"
+        },
+        {
+          "seq": 107,
+          "offset_hint": "2026-11-22T00:25:50.033706+00:00",
+          "role": "policy_engine",
+          "type": "policy_decision",
+          "summary": "tool=submit_experiment decision=allow reasons=['recovery=retry', 'error_code=WORKER_UNAVAILABLE', 'error_class=transient', 'retryable=true', 'attempt=1', 'backoff_ms=579']"
+        },
+        {
+          "seq": 112,
+          "offset_hint": "2026-11-22T00:25:50.636883+00:00",
+          "role": "trial_worker",
+          "type": "tool_call",
+          "summary": "tool=submit_experiment"
+        },
+        {
+          "seq": 119,
+          "offset_hint": "2026-11-22T00:25:50.756455+00:00",
+          "role": "trial_worker",
+          "type": "tool_result",
+          "summary": "tool=submit_experiment OK"
+        },
+        {
+          "seq": 122,
+          "offset_hint": "2026-11-22T00:25:51.671819+00:00",
+          "role": "trial_worker",
+          "type": "tool_call",
+          "summary": "tool=submit_experiment"
+        },
+        {
+          "seq": 159,
+          "offset_hint": "2026-11-22T00:27:00.145785+00:00",
+          "role": "trial_worker",
+          "type": "error",
+          "summary": "component=worker code=WORKER_LIMIT_REACHED msg=Worker brief limit reached."
+        },
+        {
+          "seq": 174,
+          "offset_hint": "2026-11-22T00:28:02.057407+00:00",
+          "role": "agent_c",
+          "type": "tool_call",
+          "summary": "tool=inspect_dataset"
+        },
+        {
+          "seq": 177,
+          "offset_hint": "2026-11-22T00:28:02.159694+00:00",
+          "role": "agent_c",
+          "type": "tool_result",
+          "summary": "tool=inspect_dataset ERROR code=DATASET_NOT_FOUND retryable=False"
+        },
+        {
+          "seq": 178,
+          "offset_hint": "2026-11-22T00:28:02.175303+00:00",
+          "role": "policy_engine",
+          "type": "policy_decision",
+          "summary": "tool=inspect_dataset decision=allow reasons=['recovery=clarify', 'error_code=DATASET_NOT_FOUND', 'error_class=missing_data', 'retryable=false']"
+        },
+        {
+          "seq": 180,
+          "offset_hint": "2026-11-22T00:28:03.456714+00:00",
+          "role": "agent_c",
+          "type": "tool_call",
+          "summary": "tool=inspect_dataset"
+        },
+        {
+          "seq": 184,
+          "offset_hint": "2026-11-22T00:28:03.628262+00:00",
+          "role": "agent_c",
+          "type": "tool_result",
+          "summary": "tool=inspect_dataset OK"
+        },
+        {
+          "seq": 191,
+          "offset_hint": "2026-11-22T00:28:11.749478+00:00",
+          "role": "agent_c",
+          "type": "tool_call",
+          "summary": "tool=submit_experiment"
+        },
+        {
+          "seq": 207,
+          "offset_hint": "2026-11-22T00:28:18.284741+00:00",
+          "role": "agent_c",
+          "type": "tool_call",
+          "summary": "tool=submit_experiment"
+        },
+        {
+          "seq": 221,
+          "offset_hint": "2026-11-22T00:28:23.716249+00:00",
+          "role": "agent_c",
+          "type": "tool_call",
+          "summary": "tool=submit_experiment"
+        },
+        {
+          "seq": 226,
+          "offset_hint": "2026-11-22T00:28:23.802183+00:00",
+          "role": "agent_c",
+          "type": "job_transition",
+          "summary": "job=job_1795307303767535671_ee4472 -> QUEUED (approved by appr_run_a8df1b6e3e6b_plan_v2)"
+        },
+        {
+          "seq": 247,
+          "offset_hint": "2026-11-22T00:30:20.301002+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795307303767535671_ee4472 -> LEASED (leased by worker-run_a8df1b6e3e6b (attempt 1))"
+        },
+        {
+          "seq": 248,
+          "offset_hint": "2026-11-22T00:30:20.350276+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795307303767535671_ee4472 -> RUNNING (sandbox starting)"
+        },
+        {
+          "seq": 276,
+          "offset_hint": "2026-11-22T00:31:18.994949+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795307303767535671_ee4472 -> COMPLETED (validated: 10 sandbox stages)"
+        },
+        {
+          "seq": 299,
+          "offset_hint": "2026-11-22T00:31:35.536127+00:00",
+          "role": "controller",
+          "type": "job_transition",
+          "summary": "job=job_1795307495519172640_ddfef4 -> QUEUED (approved by appr_run_a8df1b6e3e6b_plan_v2)"
+        },
+        {
+          "seq": 300,
+          "offset_hint": "2026-11-22T00:31:36.004731+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795307495519172640_ddfef4 -> LEASED (leased by worker-run_a8df1b6e3e6b (attempt 1))"
+        },
+        {
+          "seq": 301,
+          "offset_hint": "2026-11-22T00:31:36.063689+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795307495519172640_ddfef4 -> RUNNING (sandbox starting)"
+        },
+        {
+          "seq": 302,
+          "offset_hint": "2026-11-22T00:32:44.452393+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795307495519172640_ddfef4 -> COMPLETED (verified: 12 sandbox stages)"
+        },
+        {
+          "seq": 304,
+          "offset_hint": "2026-11-22T00:32:45.695402+00:00",
+          "role": "controller",
+          "type": "stage_transition",
+          "summary": "stage=REPORT reason=phase_b_done: Final job job_1795307495519172640_ddfef4: test split scored once; verifier v1 passed."
+        },
+        {
+          "seq": 308,
+          "offset_hint": "2026-11-22T00:32:51.047144+00:00",
+          "role": "controller",
+          "type": "stage_transition",
+          "summary": "stage=None reason=reported_verified: verified final model"
+        }
+      ]
+    },
+    {
+      "label": "recovered_timeout_planning_on",
+      "case_id": "f4_fault_timeout_banknote",
+      "run_id": "run_b6a28b0a71b9",
+      "planning_flag": "on",
+      "total_events": 380,
+      "key_events": [
+        {
+          "seq": 1,
+          "offset_hint": "2026-11-24T00:00:25.073197+00:00",
+          "role": "controller",
+          "type": "stage_transition",
+          "summary": "stage=INTAKE reason=run created"
+        },
+        {
+          "seq": 5,
+          "offset_hint": "2026-11-24T00:00:28.639777+00:00",
+          "role": "controller",
+          "type": "stage_transition",
+          "summary": "stage=PROFILE reason=intake_done: task spec v1: binary_classification"
+        },
+        {
+          "seq": 6,
+          "offset_hint": "2026-11-24T00:00:28.673758+00:00",
+          "role": "controller",
+          "type": "stage_transition",
+          "summary": "stage=CONTRACT reason=profiled: profile b4072d6dbef3"
+        },
+        {
+          "seq": 15,
+          "offset_hint": "2026-11-24T00:00:40.810197+00:00",
+          "role": "agent_a",
+          "type": "plan",
+          "summary": "plan_id=plan_34d2ce73bdda revises=None steps=3 Gather bounded research evidence for the task"
+        },
+        {
+          "seq": 75,
+          "offset_hint": "2026-11-24T00:02:48.394292+00:00",
+          "role": "agent_a",
+          "type": "plan",
+          "summary": "plan_id=plan_d1e875e0e08c revises=None steps=3 Run a bounded experiment under the approved contract"
+        },
+        {
+          "seq": 88,
+          "offset_hint": "2026-11-24T00:03:14.434708+00:00",
+          "role": "agent_a",
+          "type": "plan",
+          "summary": "plan_id=plan_8775f5453740 revises=None steps=2 Run a bounded experiment under the approved contract"
+        },
+        {
+          "seq": 96,
+          "offset_hint": "2026-11-24T00:03:24.539125+00:00",
+          "role": "controller",
+          "type": "stage_transition",
+          "summary": "stage=PHASE_B reason=approved: plan approved by policy:auto_within_contract (auto_within_contract); A authorized C assignment: {\"chars\": 405, \"sha256\": \"c5318d740cdaf8a626651fa3df1cdd62215dbb174cba00e699385b0d8861a2d2\"}"
+        },
+        {
+          "seq": 100,
+          "offset_hint": "2026-11-24T00:03:27.655275+00:00",
+          "role": "agent_a",
+          "type": "plan",
+          "summary": "plan_id=plan_74f702897827 revises=None steps=4 Run a bounded experiment under the approved contract"
+        },
+        {
+          "seq": 124,
+          "offset_hint": "2026-11-24T00:03:48.616659+00:00",
+          "role": "trial_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795478628578688749_1241b8 -> QUEUED (approved by appr_run_b6a28b0a71b9_plan_v1)"
+        },
+        {
+          "seq": 135,
+          "offset_hint": "2026-11-24T00:03:48.970447+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795478628578688749_1241b8 -> LEASED (leased by worker-run_b6a28b0a71b9 (attempt 1))"
+        },
+        {
+          "seq": 136,
+          "offset_hint": "2026-11-24T00:03:48.997555+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795478628578688749_1241b8 -> RUNNING (sandbox starting)"
+        },
+        {
+          "seq": 137,
+          "offset_hint": "2026-11-24T00:03:49.018271+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795478628578688749_1241b8 -> FAILED (TIMEOUT: stage 0 (fit): exceeded wall-clock time limit)"
+        },
+        {
+          "seq": 138,
+          "offset_hint": "2026-11-24T00:03:49.022308+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795478628578688749_1241b8 -> FAILED_TERMINAL (not retryable: TIMEOUT: stage 0 (fit): exceeded wall-clock time limit)"
+        },
+        {
+          "seq": 291,
+          "offset_hint": "2026-11-24T00:07:32.274430+00:00",
+          "role": "agent_c",
+          "type": "job_transition",
+          "summary": "job=job_1795478852240399493_d0368a -> QUEUED (approved by appr_run_b6a28b0a71b9_plan_v1)"
+        },
+        {
+          "seq": 323,
+          "offset_hint": "2026-11-24T00:11:00.765583+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795478852240399493_d0368a -> LEASED (leased by worker-run_b6a28b0a71b9 (attempt 1))"
+        },
+        {
+          "seq": 324,
+          "offset_hint": "2026-11-24T00:11:00.824855+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795478852240399493_d0368a -> RUNNING (sandbox starting)"
+        },
+        {
+          "seq": 348,
+          "offset_hint": "2026-11-24T00:13:12.042840+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795478852240399493_d0368a -> COMPLETED (validated: 10 sandbox stages)"
+        },
+        {
+          "seq": 371,
+          "offset_hint": "2026-11-24T00:13:30.253360+00:00",
+          "role": "controller",
+          "type": "job_transition",
+          "summary": "job=job_1795479210237743564_89b057 -> QUEUED (approved by appr_run_b6a28b0a71b9_plan_v1)"
+        },
+        {
+          "seq": 372,
+          "offset_hint": "2026-11-24T00:13:31.233568+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795479210237743564_89b057 -> LEASED (leased by worker-run_b6a28b0a71b9 (attempt 1))"
+        },
+        {
+          "seq": 373,
+          "offset_hint": "2026-11-24T00:13:31.301848+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795479210237743564_89b057 -> RUNNING (sandbox starting)"
+        },
+        {
+          "seq": 374,
+          "offset_hint": "2026-11-24T00:15:51.711930+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795479210237743564_89b057 -> COMPLETED (verified: 12 sandbox stages)"
+        },
+        {
+          "seq": 376,
+          "offset_hint": "2026-11-24T00:15:53.210401+00:00",
+          "role": "controller",
+          "type": "stage_transition",
+          "summary": "stage=REPORT reason=phase_b_done: Final job job_1795479210237743564_89b057: test split scored once; verifier v1 passed."
+        },
+        {
+          "seq": 380,
+          "offset_hint": "2026-11-24T00:15:59.627660+00:00",
+          "role": "controller",
+          "type": "stage_transition",
+          "summary": "stage=None reason=reported_verified: verified final model"
+        }
+      ]
+    },
+    {
+      "label": "safe_stop_malformed_data_planning_on",
+      "case_id": "test_fault_malformed_landsat",
+      "run_id": "run_3983f7c5c2b6",
+      "planning_flag": "on",
+      "total_events": 83,
+      "key_events": [
+        {
+          "seq": 1,
+          "offset_hint": "2026-11-22T00:17:00.146738+00:00",
+          "role": "controller",
+          "type": "stage_transition",
+          "summary": "stage=INTAKE reason=run created"
+        },
+        {
+          "seq": 5,
+          "offset_hint": "2026-11-22T00:17:02.306587+00:00",
+          "role": "controller",
+          "type": "stage_transition",
+          "summary": "stage=PROFILE reason=intake_done: task spec v1: multiclass_classification"
+        },
+        {
+          "seq": 6,
+          "offset_hint": "2026-11-22T00:17:02.370007+00:00",
+          "role": "controller",
+          "type": "stage_transition",
+          "summary": "stage=CONTRACT reason=profiled: profile 722e603730dd"
+        },
+        {
+          "seq": 15,
+          "offset_hint": "2026-11-22T00:17:14.571975+00:00",
+          "role": "agent_a",
+          "type": "plan",
+          "summary": "plan_id=plan_41332a125c4e revises=None steps=3 Gather bounded research evidence for the task"
+        },
+        {
+          "seq": 68,
+          "offset_hint": "2026-11-22T00:19:35.823835+00:00",
+          "role": "agent_a",
+          "type": "plan",
+          "summary": "plan_id=plan_f04c62b3fe49 revises=None steps=2 Run a bounded experiment under the approved contract"
+        },
+        {
+          "seq": 78,
+          "offset_hint": "2026-11-22T00:19:54.242276+00:00",
+          "role": "controller",
+          "type": "error",
+          "summary": "component=controller code=DATA_MALFORMED msg=CONTRACT: malformed data: the target column 'class' has 43 row(s) with missing values (TAR"
+        },
+        {
+          "seq": 79,
+          "offset_hint": "2026-11-22T00:19:54.255901+00:00",
+          "role": "controller",
+          "type": "stage_transition",
+          "summary": "stage=REPORT reason=fail: CONTRACT failed: DataIntegrityError"
+        },
+        {
+          "seq": 83,
+          "offset_hint": "2026-11-22T00:19:58.329683+00:00",
+          "role": "controller",
+          "type": "stage_transition",
+          "summary": "stage=None reason=reported_unverified: no verified model"
+        }
+      ]
+    },
+    {
+      "label": "unrecovered_fault_planning_on",
+      "case_id": "test_fault_submit_superconductivity",
+      "run_id": "run_90f177e2ffaf",
+      "planning_flag": "on",
+      "total_events": 284,
+      "key_events": [
+        {
+          "seq": 1,
+          "offset_hint": "2026-11-22T00:42:06.500216+00:00",
+          "role": "controller",
+          "type": "stage_transition",
+          "summary": "stage=INTAKE reason=run created"
+        },
+        {
+          "seq": 5,
+          "offset_hint": "2026-11-22T00:42:08.863409+00:00",
+          "role": "controller",
+          "type": "stage_transition",
+          "summary": "stage=PROFILE reason=intake_done: task spec v1: regression"
+        },
+        {
+          "seq": 6,
+          "offset_hint": "2026-11-22T00:42:09.103942+00:00",
+          "role": "controller",
+          "type": "stage_transition",
+          "summary": "stage=CONTRACT reason=profiled: profile ab1b8600da2c"
+        },
+        {
+          "seq": 15,
+          "offset_hint": "2026-11-22T00:42:22.055501+00:00",
+          "role": "agent_a",
+          "type": "plan",
+          "summary": "plan_id=plan_4537660c9e1d revises=None steps=3 Gather bounded research evidence for the task"
+        },
+        {
+          "seq": 64,
+          "offset_hint": "2026-11-22T00:44:57.905590+00:00",
+          "role": "agent_a",
+          "type": "plan",
+          "summary": "plan_id=plan_fb723a24983d revises=None steps=3 Run a bounded experiment under the approved contract"
+        },
+        {
+          "seq": 77,
+          "offset_hint": "2026-11-22T00:45:37.551738+00:00",
+          "role": "agent_a",
+          "type": "plan",
+          "summary": "plan_id=plan_35816ba468d4 revises=None steps=1 Run a bounded experiment under the approved contract"
+        },
+        {
+          "seq": 87,
+          "offset_hint": "2026-11-22T00:46:01.722594+00:00",
+          "role": "controller",
+          "type": "stage_transition",
+          "summary": "stage=PHASE_B reason=approved: plan approved by policy:auto_within_contract (auto_within_contract); A authorized C assignment: {\"chars\": 661, \"sha256\": \"ae5b5e8eced878ed7ca7d1b100bd91f6911d2165c0fe38a05fcfbcc307ad27c9\"}"
+        },
+        {
+          "seq": 91,
+          "offset_hint": "2026-11-22T00:46:08.820882+00:00",
+          "role": "agent_a",
+          "type": "plan",
+          "summary": "plan_id=plan_5f568d871b25 revises=None steps=3 Run a bounded experiment under the approved contract"
+        },
+        {
+          "seq": 115,
+          "offset_hint": "2026-11-22T00:46:49.644345+00:00",
+          "role": "trial_worker",
+          "type": "error",
+          "summary": "component=worker code=WORKER_LIMIT_REACHED msg=Worker brief limit reached."
+        },
+        {
+          "seq": 122,
+          "offset_hint": "2026-11-22T00:46:51.270807+00:00",
+          "role": "trial_worker",
+          "type": "error",
+          "summary": "component=worker code=WORKER_LIMIT_REACHED msg=Worker brief limit reached."
+        },
+        {
+          "seq": 137,
+          "offset_hint": "2026-11-22T00:47:02.704617+00:00",
+          "role": "agent_c",
+          "type": "tool_call",
+          "summary": "tool=submit_experiment"
+        },
+        {
+          "seq": 139,
+          "offset_hint": "2026-11-22T00:47:02.726993+00:00",
+          "role": "agent_c",
+          "type": "tool_result",
+          "summary": "tool=submit_experiment ERROR code=RATE_LIMITED retryable=True"
+        },
+        {
+          "seq": 140,
+          "offset_hint": "2026-11-22T00:47:02.738341+00:00",
+          "role": "policy_engine",
+          "type": "policy_decision",
+          "summary": "tool=submit_experiment decision=allow reasons=['recovery=retry', 'error_code=RATE_LIMITED', 'error_class=transient', 'retryable=true', 'attempt=1', 'backoff_ms=603']"
+        },
+        {
+          "seq": 141,
+          "offset_hint": "2026-11-22T00:47:03.362031+00:00",
+          "role": "agent_c",
+          "type": "tool_call",
+          "summary": "tool=submit_experiment"
+        },
+        {
+          "seq": 148,
+          "offset_hint": "2026-11-22T00:47:03.497331+00:00",
+          "role": "agent_c",
+          "type": "tool_result",
+          "summary": "tool=submit_experiment OK"
+        },
+        {
+          "seq": 157,
+          "offset_hint": "2026-11-22T00:47:11.642524+00:00",
+          "role": "agent_c",
+          "type": "tool_call",
+          "summary": "tool=submit_experiment"
+        },
+        {
+          "seq": 171,
+          "offset_hint": "2026-11-22T00:47:17.696153+00:00",
+          "role": "agent_c",
+          "type": "tool_call",
+          "summary": "tool=submit_experiment"
+        },
+        {
+          "seq": 176,
+          "offset_hint": "2026-11-22T00:47:17.780239+00:00",
+          "role": "agent_c",
+          "type": "job_transition",
+          "summary": "job=job_1795308437745407967_f8defb -> QUEUED (approved by appr_run_90f177e2ffaf_plan_v2)"
+        },
+        {
+          "seq": 192,
+          "offset_hint": "2026-11-22T00:47:32.312420+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795308437745407967_f8defb -> LEASED (leased by worker-run_90f177e2ffaf (attempt 1))"
+        },
+        {
+          "seq": 193,
+          "offset_hint": "2026-11-22T00:47:32.858331+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795308437745407967_f8defb -> RUNNING (sandbox starting)"
+        },
+        {
+          "seq": 200,
+          "offset_hint": "2026-11-22T00:48:06.571476+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795308437745407967_f8defb -> COMPLETED (validated: 2 sandbox stages)"
+        },
+        {
+          "seq": 226,
+          "offset_hint": "2026-11-22T00:48:18.696622+00:00",
+          "role": "agent_c",
+          "type": "tool_call",
+          "summary": "tool=submit_experiment"
+        },
+        {
+          "seq": 231,
+          "offset_hint": "2026-11-22T00:48:18.780647+00:00",
+          "role": "agent_c",
+          "type": "job_transition",
+          "summary": "job=job_1795308498743468653_0dd6ac -> QUEUED (approved by appr_run_90f177e2ffaf_plan_v2)"
+        },
+        {
+          "seq": 234,
+          "offset_hint": "2026-11-22T00:48:19.553948+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795308498743468653_0dd6ac -> LEASED (leased by worker-run_90f177e2ffaf (attempt 1))"
+        },
+        {
+          "seq": 235,
+          "offset_hint": "2026-11-22T00:48:20.114480+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795308498743468653_0dd6ac -> RUNNING (sandbox starting)"
+        },
+        {
+          "seq": 251,
+          "offset_hint": "2026-11-22T00:52:52.169973+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795308498743468653_0dd6ac -> COMPLETED (validated: 2 sandbox stages)"
+        },
+        {
+          "seq": 274,
+          "offset_hint": "2026-11-22T00:53:10.690398+00:00",
+          "role": "controller",
+          "type": "job_transition",
+          "summary": "job=job_1795308790675666710_8afb6a -> QUEUED (approved by appr_run_90f177e2ffaf_plan_v2)"
+        },
+        {
+          "seq": 275,
+          "offset_hint": "2026-11-22T00:53:11.297372+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795308790675666710_8afb6a -> LEASED (leased by worker-run_90f177e2ffaf (attempt 1))"
+        },
+        {
+          "seq": 276,
+          "offset_hint": "2026-11-22T00:53:11.890529+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795308790675666710_8afb6a -> RUNNING (sandbox starting)"
+        },
+        {
+          "seq": 277,
+          "offset_hint": "2026-11-22T01:02:43.193807+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795308790675666710_8afb6a -> FAILED (TIMEOUT: stage 2 (fit): killed after 300.0 s)"
+        },
+        {
+          "seq": 278,
+          "offset_hint": "2026-11-22T01:02:43.197201+00:00",
+          "role": "execution_worker",
+          "type": "job_transition",
+          "summary": "job=job_1795308790675666710_8afb6a -> FAILED_TERMINAL (not retryable: TIMEOUT: stage 2 (fit): killed after 300.0 s)"
+        },
+        {
+          "seq": 280,
+          "offset_hint": "2026-11-22T01:02:44.652920+00:00",
+          "role": "controller",
+          "type": "stage_transition",
+          "summary": "stage=REPORT reason=phase_b_done: The final job job_1795308790675666710_8afb6a ended FAILED_TERMINAL (TIMEOUT)."
+        },
+        {
+          "seq": 284,
+          "offset_hint": "2026-11-22T01:02:49.970552+00:00",
+          "role": "controller",
+          "type": "stage_transition",
+          "summary": "stage=None reason=reported_unverified: no verified model"
+        }
+      ]
+    }
+  ]
+}
