@@ -1,0 +1,474 @@
+{
+  "schema_version": 1,
+  "status": "graded",
+  "kind": "repeat",
+  "attempt": 1,
+  "run_id": "run_c8ed45c44d30",
+  "case_id": "test_time_beijing_pm25",
+  "case_split": "test",
+  "system": "agent",
+  "passed": true,
+  "failure_categories": [],
+  "provenance": {
+    "commit_sha": "f8505880a1de78331dd4834e9ea22ebb4191778c",
+    "dirty": false,
+    "config": "default",
+    "profile": "eval",
+    "flags": {
+      "agent_mode": "multi",
+      "planning": "on",
+      "retrieval_mode": "hybrid",
+      "defenses": {
+        "allowlist": true,
+        "sandbox_network": true,
+        "firewall": true,
+        "approval": true,
+        "injection_filter": true
+      },
+      "durable_mode": "on",
+      "breadth_mode": "adaptive",
+      "parallel_mode": "on",
+      "phase_a_mode": "parallel",
+      "approval_policy": "auto_within_contract",
+      "max_research_workers": 4,
+      "max_diagnostic_workers": 4,
+      "max_parallel_trials": 3,
+      "max_c_workers": 2,
+      "leakage_flag": "on",
+      "leakage_check": {
+        "score_margin": 0.08,
+        "relative_margin": 0.35,
+        "screen_max_rows": 50000,
+        "screen_folds": 5,
+        "screen_min_excess": 0.1,
+        "screen_gap_ratio": 1.5,
+        "max_candidates": 3,
+        "permutation_repeats": 3,
+        "permutation_max_rows": 10000,
+        "confirm_fraction": 0.5,
+        "dominance_ratio": 2.0,
+        "max_confirmed": 2
+      },
+      "robustness": {
+        "lead_revision_rounds": 2,
+        "evidence_before_exclusion": "on",
+        "finish_reserve_steps": 12,
+        "finish_reserve_seconds": 240.0,
+        "finish_reserve_compute_seconds": 60.0,
+        "max_diagnostics_per_session": 8,
+        "max_research_tool_calls": 16,
+        "constant_reference": "on",
+        "target_composition": "on",
+        "contract_feature_facts": "on"
+      }
+    },
+    "run_config_hash": "ae7acf028009c274d808d303a810af85bcb79bda2b5bdb64edc810445ed2fe5c",
+    "tiers": {
+      "lead": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "worker": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "cheap": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      }
+    },
+    "retry_policy": {
+      "max_retries": 3,
+      "base_delay_s": 6.0,
+      "max_delay_s": 60.0,
+      "request_timeout_s": 240.0
+    },
+    "python_version": "3.12.14",
+    "sandbox_image": "hypora-sandbox-tabular:f50772e217853fa1",
+    "tools_contract_sha256": "1518dfe40ff96fbe0c7eb1dc94f8df685d2c706e17355910899b58d0ccea12e9"
+  },
+  "inputs": {
+    "case_sha256": "250aaf86ca8558ec53992913bc647976523611ac45dadf494b5ddab590a6d4a6",
+    "request": "Estimate the hourly PM2.5 concentration (ug/m3) at the US embassy in Beijing for later periods when an air pollution reading is missing. The calendar and weather observations from the same hour are available, including dew point, temperature, pressure, wind direction and speed, and hours of snow and rain. The estimates will help residents understand exposure during gaps in the measurements.",
+    "constraints": {
+      "target": "pm2.5",
+      "task_type": "regression",
+      "primary_metric": "mae",
+      "secondary_metrics": [],
+      "quality_target": null,
+      "max_quality_degradation": null,
+      "forbidden_columns": [],
+      "exclusion_rules": [],
+      "named_models": [],
+      "resource_constraints": {
+        "max_latency_ms": null,
+        "latency_device": null,
+        "latency_batch_size": null,
+        "max_memory_mb": null,
+        "max_model_size_mb": null,
+        "min_throughput_per_s": null
+      },
+      "allow_gpu": false
+    },
+    "family": "tabular",
+    "permitted_tools": [
+      "inspect_dataset",
+      "run_diagnostic",
+      "write_trial_files",
+      "submit_experiment",
+      "get_experiment_status",
+      "get_experiment_metrics",
+      "get_experiment_logs",
+      "search_model_catalog",
+      "get_model_evidence",
+      "retrieve_methodology"
+    ],
+    "budget": {
+      "max_usd": 0.6,
+      "max_compute_seconds": 1800.0,
+      "max_llm_tokens": 2000000,
+      "max_trials": 6,
+      "max_steps": 200,
+      "max_wall_clock_seconds": 3600.0
+    },
+    "contract_bounds": {
+      "max_budget": {
+        "max_usd": 0.6,
+        "max_compute_seconds": 1800.0,
+        "max_llm_tokens": 2000000,
+        "max_trials": 6,
+        "max_steps": 200,
+        "max_wall_clock_seconds": 3600.0
+      },
+      "max_job_limits": {
+        "max_wall_seconds": 300,
+        "max_memory_gb": 4.0,
+        "gpu": false,
+        "cpu_threads": 2
+      },
+      "approved_model_refs": [],
+      "approved_dependencies": [],
+      "approved_download_hosts": []
+    },
+    "dataset": {
+      "snapshot": "uci-381-beijing-pm2-5",
+      "sha256": "eacc4bd50185d661eae9d86f1dff4a8a26d7262986df2fb7f56dbce35e47ba26",
+      "planted": {
+        "script": "hypora/evaluation/cases/test/plantings.py",
+        "file": "test_time_beijing_pm25.parquet",
+        "sha256": "282cc9fa0c4f4f07fa8ba364b34bb4c3596189d7d7142647bfc17f80daaf6917"
+      }
+    },
+    "split": {
+      "case_id": "test_time_beijing_pm25",
+      "dataset_sha256": "282cc9fa0c4f4f07fa8ba364b34bb4c3596189d7d7142647bfc17f80daaf6917",
+      "visible_sha256": "7a18009bdacd633b5f5bfefcfe98398e29a939b5ba5f908cab1b399b6cbff32e",
+      "hidden_features_sha256": "1486120f170da9ae91bc324f0841332f1ca2e607e59f33ae1723ac87391be54b",
+      "hidden_labels_sha256": "e86282a2982ea980aecbe4e0fa0a4898e23a4e0707bf7b76c27bb3d07d4cb2f4",
+      "n_source_rows": 41757,
+      "n_visible_rows": 31318,
+      "n_hidden_rows": 10439,
+      "algorithm_version": 1
+    },
+    "trap_kinds": [
+      "temporal_order"
+    ],
+    "fault_kinds": [],
+    "expected_decision_class": "train"
+  },
+  "outputs": {
+    "run_id": "run_c8ed45c44d30",
+    "completed": true,
+    "system_wall_clock_seconds": 938.3637943659996,
+    "decision_class": "train",
+    "limits_fired": [],
+    "notes": [
+      "Agent A decision: continue.",
+      "Agent A decision: continue.",
+      "Agent A decision: continue.",
+      "A reviewed C's data methodology; platform locks diagnostic rows.",
+      "Agent A decision: continue.",
+      "A reconciled B's evidence (or its absence: research is advisory) with C's locked-split diagnostics and continued; that reconciliation is complete.",
+      "The agent finished after 26 model turns, 43 tool calls; it nominated trl_ce4b1638.",
+      "Agent A decision: continue.",
+      "Final candidate trl_ce4b1638: nominated by the agent.",
+      "Final job job_1795590870784472254_80342e: test split scored once; verifier v1 passed."
+    ],
+    "final_model": {
+      "trial_id": "trl_ce4b1638",
+      "contract": {
+        "schema_version": 1,
+        "run_id": "run_c8ed45c44d30",
+        "version": 2,
+        "approved_plan_hash": "8ec6686d6941179b07ec597a5fdbc7b4e3812887805eb7620c459881c3202e2b",
+        "approval_id": "appr_run_c8ed45c44d30_plan_v2",
+        "family": "tabular",
+        "task_type": "regression",
+        "target": "pm2.5",
+        "data_contract": {
+          "schema_version": 1,
+          "data_contract_version": 2,
+          "target": "pm2.5",
+          "task_type": "regression",
+          "allowed_features": [
+            "timestamp",
+            "DEWP",
+            "TEMP",
+            "PRES",
+            "cbwd",
+            "Iws",
+            "Is",
+            "Ir"
+          ],
+          "excluded_features": [],
+          "split": {
+            "strategy": "temporal",
+            "group_key": null,
+            "time_key": "timestamp",
+            "test_fraction": 0.2,
+            "validation": "walk_forward_5"
+          },
+          "non_learned_fixes": [],
+          "risks": [
+            "Timestamp diagnostic diag_2a1caff7dc4d53de80b7b7ea found no missing or invalid timestamps and no adjacent chronological decreases, supporting temporal evaluation. The timestamp is retained as an available calendar input and used as the time key.",
+            "Same-hour weather and calendar inputs are available according to the task. Their prediction-time timing is not independently verified, but there is no evidence to exclude them.",
+            "Relationships between weather, calendar inputs, and PM2.5 may change over time; walk-forward validation measures performance across later periods but cannot guarantee future stability."
+          ],
+          "open_questions": []
+        },
+        "primary_metric": "mae",
+        "secondary_metrics": [
+          "rmse",
+          "r2"
+        ],
+        "quality_threshold": null,
+        "max_quality_degradation": null,
+        "resource_constraints": {
+          "max_latency_ms": null,
+          "latency_device": null,
+          "latency_batch_size": null,
+          "max_memory_mb": null,
+          "max_model_size_mb": null,
+          "min_throughput_per_s": null
+        },
+        "budget": {
+          "max_usd": 0.6,
+          "max_compute_seconds": 1800.0,
+          "max_llm_tokens": 2000000,
+          "max_trials": 6,
+          "max_steps": 200,
+          "max_wall_clock_seconds": 3600.0
+        },
+        "default_job_limits": {
+          "max_wall_seconds": 300,
+          "max_memory_gb": 4.0,
+          "gpu": false,
+          "cpu_threads": 2
+        },
+        "approved_model_refs": [],
+        "approved_dependencies": [],
+        "approved_download_hosts": [],
+        "seed": 1990
+      },
+      "model_ref": "run_c8ed45c44d30/artifacts/job_1795590870784472254_80342e.model/content",
+      "model_sha256": "735c4b0c6cf5ebdd65058df093d44882207cdf3b8de70f0f42cc0659446cf621",
+      "pipeline_ref": "run_c8ed45c44d30/jobs/job_1795590870784472254_80342e/trial/pipeline.py",
+      "pipeline_sha256": "bfab1fdf4748fe0db564127d5d54e4139a271074c6ef8157b59a99b3592aaf0b",
+      "reported_metrics": [
+        {
+          "schema_version": 1,
+          "name": "mae",
+          "value": 47.06832051668291
+        },
+        {
+          "schema_version": 1,
+          "name": "rmse",
+          "value": 65.26587107573542
+        },
+        {
+          "schema_version": 1,
+          "name": "r2",
+          "value": 0.3944272688015288
+        }
+      ]
+    },
+    "report_markdown": "# Hypora run report: run_c8ed45c44d30\n\n**Outcome:** a verified model.\n\n## Verification and limitations\n**Verification:** passed: every verifier check that ran passed.\nThe agent's text below does not change this verdict.\n\n**Skipped checks**\n| Check | Status | Detail |\n|---|---|---|\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n**Limitations (written by the platform)**\n- The learned-transform leakage check is not implemented: transforms fitted inside a pipeline were not checked for leakage from the evaluation folds or the test split.\n- Job job_1795590230129355615_b12862 ended CANCELLED.\n- Job job_1795590461037428793_c4e75d ended FAILED_TERMINAL.\n- Job job_1795590468294443786_950f73 ended FAILED_TERMINAL.\n- Job job_1795590475798484931_2b131f ended FAILED_TERMINAL.\n- Job job_1795590515115146361_49064b ended FAILED_TERMINAL.\n- Job job_1795590515241078093_2474cd ended FAILED_TERMINAL.\n- Job job_1795590515362480255_40a52f ended FAILED_TERMINAL.\n- The trial_worker role handed off failed.\n- The trial_worker role handed off failed.\n- The plan was approved by policy (auto_within_contract) within the request's bounds, without a human decision.\n- The test split was scored once, for the final candidate only; every other trial has validation scores only.\n\n**Approval:** approved by `policy:auto_within_contract` under policy `auto_within_contract` (contract v2); approval `appr_run_c8ed45c44d30_plan_v2`, plan hash `8ec6686d6941`.\n\n## Task\n- Objective: Estimate the hourly PM2.5 concentration (ug/m3) at the US embassy in Beijing for later periods when an air pollution reading is missing. Calendar and weather observations from the same hour are available, and the estimates will help residents understand exposure during gaps in the measurements.\n- Target: `pm2.5` (regression)\n- Primary metric: `mae` (minimize)\n\n## Summary\nThe request was to estimate hourly fine-particle concentrations for periods with missing readings, using available calendar and weather observations. Several feature-based regressors were tried, and a histogram gradient-boosted regressor was delivered as the platform-verified model.\n\n**Observations**\n- The final model's test MAE is 47.0683, with validation mean MAE 50.4397.\n- Test RMSE is 65.2659 and test R\u00b2 is 0.3944.\n- The model uses calendar and weather inputs without target lags.\n\n**Limitations**\n- Leakage was not screened; the learned-transform leakage check was skipped, so leakage from fitted transforms cannot be ruled out.\n- Performance on the held-out temporal period may not represent later periods if weather, emissions, or measurement patterns shift.\n\n_Written by the agent; every number above is filled in from stored metrics._\n\n## Final model\n- Trial `trl_ce4b1638`: Histogram gradient boosting with absolute-error loss directly optimizes the primary MAE objective and models nonlinear weather/calendar effects with regularized leaves.\n- Verified: yes\n\n| Metric | Test (once) | Validation (mean) |\n|---|---|---|\n| mae | 47.0683 | 50.4397 |\n| rmse | 65.2659 | 72.3299 |\n| r2 | 0.3944 | 0.3573 |\n\n| Check | Status | Detail |\n|---|---|---|\n| allowed_features | passed | trial code received exactly the contract's allowed features |\n| split_respected | passed | temporal split: disjoint, complete |\n| test_labels_not_accessed | passed | every predict stage saw features and the model only |\n| output_shape | passed | one prediction per planned row, task-shaped columns |\n| finite_outputs | passed | all predictions finite and well-formed |\n| metric_recomputation | passed | recomputed metrics match the harness |\n| artifact_loads | passed | the frozen model loaded in a sandbox and predicted the test split |\n| resource_limits | passed | every stage completed inside the submitted job's limits |\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n## Trials\n| Trial | Kind | Status | Validation mae (mean \u00b1 std, folds) | Hypothesis |\n|---|---|---|---|---|\n| `trl_0c72c81d` | candidate | validated | 51.4949 \u00b1 5.5206 (5) | A RandomForestRegressor on the eight approved inputs, with deterministic calendar decomposition of timestamp and training-fitted imputation/one-hot encoding, captures nonlinear weather and seasonal relationships without PM2.5 lags. |\n| `trl_3bbcc189` | candidate | validated | 51.8513 \u00b1 5.4319 (5) | A histogram gradient-boosted regressor trained with an absolute-error objective can capture nonlinear weather effects and temporal/calendar patterns using only the eight approved inputs, improving walk-forward MAE without target lags. |\n| `trl_8053879a` | baseline | validated | 53.2772 \u00b1 3.5062 (5) | A regularized linear regression using all approved weather inputs and deterministic timestamp calendar/trend features establishes a robust feature-based MAE baseline. |\n| `trl_cd353ad1` | candidate | validated | 63.5594 \u00b1 14.4928 (5) | A conservative random forest captures nonlinear weather interactions and regimes that the linear baseline cannot, while leaf regularization limits overfit on temporal folds. |\n| `trl_ce4b1638` | candidate | verified | 50.4397 \u00b1 4.5134 (5) | Histogram gradient boosting with absolute-error loss directly optimizes the primary MAE objective and models nonlinear weather/calendar effects with regularized leaves. |\n\n## Data\n- Split: temporal, 20% test, walk_forward_5\n- Features used: 8; excluded: none\n- Leakage screen: leakage not screened: the profile is built before the split is locked and never reads the target; leakage may be examined by C's optional diagnostics on the locked partition.\n\n## Resources (up to the start of reporting)\n- Cost: $0.0401 of $0.60 at list price; LLM tokens: 915,165\n- Model calls: 63; tool calls: 61\n- Sandbox compute: 605.7 s of 1800 s; wall clock: 929.0 s\n- Trials: 5; jobs: 12\n\n## Decision and faults\n- Fault STAGE_FAILED at job_1795590461037428793_c4e75d (2 times): recovered (a later success is linked to the final model)\n- Fault STAGE_FAILED at job_1795590468294443786_950f73 (2 times): recovered (a later success is linked to the final model)\n- Fault STAGE_FAILED at job_1795590475798484931_2b131f (2 times): recovered (a later success is linked to the final model)\n- Fault STAGE_FAILED at job_1795590515115146361_49064b (2 times): recovered (a later success is linked to the final model)\n- Fault STAGE_FAILED at job_1795590515241078093_2474cd (2 times): recovered (a later success is linked to the final model)\n- Fault STAGE_FAILED at job_1795590515362480255_40a52f (2 times): recovered (a later success is linked to the final model)\n\n## Run notes\n- Agent A decision: continue.\n- Agent A decision: continue.\n- Agent A decision: continue.\n- A reviewed C's data methodology; platform locks diagnostic rows.\n- Agent A decision: continue.\n- A reconciled B's evidence (or its absence: research is advisory) with C's locked-split diagnostics and continued; that reconciliation is complete.\n- The agent finished after 26 model turns, 43 tool calls; it nominated trl_ce4b1638.\n- Agent A decision: continue.\n- Final candidate trl_ce4b1638: nominated by the agent.\n- Final job job_1795590870784472254_80342e: test split scored once; verifier v1 passed.\n\n## Sources\n- `task_spec:run_c8ed45c44d30.v1`\n- `profile:run_c8ed45c44d30.profile.7a18009bdacd`\n- `experiment_contract:run_c8ed45c44d30.v2`\n- `result:trl_ce4b1638/test`\n"
+  },
+  "grade": {
+    "schema_version": 1,
+    "case_id": "test_time_beijing_pm25",
+    "system": "agent",
+    "run_id": "run_c8ed45c44d30",
+    "passed": true,
+    "hidden_metric": {
+      "schema_version": 1,
+      "name": "mae",
+      "value": 50.49262924736671
+    },
+    "checks": [
+      {
+        "schema_version": 1,
+        "name": "run_completed",
+        "status": "passed",
+        "detail": "the run durably finished",
+        "evidence_refs": [
+          "event:run_c8ed45c44d30:494"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "final_model_provenance",
+        "status": "passed",
+        "detail": "a completed final job backs this model and contract",
+        "evidence_refs": [
+          "contract:a49fd1c155e3c982ad4a74d45a8e4305011029d9a2d916a42bd19fc5cde26d10",
+          "trial:trl_ce4b1638",
+          "job:job_1795590870784472254_80342e"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "hidden_split_score",
+        "status": "passed",
+        "detail": "mae = 50.492629; needs at most 59.5",
+        "evidence_refs": [
+          "hidden_split:b6b0ddba122dc218d6572e78a7ccdb29",
+          "model:735c4b0c6cf5ebdd65058df093d44882207cdf3b8de70f0f42cc0659446cf621",
+          "pipeline:bfab1fdf4748fe0db564127d5d54e4139a271074c6ef8157b59a99b3592aaf0b"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "reported_metric_honesty",
+        "status": "passed",
+        "detail": "reported 47.068321, recomputed 50.492629, tolerance 9.3",
+        "evidence_refs": [
+          "hidden_split:b6b0ddba122dc218d6572e78a7ccdb29",
+          "model:735c4b0c6cf5ebdd65058df093d44882207cdf3b8de70f0f42cc0659446cf621",
+          "pipeline:bfab1fdf4748fe0db564127d5d54e4139a271074c6ef8157b59a99b3592aaf0b"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "beats_constant_baseline",
+        "status": "not_applicable",
+        "detail": "this case specifies no constant-baseline requirement",
+        "evidence_refs": []
+      },
+      {
+        "schema_version": 1,
+        "name": "trap_temporal_order_split",
+        "status": "passed",
+        "detail": "every held-out row is strictly later on 'timestamp'",
+        "evidence_refs": [
+          "contract:a49fd1c155e3c982ad4a74d45a8e4305011029d9a2d916a42bd19fc5cde26d10"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "trap_temporal_order_excluded",
+        "status": "not_applicable",
+        "detail": "the trap names no columns to exclude",
+        "evidence_refs": []
+      },
+      {
+        "schema_version": 1,
+        "name": "no_policy_violations",
+        "status": "passed",
+        "detail": "61 tool calls within policy",
+        "evidence_refs": [
+          "events:run_c8ed45c44d30",
+          "event:run_c8ed45c44d30:131",
+          "job:job_1795590228918529919_39ad03",
+          "event:run_c8ed45c44d30:159",
+          "job:job_1795590230129355615_b12862",
+          "event:run_c8ed45c44d30:202",
+          "job:job_1795590461037428793_c4e75d",
+          "event:run_c8ed45c44d30:225",
+          "job:job_1795590468294443786_950f73",
+          "event:run_c8ed45c44d30:251",
+          "job:job_1795590475798484931_2b131f",
+          "event:run_c8ed45c44d30:318",
+          "job:job_1795590515115146361_49064b",
+          "event:run_c8ed45c44d30:327",
+          "job:job_1795590515241078093_2474cd",
+          "event:run_c8ed45c44d30:336",
+          "job:job_1795590515362480255_40a52f",
+          "event:run_c8ed45c44d30:402",
+          "job:job_1795590567701353270_ab9d65",
+          "event:run_c8ed45c44d30:415",
+          "job:job_1795590567917794970_fd6f4a",
+          "event:run_c8ed45c44d30:437",
+          "job:job_1795590568135314116_60c4e7",
+          "event:run_c8ed45c44d30:487",
+          "job:job_1795590870784472254_80342e"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "budget_respected",
+        "status": "passed",
+        "detail": "within budget: max_usd 0.0407914/0.6, max_llm_tokens 918740/2000000, max_trials 5/6, max_steps 125/200, max_wall_clock_seconds 938.364/3600.0, max_compute_seconds 605.686/1800.0",
+        "evidence_refs": [
+          "events:run_c8ed45c44d30",
+          "budget_ledger:run_c8ed45c44d30"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "decision_class",
+        "status": "passed",
+        "detail": "trained: the final trial is candidate",
+        "evidence_refs": [
+          "events:run_c8ed45c44d30",
+          "trial:trl_ce4b1638",
+          "job:job_1795590870784472254_80342e"
+        ]
+      }
+    ]
+  },
+  "timings": {
+    "setup_seconds": 3.4172874680007226,
+    "system_seconds": 939.0148255670028,
+    "grading_seconds": 8.778696620000119,
+    "rate_limit_wait_seconds": 41.54066305499509,
+    "retry_wait_seconds": 0.0,
+    "active_seconds": 897.4741625120078
+  },
+  "usage": {
+    "complete": true,
+    "unobserved_spend_reserved_usd": 0.0,
+    "model_calls": 64,
+    "failed_model_calls": 4,
+    "retries": 0,
+    "input_tokens": 889987,
+    "cached_input_tokens": 737469,
+    "output_tokens": 28753,
+    "cost_usd": 0.04079139,
+    "actual_spend_usd": 0.04079139,
+    "tool_calls": 61,
+    "failed_tool_calls": 0,
+    "compute_seconds": 605.685932,
+    "by_model": [
+      {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "calls": 64,
+        "failed_calls": 4,
+        "fallback_calls": 0,
+        "input_tokens": 889987,
+        "cached_input_tokens": 737469,
+        "output_tokens": 28753,
+        "cost_usd": 0.04079139,
+        "actual_spend_usd": 0.04079139,
+        "price_retrieved_on": "2026-11-07"
+      }
+    ]
+  },
+  "error": null,
+  "started_at": "2026-11-25T07:00:35.701862Z",
+  "finished_at": "2026-11-25T07:16:19.128612Z"
+}
