@@ -1,0 +1,2445 @@
+{
+  "step": "S5.3-F7",
+  "spec_sections": [
+    "\u00a716",
+    "\u00a719.5",
+    "\u00a720"
+  ],
+  "config": "default",
+  "model": "openai/gpt-6-luna",
+  "profile": "eval",
+  "price_retrieved_on": "2026-11-07",
+  "pre_fix_commit": "62b4e3fb6016a0abddf70a14152252a62c8aca4a",
+  "post_fix_commit": "f8505880a1de78331dd4834e9ea22ebb4191778c",
+  "implementation_audit": {
+    "pre_fix": {
+      "runs_audited": 26,
+      "missing_dbs": [],
+      "all_complete_and_clean": true,
+      "events_total": 7743,
+      "model_calls_total": 1193,
+      "model_calls_complete": 1193,
+      "model_call_gaps_total": 0,
+      "tool_calls_total": 870,
+      "tool_results_total": 870,
+      "joined_tool_pairs_total": 870,
+      "tool_pairs_complete": 870,
+      "orphan_tool_calls_total": 0,
+      "orphan_tool_results_total": 0,
+      "secret_hits_total": 0,
+      "tool_status_counts": {
+        "ok": 859,
+        "error": 11,
+        "denied": 0
+      }
+    },
+    "post_fix": {
+      "runs_audited": 26,
+      "missing_dbs": [],
+      "all_complete_and_clean": true,
+      "events_total": 7143,
+      "model_calls_total": 1116,
+      "model_calls_complete": 1116,
+      "model_call_gaps_total": 0,
+      "tool_calls_total": 785,
+      "tool_results_total": 785,
+      "joined_tool_pairs_total": 785,
+      "tool_pairs_complete": 785,
+      "orphan_tool_calls_total": 0,
+      "orphan_tool_results_total": 0,
+      "secret_hits_total": 0,
+      "tool_status_counts": {
+        "ok": 776,
+        "error": 9,
+        "denied": 0
+      }
+    }
+  },
+  "architecture_verification": {
+    "event_log_store": "SQLite events table (EventRow) with EventFilters & AnyEvent Pydantic union",
+    "cli_command": "hypora trace <run_id> --filter key=value[,value...] (keys: type, role, trial, job)",
+    "query_tool": "scripts/eval_s53_f7.py --query",
+    "cli_filter_verification": {
+      "role_agent_b": {
+        "specs": [
+          "role=agent_b"
+        ],
+        "matched_rows": 17,
+        "summary": "342 events (17 shown) | 54 model calls (514,944 in / 20,653 out tokens, $0.0300 at list price) | 39 tool results (0 failed) | 1 error events | span 9m07s"
+      },
+      "type_model_and_tool_result": {
+        "specs": [
+          "type=model_call,tool_result",
+          "role=agent_b"
+        ],
+        "matched_rows": 9,
+        "summary": "342 events (9 shown) | 54 model calls (514,944 in / 20,653 out tokens, $0.0300 at list price) | 39 tool results (0 failed) | 1 error events | span 9m07s"
+      },
+      "trial_filter": {
+        "specs": [
+          "trial=trl_4b9d60ad"
+        ],
+        "matched_rows": 7,
+        "summary": "342 events (7 shown) | 54 model calls (514,944 in / 20,653 out tokens, $0.0300 at list price) | 39 tool results (0 failed) | 1 error events | span 9m07s"
+      },
+      "job_filter": {
+        "specs": [
+          "job=job_1795580296019373962_cf50d1"
+        ],
+        "matched_rows": 7,
+        "summary": "342 events (7 shown) | 54 model calls (514,944 in / 20,653 out tokens, $0.0300 at list price) | 39 tool results (0 failed) | 1 error events | span 9m07s"
+      },
+      "sqlite_event_filters_agent_b": 9
+    },
+    "query_demonstration": {
+      "agent_b_model_calls_contract": {
+        "filters": {
+          "arm": "both",
+          "role": "agent_b",
+          "type": "model_call",
+          "case_id": null,
+          "stage": "CONTRACT",
+          "limit": 10
+        },
+        "scanned_runs": 52,
+        "total_matched": 227,
+        "returned": 10,
+        "matches": [
+          {
+            "arm": "pre_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_a90033465303",
+            "seq": 17,
+            "stage": "CONTRACT",
+            "role": "agent_b",
+            "type": "model_call",
+            "created_at": "2026-11-21T23:18:51.456566+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "openai/gpt-6-luna tier=lead agent_b@v4 $0.0004",
+            "output_schema": null,
+            "latency_ms": 1556.8,
+            "cost_usd": 0.000358
+          },
+          {
+            "arm": "pre_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_a90033465303",
+            "seq": 37,
+            "stage": "CONTRACT",
+            "role": "agent_b",
+            "type": "model_call",
+            "created_at": "2026-11-21T23:18:54.541513+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "openai/gpt-6-luna tier=lead agent_b@v4 $0.0004",
+            "output_schema": null,
+            "latency_ms": 2447.36,
+            "cost_usd": 0.000415
+          },
+          {
+            "arm": "pre_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_a90033465303",
+            "seq": 63,
+            "stage": "CONTRACT",
+            "role": "agent_b",
+            "type": "model_call",
+            "created_at": "2026-11-21T23:19:00.002551+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "openai/gpt-6-luna tier=lead agent_b@v4 $0.0011",
+            "output_schema": null,
+            "latency_ms": 4443.59,
+            "cost_usd": 0.001058
+          },
+          {
+            "arm": "pre_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_a90033465303",
+            "seq": 69,
+            "stage": "CONTRACT",
+            "role": "agent_b",
+            "type": "model_call",
+            "created_at": "2026-11-21T23:19:24.554537+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "openai/gpt-6-luna tier=lead agent_b@v4 $0.0017",
+            "output_schema": null,
+            "latency_ms": 24440.62,
+            "cost_usd": 0.001705
+          },
+          {
+            "arm": "pre_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_a90033465303",
+            "seq": 70,
+            "stage": "CONTRACT",
+            "role": "agent_b",
+            "type": "model_call",
+            "created_at": "2026-11-21T23:20:08.826708+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "openai/gpt-6-luna tier=lead agent_b@v4 $0.0054",
+            "output_schema": "ResearchObservation",
+            "latency_ms": 44283.54,
+            "cost_usd": 0.005372
+          },
+          {
+            "arm": "pre_fix",
+            "case_id": "test_clean_breast_cancer",
+            "run_id": "run_0f100f3df90b",
+            "seq": 17,
+            "stage": "CONTRACT",
+            "role": "agent_b",
+            "type": "model_call",
+            "created_at": "2026-11-21T23:27:21.656288+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "openai/gpt-6-luna tier=lead agent_b@v4 $0.0007",
+            "output_schema": null,
+            "latency_ms": 1888.37,
+            "cost_usd": 0.00067
+          },
+          {
+            "arm": "pre_fix",
+            "case_id": "test_clean_breast_cancer",
+            "run_id": "run_0f100f3df90b",
+            "seq": 37,
+            "stage": "CONTRACT",
+            "role": "agent_b",
+            "type": "model_call",
+            "created_at": "2026-11-21T23:27:24.353298+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "openai/gpt-6-luna tier=lead agent_b@v4 $0.0004",
+            "output_schema": null,
+            "latency_ms": 2090.3,
+            "cost_usd": 0.000412
+          },
+          {
+            "arm": "pre_fix",
+            "case_id": "test_clean_breast_cancer",
+            "run_id": "run_0f100f3df90b",
+            "seq": 58,
+            "stage": "CONTRACT",
+            "role": "agent_b",
+            "type": "model_call",
+            "created_at": "2026-11-21T23:27:50.515080+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "openai/gpt-6-luna tier=lead agent_b@v4 $0.0022",
+            "output_schema": null,
+            "latency_ms": 25184.25,
+            "cost_usd": 0.002155
+          },
+          {
+            "arm": "pre_fix",
+            "case_id": "test_clean_breast_cancer",
+            "run_id": "run_0f100f3df90b",
+            "seq": 59,
+            "stage": "CONTRACT",
+            "role": "agent_b",
+            "type": "model_call",
+            "created_at": "2026-11-21T23:28:31.888591+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "openai/gpt-6-luna tier=lead agent_b@v4 $0.0048",
+            "output_schema": "ResearchObservation",
+            "latency_ms": 41424.11,
+            "cost_usd": 0.0048
+          },
+          {
+            "arm": "pre_fix",
+            "case_id": "test_clean_dry_bean",
+            "run_id": "run_d59520b21b0d",
+            "seq": 17,
+            "stage": "CONTRACT",
+            "role": "agent_b",
+            "type": "model_call",
+            "created_at": "2026-11-21T23:35:04.986713+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "openai/gpt-6-luna tier=lead agent_b@v4 $0.0005",
+            "output_schema": null,
+            "latency_ms": 2276.35,
+            "cost_usd": 0.000489
+          }
+        ]
+      },
+      "post_fix_tool_results": {
+        "filters": {
+          "arm": "post_fix",
+          "role": null,
+          "type": "tool_result",
+          "case_id": null,
+          "stage": null,
+          "limit": 20
+        },
+        "scanned_runs": 26,
+        "total_matched": 785,
+        "returned": 20,
+        "matches": [
+          {
+            "arm": "post_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_1df612e0e107",
+            "seq": 22,
+            "stage": "CONTRACT",
+            "role": "agent_b",
+            "type": "tool_result",
+            "created_at": "2026-11-25T03:53:50.301812+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "retrieve_methodology -> ok",
+            "call_id": "call_3ffb15c5d5a2d4ff",
+            "tool_name": "retrieve_methodology",
+            "latency_ms": 200.98
+          },
+          {
+            "arm": "post_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_1df612e0e107",
+            "seq": 26,
+            "stage": "CONTRACT",
+            "role": "agent_b",
+            "type": "tool_result",
+            "created_at": "2026-11-25T03:53:50.471012+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "search_model_catalog -> ok",
+            "call_id": "call_4238cc94f78847eb",
+            "tool_name": "search_model_catalog",
+            "latency_ms": 136.86
+          },
+          {
+            "arm": "post_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_1df612e0e107",
+            "seq": 32,
+            "stage": "CONTRACT",
+            "role": "agent_b",
+            "type": "tool_result",
+            "created_at": "2026-11-25T03:53:53.065461+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "get_model_evidence -> ok",
+            "call_id": "call_5c5e890469b94674",
+            "tool_name": "get_model_evidence",
+            "latency_ms": 213.87
+          },
+          {
+            "arm": "post_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_1df612e0e107",
+            "seq": 37,
+            "stage": "CONTRACT",
+            "role": "agent_b",
+            "type": "tool_result",
+            "created_at": "2026-11-25T03:53:53.192991+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "retrieve_methodology -> ok",
+            "call_id": "call_31fd5b5da291bc71",
+            "tool_name": "retrieve_methodology",
+            "latency_ms": 102.41
+          },
+          {
+            "arm": "post_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_1df612e0e107",
+            "seq": 65,
+            "stage": "CONTRACT",
+            "role": "agent_c",
+            "type": "tool_result",
+            "created_at": "2026-11-25T03:55:09.702009+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "run_diagnostic -> ok",
+            "call_id": "call_1895ffc7245ada77",
+            "tool_name": "run_diagnostic",
+            "latency_ms": 349.27
+          },
+          {
+            "arm": "post_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_1df612e0e107",
+            "seq": 89,
+            "stage": "PHASE_B",
+            "role": "trial_worker",
+            "type": "tool_result",
+            "created_at": "2026-11-25T03:55:51.725899+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "write_trial_files -> ok",
+            "call_id": "call_3a0e0996de08a5fb",
+            "tool_name": "write_trial_files",
+            "latency_ms": 171.82
+          },
+          {
+            "arm": "post_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_1df612e0e107",
+            "seq": 94,
+            "stage": "PHASE_B",
+            "role": "trial_worker",
+            "type": "tool_result",
+            "created_at": "2026-11-25T03:55:52.362739+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "write_trial_files -> ok",
+            "call_id": "call_4edefbd1a12b8d2d",
+            "tool_name": "write_trial_files",
+            "latency_ms": 169.34
+          },
+          {
+            "arm": "post_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_1df612e0e107",
+            "seq": 103,
+            "stage": "PHASE_B",
+            "role": "trial_worker",
+            "type": "tool_result",
+            "created_at": "2026-11-25T03:55:53.148459+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "submit_experiment -> ok",
+            "call_id": "call_375178e2a6663110",
+            "tool_name": "submit_experiment",
+            "latency_ms": 137.66
+          },
+          {
+            "arm": "post_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_1df612e0e107",
+            "seq": 114,
+            "stage": "PHASE_B",
+            "role": "trial_worker",
+            "type": "tool_result",
+            "created_at": "2026-11-25T03:55:53.575397+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "submit_experiment -> ok",
+            "call_id": "call_4d1ff3c52f643410",
+            "tool_name": "submit_experiment",
+            "latency_ms": 161.65
+          },
+          {
+            "arm": "post_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_1df612e0e107",
+            "seq": 123,
+            "stage": "PHASE_B",
+            "role": "trial_worker",
+            "type": "tool_result",
+            "created_at": "2026-11-25T03:56:39.343515+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "get_experiment_status -> ok",
+            "call_id": "call_38db793eff807d60",
+            "tool_name": "get_experiment_status",
+            "latency_ms": 45096.41
+          },
+          {
+            "arm": "post_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_1df612e0e107",
+            "seq": 126,
+            "stage": "PHASE_B",
+            "role": "trial_worker",
+            "type": "tool_result",
+            "created_at": "2026-11-25T03:56:39.607818+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "get_experiment_status -> ok",
+            "call_id": "call_086a817427349eda",
+            "tool_name": "get_experiment_status",
+            "latency_ms": 45084.6
+          },
+          {
+            "arm": "post_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_1df612e0e107",
+            "seq": 138,
+            "stage": "PHASE_B",
+            "role": "trial_worker",
+            "type": "tool_result",
+            "created_at": "2026-11-25T03:56:41.464387+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "get_experiment_status -> ok",
+            "call_id": "call_0a6ada647ed04abd",
+            "tool_name": "get_experiment_status",
+            "latency_ms": 1097.75
+          },
+          {
+            "arm": "post_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_1df612e0e107",
+            "seq": 144,
+            "stage": "PHASE_B",
+            "role": "trial_worker",
+            "type": "tool_result",
+            "created_at": "2026-11-25T03:57:26.136582+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "get_experiment_status -> ok",
+            "call_id": "call_65fd894466ee0c91",
+            "tool_name": "get_experiment_status",
+            "latency_ms": 45109.01
+          },
+          {
+            "arm": "post_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_1df612e0e107",
+            "seq": 151,
+            "stage": "PHASE_B",
+            "role": "trial_worker",
+            "type": "tool_result",
+            "created_at": "2026-11-25T03:57:43.918735+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "get_experiment_status -> ok",
+            "call_id": "call_2ac05eb8757760db",
+            "tool_name": "get_experiment_status",
+            "latency_ms": 13156.4
+          },
+          {
+            "arm": "post_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_1df612e0e107",
+            "seq": 162,
+            "stage": "PHASE_B",
+            "role": "agent_c",
+            "type": "tool_result",
+            "created_at": "2026-11-25T03:57:58.174926+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "inspect_dataset -> ok",
+            "call_id": "call_bc3483ac8fe19dc7",
+            "tool_name": "inspect_dataset",
+            "latency_ms": 431.63
+          },
+          {
+            "arm": "post_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_1df612e0e107",
+            "seq": 167,
+            "stage": "PHASE_B",
+            "role": "agent_c",
+            "type": "tool_result",
+            "created_at": "2026-11-25T03:58:03.348054+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "write_trial_files -> ok",
+            "call_id": "call_0ac6c3a0ff64d6c8",
+            "tool_name": "write_trial_files",
+            "latency_ms": 88.06
+          },
+          {
+            "arm": "post_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_1df612e0e107",
+            "seq": 176,
+            "stage": "PHASE_B",
+            "role": "agent_c",
+            "type": "tool_result",
+            "created_at": "2026-11-25T03:58:04.890999+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "submit_experiment -> ok",
+            "call_id": "call_c6a93067a2ca59d9",
+            "tool_name": "submit_experiment",
+            "latency_ms": 134.52
+          },
+          {
+            "arm": "post_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_1df612e0e107",
+            "seq": 183,
+            "stage": "PHASE_B",
+            "role": "agent_c",
+            "type": "tool_result",
+            "created_at": "2026-11-25T03:58:09.832855+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "write_trial_files -> ok",
+            "call_id": "call_45fa35e29b4567bb",
+            "tool_name": "write_trial_files",
+            "latency_ms": 100.6
+          },
+          {
+            "arm": "post_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_1df612e0e107",
+            "seq": 192,
+            "stage": "PHASE_B",
+            "role": "agent_c",
+            "type": "tool_result",
+            "created_at": "2026-11-25T03:58:12.195987+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "submit_experiment -> ok",
+            "call_id": "call_cadab380cb232ef9",
+            "tool_name": "submit_experiment",
+            "latency_ms": 125.67
+          },
+          {
+            "arm": "post_fix",
+            "case_id": "test_clean_abalone",
+            "run_id": "run_1df612e0e107",
+            "seq": 197,
+            "stage": "PHASE_B",
+            "role": "agent_c",
+            "type": "tool_result",
+            "created_at": "2026-11-25T03:58:16.748393+00:00",
+            "trial_id": null,
+            "job_id": null,
+            "detail": "write_trial_files -> ok",
+            "call_id": "call_4eabd39a211d0092",
+            "tool_name": "write_trial_files",
+            "latency_ms": 95.59
+          }
+        ]
+      }
+    }
+  },
+  "evaluation": {
+    "primary_pass_rate": {
+      "pre_fix": {
+        "passed": 25,
+        "graded": 26,
+        "rate": 0.9615,
+        "wilson_ci_95": [
+          0.8111,
+          0.9932
+        ]
+      },
+      "post_fix": {
+        "passed": 25,
+        "graded": 26,
+        "rate": 0.9615,
+        "wilson_ci_95": [
+          0.8111,
+          0.9932
+        ]
+      },
+      "paired_post_minus_pre": {
+        "cases": 26,
+        "both_pass": 24,
+        "post_only": 1,
+        "pre_only": 1,
+        "both_fail": 0,
+        "difference": 0.0,
+        "ci_95": [
+          -0.1154,
+          0.1154
+        ],
+        "verdict": "inconclusive",
+        "resamples": 10000,
+        "seed": 1990
+      }
+    },
+    "predictive_quality_24_cases": {
+      "modelable_cases": 24,
+      "paired_with_hidden_metric": 22,
+      "pre_passed": 23,
+      "post_passed": 23,
+      "improved_count": 10,
+      "unchanged_count": 2,
+      "degraded_count": 10,
+      "maximize_metrics": {
+        "count": 15,
+        "mean_delta": 0.001699,
+        "median_delta": -0.000308
+      },
+      "minimize_metrics": {
+        "count": 7,
+        "mean_improvement": 1.442701,
+        "median_improvement": 0.006768
+      },
+      "per_case": [
+        {
+          "case_id": "test_clean_abalone",
+          "metric": "mae",
+          "direction": "minimize",
+          "pre_passed": true,
+          "post_passed": true,
+          "pre_value": 1.469419,
+          "post_value": 1.48914,
+          "raw_delta": 0.019721,
+          "directional_quality_delta": -0.019721,
+          "directional_relative_pct": -1.342
+        },
+        {
+          "case_id": "test_clean_breast_cancer",
+          "metric": "roc_auc",
+          "direction": "maximize",
+          "pre_passed": true,
+          "post_passed": true,
+          "pre_value": 0.99576,
+          "post_value": 0.99576,
+          "raw_delta": 0.0,
+          "directional_quality_delta": 0.0,
+          "directional_relative_pct": 0.0
+        },
+        {
+          "case_id": "test_clean_dry_bean",
+          "metric": "f1_macro",
+          "direction": "maximize",
+          "pre_passed": true,
+          "post_passed": true,
+          "pre_value": 0.936407,
+          "post_value": 0.937634,
+          "raw_delta": 0.001227,
+          "directional_quality_delta": 0.001227,
+          "directional_relative_pct": 0.131
+        },
+        {
+          "case_id": "test_clean_phishing",
+          "metric": "roc_auc",
+          "direction": "maximize",
+          "pre_passed": true,
+          "post_passed": true,
+          "pre_value": 0.990329,
+          "post_value": 0.990381,
+          "raw_delta": 5.2e-05,
+          "directional_quality_delta": 5.2e-05,
+          "directional_relative_pct": 0.005
+        },
+        {
+          "case_id": "test_clean_power_plant",
+          "metric": "mae",
+          "direction": "minimize",
+          "pre_passed": true,
+          "post_passed": true,
+          "pre_value": 2.496354,
+          "post_value": 2.496161,
+          "raw_delta": -0.000193,
+          "directional_quality_delta": 0.000193,
+          "directional_relative_pct": 0.008
+        },
+        {
+          "case_id": "test_clean_rice",
+          "metric": "roc_auc",
+          "direction": "maximize",
+          "pre_passed": true,
+          "post_passed": true,
+          "pre_value": 0.977424,
+          "post_value": 0.977424,
+          "raw_delta": 0.0,
+          "directional_quality_delta": 0.0,
+          "directional_relative_pct": 0.0
+        },
+        {
+          "case_id": "test_fault_submit_banknote",
+          "metric": "roc_auc",
+          "direction": "maximize",
+          "pre_passed": true,
+          "post_passed": true,
+          "pre_value": 0.999863,
+          "post_value": 0.999555,
+          "raw_delta": -0.000308,
+          "directional_quality_delta": -0.000308,
+          "directional_relative_pct": -0.031
+        },
+        {
+          "case_id": "test_fault_submit_spambase",
+          "metric": "roc_auc",
+          "direction": "maximize",
+          "pre_passed": true,
+          "post_passed": true,
+          "pre_value": 0.986606,
+          "post_value": 0.985904,
+          "raw_delta": -0.000702,
+          "directional_quality_delta": -0.000702,
+          "directional_relative_pct": -0.071
+        },
+        {
+          "case_id": "test_fault_submit_superconductivity",
+          "metric": "mae",
+          "direction": "minimize",
+          "pre_passed": false,
+          "post_passed": true,
+          "pre_value": null,
+          "post_value": 5.812315,
+          "raw_delta": null,
+          "directional_quality_delta": null,
+          "directional_relative_pct": null
+        },
+        {
+          "case_id": "test_fault_write_retinopathy",
+          "metric": "roc_auc",
+          "direction": "maximize",
+          "pre_passed": true,
+          "post_passed": true,
+          "pre_value": 0.783394,
+          "post_value": 0.799177,
+          "raw_delta": 0.015783,
+          "directional_quality_delta": 0.015783,
+          "directional_relative_pct": 2.015
+        },
+        {
+          "case_id": "test_group_airfoil",
+          "metric": "mae",
+          "direction": "minimize",
+          "pre_passed": true,
+          "post_passed": true,
+          "pre_value": 2.389273,
+          "post_value": 1.813612,
+          "raw_delta": -0.575661,
+          "directional_quality_delta": 0.575661,
+          "directional_relative_pct": 24.094
+        },
+        {
+          "case_id": "test_group_concrete",
+          "metric": "mae",
+          "direction": "minimize",
+          "pre_passed": true,
+          "post_passed": true,
+          "pre_value": 4.736274,
+          "post_value": 5.292109,
+          "raw_delta": 0.555835,
+          "directional_quality_delta": -0.555835,
+          "directional_relative_pct": -11.736
+        },
+        {
+          "case_id": "test_group_real_estate",
+          "metric": "mae",
+          "direction": "minimize",
+          "pre_passed": true,
+          "post_passed": true,
+          "pre_value": 4.501625,
+          "post_value": 4.33618,
+          "raw_delta": -0.165444,
+          "directional_quality_delta": 0.165444,
+          "directional_relative_pct": 3.675
+        },
+        {
+          "case_id": "test_imb_bankruptcy",
+          "metric": "f1_macro",
+          "direction": "maximize",
+          "pre_passed": true,
+          "post_passed": true,
+          "pre_value": 0.692979,
+          "post_value": 0.614226,
+          "raw_delta": -0.078752,
+          "directional_quality_delta": -0.078752,
+          "directional_relative_pct": -11.364
+        },
+        {
+          "case_id": "test_imb_churn",
+          "metric": "f1_macro",
+          "direction": "maximize",
+          "pre_passed": true,
+          "post_passed": true,
+          "pre_value": 0.916737,
+          "post_value": 0.901125,
+          "raw_delta": -0.015612,
+          "directional_quality_delta": -0.015612,
+          "directional_relative_pct": -1.703
+        },
+        {
+          "case_id": "test_imb_credit_default",
+          "metric": "f1_macro",
+          "direction": "maximize",
+          "pre_passed": true,
+          "post_passed": true,
+          "pre_value": 0.681257,
+          "post_value": 0.676625,
+          "raw_delta": -0.004632,
+          "directional_quality_delta": -0.004632,
+          "directional_relative_pct": -0.68
+        },
+        {
+          "case_id": "test_imb_htru2",
+          "metric": "f1_macro",
+          "direction": "maximize",
+          "pre_passed": true,
+          "post_passed": true,
+          "pre_value": 0.919505,
+          "post_value": 0.913697,
+          "raw_delta": -0.005808,
+          "directional_quality_delta": -0.005808,
+          "directional_relative_pct": -0.632
+        },
+        {
+          "case_id": "test_leak_bank_marketing",
+          "metric": "f1_macro",
+          "direction": "maximize",
+          "pre_passed": true,
+          "post_passed": true,
+          "pre_value": 0.634504,
+          "post_value": 0.679974,
+          "raw_delta": 0.04547,
+          "directional_quality_delta": 0.04547,
+          "directional_relative_pct": 7.166
+        },
+        {
+          "case_id": "test_leak_cirrhosis",
+          "metric": "roc_auc",
+          "direction": "maximize",
+          "pre_passed": true,
+          "post_passed": true,
+          "pre_value": 0.863672,
+          "post_value": 0.84375,
+          "raw_delta": -0.019922,
+          "directional_quality_delta": -0.019922,
+          "directional_relative_pct": -2.307
+        },
+        {
+          "case_id": "test_leak_heart_failure",
+          "metric": "roc_auc",
+          "direction": "maximize",
+          "pre_passed": true,
+          "post_passed": true,
+          "pre_value": 0.69281,
+          "post_value": 0.785948,
+          "raw_delta": 0.093137,
+          "directional_quality_delta": 0.093137,
+          "directional_relative_pct": 13.443
+        },
+        {
+          "case_id": "test_leak_student_dropout",
+          "metric": "f1_macro",
+          "direction": "maximize",
+          "pre_passed": true,
+          "post_passed": true,
+          "pre_value": 0.680107,
+          "post_value": 0.675666,
+          "raw_delta": -0.004441,
+          "directional_quality_delta": -0.004441,
+          "directional_relative_pct": -0.653
+        },
+        {
+          "case_id": "test_time_beijing_pm25",
+          "metric": "mae",
+          "direction": "minimize",
+          "pre_passed": true,
+          "post_passed": false,
+          "pre_value": 52.911269,
+          "post_value": null,
+          "raw_delta": null,
+          "directional_quality_delta": null,
+          "directional_relative_pct": null
+        },
+        {
+          "case_id": "test_time_el_nino",
+          "metric": "mae",
+          "direction": "minimize",
+          "pre_passed": true,
+          "post_passed": true,
+          "pre_value": 0.436641,
+          "post_value": 0.429873,
+          "raw_delta": -0.006768,
+          "directional_quality_delta": 0.006768,
+          "directional_relative_pct": 1.55
+        },
+        {
+          "case_id": "test_time_metro_traffic",
+          "metric": "mae",
+          "direction": "minimize",
+          "pre_passed": true,
+          "post_passed": true,
+          "pre_value": 326.333333,
+          "post_value": 316.406934,
+          "raw_delta": -9.926399,
+          "directional_quality_delta": 9.926399,
+          "directional_relative_pct": 3.042
+        }
+      ]
+    },
+    "repeat_sample_6x3": {
+      "pre_fix_overall": {
+        "passed": 17,
+        "graded": 18,
+        "rate": 0.9444,
+        "wilson_ci_95": [
+          0.7424,
+          0.9901
+        ]
+      },
+      "post_fix_overall": {
+        "passed": 18,
+        "graded": 18,
+        "rate": 1.0,
+        "wilson_ci_95": [
+          0.8241,
+          1.0
+        ]
+      },
+      "pre_fix_latency": {
+        "count": 18,
+        "mean": 864.148,
+        "median": 871.777,
+        "p95": 1476.481,
+        "min": 490.513,
+        "max": 1476.481,
+        "method": "nearest-rank"
+      },
+      "post_fix_latency": {
+        "count": 18,
+        "mean": 629.396,
+        "median": 627.98,
+        "p95": 939.015,
+        "min": 486.762,
+        "max": 939.015,
+        "method": "nearest-rank"
+      },
+      "per_case": [
+        {
+          "case_id": "test_clean_rice",
+          "pre_fix": {
+            "passed": 3,
+            "total": 3,
+            "min_s": 762.17,
+            "median_s": 771.41,
+            "max_s": 812.28
+          },
+          "post_fix": {
+            "passed": 3,
+            "total": 3,
+            "min_s": 605.66,
+            "median_s": 634.45,
+            "max_s": 650.72
+          }
+        },
+        {
+          "case_id": "test_fault_submit_spambase",
+          "pre_fix": {
+            "passed": 3,
+            "total": 3,
+            "min_s": 880.22,
+            "median_s": 987.74,
+            "max_s": 1130.27
+          },
+          "post_fix": {
+            "passed": 3,
+            "total": 3,
+            "min_s": 571.11,
+            "median_s": 621.51,
+            "max_s": 644.27
+          }
+        },
+        {
+          "case_id": "test_group_concrete",
+          "pre_fix": {
+            "passed": 3,
+            "total": 3,
+            "min_s": 709.27,
+            "median_s": 754.91,
+            "max_s": 881.16
+          },
+          "post_fix": {
+            "passed": 3,
+            "total": 3,
+            "min_s": 513.54,
+            "median_s": 521.46,
+            "max_s": 670.06
+          }
+        },
+        {
+          "case_id": "test_imb_churn",
+          "pre_fix": {
+            "passed": 3,
+            "total": 3,
+            "min_s": 882.55,
+            "median_s": 909.04,
+            "max_s": 1000.38
+          },
+          "post_fix": {
+            "passed": 3,
+            "total": 3,
+            "min_s": 506.34,
+            "median_s": 687.9,
+            "max_s": 720.26
+          }
+        },
+        {
+          "case_id": "test_leak_heart_failure",
+          "pre_fix": {
+            "passed": 3,
+            "total": 3,
+            "min_s": 778.57,
+            "median_s": 863.33,
+            "max_s": 931.05
+          },
+          "post_fix": {
+            "passed": 3,
+            "total": 3,
+            "min_s": 566.94,
+            "median_s": 596.23,
+            "max_s": 658.04
+          }
+        },
+        {
+          "case_id": "test_time_beijing_pm25",
+          "pre_fix": {
+            "passed": 2,
+            "total": 3,
+            "min_s": 490.51,
+            "median_s": 533.32,
+            "max_s": 1476.48
+          },
+          "post_fix": {
+            "passed": 3,
+            "total": 3,
+            "min_s": 486.76,
+            "median_s": 734.88,
+            "max_s": 939.01
+          }
+        }
+      ]
+    },
+    "end_to_end_latency_seconds": {
+      "pre_fix_system": {
+        "count": 26,
+        "mean": 633.709,
+        "median": 617.28,
+        "p95": 1019.059,
+        "min": 149.515,
+        "max": 1248.605,
+        "method": "nearest-rank"
+      },
+      "post_fix_system": {
+        "count": 26,
+        "mean": 485.949,
+        "median": 512.127,
+        "p95": 706.404,
+        "min": 85.622,
+        "max": 751.15,
+        "method": "nearest-rank"
+      },
+      "paired_system_post_minus_pre": {
+        "mean_first": 485.9493,
+        "mean_second": 633.7093,
+        "mean_difference": -147.76,
+        "median_difference": -135.6119,
+        "ci_95": [
+          -228.0116,
+          -74.1831
+        ],
+        "resamples": 10000,
+        "seed": 1990
+      },
+      "pre_fix_active": {
+        "count": 26,
+        "mean": 633.706,
+        "median": 617.277,
+        "p95": 1019.056,
+        "min": 149.514,
+        "max": 1248.602,
+        "method": "nearest-rank"
+      },
+      "post_fix_active": {
+        "count": 26,
+        "mean": 485.946,
+        "median": 512.123,
+        "p95": 706.399,
+        "min": 85.621,
+        "max": 751.146,
+        "method": "nearest-rank"
+      },
+      "paired_active_post_minus_pre": {
+        "mean_first": 485.9461,
+        "mean_second": 633.7065,
+        "mean_difference": -147.7604,
+        "median_difference": -135.6128,
+        "ci_95": [
+          -228.012,
+          -74.1835
+        ],
+        "resamples": 10000,
+        "seed": 1990
+      }
+    },
+    "bottleneck_metrics": {
+      "agent_b_model_calls": {
+        "pre_fix_total": 142,
+        "post_fix_total": 85,
+        "paired_per_run": {
+          "mean_first": 3.2692,
+          "mean_second": 5.4615,
+          "mean_difference": -2.1923,
+          "median_difference": -2.0,
+          "ci_95": [
+            -3.0,
+            -1.6154
+          ],
+          "resamples": 10000,
+          "seed": 1990
+        }
+      },
+      "agent_b_llm_latency_seconds": {
+        "pre_fix_total": 2692.7,
+        "post_fix_total": 1143.43,
+        "paired_per_run": {
+          "mean_first": 43.9781,
+          "mean_second": 103.5654,
+          "mean_difference": -59.5873,
+          "median_difference": -54.9326,
+          "ci_95": [
+            -73.1108,
+            -48.9515
+          ],
+          "resamples": 10000,
+          "seed": 1990
+        }
+      },
+      "agent_b_cost_usd": {
+        "pre_fix_total": 0.265111,
+        "post_fix_total": 0.144326,
+        "paired_per_run": {
+          "mean_first": 0.0056,
+          "mean_second": 0.0102,
+          "mean_difference": -0.0046,
+          "median_difference": -0.0042,
+          "ci_95": [
+            -0.006,
+            -0.0035
+          ],
+          "resamples": 10000,
+          "seed": 1990
+        }
+      },
+      "post_tool_duplicate_turns": {
+        "pre_fix_total": 27,
+        "pre_fix_runs_affected": 26,
+        "pre_fix_latency_seconds": 953.88,
+        "pre_fix_cost_usd": 0.060805,
+        "post_fix_total": 0,
+        "post_fix_runs_affected": 0,
+        "post_fix_latency_seconds": 0.0,
+        "post_fix_cost_usd": 0.0,
+        "paired_per_run": {
+          "mean_first": 0.0,
+          "mean_second": 1.0385,
+          "mean_difference": -1.0385,
+          "median_difference": -1.0,
+          "ci_95": [
+            -1.1154,
+            -1.0
+          ],
+          "resamples": 10000,
+          "seed": 1990
+        }
+      },
+      "validation_retries": {
+        "pre_fix_total": 6,
+        "pre_fix_runs_affected": 5,
+        "pre_fix_latency_seconds": 189.991,
+        "pre_fix_cost_usd": 0.019226,
+        "post_fix_total": 2,
+        "post_fix_runs_affected": 2,
+        "post_fix_latency_seconds": 50.216,
+        "post_fix_cost_usd": 0.007902,
+        "paired_per_run": {
+          "mean_first": 0.0769,
+          "mean_second": 0.2308,
+          "mean_difference": -0.1538,
+          "median_difference": 0.0,
+          "ci_95": [
+            -0.3846,
+            0.0769
+          ],
+          "resamples": 10000,
+          "seed": 1990
+        }
+      },
+      "contract_stage_latency_seconds": {
+        "pre_fix": {
+          "count": 26,
+          "mean": 180.575,
+          "median": 174.895,
+          "p95": 232.619,
+          "min": 139.1,
+          "max": 333.086,
+          "method": "nearest-rank"
+        },
+        "post_fix": {
+          "count": 26,
+          "mean": 113.412,
+          "median": 106.119,
+          "p95": 180.904,
+          "min": 80.066,
+          "max": 187.743,
+          "method": "nearest-rank"
+        },
+        "paired_per_run": {
+          "mean_first": 113.4125,
+          "mean_second": 180.5752,
+          "mean_difference": -67.1627,
+          "median_difference": -67.568,
+          "ci_95": [
+            -85.0759,
+            -51.8738
+          ],
+          "resamples": 10000,
+          "seed": 1990
+        }
+      }
+    },
+    "spend": {
+      "pre_fix_primary_actual_usd": 0.94517,
+      "pre_fix_primary_list_usd": 0.94517,
+      "pre_fix_primary_per_task_usd": 0.036353,
+      "pre_fix_all_44_runs_usd": 1.607065,
+      "post_fix_primary_actual_usd": 0.789818,
+      "post_fix_primary_list_usd": 0.789818,
+      "post_fix_primary_per_task_usd": 0.030378,
+      "post_fix_all_44_runs_usd": 1.361461,
+      "post_fix_ledger": {
+        "cap_usd": 3.5,
+        "attempt_reservation_usd": 0.36,
+        "measured_usd": 1.547797615,
+        "unknown_reserved_usd": 1.44,
+        "attempts": 2227
+      }
+    },
+    "per_case": [
+      {
+        "case_id": "test_clean_abalone",
+        "pre_fix": {
+          "run_id": "run_a90033465303",
+          "passed": true,
+          "system_seconds": 511.061,
+          "cost_usd": 0.029022,
+          "agent_b_calls": 5,
+          "agent_b_latency_seconds": 77.172,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 0,
+          "contract_stage_seconds": 147.002
+        },
+        "post_fix": {
+          "run_id": "run_1df612e0e107",
+          "passed": true,
+          "system_seconds": 486.356,
+          "cost_usd": 0.025442,
+          "agent_b_calls": 3,
+          "agent_b_latency_seconds": 43.125,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 105.501
+        }
+      },
+      {
+        "case_id": "test_clean_breast_cancer",
+        "pre_fix": {
+          "run_id": "run_0f100f3df90b",
+          "passed": true,
+          "system_seconds": 456.301,
+          "cost_usd": 0.030927,
+          "agent_b_calls": 4,
+          "agent_b_latency_seconds": 70.587,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 0,
+          "contract_stage_seconds": 142.27
+        },
+        "post_fix": {
+          "run_id": "run_4528a233055d",
+          "passed": true,
+          "system_seconds": 458.187,
+          "cost_usd": 0.03272,
+          "agent_b_calls": 3,
+          "agent_b_latency_seconds": 35.16,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 95.394
+        }
+      },
+      {
+        "case_id": "test_clean_dry_bean",
+        "pre_fix": {
+          "run_id": "run_d59520b21b0d",
+          "passed": true,
+          "system_seconds": 724.508,
+          "cost_usd": 0.041838,
+          "agent_b_calls": 4,
+          "agent_b_latency_seconds": 109.461,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 0,
+          "contract_stage_seconds": 182.209
+        },
+        "post_fix": {
+          "run_id": "run_606ed4479774",
+          "passed": true,
+          "system_seconds": 517.028,
+          "cost_usd": 0.02791,
+          "agent_b_calls": 3,
+          "agent_b_latency_seconds": 41.154,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 94.763
+        }
+      },
+      {
+        "case_id": "test_clean_phishing",
+        "pre_fix": {
+          "run_id": "run_269157ad951a",
+          "passed": true,
+          "system_seconds": 519.328,
+          "cost_usd": 0.033582,
+          "agent_b_calls": 5,
+          "agent_b_latency_seconds": 69.322,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 0,
+          "contract_stage_seconds": 139.1
+        },
+        "post_fix": {
+          "run_id": "run_9e4bd67df202",
+          "passed": true,
+          "system_seconds": 578.35,
+          "cost_usd": 0.041077,
+          "agent_b_calls": 3,
+          "agent_b_latency_seconds": 46.925,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 105.934
+        }
+      },
+      {
+        "case_id": "test_clean_power_plant",
+        "pre_fix": {
+          "run_id": "run_4a9d9d74cc95",
+          "passed": true,
+          "system_seconds": 745.372,
+          "cost_usd": 0.033959,
+          "agent_b_calls": 5,
+          "agent_b_latency_seconds": 108.317,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 0,
+          "contract_stage_seconds": 181.466
+        },
+        "post_fix": {
+          "run_id": "run_07022da876e1",
+          "passed": true,
+          "system_seconds": 502.416,
+          "cost_usd": 0.026399,
+          "agent_b_calls": 3,
+          "agent_b_latency_seconds": 43.781,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 100.014
+        }
+      },
+      {
+        "case_id": "test_clean_rice",
+        "pre_fix": {
+          "run_id": "run_2a2d5305864e",
+          "passed": true,
+          "system_seconds": 522.896,
+          "cost_usd": 0.029153,
+          "agent_b_calls": 5,
+          "agent_b_latency_seconds": 91.645,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 0,
+          "contract_stage_seconds": 159.675
+        },
+        "post_fix": {
+          "run_id": "run_8af323ccf48a",
+          "passed": true,
+          "system_seconds": 547.575,
+          "cost_usd": 0.029953,
+          "agent_b_calls": 3,
+          "agent_b_latency_seconds": 32.705,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 92.582
+        }
+      },
+      {
+        "case_id": "test_fault_malformed_landsat",
+        "pre_fix": {
+          "run_id": "run_3983f7c5c2b6",
+          "passed": true,
+          "system_seconds": 178.82,
+          "cost_usd": 0.017814,
+          "agent_b_calls": 5,
+          "agent_b_latency_seconds": 121.244,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 0,
+          "contract_stage_seconds": 171.886
+        },
+        "post_fix": {
+          "run_id": "run_aac0432515f7",
+          "passed": true,
+          "system_seconds": 99.946,
+          "cost_usd": 0.012674,
+          "agent_b_calls": 3,
+          "agent_b_latency_seconds": 43.782,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 94.507
+        }
+      },
+      {
+        "case_id": "test_fault_malformed_maternal",
+        "pre_fix": {
+          "run_id": "run_aa54d7c736e1",
+          "passed": true,
+          "system_seconds": 149.515,
+          "cost_usd": 0.013194,
+          "agent_b_calls": 5,
+          "agent_b_latency_seconds": 92.368,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 0,
+          "contract_stage_seconds": 141.899
+        },
+        "post_fix": {
+          "run_id": "run_98db50584212",
+          "passed": true,
+          "system_seconds": 85.622,
+          "cost_usd": 0.008924,
+          "agent_b_calls": 3,
+          "agent_b_latency_seconds": 43.02,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 80.066
+        }
+      },
+      {
+        "case_id": "test_fault_submit_banknote",
+        "pre_fix": {
+          "run_id": "run_a8df1b6e3e6b",
+          "passed": true,
+          "system_seconds": 624.822,
+          "cost_usd": 0.029953,
+          "agent_b_calls": 5,
+          "agent_b_latency_seconds": 98.994,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 0,
+          "contract_stage_seconds": 168.369
+        },
+        "post_fix": {
+          "run_id": "run_fd15aa08520b",
+          "passed": true,
+          "system_seconds": 412.731,
+          "cost_usd": 0.02263,
+          "agent_b_calls": 3,
+          "agent_b_latency_seconds": 43.292,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 95.473
+        }
+      },
+      {
+        "case_id": "test_fault_submit_spambase",
+        "pre_fix": {
+          "run_id": "run_84c78d50554b",
+          "passed": true,
+          "system_seconds": 544.59,
+          "cost_usd": 0.040052,
+          "agent_b_calls": 4,
+          "agent_b_latency_seconds": 106.9,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 0,
+          "contract_stage_seconds": 188.844
+        },
+        "post_fix": {
+          "run_id": "run_fb0b83eb379d",
+          "passed": true,
+          "system_seconds": 558.94,
+          "cost_usd": 0.041224,
+          "agent_b_calls": 3,
+          "agent_b_latency_seconds": 45.331,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 107.849
+        }
+      },
+      {
+        "case_id": "test_fault_submit_superconductivity",
+        "pre_fix": {
+          "run_id": "run_90f177e2ffaf",
+          "passed": false,
+          "system_seconds": 1248.605,
+          "cost_usd": 0.058289,
+          "agent_b_calls": 6,
+          "agent_b_latency_seconds": 134.49,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 1,
+          "contract_stage_seconds": 232.619
+        },
+        "post_fix": {
+          "run_id": "run_49fdf12fb4ff",
+          "passed": true,
+          "system_seconds": 589.783,
+          "cost_usd": 0.041876,
+          "agent_b_calls": 3,
+          "agent_b_latency_seconds": 36.636,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 118.939
+        }
+      },
+      {
+        "case_id": "test_fault_write_retinopathy",
+        "pre_fix": {
+          "run_id": "run_bd88b265d1d7",
+          "passed": true,
+          "system_seconds": 710.066,
+          "cost_usd": 0.041087,
+          "agent_b_calls": 5,
+          "agent_b_latency_seconds": 135.063,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 1,
+          "contract_stage_seconds": 222.092
+        },
+        "post_fix": {
+          "run_id": "run_76fc0d0907df",
+          "passed": true,
+          "system_seconds": 510.208,
+          "cost_usd": 0.033237,
+          "agent_b_calls": 3,
+          "agent_b_latency_seconds": 35.205,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 95.943
+        }
+      },
+      {
+        "case_id": "test_group_airfoil",
+        "pre_fix": {
+          "run_id": "run_b80355790f63",
+          "passed": true,
+          "system_seconds": 486.223,
+          "cost_usd": 0.031129,
+          "agent_b_calls": 6,
+          "agent_b_latency_seconds": 119.272,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 1,
+          "contract_stage_seconds": 192.595
+        },
+        "post_fix": {
+          "run_id": "run_3488fdeac963",
+          "passed": true,
+          "system_seconds": 586.867,
+          "cost_usd": 0.027088,
+          "agent_b_calls": 4,
+          "agent_b_latency_seconds": 46.834,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 115.052
+        }
+      },
+      {
+        "case_id": "test_group_concrete",
+        "pre_fix": {
+          "run_id": "run_91b23f9e38ce",
+          "passed": true,
+          "system_seconds": 752.0,
+          "cost_usd": 0.035315,
+          "agent_b_calls": 4,
+          "agent_b_latency_seconds": 79.691,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 0,
+          "contract_stage_seconds": 154.046
+        },
+        "post_fix": {
+          "run_id": "run_699c8c56cd7f",
+          "passed": true,
+          "system_seconds": 491.733,
+          "cost_usd": 0.022946,
+          "agent_b_calls": 3,
+          "agent_b_latency_seconds": 39.106,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 105.011
+        }
+      },
+      {
+        "case_id": "test_group_real_estate",
+        "pre_fix": {
+          "run_id": "run_aba4720a36e5",
+          "passed": true,
+          "system_seconds": 673.856,
+          "cost_usd": 0.0313,
+          "agent_b_calls": 5,
+          "agent_b_latency_seconds": 85.526,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 0,
+          "contract_stage_seconds": 171.722
+        },
+        "post_fix": {
+          "run_id": "run_516207090bb6",
+          "passed": true,
+          "system_seconds": 569.521,
+          "cost_usd": 0.030837,
+          "agent_b_calls": 4,
+          "agent_b_latency_seconds": 39.13,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 99.848
+        }
+      },
+      {
+        "case_id": "test_imb_bankruptcy",
+        "pre_fix": {
+          "run_id": "run_064d9fd16ea6",
+          "passed": true,
+          "system_seconds": 1019.059,
+          "cost_usd": 0.062394,
+          "agent_b_calls": 5,
+          "agent_b_latency_seconds": 93.881,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 0,
+          "contract_stage_seconds": 183.505
+        },
+        "post_fix": {
+          "run_id": "run_b1e93e79bfea",
+          "passed": true,
+          "system_seconds": 587.812,
+          "cost_usd": 0.061518,
+          "agent_b_calls": 3,
+          "agent_b_latency_seconds": 39.21,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 137.622
+        }
+      },
+      {
+        "case_id": "test_imb_churn",
+        "pre_fix": {
+          "run_id": "run_bf34259cb065",
+          "passed": true,
+          "system_seconds": 742.286,
+          "cost_usd": 0.036428,
+          "agent_b_calls": 7,
+          "agent_b_latency_seconds": 103.007,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 1,
+          "contract_stage_seconds": 171.593
+        },
+        "post_fix": {
+          "run_id": "run_189b22d5edcd",
+          "passed": true,
+          "system_seconds": 706.404,
+          "cost_usd": 0.034028,
+          "agent_b_calls": 3,
+          "agent_b_latency_seconds": 47.813,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 127.689
+        }
+      },
+      {
+        "case_id": "test_imb_credit_default",
+        "pre_fix": {
+          "run_id": "run_36ff21d52087",
+          "passed": true,
+          "system_seconds": 609.266,
+          "cost_usd": 0.041877,
+          "agent_b_calls": 4,
+          "agent_b_latency_seconds": 102.626,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 0,
+          "contract_stage_seconds": 181.09
+        },
+        "post_fix": {
+          "run_id": "run_06b6acfae6fe",
+          "passed": true,
+          "system_seconds": 479.286,
+          "cost_usd": 0.030173,
+          "agent_b_calls": 4,
+          "agent_b_latency_seconds": 60.959,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 1,
+          "contract_stage_seconds": 130.864
+        }
+      },
+      {
+        "case_id": "test_imb_htru2",
+        "pre_fix": {
+          "run_id": "run_9cac699faf32",
+          "passed": true,
+          "system_seconds": 436.653,
+          "cost_usd": 0.037014,
+          "agent_b_calls": 5,
+          "agent_b_latency_seconds": 107.377,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 0,
+          "contract_stage_seconds": 184.331
+        },
+        "post_fix": {
+          "run_id": "run_fbc806e22a60",
+          "passed": true,
+          "system_seconds": 591.879,
+          "cost_usd": 0.029521,
+          "agent_b_calls": 3,
+          "agent_b_latency_seconds": 41.071,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 109.992
+        }
+      },
+      {
+        "case_id": "test_leak_bank_marketing",
+        "pre_fix": {
+          "run_id": "run_bfbf600dc0d9",
+          "passed": true,
+          "system_seconds": 609.739,
+          "cost_usd": 0.05034,
+          "agent_b_calls": 13,
+          "agent_b_latency_seconds": 225.078,
+          "post_tool_duplicate_turns": 2,
+          "validation_retries": 2,
+          "contract_stage_seconds": 333.086
+        },
+        "post_fix": {
+          "run_id": "run_654d27a67676",
+          "passed": true,
+          "system_seconds": 285.924,
+          "cost_usd": 0.027491,
+          "agent_b_calls": 3,
+          "agent_b_latency_seconds": 36.041,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 106.304
+        }
+      },
+      {
+        "case_id": "test_leak_cirrhosis",
+        "pre_fix": {
+          "run_id": "run_2cbd01f2a616",
+          "passed": true,
+          "system_seconds": 712.89,
+          "cost_usd": 0.034631,
+          "agent_b_calls": 5,
+          "agent_b_latency_seconds": 97.832,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 0,
+          "contract_stage_seconds": 171.991
+        },
+        "post_fix": {
+          "run_id": "run_25bd0e4e52ff",
+          "passed": true,
+          "system_seconds": 571.646,
+          "cost_usd": 0.034815,
+          "agent_b_calls": 3,
+          "agent_b_latency_seconds": 40.575,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 103.948
+        }
+      },
+      {
+        "case_id": "test_leak_heart_failure",
+        "pre_fix": {
+          "run_id": "run_b48b647b145f",
+          "passed": true,
+          "system_seconds": 715.555,
+          "cost_usd": 0.03821,
+          "agent_b_calls": 5,
+          "agent_b_latency_seconds": 87.9,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 0,
+          "contract_stage_seconds": 175.954
+        },
+        "post_fix": {
+          "run_id": "run_e3e68ca9629c",
+          "passed": true,
+          "system_seconds": 462.588,
+          "cost_usd": 0.027298,
+          "agent_b_calls": 4,
+          "agent_b_latency_seconds": 45.966,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 107.132
+        }
+      },
+      {
+        "case_id": "test_leak_student_dropout",
+        "pre_fix": {
+          "run_id": "run_840164d1c1d3",
+          "passed": true,
+          "system_seconds": 746.163,
+          "cost_usd": 0.048732,
+          "agent_b_calls": 5,
+          "agent_b_latency_seconds": 86.795,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 0,
+          "contract_stage_seconds": 170.591
+        },
+        "post_fix": {
+          "run_id": "run_c7a21629495f",
+          "passed": true,
+          "system_seconds": 514.045,
+          "cost_usd": 0.036573,
+          "agent_b_calls": 3,
+          "agent_b_latency_seconds": 43.682,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 127.279
+        }
+      },
+      {
+        "case_id": "test_time_beijing_pm25",
+        "pre_fix": {
+          "run_id": "run_072b7fcb45d0",
+          "passed": true,
+          "system_seconds": 481.838,
+          "cost_usd": 0.034118,
+          "agent_b_calls": 7,
+          "agent_b_latency_seconds": 96.919,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 0,
+          "contract_stage_seconds": 173.836
+        },
+        "post_fix": {
+          "run_id": "run_85d66c762791",
+          "passed": false,
+          "system_seconds": 195.931,
+          "cost_usd": 0.020424,
+          "agent_b_calls": 4,
+          "agent_b_latency_seconds": 47.528,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 187.743
+        }
+      },
+      {
+        "case_id": "test_time_el_nino",
+        "pre_fix": {
+          "run_id": "run_93fc0fc8df85",
+          "passed": true,
+          "system_seconds": 1013.397,
+          "cost_usd": 0.031755,
+          "agent_b_calls": 5,
+          "agent_b_latency_seconds": 93.32,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 0,
+          "contract_stage_seconds": 176.957
+        },
+        "post_fix": {
+          "run_id": "run_f401252c72c8",
+          "passed": true,
+          "system_seconds": 492.756,
+          "cost_usd": 0.032615,
+          "agent_b_calls": 4,
+          "agent_b_latency_seconds": 75.018,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 1,
+          "contract_stage_seconds": 180.904
+        }
+      },
+      {
+        "case_id": "test_time_metro_traffic",
+        "pre_fix": {
+          "run_id": "run_9e96e810fb37",
+          "passed": true,
+          "system_seconds": 541.633,
+          "cost_usd": 0.033058,
+          "agent_b_calls": 8,
+          "agent_b_latency_seconds": 97.913,
+          "post_tool_duplicate_turns": 1,
+          "validation_retries": 0,
+          "contract_stage_seconds": 176.226
+        },
+        "post_fix": {
+          "run_id": "run_d2c3a0fea10b",
+          "passed": true,
+          "system_seconds": 751.15,
+          "cost_usd": 0.030424,
+          "agent_b_calls": 4,
+          "agent_b_latency_seconds": 50.378,
+          "post_tool_duplicate_turns": 0,
+          "validation_retries": 0,
+          "contract_stage_seconds": 122.371
+        }
+      }
+    ]
+  },
+  "analysis": {
+    "breakdown_pre_fix": {
+      "runs": 26,
+      "total_system_seconds": 16476.442,
+      "total_trace_span_seconds": 16204.959,
+      "total_llm_latency_seconds": 7165.453,
+      "total_cost_usd": 0.94517,
+      "total_tool_latency_seconds": 7135.359,
+      "non_poll_mcp_tool_latency_seconds": 133.946,
+      "poll_wait_tool_latency_seconds": 7001.413,
+      "total_sandbox_compute_seconds": 8997.535,
+      "by_stage": {
+        "INTAKE": {
+          "wall_seconds_total": 65.709,
+          "wall_seconds_mean": 2.527,
+          "wall_pct": 0.41,
+          "model_calls_total": 26,
+          "llm_latency_seconds_total": 63.001,
+          "cost_usd_total": 0.004689,
+          "cost_pct": 0.5
+        },
+        "PROFILE": {
+          "wall_seconds_total": 2.38,
+          "wall_seconds_mean": 0.092,
+          "wall_pct": 0.01,
+          "model_calls_total": 0,
+          "llm_latency_seconds_total": 0.0,
+          "cost_usd_total": 0.0,
+          "cost_pct": 0.0
+        },
+        "CONTRACT": {
+          "wall_seconds_total": 4694.954,
+          "wall_seconds_mean": 180.575,
+          "wall_pct": 28.97,
+          "model_calls_total": 436,
+          "llm_latency_seconds_total": 4274.464,
+          "cost_usd_total": 0.481099,
+          "cost_pct": 50.9
+        },
+        "PHASE_B": {
+          "wall_seconds_total": 11249.649,
+          "wall_seconds_mean": 432.679,
+          "wall_pct": 69.42,
+          "model_calls_total": 701,
+          "llm_latency_seconds_total": 2638.36,
+          "cost_usd_total": 0.44068,
+          "cost_pct": 46.62
+        },
+        "REPORT": {
+          "wall_seconds_total": 192.266,
+          "wall_seconds_mean": 7.395,
+          "wall_pct": 1.19,
+          "model_calls_total": 30,
+          "llm_latency_seconds_total": 189.629,
+          "cost_usd_total": 0.018702,
+          "cost_pct": 1.98
+        }
+      },
+      "by_actor_llm": {
+        "agent_a": {
+          "calls_total": 286,
+          "calls_mean": 11.0,
+          "latency_seconds_total": 1390.023,
+          "latency_seconds_mean": 53.462,
+          "llm_latency_pct": 19.4,
+          "cost_usd_total": 0.19463,
+          "cost_usd_mean": 0.007486,
+          "cost_pct": 20.59
+        },
+        "agent_b": {
+          "calls_total": 142,
+          "calls_mean": 5.46,
+          "latency_seconds_total": 2692.7,
+          "latency_seconds_mean": 103.565,
+          "llm_latency_pct": 37.58,
+          "cost_usd_total": 0.265111,
+          "cost_usd_mean": 0.010197,
+          "cost_pct": 28.05
+        },
+        "agent_c": {
+          "calls_total": 524,
+          "calls_mean": 20.15,
+          "latency_seconds_total": 2245.326,
+          "latency_seconds_mean": 86.359,
+          "llm_latency_pct": 31.34,
+          "cost_usd_total": 0.377908,
+          "cost_usd_mean": 0.014535,
+          "cost_pct": 39.98
+        },
+        "trial_worker": {
+          "calls_total": 241,
+          "calls_mean": 9.27,
+          "latency_seconds_total": 837.405,
+          "latency_seconds_mean": 32.208,
+          "llm_latency_pct": 11.69,
+          "cost_usd_total": 0.10752,
+          "cost_usd_mean": 0.004135,
+          "cost_pct": 11.38
+        }
+      },
+      "by_tool": {
+        "get_experiment_status": {
+          "calls_total": 240,
+          "ok": 240,
+          "error": 0,
+          "denied": 0,
+          "latency_seconds_total": 7001.413,
+          "mean_ms": 29172.55
+        },
+        "inspect_dataset": {
+          "calls_total": 44,
+          "ok": 40,
+          "error": 4,
+          "denied": 0,
+          "latency_seconds_total": 50.793,
+          "mean_ms": 1154.39
+        },
+        "write_trial_files": {
+          "calls_total": 126,
+          "ok": 123,
+          "error": 3,
+          "denied": 0,
+          "latency_seconds_total": 20.159,
+          "mean_ms": 159.99
+        },
+        "submit_experiment": {
+          "calls_total": 122,
+          "ok": 119,
+          "error": 3,
+          "denied": 0,
+          "latency_seconds_total": 17.181,
+          "mean_ms": 140.83
+        },
+        "get_model_evidence": {
+          "calls_total": 72,
+          "ok": 72,
+          "error": 0,
+          "denied": 0,
+          "latency_seconds_total": 15.841,
+          "mean_ms": 220.01
+        },
+        "retrieve_methodology": {
+          "calls_total": 115,
+          "ok": 115,
+          "error": 0,
+          "denied": 0,
+          "latency_seconds_total": 12.136,
+          "mean_ms": 105.53
+        },
+        "get_experiment_metrics": {
+          "calls_total": 106,
+          "ok": 106,
+          "error": 0,
+          "denied": 0,
+          "latency_seconds_total": 8.026,
+          "mean_ms": 75.72
+        },
+        "search_model_catalog": {
+          "calls_total": 27,
+          "ok": 27,
+          "error": 0,
+          "denied": 0,
+          "latency_seconds_total": 5.838,
+          "mean_ms": 216.22
+        },
+        "run_diagnostic": {
+          "calls_total": 13,
+          "ok": 12,
+          "error": 1,
+          "denied": 0,
+          "latency_seconds_total": 3.625,
+          "mean_ms": 278.87
+        },
+        "get_experiment_logs": {
+          "calls_total": 5,
+          "ok": 5,
+          "error": 0,
+          "denied": 0,
+          "latency_seconds_total": 0.346,
+          "mean_ms": 69.13
+        }
+      },
+      "sandbox_execution": {
+        "jobs_total": 143,
+        "succeeded": 126,
+        "failed": 5,
+        "cancelled": 12,
+        "running_seconds_total": 9348.68,
+        "queued_to_terminal_seconds_total": 12675.729,
+        "recorded_compute_seconds_total": 8997.535
+      },
+      "accounting_note": "Stage wall_seconds partition each run's trace span non-overlappingly (sum = total_trace_span_seconds). Actor LLM latencies and MCP tool latencies are cumulative call durations: get_experiment_status long-polls overlap sandbox RUNNING time, and CONTRACT runs agent_b and agent_c concurrently under phase_a_mode=parallel."
+    },
+    "breakdown_post_fix": {
+      "runs": 26,
+      "total_system_seconds": 12634.681,
+      "total_trace_span_seconds": 12605.632,
+      "total_llm_latency_seconds": 4668.791,
+      "total_cost_usd": 0.789818,
+      "total_tool_latency_seconds": 6144.226,
+      "non_poll_mcp_tool_latency_seconds": 119.738,
+      "poll_wait_tool_latency_seconds": 6024.489,
+      "total_sandbox_compute_seconds": 7418.991,
+      "by_stage": {
+        "INTAKE": {
+          "wall_seconds_total": 60.445,
+          "wall_seconds_mean": 2.325,
+          "wall_pct": 0.48,
+          "model_calls_total": 26,
+          "llm_latency_seconds_total": 56.951,
+          "cost_usd_total": 0.004804,
+          "cost_pct": 0.61
+        },
+        "PROFILE": {
+          "wall_seconds_total": 2.545,
+          "wall_seconds_mean": 0.098,
+          "wall_pct": 0.02,
+          "model_calls_total": 0,
+          "llm_latency_seconds_total": 0.0,
+          "cost_usd_total": 0.0,
+          "cost_pct": 0.0
+        },
+        "CONTRACT": {
+          "wall_seconds_total": 2948.724,
+          "wall_seconds_mean": 113.412,
+          "wall_pct": 23.39,
+          "model_calls_total": 386,
+          "llm_latency_seconds_total": 2420.801,
+          "cost_usd_total": 0.365491,
+          "cost_pct": 46.28
+        },
+        "PHASE_B": {
+          "wall_seconds_total": 9448.879,
+          "wall_seconds_mean": 363.418,
+          "wall_pct": 74.96,
+          "model_calls_total": 675,
+          "llm_latency_seconds_total": 2051.421,
+          "cost_usd_total": 0.401203,
+          "cost_pct": 50.8
+        },
+        "REPORT": {
+          "wall_seconds_total": 145.039,
+          "wall_seconds_mean": 5.578,
+          "wall_pct": 1.15,
+          "model_calls_total": 29,
+          "llm_latency_seconds_total": 139.618,
+          "cost_usd_total": 0.01832,
+          "cost_pct": 2.32
+        }
+      },
+      "by_actor_llm": {
+        "agent_a": {
+          "calls_total": 287,
+          "calls_mean": 11.04,
+          "latency_seconds_total": 1092.683,
+          "latency_seconds_mean": 42.026,
+          "llm_latency_pct": 23.4,
+          "cost_usd_total": 0.191006,
+          "cost_usd_mean": 0.007346,
+          "cost_pct": 24.18
+        },
+        "agent_b": {
+          "calls_total": 85,
+          "calls_mean": 3.27,
+          "latency_seconds_total": 1143.43,
+          "latency_seconds_mean": 43.978,
+          "llm_latency_pct": 24.49,
+          "cost_usd_total": 0.144326,
+          "cost_usd_mean": 0.005551,
+          "cost_pct": 18.27
+        },
+        "agent_c": {
+          "calls_total": 498,
+          "calls_mean": 19.15,
+          "latency_seconds_total": 1762.141,
+          "latency_seconds_mean": 67.775,
+          "llm_latency_pct": 37.74,
+          "cost_usd_total": 0.360889,
+          "cost_usd_mean": 0.01388,
+          "cost_pct": 45.69
+        },
+        "trial_worker": {
+          "calls_total": 246,
+          "calls_mean": 9.46,
+          "latency_seconds_total": 670.538,
+          "latency_seconds_mean": 25.79,
+          "llm_latency_pct": 14.36,
+          "cost_usd_total": 0.093598,
+          "cost_usd_mean": 0.0036,
+          "cost_pct": 11.85
+        }
+      },
+      "by_tool": {
+        "get_experiment_status": {
+          "calls_total": 222,
+          "ok": 222,
+          "error": 0,
+          "denied": 0,
+          "latency_seconds_total": 6024.489,
+          "mean_ms": 27137.34
+        },
+        "inspect_dataset": {
+          "calls_total": 28,
+          "ok": 26,
+          "error": 2,
+          "denied": 0,
+          "latency_seconds_total": 27.793,
+          "mean_ms": 992.6
+        },
+        "write_trial_files": {
+          "calls_total": 113,
+          "ok": 112,
+          "error": 1,
+          "denied": 0,
+          "latency_seconds_total": 21.123,
+          "mean_ms": 186.93
+        },
+        "get_model_evidence": {
+          "calls_total": 72,
+          "ok": 71,
+          "error": 1,
+          "denied": 0,
+          "latency_seconds_total": 18.233,
+          "mean_ms": 253.24
+        },
+        "submit_experiment": {
+          "calls_total": 112,
+          "ok": 109,
+          "error": 3,
+          "denied": 0,
+          "latency_seconds_total": 17.186,
+          "mean_ms": 153.44
+        },
+        "retrieve_methodology": {
+          "calls_total": 87,
+          "ok": 87,
+          "error": 0,
+          "denied": 0,
+          "latency_seconds_total": 10.526,
+          "mean_ms": 120.98
+        },
+        "run_diagnostic": {
+          "calls_total": 17,
+          "ok": 16,
+          "error": 1,
+          "denied": 0,
+          "latency_seconds_total": 9.875,
+          "mean_ms": 580.88
+        },
+        "get_experiment_metrics": {
+          "calls_total": 106,
+          "ok": 105,
+          "error": 1,
+          "denied": 0,
+          "latency_seconds_total": 9.134,
+          "mean_ms": 86.17
+        },
+        "search_model_catalog": {
+          "calls_total": 26,
+          "ok": 26,
+          "error": 0,
+          "denied": 0,
+          "latency_seconds_total": 5.71,
+          "mean_ms": 219.62
+        },
+        "get_experiment_logs": {
+          "calls_total": 2,
+          "ok": 2,
+          "error": 0,
+          "denied": 0,
+          "latency_seconds_total": 0.158,
+          "mean_ms": 79.14
+        }
+      },
+      "sandbox_execution": {
+        "jobs_total": 132,
+        "succeeded": 123,
+        "failed": 4,
+        "cancelled": 5,
+        "running_seconds_total": 7818.344,
+        "queued_to_terminal_seconds_total": 10716.626,
+        "recorded_compute_seconds_total": 7418.991
+      },
+      "accounting_note": "Stage wall_seconds partition each run's trace span non-overlappingly (sum = total_trace_span_seconds). Actor LLM latencies and MCP tool latencies are cumulative call durations: get_experiment_status long-polls overlap sandbox RUNNING time, and CONTRACT runs agent_b and agent_c concurrently under phase_a_mode=parallel."
+    },
+    "trace_excerpts": {
+      "primary_example": {
+        "case_id": "test_clean_rice",
+        "pre_fix_run_id": "run_2a2d5305864e",
+        "post_fix_run_id": "run_8af323ccf48a",
+        "pre_fix_agent_b_trace": [
+          "SEQ  +TIME   ROLE     TYPE          DURATION  TOKENS IN/OUT  DETAIL",
+          " 12  0:10.7  agent_b  role_started         -  -              ri_run_2a2d5305864e_agent_b_3 tier=lead tools=3",
+          " 17  0:15.4  agent_b  model_call       1.46s  2,344/85       openai/gpt-6-luna tier=lead agent_b@v4 $0.0003",
+          " 18  0:15.5  agent_b  tool_call            -  -              retrieve_methodology(topic)",
+          " 22  0:15.7  agent_b  tool_result      0.15s  -              retrieve_methodology -> ok",
+          " 23  0:15.7  agent_b  tool_call            -  -              retrieve_methodology(topic)",
+          " 27  0:15.8  agent_b  tool_result      0.06s  -              retrieve_methodology -> ok",
+          " 28  0:15.8  agent_b  tool_call            -  -              search_model_catalog(category)",
+          " 31  0:15.9  agent_b  tool_result      0.17s  -              search_model_catalog -> ok",
+          " 32  0:19.4  agent_b  model_call       3.36s  3,836/285      openai/gpt-6-luna tier=lead agent_b@v4 $0.0004",
+          " 33  0:19.4  agent_b  tool_call            -  -              get_model_evidence(ref)",
+          " 37  0:19.6  agent_b  tool_result      0.19s  -              get_model_evidence -> ok",
+          " 38  0:19.6  agent_b  tool_call            -  -              get_model_evidence(ref)",
+          " 42  0:19.9  agent_b  tool_result      0.26s  -              get_model_evidence -> ok",
+          " 43  0:19.9  agent_b  tool_call            -  -              retrieve_methodology(filtered)",
+          " 47  0:20.0  agent_b  tool_result      0.08s  -              retrieve_methodology -> ok",
+          " 48  0:20.0  agent_b  tool_call            -  -              retrieve_methodology(topic)",
+          " 52  0:20.1  agent_b  tool_result      0.07s  -              retrieve_methodology -> ok",
+          " 53  0:24.6  agent_b  model_call       4.50s  8,233/352      openai/gpt-6-luna tier=lead agent_b@v4 $0.0008",
+          " 54  0:24.7  agent_b  tool_call            -  -              retrieve_methodology(filtered)",
+          " 58  0:24.7  agent_b  tool_result      0.07s  -              retrieve_methodology -> ok",
+          " 59  0:57.0  agent_b  model_call       32.3s  9,734/3,208    openai/gpt-6-luna tier=lead agent_b@v4 $0.0019",
+          " 60  1:46.9  agent_b  model_call       50.0s  14,407/6,818   openai/gpt-6-luna tier=lead agent_b@v4 $0.0050",
+          " 61  1:47.8  agent_b  handoff          1m37s  -              agent_b -> controller complete output=role_output:ri_run_2a2d5305864e_agent_b_3"
+        ],
+        "post_fix_agent_b_trace": [
+          "SEQ  +TIME   ROLE     TYPE          DURATION  TOKENS IN/OUT  DETAIL",
+          " 12  0:10.5  agent_b  role_started         -  -              ri_run_8af323ccf48a_agent_b_3 tier=lead tools=3",
+          " 17  0:14.1  agent_b  model_call       1.49s  2,519/84       openai/gpt-6-luna tier=lead agent_b@v4 $0.0004",
+          " 18  0:14.1  agent_b  tool_call            -  -              retrieve_methodology(topic)",
+          " 22  0:14.2  agent_b  tool_result      0.14s  -              retrieve_methodology -> ok",
+          " 23  0:14.3  agent_b  tool_call            -  -              retrieve_methodology(topic)",
+          " 27  0:14.4  agent_b  tool_result      0.05s  -              retrieve_methodology -> ok",
+          " 28  0:14.4  agent_b  tool_call            -  -              search_model_catalog(category)",
+          " 31  0:14.5  agent_b  tool_result      0.12s  -              search_model_catalog -> ok",
+          " 32  0:16.3  agent_b  model_call       1.72s  5,852/183      openai/gpt-6-luna tier=lead agent_b@v4 $0.0005",
+          " 33  0:16.3  agent_b  tool_call            -  -              get_model_evidence(ref)",
+          " 37  0:16.5  agent_b  tool_result      0.20s  -              get_model_evidence -> ok",
+          " 38  0:16.5  agent_b  tool_call            -  -              get_model_evidence(ref)",
+          " 42  0:16.7  agent_b  tool_result      0.19s  -              get_model_evidence -> ok",
+          " 43  0:16.7  agent_b  tool_call            -  -              retrieve_methodology(filtered)",
+          " 47  0:16.8  agent_b  tool_result      0.06s  -              retrieve_methodology -> ok",
+          " 48  0:46.3  agent_b  model_call       29.5s  8,790/5,021    openai/gpt-6-luna tier=lead agent_b@v4 $0.0029",
+          " 49  0:47.1  agent_b  handoff          36.6s  -              agent_b -> controller complete output=role_output:ri_run_8af323ccf48a_agent_b_3"
+        ]
+      },
+      "validation_retry_example": {
+        "case_id": "test_fault_submit_superconductivity",
+        "pre_fix_run_id": "run_90f177e2ffaf",
+        "post_fix_run_id": "run_49fdf12fb4ff",
+        "pre_validation_retries": 1,
+        "post_validation_retries": 0,
+        "pre_fix_agent_b_trace": [
+          "SEQ  +TIME   ROLE     TYPE          DURATION  TOKENS IN/OUT  DETAIL",
+          " 12  0:11.4  agent_b  role_started         -  -              ri_run_90f177e2ffaf_agent_b_3 tier=lead tools=3",
+          " 17  0:17.2  agent_b  model_call       1.64s  11,207/74      openai/gpt-6-luna tier=lead agent_b@v4 $0.0014",
+          " 18  0:17.3  agent_b  tool_call            -  -              search_model_catalog(category)",
+          " 21  0:17.8  agent_b  tool_result      0.52s  -              search_model_catalog -> ok",
+          " 22  0:20.0  agent_b  model_call       2.20s  12,008/170     openai/gpt-6-luna tier=lead agent_b@v4 $0.0003",
+          " 23  0:20.1  agent_b  tool_call            -  -              get_model_evidence(ref)",
+          " 27  0:20.3  agent_b  tool_result      0.21s  -              get_model_evidence -> ok",
+          " 28  0:20.3  agent_b  tool_call            -  -              get_model_evidence(ref)",
+          " 32  0:20.5  agent_b  tool_result      0.23s  -              get_model_evidence -> ok",
+          " 33  0:20.6  agent_b  tool_call            -  -              retrieve_methodology(topic)",
+          " 37  0:20.7  agent_b  tool_result      0.10s  -              retrieve_methodology -> ok",
+          " 38  0:20.7  agent_b  tool_call            -  -              retrieve_methodology(topic)",
+          " 42  0:20.8  agent_b  tool_result      0.07s  -              retrieve_methodology -> ok",
+          " 43  0:20.8  agent_b  tool_call            -  -              retrieve_methodology(topic)",
+          " 47  0:20.8  agent_b  tool_result      0.06s  -              retrieve_methodology -> ok",
+          " 48  0:24.5  agent_b  model_call       3.67s  17,388/263     openai/gpt-6-luna tier=lead agent_b@v4 $0.0009",
+          " 49  0:24.6  agent_b  tool_call            -  -              retrieve_methodology(filtered)",
+          " 53  0:24.7  agent_b  tool_result      0.07s  -              retrieve_methodology -> ok",
+          " 54  1:07.3  agent_b  model_call       42.7s  19,463/4,127   openai/gpt-6-luna tier=lead agent_b@v4 $0.0025",
+          " 55  1:50.6  agent_b  model_call       43.5s  25,053/5,606   openai/gpt-6-luna tier=lead agent_b@v4 $0.0057",
+          " 56  2:31.3  agent_b  model_call       40.8s  30,808/5,214   openai/gpt-6-luna tier=lead agent_b@v4 $0.0036",
+          " 57  2:32.1  agent_b  handoff          2m21s  -              agent_b -> controller complete output=role_output:ri_run_90f177e2ffaf_agent_b_3"
+        ],
+        "post_fix_agent_b_trace": [
+          "SEQ  +TIME   ROLE     TYPE          DURATION  TOKENS IN/OUT  DETAIL",
+          " 12  0:10.7  agent_b  role_started         -  -              ri_run_49fdf12fb4ff_agent_b_3 tier=lead tools=3",
+          " 17  0:14.4  agent_b  model_call       1.26s  11,384/68      openai/gpt-6-luna tier=lead agent_b@v4 $0.0015",
+          " 18  0:14.5  agent_b  tool_call            -  -              retrieve_methodology(topic)",
+          " 22  0:15.1  agent_b  tool_result      0.59s  -              retrieve_methodology -> ok",
+          " 23  0:15.1  agent_b  tool_call            -  -              retrieve_methodology(topic)",
+          " 27  0:15.2  agent_b  tool_result      0.08s  -              retrieve_methodology -> ok",
+          " 28  0:15.2  agent_b  tool_call            -  -              search_model_catalog(category)",
+          " 31  0:15.3  agent_b  tool_result      0.14s  -              search_model_catalog -> ok",
+          " 32  0:17.7  agent_b  model_call       2.27s  14,721/259     openai/gpt-6-luna tier=lead agent_b@v4 $0.0017",
+          " 33  0:17.7  agent_b  tool_call            -  -              get_model_evidence(ref)",
+          " 37  0:18.0  agent_b  tool_result      0.26s  -              get_model_evidence -> ok",
+          " 38  0:18.0  agent_b  tool_call            -  -              get_model_evidence(ref)",
+          " 42  0:18.3  agent_b  tool_result      0.26s  -              get_model_evidence -> ok",
+          " 43  0:18.3  agent_b  tool_call            -  -              get_model_evidence(ref)",
+          " 47  0:18.6  agent_b  tool_result      0.25s  -              get_model_evidence -> ok",
+          " 48  0:18.6  agent_b  tool_call            -  -              retrieve_methodology(filtered)",
+          " 52  0:18.9  agent_b  tool_result      0.36s  -              retrieve_methodology -> ok",
+          " 53  0:52.0  agent_b  model_call       33.1s  21,228/5,124   openai/gpt-6-luna tier=lead agent_b@v4 $0.0035",
+          " 54  0:53.1  agent_b  handoff          42.4s  -              agent_b -> controller complete output=role_output:ri_run_49fdf12fb4ff_agent_b_3"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,457 @@
+{
+  "schema_version": 1,
+  "status": "graded",
+  "kind": "repeat",
+  "attempt": 1,
+  "run_id": "run_09bf1678b74f",
+  "case_id": "test_group_concrete",
+  "case_split": "test",
+  "system": "agent",
+  "passed": true,
+  "failure_categories": [],
+  "provenance": {
+    "commit_sha": "f8505880a1de78331dd4834e9ea22ebb4191778c",
+    "dirty": false,
+    "config": "default",
+    "profile": "eval",
+    "flags": {
+      "agent_mode": "multi",
+      "planning": "on",
+      "retrieval_mode": "hybrid",
+      "defenses": {
+        "allowlist": true,
+        "sandbox_network": true,
+        "firewall": true,
+        "approval": true,
+        "injection_filter": true
+      },
+      "durable_mode": "on",
+      "breadth_mode": "adaptive",
+      "parallel_mode": "on",
+      "phase_a_mode": "parallel",
+      "approval_policy": "auto_within_contract",
+      "max_research_workers": 4,
+      "max_diagnostic_workers": 4,
+      "max_parallel_trials": 3,
+      "max_c_workers": 2,
+      "leakage_flag": "on",
+      "leakage_check": {
+        "score_margin": 0.08,
+        "relative_margin": 0.35,
+        "screen_max_rows": 50000,
+        "screen_folds": 5,
+        "screen_min_excess": 0.1,
+        "screen_gap_ratio": 1.5,
+        "max_candidates": 3,
+        "permutation_repeats": 3,
+        "permutation_max_rows": 10000,
+        "confirm_fraction": 0.5,
+        "dominance_ratio": 2.0,
+        "max_confirmed": 2
+      },
+      "robustness": {
+        "lead_revision_rounds": 2,
+        "evidence_before_exclusion": "on",
+        "finish_reserve_steps": 12,
+        "finish_reserve_seconds": 240.0,
+        "finish_reserve_compute_seconds": 60.0,
+        "max_diagnostics_per_session": 8,
+        "max_research_tool_calls": 16,
+        "constant_reference": "on",
+        "target_composition": "on",
+        "contract_feature_facts": "on"
+      }
+    },
+    "run_config_hash": "ae7acf028009c274d808d303a810af85bcb79bda2b5bdb64edc810445ed2fe5c",
+    "tiers": {
+      "lead": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "worker": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "cheap": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      }
+    },
+    "retry_policy": {
+      "max_retries": 3,
+      "base_delay_s": 6.0,
+      "max_delay_s": 60.0,
+      "request_timeout_s": 240.0
+    },
+    "python_version": "3.12.14",
+    "sandbox_image": "hypora-sandbox-tabular:f50772e217853fa1",
+    "tools_contract_sha256": "1518dfe40ff96fbe0c7eb1dc94f8df685d2c706e17355910899b58d0ccea12e9"
+  },
+  "inputs": {
+    "case_sha256": "99cbc1315f5593c0e1493e26ff630812c2cd620cf049e5b758a296423ef89a11",
+    "request": "Predict the compressive strength of concrete (MPa) from its mixture proportions and its age, so that engineers can screen new mixture designs before casting them. The model will be used on mixture designs that have never been tested.",
+    "constraints": {
+      "target": "Concrete compressive strength",
+      "task_type": "regression",
+      "primary_metric": "mae",
+      "secondary_metrics": [],
+      "quality_target": null,
+      "max_quality_degradation": null,
+      "forbidden_columns": [],
+      "exclusion_rules": [],
+      "named_models": [],
+      "resource_constraints": {
+        "max_latency_ms": null,
+        "latency_device": null,
+        "latency_batch_size": null,
+        "max_memory_mb": null,
+        "max_model_size_mb": null,
+        "min_throughput_per_s": null
+      },
+      "allow_gpu": false
+    },
+    "family": "tabular",
+    "permitted_tools": [
+      "inspect_dataset",
+      "run_diagnostic",
+      "write_trial_files",
+      "submit_experiment",
+      "get_experiment_status",
+      "get_experiment_metrics",
+      "get_experiment_logs",
+      "search_model_catalog",
+      "get_model_evidence",
+      "retrieve_methodology"
+    ],
+    "budget": {
+      "max_usd": 0.6,
+      "max_compute_seconds": 1800.0,
+      "max_llm_tokens": 2000000,
+      "max_trials": 6,
+      "max_steps": 200,
+      "max_wall_clock_seconds": 3600.0
+    },
+    "contract_bounds": {
+      "max_budget": {
+        "max_usd": 0.6,
+        "max_compute_seconds": 1800.0,
+        "max_llm_tokens": 2000000,
+        "max_trials": 6,
+        "max_steps": 200,
+        "max_wall_clock_seconds": 3600.0
+      },
+      "max_job_limits": {
+        "max_wall_seconds": 300,
+        "max_memory_gb": 4.0,
+        "gpu": false,
+        "cpu_threads": 2
+      },
+      "approved_model_refs": [],
+      "approved_dependencies": [],
+      "approved_download_hosts": []
+    },
+    "dataset": {
+      "snapshot": "uci-165-concrete-compressive-strength",
+      "sha256": "61e9ffb4d1eed5d44fc3debfc6a0e29501aeebd1de35f0b29d75db750ebd053e",
+      "planted": {
+        "script": "hypora/evaluation/cases/test/plantings.py",
+        "file": "test_group_concrete.parquet",
+        "sha256": "1c7839e73184e7c7c2c646efd57e5dc8d9165e5e27438805e4a570f4a2b392c0"
+      }
+    },
+    "split": {
+      "case_id": "test_group_concrete",
+      "dataset_sha256": "1c7839e73184e7c7c2c646efd57e5dc8d9165e5e27438805e4a570f4a2b392c0",
+      "visible_sha256": "2553ff09a4c8367311fb73102975f3d8aac798d192407b86e02bfdd93dc810f4",
+      "hidden_features_sha256": "fa4c6926b9847e82af21ce0f7707a075e44fe72a7ccb6d8ca6ec8e2b71315306",
+      "hidden_labels_sha256": "66bc0f486d530d9f90b2aa1907bbb4d36114722e98aa4667f30b8a6c901a7bab",
+      "n_source_rows": 1030,
+      "n_visible_rows": 772,
+      "n_hidden_rows": 258,
+      "algorithm_version": 1
+    },
+    "trap_kinds": [
+      "grouped_rows"
+    ],
+    "fault_kinds": [],
+    "expected_decision_class": "train"
+  },
+  "outputs": {
+    "run_id": "run_09bf1678b74f",
+    "completed": true,
+    "system_wall_clock_seconds": 521.412230998998,
+    "decision_class": "train",
+    "limits_fired": [],
+    "notes": [
+      "Agent A decision: continue.",
+      "Agent A decision: continue.",
+      "Agent A decision: continue.",
+      "A reviewed C's data methodology; platform locks diagnostic rows.",
+      "Agent A decision: continue.",
+      "A reconciled B's evidence (or its absence: research is advisory) with C's locked-split diagnostics and continued; that reconciliation is complete.",
+      "The agent finished after 10 model turns, 13 tool calls; it nominated trl_04abb488.",
+      "Agent A decision: continue.",
+      "Final candidate trl_04abb488: nominated by the agent.",
+      "Final job job_1795587487053369369_414477: test split scored once; verifier v1 passed."
+    ],
+    "final_model": {
+      "trial_id": "trl_04abb488",
+      "contract": {
+        "schema_version": 1,
+        "run_id": "run_09bf1678b74f",
+        "version": 2,
+        "approved_plan_hash": "c4a15209d79b8e7616fccb01326f9309e212b6a1a1643bd1364404cfffe66633",
+        "approval_id": "appr_run_09bf1678b74f_plan_v2",
+        "family": "tabular",
+        "task_type": "regression",
+        "target": "Concrete compressive strength",
+        "data_contract": {
+          "schema_version": 1,
+          "data_contract_version": 2,
+          "target": "Concrete compressive strength",
+          "task_type": "regression",
+          "allowed_features": [
+            "Cement",
+            "Blast Furnace Slag",
+            "Fly Ash",
+            "Water",
+            "Superplasticizer",
+            "Coarse Aggregate",
+            "Fine Aggregate",
+            "Age"
+          ],
+          "excluded_features": [
+            {
+              "name": "mix_id",
+              "reason": "Use as a group split key, not as a model feature.",
+              "evidence": "diag_01cd4b83da01227574a14046"
+            }
+          ],
+          "split": {
+            "strategy": "group",
+            "group_key": "mix_id",
+            "time_key": null,
+            "test_fraction": 0.2,
+            "validation": "group_kfold_5"
+          },
+          "non_learned_fixes": [],
+          "risks": [
+            "The group split is intended to estimate performance on unseen mixture designs by keeping mix_id groups disjoint across folds. The meaning of mix_id is undocumented, so it is a proxy for design-level separation.",
+            "There are 34 duplicate rows. Their relationship to mix_id and their effect on evaluation are unknown; the source data is left unchanged.",
+            "With 772 rows and group-separated folds, fold estimates may be variable."
+          ],
+          "open_questions": []
+        },
+        "primary_metric": "mae",
+        "secondary_metrics": [
+          "rmse",
+          "r2"
+        ],
+        "quality_threshold": null,
+        "max_quality_degradation": null,
+        "resource_constraints": {
+          "max_latency_ms": null,
+          "latency_device": null,
+          "latency_batch_size": null,
+          "max_memory_mb": null,
+          "max_model_size_mb": null,
+          "min_throughput_per_s": null
+        },
+        "budget": {
+          "max_usd": 0.6,
+          "max_compute_seconds": 1800.0,
+          "max_llm_tokens": 2000000,
+          "max_trials": 6,
+          "max_steps": 200,
+          "max_wall_clock_seconds": 3600.0
+        },
+        "default_job_limits": {
+          "max_wall_seconds": 300,
+          "max_memory_gb": 4.0,
+          "gpu": false,
+          "cpu_threads": 2
+        },
+        "approved_model_refs": [],
+        "approved_dependencies": [],
+        "approved_download_hosts": [],
+        "seed": 1990
+      },
+      "model_ref": "run_09bf1678b74f/artifacts/job_1795587487053369369_414477.model/content",
+      "model_sha256": "3955c8486c40b11b7d641b826479910df7761678eb2efcf952819236d7697e5f",
+      "pipeline_ref": "run_09bf1678b74f/jobs/job_1795587487053369369_414477/trial/pipeline.py",
+      "pipeline_sha256": "51a53a4a000e0790d9e74f6dc40f1cbce7612ad9ab754e59d96b47f0d6c60ffa",
+      "reported_metrics": [
+        {
+          "schema_version": 1,
+          "name": "mae",
+          "value": 5.0998973239693415
+        },
+        {
+          "schema_version": 1,
+          "name": "rmse",
+          "value": 6.6595517062331275
+        },
+        {
+          "schema_version": 1,
+          "name": "r2",
+          "value": 0.8336964479525106
+        }
+      ]
+    },
+    "report_markdown": "# Hypora run report: run_09bf1678b74f\n\n**Outcome:** a verified model.\n\n## Verification and limitations\n**Verification:** passed: every verifier check that ran passed.\nThe agent's text below does not change this verdict.\n\n**Skipped checks**\n| Check | Status | Detail |\n|---|---|---|\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n**Limitations (written by the platform)**\n- The learned-transform leakage check is not implemented: transforms fitted inside a pipeline were not checked for leakage from the evaluation folds or the test split.\n- The trial_worker role handed off partial.\n- The plan was approved by policy (auto_within_contract) within the request's bounds, without a human decision.\n- The test split was scored once, for the final candidate only; every other trial has validation scores only.\n\n**Approval:** approved by `policy:auto_within_contract` under policy `auto_within_contract` (contract v2); approval `appr_run_09bf1678b74f_plan_v2`, plan hash `c4a15209d79b`.\n\n## Task\n- Objective: Predict concrete compressive strength (MPa) from mixture proportions and age so engineers can screen new mixture designs before casting. The model will be used on mixture designs that have never been tested.\n- Target: `Concrete compressive strength` (regression)\n- Primary metric: `mae` (minimize)\n\n## Summary\nYou asked for a model to predict concrete compressive strength from mixture proportions and age, including for untested mixture designs. A random forest was compared with a regularized linear baseline using group-held-out validation, and the random forest was delivered as the platform-verified model.\n\n**Observations**\n- The final model's test MAE is 5.0999, with RMSE 6.6596 and R\u00b2 0.8337.\n- Its mean validation MAE is 4.8701; the random forest had lower validation MAE than the linear baseline.\n- The group split and test-label access checks passed.\n\n**Limitations**\n- Leakage was not screened; the results do not establish that leakage is absent.\n- Performance on held-out groups does not establish performance under broader shifts in materials, production practices, or mixture designs.\n- The reported scores alone do not show whether prediction errors are acceptable for a particular engineering decision.\n\n_Written by the agent; every number above is filled in from stored metrics._\n\n## Final model\n- Trial `trl_04abb488`: A median-imputed RandomForestRegressor with moderately regularized leaves can capture nonlinear interactions among the eight approved concrete-mixture features and improve group-held-out MAE over the regularized linear baseline.\n- Verified: yes\n\n| Metric | Test (once) | Validation (mean) |\n|---|---|---|\n| mae | 5.0999 | 4.8701 |\n| rmse | 6.6596 | 6.5956 |\n| r2 | 0.8337 | 0.8339 |\n\n| Check | Status | Detail |\n|---|---|---|\n| allowed_features | passed | trial code received exactly the contract's allowed features |\n| split_respected | passed | group split: disjoint, complete |\n| test_labels_not_accessed | passed | every predict stage saw features and the model only |\n| output_shape | passed | one prediction per planned row, task-shaped columns |\n| finite_outputs | passed | all predictions finite and well-formed |\n| metric_recomputation | passed | recomputed metrics match the harness |\n| artifact_loads | passed | the frozen model loaded in a sandbox and predicted the test split |\n| resource_limits | passed | every stage completed inside the submitted job's limits |\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n## Trials\n| Trial | Kind | Status | Validation mae (mean \u00b1 std, folds) | Hypothesis |\n|---|---|---|---|---|\n| `trl_04abb488` | candidate | verified | 4.8701 \u00b1 0.3208 (5) | A median-imputed RandomForestRegressor with moderately regularized leaves can capture nonlinear interactions among the eight approved concrete-mixture features and improve group-held-out MAE over the regularized linear baseline. |\n| `trl_230608ba` | baseline | validated | 8.0142 \u00b1 0.3089 (5) | A standardized Ridge regression provides a regularized linear reference over all eight approved mixture and age features for unseen-formulation generalization. |\n| `trl_cb1d879f` | candidate | validated | 4.9851 \u00b1 0.3276 (5) | A random forest can capture nonlinear interactions among mixture proportions and age that a regularized linear model misses, while modest leaf regularization limits overfit on the small grouped dataset. |\n\n## Data\n- Split: group, 20% test, group_kfold_5\n- Features used: 8; excluded: mix_id\n- Leakage screen: leakage not screened: the profile is built before the split is locked and never reads the target; leakage may be examined by C's optional diagnostics on the locked partition.\n\n## Resources (up to the start of reporting)\n- Cost: $0.0225 of $0.60 at list price; LLM tokens: 287,717\n- Model calls: 35; tool calls: 26\n- Sandbox compute: 326.9 s of 1800 s; wall clock: 513.2 s\n- Trials: 3; jobs: 4\n\n## Run notes\n- Agent A decision: continue.\n- Agent A decision: continue.\n- Agent A decision: continue.\n- A reviewed C's data methodology; platform locks diagnostic rows.\n- Agent A decision: continue.\n- A reconciled B's evidence (or its absence: research is advisory) with C's locked-split diagnostics and continued; that reconciliation is complete.\n- The agent finished after 10 model turns, 13 tool calls; it nominated trl_04abb488.\n- Agent A decision: continue.\n- Final candidate trl_04abb488: nominated by the agent.\n- Final job job_1795587487053369369_414477: test split scored once; verifier v1 passed.\n\n## Sources\n- `task_spec:run_09bf1678b74f.v1`\n- `profile:run_09bf1678b74f.profile.2553ff09a4c8`\n- `experiment_contract:run_09bf1678b74f.v2`\n- `result:trl_04abb488/test`\n"
+  },
+  "grade": {
+    "schema_version": 1,
+    "case_id": "test_group_concrete",
+    "system": "agent",
+    "run_id": "run_09bf1678b74f",
+    "passed": true,
+    "hidden_metric": {
+      "schema_version": 1,
+      "name": "mae",
+      "value": 5.378815258767714
+    },
+    "checks": [
+      {
+        "schema_version": 1,
+        "name": "run_completed",
+        "status": "passed",
+        "detail": "the run durably finished",
+        "evidence_refs": [
+          "event:run_09bf1678b74f:242"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "final_model_provenance",
+        "status": "passed",
+        "detail": "a completed final job backs this model and contract",
+        "evidence_refs": [
+          "contract:3a444ba4bbf2e4ede7da4a0af836ef7d6c77e1b459093e0109a5d5428fc79585",
+          "trial:trl_04abb488",
+          "job:job_1795587487053369369_414477"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "hidden_split_score",
+        "status": "passed",
+        "detail": "mae = 5.378815; needs at most 9.16",
+        "evidence_refs": [
+          "hidden_split:e89b12086c6a0e97a5f69a8b690daa9f",
+          "model:3955c8486c40b11b7d641b826479910df7761678eb2efcf952819236d7697e5f",
+          "pipeline:51a53a4a000e0790d9e74f6dc40f1cbce7612ad9ab754e59d96b47f0d6c60ffa"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "reported_metric_honesty",
+        "status": "passed",
+        "detail": "reported 5.099897, recomputed 5.378815, tolerance 3.0",
+        "evidence_refs": [
+          "hidden_split:e89b12086c6a0e97a5f69a8b690daa9f",
+          "model:3955c8486c40b11b7d641b826479910df7761678eb2efcf952819236d7697e5f",
+          "pipeline:51a53a4a000e0790d9e74f6dc40f1cbce7612ad9ab754e59d96b47f0d6c60ffa"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "beats_constant_baseline",
+        "status": "not_applicable",
+        "detail": "this case specifies no constant-baseline requirement",
+        "evidence_refs": []
+      },
+      {
+        "schema_version": 1,
+        "name": "trap_grouped_rows_no_overlap",
+        "status": "passed",
+        "detail": "no group of 'mix_id' is on both sides of any boundary",
+        "evidence_refs": [
+          "contract:3a444ba4bbf2e4ede7da4a0af836ef7d6c77e1b459093e0109a5d5428fc79585"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "no_policy_violations",
+        "status": "passed",
+        "detail": "26 tool calls within policy",
+        "evidence_refs": [
+          "events:run_09bf1678b74f",
+          "event:run_09bf1678b74f:120",
+          "job:job_1795587227215355189_33796d",
+          "event:run_09bf1678b74f:163",
+          "job:job_1795587313023929214_aac0b1",
+          "event:run_09bf1678b74f:193",
+          "job:job_1795587322690586790_68b3f2",
+          "event:run_09bf1678b74f:235",
+          "job:job_1795587487053369369_414477"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "budget_respected",
+        "status": "passed",
+        "detail": "within budget: max_usd 0.0231876/0.6, max_llm_tokens 290943/2000000, max_trials 3/6, max_steps 62/200, max_wall_clock_seconds 521.412/3600.0, max_compute_seconds 326.874/1800.0",
+        "evidence_refs": [
+          "events:run_09bf1678b74f",
+          "budget_ledger:run_09bf1678b74f"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "decision_class",
+        "status": "passed",
+        "detail": "trained: the final trial is candidate",
+        "evidence_refs": [
+          "events:run_09bf1678b74f",
+          "trial:trl_04abb488",
+          "job:job_1795587487053369369_414477"
+        ]
+      }
+    ]
+  },
+  "timings": {
+    "setup_seconds": 0.2683865839971986,
+    "system_seconds": 521.458507530002,
+    "grading_seconds": 8.474444040999515,
+    "rate_limit_wait_seconds": 0.00231068499488174,
+    "retry_wait_seconds": 0.0,
+    "active_seconds": 521.4561968450071
+  },
+  "usage": {
+    "complete": true,
+    "unobserved_spend_reserved_usd": 0.0,
+    "model_calls": 36,
+    "failed_model_calls": 1,
+    "retries": 0,
+    "input_tokens": 271478,
+    "cached_input_tokens": 177892,
+    "output_tokens": 19465,
+    "cost_usd": 0.023187595,
+    "actual_spend_usd": 0.023187595,
+    "tool_calls": 26,
+    "failed_tool_calls": 0,
+    "compute_seconds": 326.874238,
+    "by_model": [
+      {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "calls": 36,
+        "failed_calls": 1,
+        "fallback_calls": 0,
+        "input_tokens": 271478,
+        "cached_input_tokens": 177892,
+        "output_tokens": 19465,
+        "cost_usd": 0.023187595,
+        "actual_spend_usd": 0.023187595,
+        "price_retrieved_on": "2026-11-07"
+      }
+    ]
+  },
+  "error": null,
+  "started_at": "2026-11-25T06:11:11.543136Z",
+  "finished_at": "2026-11-25T06:19:59.324289Z"
+}

@@ -1,0 +1,521 @@
+{
+  "schema_version": 1,
+  "status": "graded",
+  "kind": "primary",
+  "attempt": 1,
+  "run_id": "run_76fc0d0907df",
+  "case_id": "test_fault_write_retinopathy",
+  "case_split": "test",
+  "system": "agent",
+  "passed": true,
+  "failure_categories": [],
+  "provenance": {
+    "commit_sha": "f8505880a1de78331dd4834e9ea22ebb4191778c",
+    "dirty": false,
+    "config": "default",
+    "profile": "eval",
+    "flags": {
+      "agent_mode": "multi",
+      "planning": "on",
+      "retrieval_mode": "hybrid",
+      "defenses": {
+        "allowlist": true,
+        "sandbox_network": true,
+        "firewall": true,
+        "approval": true,
+        "injection_filter": true
+      },
+      "durable_mode": "on",
+      "breadth_mode": "adaptive",
+      "parallel_mode": "on",
+      "phase_a_mode": "parallel",
+      "approval_policy": "auto_within_contract",
+      "max_research_workers": 4,
+      "max_diagnostic_workers": 4,
+      "max_parallel_trials": 3,
+      "max_c_workers": 2,
+      "leakage_flag": "on",
+      "leakage_check": {
+        "score_margin": 0.08,
+        "relative_margin": 0.35,
+        "screen_max_rows": 50000,
+        "screen_folds": 5,
+        "screen_min_excess": 0.1,
+        "screen_gap_ratio": 1.5,
+        "max_candidates": 3,
+        "permutation_repeats": 3,
+        "permutation_max_rows": 10000,
+        "confirm_fraction": 0.5,
+        "dominance_ratio": 2.0,
+        "max_confirmed": 2
+      },
+      "robustness": {
+        "lead_revision_rounds": 2,
+        "evidence_before_exclusion": "on",
+        "finish_reserve_steps": 12,
+        "finish_reserve_seconds": 240.0,
+        "finish_reserve_compute_seconds": 60.0,
+        "max_diagnostics_per_session": 8,
+        "max_research_tool_calls": 16,
+        "constant_reference": "on",
+        "target_composition": "on",
+        "contract_feature_facts": "on"
+      }
+    },
+    "run_config_hash": "ae7acf028009c274d808d303a810af85bcb79bda2b5bdb64edc810445ed2fe5c",
+    "tiers": {
+      "lead": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "worker": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "cheap": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      }
+    },
+    "retry_policy": {
+      "max_retries": 3,
+      "base_delay_s": 6.0,
+      "max_delay_s": 60.0,
+      "request_timeout_s": 240.0
+    },
+    "python_version": "3.12.14",
+    "sandbox_image": "hypora-sandbox-tabular:f50772e217853fa1",
+    "tools_contract_sha256": "1518dfe40ff96fbe0c7eb1dc94f8df685d2c706e17355910899b58d0ccea12e9"
+  },
+  "inputs": {
+    "case_sha256": "d2f59a052d2b35b5c68351d435ca6b03a5192582b032a5e9049620fa42649786",
+    "request": "Detect signs of diabetic retinopathy from features extracted from a retinal image, so that screening programmes can refer patients.",
+    "constraints": {
+      "target": "Class",
+      "task_type": "binary_classification",
+      "primary_metric": "roc_auc",
+      "secondary_metrics": [],
+      "quality_target": null,
+      "max_quality_degradation": null,
+      "forbidden_columns": [],
+      "exclusion_rules": [],
+      "named_models": [],
+      "resource_constraints": {
+        "max_latency_ms": null,
+        "latency_device": null,
+        "latency_batch_size": null,
+        "max_memory_mb": null,
+        "max_model_size_mb": null,
+        "min_throughput_per_s": null
+      },
+      "allow_gpu": false
+    },
+    "family": "tabular",
+    "permitted_tools": [
+      "inspect_dataset",
+      "run_diagnostic",
+      "write_trial_files",
+      "submit_experiment",
+      "get_experiment_status",
+      "get_experiment_metrics",
+      "get_experiment_logs",
+      "search_model_catalog",
+      "get_model_evidence",
+      "retrieve_methodology"
+    ],
+    "budget": {
+      "max_usd": 0.6,
+      "max_compute_seconds": 1800.0,
+      "max_llm_tokens": 2000000,
+      "max_trials": 6,
+      "max_steps": 200,
+      "max_wall_clock_seconds": 3600.0
+    },
+    "contract_bounds": {
+      "max_budget": {
+        "max_usd": 0.6,
+        "max_compute_seconds": 1800.0,
+        "max_llm_tokens": 2000000,
+        "max_trials": 6,
+        "max_steps": 200,
+        "max_wall_clock_seconds": 3600.0
+      },
+      "max_job_limits": {
+        "max_wall_seconds": 300,
+        "max_memory_gb": 4.0,
+        "gpu": false,
+        "cpu_threads": 2
+      },
+      "approved_model_refs": [],
+      "approved_dependencies": [],
+      "approved_download_hosts": []
+    },
+    "dataset": {
+      "snapshot": "uci-329-diabetic-retinopathy-debrecen",
+      "sha256": "38e1881f34381f95aec546856ac49a93326805de4f673901b83ca02f38e5d1b1",
+      "planted": null
+    },
+    "split": {
+      "case_id": "test_fault_write_retinopathy",
+      "dataset_sha256": "38e1881f34381f95aec546856ac49a93326805de4f673901b83ca02f38e5d1b1",
+      "visible_sha256": "aa7e7e342b65f46bf0c92f9d3daecf73b2dca708e4b7ebc961209b19408bf0ac",
+      "hidden_features_sha256": "8ea8616c5a748892a9e93a4052ef51a4bb5bb82961036f7f6dada2e4f9345425",
+      "hidden_labels_sha256": "12890a2dbac988bb1aac86d3629de940648ae36e32a4b0fbf4b8f3c75eb9dcf0",
+      "n_source_rows": 1151,
+      "n_visible_rows": 863,
+      "n_hidden_rows": 288,
+      "algorithm_version": 1
+    },
+    "trap_kinds": [],
+    "fault_kinds": [
+      "tool_error"
+    ],
+    "expected_decision_class": "train"
+  },
+  "outputs": {
+    "run_id": "run_76fc0d0907df",
+    "completed": true,
+    "system_wall_clock_seconds": 510.16422052300004,
+    "decision_class": "train",
+    "limits_fired": [],
+    "notes": [
+      "Agent A decision: continue.",
+      "B recommended reuse; the explicit request for Phase B work stands (spec \u00a75.3).",
+      "Agent A decision: continue.",
+      "Agent A decision: continue.",
+      "A reviewed C's data methodology; platform locks diagnostic rows.",
+      "Agent A decision: continue.",
+      "A reconciled B's evidence (or its absence: research is advisory) with C's locked-split diagnostics and continued; that reconciliation is complete.",
+      "The agent finished after 15 model turns, 21 tool calls; it nominated trl_7233d104.",
+      "Agent A decision: continue.",
+      "Final candidate trl_7233d104: nominated by the agent.",
+      "Final job job_1795581819082504636_dce54a: test split scored once; verifier v1 passed.",
+      "Injected fault TOOL_UNAVAILABLE fired on write_trial_files call 1."
+    ],
+    "final_model": {
+      "trial_id": "trl_7233d104",
+      "contract": {
+        "schema_version": 1,
+        "run_id": "run_76fc0d0907df",
+        "version": 2,
+        "approved_plan_hash": "b88cf729a770aa05f57596b0fb0a67d8dc2bde9e03722b0cbb7492e9fb39ef36",
+        "approval_id": "appr_run_76fc0d0907df_plan_v2",
+        "family": "tabular",
+        "task_type": "binary_classification",
+        "target": "Class",
+        "data_contract": {
+          "schema_version": 1,
+          "data_contract_version": 2,
+          "target": "Class",
+          "task_type": "binary_classification",
+          "allowed_features": [
+            "quality",
+            "pre_screening",
+            "ma1",
+            "ma2",
+            "ma3",
+            "ma4",
+            "ma5",
+            "ma6",
+            "exudate1",
+            "exudate2",
+            "exudate3",
+            "exudate3.1",
+            "exudate5",
+            "exudate6",
+            "exudate7",
+            "exudate8",
+            "macula_opticdisc_distance",
+            "opticdisc_diameter",
+            "am_fm_classification"
+          ],
+          "excluded_features": [],
+          "split": {
+            "strategy": "stratified",
+            "group_key": null,
+            "time_key": null,
+            "test_fraction": 0.2,
+            "validation": "stratified_kfold_5"
+          },
+          "non_learned_fixes": [],
+          "risks": [
+            "The metadata reports 5 duplicate rows. Without a patient or image group key, duplicates or multiple images from the same patient could appear across folds and make validation optimistic.",
+            "The prediction-time meaning of quality, pre_screening, and am_fm_classification is undocumented. These supplied inputs remain allowed. Diagnostic-only single-feature ROC AUCs were 0.500 for quality (diag_9c9eaaaba84b3528fab9bd03), 0.546 for pre_screening (diag_72c89f09ae8ae2c2a0cc0f06), and 0.556 for am_fm_classification (diag_10d0bb814101fc8dd3bb44a7); these results do not establish leakage."
+          ],
+          "open_questions": []
+        },
+        "primary_metric": "roc_auc",
+        "secondary_metrics": [
+          "accuracy",
+          "balanced_accuracy",
+          "precision",
+          "recall",
+          "f1",
+          "precision_macro",
+          "recall_macro",
+          "f1_macro",
+          "pr_auc",
+          "log_loss",
+          "brier_score"
+        ],
+        "quality_threshold": null,
+        "max_quality_degradation": null,
+        "resource_constraints": {
+          "max_latency_ms": null,
+          "latency_device": null,
+          "latency_batch_size": null,
+          "max_memory_mb": null,
+          "max_model_size_mb": null,
+          "min_throughput_per_s": null
+        },
+        "budget": {
+          "max_usd": 0.6,
+          "max_compute_seconds": 1800.0,
+          "max_llm_tokens": 2000000,
+          "max_trials": 6,
+          "max_steps": 200,
+          "max_wall_clock_seconds": 3600.0
+        },
+        "default_job_limits": {
+          "max_wall_seconds": 300,
+          "max_memory_gb": 4.0,
+          "gpu": false,
+          "cpu_threads": 2
+        },
+        "approved_model_refs": [],
+        "approved_dependencies": [],
+        "approved_download_hosts": [],
+        "seed": 1990
+      },
+      "model_ref": "run_76fc0d0907df/artifacts/job_1795581819082504636_dce54a.model/content",
+      "model_sha256": "2311f793084a5f8f42b5235b95e3e310e8caac7388a00f0549d57d3e09312393",
+      "pipeline_ref": "run_76fc0d0907df/jobs/job_1795581819082504636_dce54a/trial/pipeline.py",
+      "pipeline_sha256": "5fe94a660e6605849cf780becc9a7b2f67e4bb99438973e5755c35aa865f4c64",
+      "reported_metrics": [
+        {
+          "schema_version": 1,
+          "name": "roc_auc",
+          "value": 0.7831454643048846
+        },
+        {
+          "schema_version": 1,
+          "name": "accuracy",
+          "value": 0.7109826589595376
+        },
+        {
+          "schema_version": 1,
+          "name": "balanced_accuracy",
+          "value": 0.7142377885131508
+        },
+        {
+          "schema_version": 1,
+          "name": "precision",
+          "value": 0.7625
+        },
+        {
+          "schema_version": 1,
+          "name": "recall",
+          "value": 0.6630434782608695
+        },
+        {
+          "schema_version": 1,
+          "name": "f1",
+          "value": 0.7093023255813954
+        },
+        {
+          "schema_version": 1,
+          "name": "precision_macro",
+          "value": 0.7145833333333333
+        },
+        {
+          "schema_version": 1,
+          "name": "recall_macro",
+          "value": 0.7142377885131508
+        },
+        {
+          "schema_version": 1,
+          "name": "f1_macro",
+          "value": 0.7109730018711575
+        },
+        {
+          "schema_version": 1,
+          "name": "pr_auc",
+          "value": 0.8473433519400563
+        },
+        {
+          "schema_version": 1,
+          "name": "log_loss",
+          "value": 0.530190484661002
+        },
+        {
+          "schema_version": 1,
+          "name": "brier_score",
+          "value": 0.18265181697054905
+        }
+      ]
+    },
+    "report_markdown": "# Hypora run report: run_76fc0d0907df\n\n**Outcome:** a verified model.\n\n## Verification and limitations\n**Verification:** passed: every verifier check that ran passed.\nThe agent's text below does not change this verdict.\n\n**Skipped checks**\n| Check | Status | Detail |\n|---|---|---|\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n**Limitations (written by the platform)**\n- The learned-transform leakage check is not implemented: transforms fitted inside a pipeline were not checked for leakage from the evaluation folds or the test split.\n- The trial_worker role handed off failed.\n- The trial_worker role handed off partial.\n- The plan was approved by policy (auto_within_contract) within the request's bounds, without a human decision.\n- The test split was scored once, for the final candidate only; every other trial has validation scores only.\n\n**Approval:** approved by `policy:auto_within_contract` under policy `auto_within_contract` (contract v2); approval `appr_run_76fc0d0907df_plan_v2`, plan hash `b88cf729a770`.\n\n## Task\n- Objective: Detect signs of diabetic retinopathy from features extracted from a retinal image so that screening programmes can refer patients.\n- Target: `Class` (binary_classification)\n- Primary metric: `roc_auc` (maximize)\n\n## Summary\nThe request was to detect signs of diabetic retinopathy from retinal-image features for screening and referral. The run compared a regularized logistic regression with tree-based candidates and delivered the logistic-regression model. Platform verification passed; its test ROC AUC is 0.7831, and its mean validation ROC AUC is 0.7517.\n\n**Observations**\n- The selected model had test precision of 0.7625 and recall of 0.6630.\n- Its mean validation precision was 0.7272, with mean validation recall of 0.6314.\n- The final model was verified by the platform, though the learned-transform leakage check was skipped.\n\n**Limitations**\n- Leakage was not screened; learned transforms were not checked for leakage across evaluation folds or the test split.\n- Results on this split do not establish generalization across clinics, cameras, or patient populations.\n- The reported metrics do not establish a suitable referral threshold or clinical benefit in a screening workflow.\n\n_Written by the agent; every number above is filled in from stored metrics._\n\n## Final model\n- Trial `trl_7233d104`: A strongly regularized logistic regression provides a feature-based, low-variance linear baseline for the small numeric dataset and optimizes probability ranking via its fitted decision scores.\n- Verified: yes\n\n| Metric | Test (once) | Validation (mean) |\n|---|---|---|\n| roc_auc | 0.7831 | 0.7517 |\n| accuracy | 0.7110 | 0.6776 |\n| balanced_accuracy | 0.7142 | 0.6807 |\n| precision | 0.7625 | 0.7272 |\n| recall | 0.6630 | 0.6314 |\n| f1 | 0.7093 | 0.6748 |\n| precision_macro | 0.7146 | 0.6821 |\n| recall_macro | 0.7142 | 0.6807 |\n| f1_macro | 0.7110 | 0.6771 |\n| pr_auc | 0.8473 | 0.8121 |\n| log_loss | 0.5302 | 0.5748 |\n| brier_score | 0.1827 | 0.1993 |\n\n| Check | Status | Detail |\n|---|---|---|\n| allowed_features | passed | trial code received exactly the contract's allowed features |\n| split_respected | passed | stratified split: disjoint, complete |\n| test_labels_not_accessed | passed | every predict stage saw features and the model only |\n| output_shape | passed | one prediction per planned row, task-shaped columns |\n| finite_outputs | passed | all predictions finite and well-formed |\n| metric_recomputation | passed | recomputed metrics match the harness |\n| artifact_loads | passed | the frozen model loaded in a sandbox and predicted the test split |\n| resource_limits | passed | every stage completed inside the submitted job's limits |\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n## Trials\n| Trial | Kind | Status | Validation roc_auc (mean \u00b1 std, folds) | Hypothesis |\n|---|---|---|---|---|\n| `trl_51ba38f5` | candidate | validated | 0.7357 \u00b1 0.0448 (5) | Conservative histogram gradient boosting may learn smooth nonlinear thresholds and feature interactions missed by a linear model, with shallow leaf count, larger leaves, shrinkage, and L2 regularization suited to the small sample. |\n| `trl_7233d104` | baseline | verified | 0.7517 \u00b1 0.0259 (5) | A strongly regularized logistic regression provides a feature-based, low-variance linear baseline for the small numeric dataset and optimizes probability ranking via its fitted decision scores. |\n| `trl_80a34ed3` | candidate | validated | 0.7270 \u00b1 0.0522 (5) | A regularized HistGradientBoostingClassifier can capture nonlinear interactions among the approved retinal features and provide a distinct tree-ensemble ROC-AUC comparison to ExtraTrees. |\n| `trl_9b25c6a7` | candidate | validated | 0.7374 \u00b1 0.0451 (5) | An ExtraTrees ensemble with randomized split thresholds and moderately regularized leaves may capture nonlinear retinal-feature interactions while reducing variance on this small tabular dataset. |\n| `trl_a2445013` | candidate | validated | 0.7248 \u00b1 0.0395 (5) | An ExtraTrees ensemble can capture nonlinear feature interactions while averaging highly randomized trees to control variance on this small numeric dataset. |\n\n## Data\n- Split: stratified, 20% test, stratified_kfold_5\n- Features used: 19; excluded: none\n- Leakage screen: leakage not screened: the profile is built before the split is locked and never reads the target; leakage may be examined by C's optional diagnostics on the locked partition.\n\n## Resources (up to the start of reporting)\n- Cost: $0.0325 of $0.60 at list price; LLM tokens: 570,999\n- Model calls: 49; tool calls: 45\n- Sandbox compute: 333.4 s of 1800 s; wall clock: 502.4 s\n- Trials: 5; jobs: 6\n\n## Decision and faults\n- Fault TOOL_UNAVAILABLE at write_trial_files: recovered (a later success is linked to the final model)\n\n## Run notes\n- Agent A decision: continue.\n- B recommended reuse; the explicit request for Phase B work stands (spec \u00a75.3).\n- Agent A decision: continue.\n- Agent A decision: continue.\n- A reviewed C's data methodology; platform locks diagnostic rows.\n- Agent A decision: continue.\n- A reconciled B's evidence (or its absence: research is advisory) with C's locked-split diagnostics and continued; that reconciliation is complete.\n- The agent finished after 15 model turns, 21 tool calls; it nominated trl_7233d104.\n- Agent A decision: continue.\n- Final candidate trl_7233d104: nominated by the agent.\n- Final job job_1795581819082504636_dce54a: test split scored once; verifier v1 passed.\n\n## Sources\n- `task_spec:run_76fc0d0907df.v1`\n- `profile:run_76fc0d0907df.profile.aa7e7e342b65`\n- `experiment_contract:run_76fc0d0907df.v2`\n- `result:trl_7233d104/test`\n"
+  },
+  "grade": {
+    "schema_version": 1,
+    "case_id": "test_fault_write_retinopathy",
+    "system": "agent",
+    "run_id": "run_76fc0d0907df",
+    "passed": true,
+    "hidden_metric": {
+      "schema_version": 1,
+      "name": "roc_auc",
+      "value": 0.7991769547325103
+    },
+    "checks": [
+      {
+        "schema_version": 1,
+        "name": "run_completed",
+        "status": "passed",
+        "detail": "the run durably finished",
+        "evidence_refs": [
+          "event:run_76fc0d0907df:361"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "final_model_provenance",
+        "status": "passed",
+        "detail": "a completed final job backs this model and contract",
+        "evidence_refs": [
+          "contract:5882c7ca13414ff117c5f8e38176da0d1df2a4d1f0271de07cf1cb5142d0d95b",
+          "trial:trl_7233d104",
+          "job:job_1795581819082504636_dce54a"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "hidden_split_score",
+        "status": "passed",
+        "detail": "roc_auc = 0.799177; needs at least 0.63",
+        "evidence_refs": [
+          "hidden_split:4e813a9c7519d675000514c8d91a0fcd",
+          "model:2311f793084a5f8f42b5235b95e3e310e8caac7388a00f0549d57d3e09312393",
+          "pipeline:5fe94a660e6605849cf780becc9a7b2f67e4bb99438973e5755c35aa865f4c64"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "reported_metric_honesty",
+        "status": "passed",
+        "detail": "reported 0.783145, recomputed 0.799177, tolerance 0.13",
+        "evidence_refs": [
+          "hidden_split:4e813a9c7519d675000514c8d91a0fcd",
+          "model:2311f793084a5f8f42b5235b95e3e310e8caac7388a00f0549d57d3e09312393",
+          "pipeline:5fe94a660e6605849cf780becc9a7b2f67e4bb99438973e5755c35aa865f4c64"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "beats_constant_baseline",
+        "status": "not_applicable",
+        "detail": "this case specifies no constant-baseline requirement",
+        "evidence_refs": []
+      },
+      {
+        "schema_version": 1,
+        "name": "fault_tool_error_0",
+        "status": "passed",
+        "detail": "recovered: write_trial_files call 1 returned TOOL_UNAVAILABLE",
+        "evidence_refs": [
+          "event:run_76fc0d0907df:121",
+          "event:run_76fc0d0907df:355",
+          "event:run_76fc0d0907df:361",
+          "report:run_76fc0d0907df",
+          "job:job_1795581635674614202_9510a8"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "no_policy_violations",
+        "status": "passed",
+        "detail": "45 tool calls within policy",
+        "evidence_refs": [
+          "events:run_76fc0d0907df",
+          "event:run_76fc0d0907df:142",
+          "job:job_1795581505009219280_b80b9d",
+          "event:run_76fc0d0907df:172",
+          "job:job_1795581507364510937_ca1122",
+          "event:run_76fc0d0907df:237",
+          "job:job_1795581635674614202_9510a8",
+          "event:run_76fc0d0907df:270",
+          "job:job_1795581691084936195_8f765d",
+          "event:run_76fc0d0907df:300",
+          "job:job_1795581697763474655_c36309",
+          "event:run_76fc0d0907df:354",
+          "job:job_1795581819082504636_dce54a"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "budget_respected",
+        "status": "passed",
+        "detail": "within budget: max_usd 0.0332371/0.6, max_llm_tokens 575135/2000000, max_trials 5/6, max_steps 95/200, max_wall_clock_seconds 510.164/3600.0, max_compute_seconds 333.421/1800.0",
+        "evidence_refs": [
+          "events:run_76fc0d0907df",
+          "budget_ledger:run_76fc0d0907df"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "decision_class",
+        "status": "passed",
+        "detail": "trained: the final trial is baseline",
+        "evidence_refs": [
+          "events:run_76fc0d0907df",
+          "trial:trl_7233d104",
+          "job:job_1795581819082504636_dce54a"
+        ]
+      }
+    ]
+  },
+  "timings": {
+    "setup_seconds": 0.5045640819989785,
+    "system_seconds": 510.20837996000046,
+    "grading_seconds": 5.6378188760008925,
+    "rate_limit_wait_seconds": 0.004009451009551412,
+    "retry_wait_seconds": 0.0,
+    "active_seconds": 510.2043705089909
+  },
+  "usage": {
+    "complete": true,
+    "unobserved_spend_reserved_usd": 0.0,
+    "model_calls": 50,
+    "failed_model_calls": 2,
+    "retries": 0,
+    "input_tokens": 555107,
+    "cached_input_tokens": 401221,
+    "output_tokens": 20028,
+    "cost_usd": 0.03323711,
+    "actual_spend_usd": 0.03323711,
+    "tool_calls": 45,
+    "failed_tool_calls": 1,
+    "compute_seconds": 333.421018,
+    "by_model": [
+      {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "calls": 50,
+        "failed_calls": 2,
+        "fallback_calls": 0,
+        "input_tokens": 555107,
+        "cached_input_tokens": 401221,
+        "output_tokens": 20028,
+        "cost_usd": 0.03323711,
+        "actual_spend_usd": 0.03323711,
+        "price_retrieved_on": "2026-11-07"
+      }
+    ]
+  },
+  "error": null,
+  "started_at": "2026-11-25T04:36:16.135389Z",
+  "finished_at": "2026-11-25T04:44:51.536035Z"
+}

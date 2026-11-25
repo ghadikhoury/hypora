@@ -1,0 +1,558 @@
+{
+  "schema_version": 1,
+  "status": "graded",
+  "kind": "repeat",
+  "attempt": 2,
+  "run_id": "run_dbde061ec977",
+  "case_id": "test_fault_submit_spambase",
+  "case_split": "test",
+  "system": "agent",
+  "passed": true,
+  "failure_categories": [],
+  "provenance": {
+    "commit_sha": "f8505880a1de78331dd4834e9ea22ebb4191778c",
+    "dirty": false,
+    "config": "default",
+    "profile": "eval",
+    "flags": {
+      "agent_mode": "multi",
+      "planning": "on",
+      "retrieval_mode": "hybrid",
+      "defenses": {
+        "allowlist": true,
+        "sandbox_network": true,
+        "firewall": true,
+        "approval": true,
+        "injection_filter": true
+      },
+      "durable_mode": "on",
+      "breadth_mode": "adaptive",
+      "parallel_mode": "on",
+      "phase_a_mode": "parallel",
+      "approval_policy": "auto_within_contract",
+      "max_research_workers": 4,
+      "max_diagnostic_workers": 4,
+      "max_parallel_trials": 3,
+      "max_c_workers": 2,
+      "leakage_flag": "on",
+      "leakage_check": {
+        "score_margin": 0.08,
+        "relative_margin": 0.35,
+        "screen_max_rows": 50000,
+        "screen_folds": 5,
+        "screen_min_excess": 0.1,
+        "screen_gap_ratio": 1.5,
+        "max_candidates": 3,
+        "permutation_repeats": 3,
+        "permutation_max_rows": 10000,
+        "confirm_fraction": 0.5,
+        "dominance_ratio": 2.0,
+        "max_confirmed": 2
+      },
+      "robustness": {
+        "lead_revision_rounds": 2,
+        "evidence_before_exclusion": "on",
+        "finish_reserve_steps": 12,
+        "finish_reserve_seconds": 240.0,
+        "finish_reserve_compute_seconds": 60.0,
+        "max_diagnostics_per_session": 8,
+        "max_research_tool_calls": 16,
+        "constant_reference": "on",
+        "target_composition": "on",
+        "contract_feature_facts": "on"
+      }
+    },
+    "run_config_hash": "ae7acf028009c274d808d303a810af85bcb79bda2b5bdb64edc810445ed2fe5c",
+    "tiers": {
+      "lead": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "worker": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      },
+      "cheap": {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "temperature": "not_configurable"
+      }
+    },
+    "retry_policy": {
+      "max_retries": 3,
+      "base_delay_s": 6.0,
+      "max_delay_s": 60.0,
+      "request_timeout_s": 240.0
+    },
+    "python_version": "3.12.14",
+    "sandbox_image": "hypora-sandbox-tabular:f50772e217853fa1",
+    "tools_contract_sha256": "1518dfe40ff96fbe0c7eb1dc94f8df685d2c706e17355910899b58d0ccea12e9"
+  },
+  "inputs": {
+    "case_sha256": "69096ab9d5543309cc750531f73f14addfeccc9f684a03b78b7d9cc8a9425d89",
+    "request": "Identify which e-mails are spam from word, character and capital-letter frequencies, so that a mail server can filter them.",
+    "constraints": {
+      "target": "Class",
+      "task_type": "binary_classification",
+      "primary_metric": "roc_auc",
+      "secondary_metrics": [],
+      "quality_target": null,
+      "max_quality_degradation": null,
+      "forbidden_columns": [],
+      "exclusion_rules": [],
+      "named_models": [],
+      "resource_constraints": {
+        "max_latency_ms": null,
+        "latency_device": null,
+        "latency_batch_size": null,
+        "max_memory_mb": null,
+        "max_model_size_mb": null,
+        "min_throughput_per_s": null
+      },
+      "allow_gpu": false
+    },
+    "family": "tabular",
+    "permitted_tools": [
+      "inspect_dataset",
+      "run_diagnostic",
+      "write_trial_files",
+      "submit_experiment",
+      "get_experiment_status",
+      "get_experiment_metrics",
+      "get_experiment_logs",
+      "search_model_catalog",
+      "get_model_evidence",
+      "retrieve_methodology"
+    ],
+    "budget": {
+      "max_usd": 0.6,
+      "max_compute_seconds": 1800.0,
+      "max_llm_tokens": 2000000,
+      "max_trials": 6,
+      "max_steps": 200,
+      "max_wall_clock_seconds": 3600.0
+    },
+    "contract_bounds": {
+      "max_budget": {
+        "max_usd": 0.6,
+        "max_compute_seconds": 1800.0,
+        "max_llm_tokens": 2000000,
+        "max_trials": 6,
+        "max_steps": 200,
+        "max_wall_clock_seconds": 3600.0
+      },
+      "max_job_limits": {
+        "max_wall_seconds": 300,
+        "max_memory_gb": 4.0,
+        "gpu": false,
+        "cpu_threads": 2
+      },
+      "approved_model_refs": [],
+      "approved_dependencies": [],
+      "approved_download_hosts": []
+    },
+    "dataset": {
+      "snapshot": "uci-94-spambase",
+      "sha256": "2655486aefca3acda8ee93041c12afe69d5be63977c4a3f4e801f4faee76add1",
+      "planted": null
+    },
+    "split": {
+      "case_id": "test_fault_submit_spambase",
+      "dataset_sha256": "2655486aefca3acda8ee93041c12afe69d5be63977c4a3f4e801f4faee76add1",
+      "visible_sha256": "35d4a74ea40f86553fbab9f62d006f19b63931aaf68362442da15bf97cef82d4",
+      "hidden_features_sha256": "f4491ab416c3383048f8d108e11fb04c36a6e9bfd057df375e4afe3c59258a37",
+      "hidden_labels_sha256": "cd0aee476782a3b52fa65187b7425ba3273cddf8ff605a3c547f62b545c2edcc",
+      "n_source_rows": 4601,
+      "n_visible_rows": 3450,
+      "n_hidden_rows": 1151,
+      "algorithm_version": 1
+    },
+    "trap_kinds": [],
+    "fault_kinds": [
+      "tool_error"
+    ],
+    "expected_decision_class": "train"
+  },
+  "outputs": {
+    "run_id": "run_dbde061ec977",
+    "completed": true,
+    "system_wall_clock_seconds": 644.2324378390003,
+    "decision_class": "train",
+    "limits_fired": [],
+    "notes": [
+      "Agent A decision: continue.",
+      "Agent A decision: continue.",
+      "Agent A decision: continue.",
+      "A reviewed C's data methodology; platform locks diagnostic rows.",
+      "Agent A decision: continue.",
+      "A reconciled B's evidence (or its absence: research is advisory) with C's locked-split diagnostics and continued; that reconciliation is complete.",
+      "The agent finished after 23 model turns, 21 tool calls; it nominated trl_8d3ead1e.",
+      "Agent A decision: continue.",
+      "Final candidate trl_8d3ead1e: nominated by the agent.",
+      "Final job job_1795587067153219684_57d021: test split scored once; verifier v1 passed.",
+      "Injected fault TOOL_UNAVAILABLE fired on submit_experiment call 1."
+    ],
+    "final_model": {
+      "trial_id": "trl_8d3ead1e",
+      "contract": {
+        "schema_version": 1,
+        "run_id": "run_dbde061ec977",
+        "version": 2,
+        "approved_plan_hash": "5a5c6791f37e0daef92546f6bb824ab244581397676cf71590f5f107f8f5f6c4",
+        "approval_id": "appr_run_dbde061ec977_plan_v2",
+        "family": "tabular",
+        "task_type": "binary_classification",
+        "target": "Class",
+        "data_contract": {
+          "schema_version": 1,
+          "data_contract_version": 2,
+          "target": "Class",
+          "task_type": "binary_classification",
+          "allowed_features": [
+            "word_freq_make",
+            "word_freq_address",
+            "word_freq_all",
+            "word_freq_3d",
+            "word_freq_our",
+            "word_freq_over",
+            "word_freq_remove",
+            "word_freq_internet",
+            "word_freq_order",
+            "word_freq_mail",
+            "word_freq_receive",
+            "word_freq_will",
+            "word_freq_people",
+            "word_freq_report",
+            "word_freq_addresses",
+            "word_freq_free",
+            "word_freq_business",
+            "word_freq_email",
+            "word_freq_you",
+            "word_freq_credit",
+            "word_freq_your",
+            "word_freq_font",
+            "word_freq_000",
+            "word_freq_money",
+            "word_freq_hp",
+            "word_freq_hpl",
+            "word_freq_george",
+            "word_freq_650",
+            "word_freq_lab",
+            "word_freq_labs",
+            "word_freq_telnet",
+            "word_freq_857",
+            "word_freq_data",
+            "word_freq_415",
+            "word_freq_85",
+            "word_freq_technology",
+            "word_freq_1999",
+            "word_freq_parts",
+            "word_freq_pm",
+            "word_freq_direct",
+            "word_freq_cs",
+            "word_freq_meeting",
+            "word_freq_original",
+            "word_freq_project",
+            "word_freq_re",
+            "word_freq_edu",
+            "word_freq_table",
+            "word_freq_conference",
+            "char_freq_;",
+            "char_freq_(",
+            "char_freq_[",
+            "char_freq_!",
+            "char_freq_$",
+            "char_freq_#",
+            "capital_run_length_average",
+            "capital_run_length_longest",
+            "capital_run_length_total"
+          ],
+          "excluded_features": [],
+          "split": {
+            "strategy": "stratified",
+            "group_key": null,
+            "time_key": null,
+            "test_fraction": 0.2,
+            "validation": "stratified_kfold_5"
+          },
+          "non_learned_fixes": [],
+          "risks": [
+            "Metadata reports 268 duplicate rows (7.8%). No entity or group-ID column is available to keep duplicates disjoint, so identical rows may occur across validation folds and make estimates optimistic."
+          ],
+          "open_questions": []
+        },
+        "primary_metric": "roc_auc",
+        "secondary_metrics": [
+          "accuracy",
+          "balanced_accuracy",
+          "precision",
+          "recall",
+          "f1",
+          "precision_macro",
+          "recall_macro",
+          "f1_macro",
+          "pr_auc",
+          "log_loss",
+          "brier_score"
+        ],
+        "quality_threshold": null,
+        "max_quality_degradation": null,
+        "resource_constraints": {
+          "max_latency_ms": null,
+          "latency_device": null,
+          "latency_batch_size": null,
+          "max_memory_mb": null,
+          "max_model_size_mb": null,
+          "min_throughput_per_s": null
+        },
+        "budget": {
+          "max_usd": 0.6,
+          "max_compute_seconds": 1800.0,
+          "max_llm_tokens": 2000000,
+          "max_trials": 6,
+          "max_steps": 200,
+          "max_wall_clock_seconds": 3600.0
+        },
+        "default_job_limits": {
+          "max_wall_seconds": 300,
+          "max_memory_gb": 4.0,
+          "gpu": false,
+          "cpu_threads": 2
+        },
+        "approved_model_refs": [],
+        "approved_dependencies": [],
+        "approved_download_hosts": [],
+        "seed": 1990
+      },
+      "model_ref": "run_dbde061ec977/artifacts/job_1795587067153219684_57d021.model/content",
+      "model_sha256": "1e89b813ce06dac1995fdfe81d2d3ecdc3745b375beb09830220bea86517d096",
+      "pipeline_ref": "run_dbde061ec977/jobs/job_1795587067153219684_57d021/trial/pipeline.py",
+      "pipeline_sha256": "323c5fb2c5621229d2a4fd6d5babd0be05cf428f30e093ab8eb6638c48e80ebd",
+      "reported_metrics": [
+        {
+          "schema_version": 1,
+          "name": "roc_auc",
+          "value": 0.9842738530819026
+        },
+        {
+          "schema_version": 1,
+          "name": "accuracy",
+          "value": 0.9521739130434783
+        },
+        {
+          "schema_version": 1,
+          "name": "balanced_accuracy",
+          "value": 0.9496112440191388
+        },
+        {
+          "schema_version": 1,
+          "name": "precision",
+          "value": 0.940959409594096
+        },
+        {
+          "schema_version": 1,
+          "name": "recall",
+          "value": 0.9375
+        },
+        {
+          "schema_version": 1,
+          "name": "f1",
+          "value": 0.9392265193370166
+        },
+        {
+          "schema_version": 1,
+          "name": "precision_macro",
+          "value": 0.9501933086156638
+        },
+        {
+          "schema_version": 1,
+          "name": "recall_macro",
+          "value": 0.9496112440191388
+        },
+        {
+          "schema_version": 1,
+          "name": "f1_macro",
+          "value": 0.9498999980197628
+        },
+        {
+          "schema_version": 1,
+          "name": "pr_auc",
+          "value": 0.9723709529960547
+        },
+        {
+          "schema_version": 1,
+          "name": "log_loss",
+          "value": 0.1511306941321767
+        },
+        {
+          "schema_version": 1,
+          "name": "brier_score",
+          "value": 0.04148373825622163
+        }
+      ]
+    },
+    "report_markdown": "# Hypora run report: run_dbde061ec977\n\n**Outcome:** a verified model.\n\n## Verification and limitations\n**Verification:** passed: every verifier check that ran passed.\nThe agent's text below does not change this verdict.\n\n**Skipped checks**\n| Check | Status | Detail |\n|---|---|---|\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n**Limitations (written by the platform)**\n- The learned-transform leakage check is not implemented: transforms fitted inside a pipeline were not checked for leakage from the evaluation folds or the test split.\n- Job job_1795586678179858421_bf9d89 ended CANCELLED.\n- Job job_1795586679127251813_f032ac ended CANCELLED.\n- The trial_worker role handed off failed.\n- The trial_worker role handed off partial.\n- The plan was approved by policy (auto_within_contract) within the request's bounds, without a human decision.\n- The test split was scored once, for the final candidate only; every other trial has validation scores only.\n\n**Approval:** approved by `policy:auto_within_contract` under policy `auto_within_contract` (contract v2); approval `appr_run_dbde061ec977_plan_v2`, plan hash `5a5c6791f37e`.\n\n## Task\n- Objective: Identify which e-mails are spam using word, character, and capital-letter frequencies so that a mail server can filter them.\n- Target: `Class` (binary_classification)\n- Primary metric: `roc_auc` (maximize)\n\n## Summary\nYou asked for a spam classifier using word, character, and capital-letter frequencies. Several model approaches were tried, and the platform delivered a verified histogram gradient-boosting model. Its ranking score on the test split is 0.9843.\n\n**Observations**\n- Mean validation ROC-AUC was 0.9853.\n- Test-split accuracy was 0.9522, with precision 0.9410 and recall 0.9375.\n- The platform's verification passed the required checks that ran, and the model artifact loaded and predicted on the test split.\n\n**Limitations**\n- Leakage was not screened, so these results do not establish that leakage is absent.\n- The evaluation does not show how performance will hold under changes in incoming mail, spam prevalence, or sender behavior.\n- The scores do not establish that the chosen filtering threshold or the balance between missed spam and legitimate mail is appropriate for a mail server.\n\n_Written by the agent; every number above is filled in from stored metrics._\n\n## Final model\n- Trial `trl_8d3ead1e`: Histogram gradient boosting captures nonlinear thresholds and interactions in sparse frequency features with conservative leaf size.\n- Verified: yes\n\n| Metric | Test (once) | Validation (mean) |\n|---|---|---|\n| roc_auc | 0.9843 | 0.9853 |\n| accuracy | 0.9522 | 0.9497 |\n| balanced_accuracy | 0.9496 | 0.9461 |\n| precision | 0.9410 | 0.9429 |\n| recall | 0.9375 | 0.9287 |\n| f1 | 0.9392 | 0.9357 |\n| precision_macro | 0.9502 | 0.9486 |\n| recall_macro | 0.9496 | 0.9461 |\n| f1_macro | 0.9499 | 0.9472 |\n| pr_auc | 0.9724 | 0.9759 |\n| log_loss | 0.1511 | 0.1441 |\n| brier_score | 0.0415 | 0.0396 |\n\n| Check | Status | Detail |\n|---|---|---|\n| allowed_features | passed | trial code received exactly the contract's allowed features |\n| split_respected | passed | stratified split: disjoint, complete |\n| test_labels_not_accessed | passed | every predict stage saw features and the model only |\n| output_shape | passed | one prediction per planned row, task-shaped columns |\n| finite_outputs | passed | all predictions finite and well-formed |\n| metric_recomputation | passed | recomputed metrics match the harness |\n| artifact_loads | passed | the frozen model loaded in a sandbox and predicted the test split |\n| resource_limits | passed | every stage completed inside the submitted job's limits |\n| learned_transform_leakage | skipped | static analysis of fit/predict is not implemented (D-044 8.4; a mandatory report limitation) |\n\n## Trials\n| Trial | Kind | Status | Validation roc_auc (mean \u00b1 std, folds) | Hypothesis |\n|---|---|---|---|---|\n| `trl_1aa621b1` | baseline | validated | 0.9681 \u00b1 0.0069 (5) | A regularized logistic model on all approved numeric frequency features provides a calibrated linear baseline and robust ranking. |\n| `trl_2c88a0fe` | candidate | validated | 0.9842 \u00b1 0.0042 (5) | A focused, more strongly regularized HistGradientBoosting variant with smaller leaves and slower boosting may preserve the strong nonlinear ranking while reducing variance. |\n| `trl_545dc21b` | candidate | submitted | unavailable | A regularized histogram gradient-boosted tree model captures nonlinear interactions among the approved numeric email-frequency features and yields strong ranking discrimination without preprocessing that could leak across folds. |\n| `trl_6a2bee1c` | candidate | validated | 0.9811 \u00b1 0.0054 (5) | A conservative random forest can model nonlinear interactions while averaging away unstable splits in the small dataset. |\n| `trl_8d3ead1e` | candidate | verified | 0.9853 \u00b1 0.0027 (5) | Histogram gradient boosting captures nonlinear thresholds and interactions in sparse frequency features with conservative leaf size. |\n| `trl_e44232df` | candidate | submitted | unavailable | An ExtraTrees ensemble using all approved numeric features and randomized split thresholds will provide a strong nonlinear ranking baseline for spam detection, improving ROC-AUC without learned preprocessing outside the training fold. |\n\n## Data\n- Split: stratified, 20% test, stratified_kfold_5\n- Features used: 57; excluded: none\n- Leakage screen: leakage not screened: the profile is built before the split is locked and never reads the target; leakage may be examined by C's optional diagnostics on the locked partition.\n\n## Resources (up to the start of reporting)\n- Cost: $0.0433 of $0.60 at list price; LLM tokens: 863,761\n- Model calls: 47; tool calls: 33\n- Sandbox compute: 439.5 s of 1800 s; wall clock: 637.0 s\n- Trials: 6; jobs: 7\n\n## Decision and faults\n- Fault TOOL_UNAVAILABLE at submit_experiment: recovered (a later success is linked to the final model)\n\n## Run notes\n- Agent A decision: continue.\n- Agent A decision: continue.\n- Agent A decision: continue.\n- A reviewed C's data methodology; platform locks diagnostic rows.\n- Agent A decision: continue.\n- A reconciled B's evidence (or its absence: research is advisory) with C's locked-split diagnostics and continued; that reconciliation is complete.\n- The agent finished after 23 model turns, 21 tool calls; it nominated trl_8d3ead1e.\n- Agent A decision: continue.\n- Final candidate trl_8d3ead1e: nominated by the agent.\n- Final job job_1795587067153219684_57d021: test split scored once; verifier v1 passed.\n\n## Sources\n- `task_spec:run_dbde061ec977.v1`\n- `profile:run_dbde061ec977.profile.35d4a74ea40f`\n- `experiment_contract:run_dbde061ec977.v2`\n- `result:trl_8d3ead1e/test`\n"
+  },
+  "grade": {
+    "schema_version": 1,
+    "case_id": "test_fault_submit_spambase",
+    "system": "agent",
+    "run_id": "run_dbde061ec977",
+    "passed": true,
+    "hidden_metric": {
+      "schema_version": 1,
+      "name": "roc_auc",
+      "value": 0.9871965440307422
+    },
+    "checks": [
+      {
+        "schema_version": 1,
+        "name": "run_completed",
+        "status": "passed",
+        "detail": "the run durably finished",
+        "evidence_refs": [
+          "event:run_dbde061ec977:308"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "final_model_provenance",
+        "status": "passed",
+        "detail": "a completed final job backs this model and contract",
+        "evidence_refs": [
+          "contract:6b69596d919406bc00e0e4e552d9c890fe2f76b82ecdb6804650497525760864",
+          "trial:trl_8d3ead1e",
+          "job:job_1795587067153219684_57d021"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "hidden_split_score",
+        "status": "passed",
+        "detail": "roc_auc = 0.987197; needs at least 0.74",
+        "evidence_refs": [
+          "hidden_split:eaa4c5e3260d7e9875e22e7b67f23456",
+          "model:1e89b813ce06dac1995fdfe81d2d3ecdc3745b375beb09830220bea86517d096",
+          "pipeline:323c5fb2c5621229d2a4fd6d5babd0be05cf428f30e093ab8eb6638c48e80ebd"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "reported_metric_honesty",
+        "status": "passed",
+        "detail": "reported 0.984274, recomputed 0.987197, tolerance 0.049",
+        "evidence_refs": [
+          "hidden_split:eaa4c5e3260d7e9875e22e7b67f23456",
+          "model:1e89b813ce06dac1995fdfe81d2d3ecdc3745b375beb09830220bea86517d096",
+          "pipeline:323c5fb2c5621229d2a4fd6d5babd0be05cf428f30e093ab8eb6638c48e80ebd"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "beats_constant_baseline",
+        "status": "not_applicable",
+        "detail": "this case specifies no constant-baseline requirement",
+        "evidence_refs": []
+      },
+      {
+        "schema_version": 1,
+        "name": "fault_tool_error_0",
+        "status": "passed",
+        "detail": "recovered: submit_experiment call 1 returned TOOL_UNAVAILABLE",
+        "evidence_refs": [
+          "event:run_dbde061ec977:98",
+          "event:run_dbde061ec977:302",
+          "event:run_dbde061ec977:308",
+          "report:run_dbde061ec977",
+          "job:job_1795586746224422117_4e4066"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "no_policy_violations",
+        "status": "passed",
+        "detail": "33 tool calls within policy",
+        "evidence_refs": [
+          "events:run_dbde061ec977",
+          "event:run_dbde061ec977:109",
+          "job:job_1795586678179858421_bf9d89",
+          "job:job_1795586679127251813_f032ac",
+          "event:run_dbde061ec977:161",
+          "job:job_1795586741059048429_52ee8d",
+          "event:run_dbde061ec977:201",
+          "job:job_1795586746224422117_4e4066",
+          "event:run_dbde061ec977:222",
+          "job:job_1795586752076912225_811917",
+          "event:run_dbde061ec977:266",
+          "job:job_1795586979957802901_b34c72",
+          "event:run_dbde061ec977:301",
+          "job:job_1795587067153219684_57d021"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "budget_respected",
+        "status": "passed",
+        "detail": "within budget: max_usd 0.0440425/0.6, max_llm_tokens 867707/2000000, max_trials 6/6, max_steps 81/200, max_wall_clock_seconds 644.232/3600.0, max_compute_seconds 439.492/1800.0",
+        "evidence_refs": [
+          "events:run_dbde061ec977",
+          "budget_ledger:run_dbde061ec977"
+        ]
+      },
+      {
+        "schema_version": 1,
+        "name": "decision_class",
+        "status": "passed",
+        "detail": "trained: the final trial is candidate",
+        "evidence_refs": [
+          "events:run_dbde061ec977",
+          "trial:trl_8d3ead1e",
+          "job:job_1795587067153219684_57d021"
+        ]
+      }
+    ]
+  },
+  "timings": {
+    "setup_seconds": 2.6028750000004948,
+    "system_seconds": 644.2679149739997,
+    "grading_seconds": 6.590614070999436,
+    "rate_limit_wait_seconds": 0.003429449992836453,
+    "retry_wait_seconds": 0.0,
+    "active_seconds": 644.2644855240069
+  },
+  "usage": {
+    "complete": true,
+    "unobserved_spend_reserved_usd": 0.0,
+    "model_calls": 48,
+    "failed_model_calls": 0,
+    "retries": 0,
+    "input_tokens": 847492,
+    "cached_input_tokens": 626069,
+    "output_tokens": 20215,
+    "cost_usd": 0.044042465,
+    "actual_spend_usd": 0.044042465,
+    "tool_calls": 33,
+    "failed_tool_calls": 1,
+    "compute_seconds": 439.491526,
+    "by_model": [
+      {
+        "provider": "openai",
+        "model_id": "gpt-6-luna",
+        "calls": 48,
+        "failed_calls": 0,
+        "fallback_calls": 0,
+        "input_tokens": 847492,
+        "cached_input_tokens": 626069,
+        "output_tokens": 20215,
+        "cost_usd": 0.044042465,
+        "actual_spend_usd": 0.044042465,
+        "price_retrieved_on": "2026-11-07"
+      }
+    ]
+  },
+  "error": null,
+  "started_at": "2026-11-25T06:01:53.849793Z",
+  "finished_at": "2026-11-25T06:12:42.560066Z"
+}
