@@ -308,6 +308,53 @@ def cancel(
     )
 
 
+@app.command()
+def ui(
+    host: Annotated[
+        str,
+        typer.Option("--host", help="Bind address (loopback only unless --allow-remote)."),
+    ] = "127.0.0.1",
+    port: Annotated[
+        int, typer.Option("--port", min=1, max=65535, help="Port to listen on.")
+    ] = 8000,
+    db: DbOption = DEFAULT_DB,
+    runs_root: RunsRootOption = DEFAULT_RUNS_ROOT,
+    extra_state_dir: Annotated[
+        list[Path] | None,
+        typer.Option(
+            "--extra-state-dir",
+            help="Additional directories to scan for read-only historical run .sqlite files.",
+        ),
+    ] = None,
+    dev_cors: Annotated[
+        bool,
+        typer.Option("--dev-cors", help="Enable CORS for local Vite dev server (localhost:5173)."),
+    ] = False,
+    allow_remote: Annotated[
+        bool,
+        typer.Option(
+            "--allow-remote",
+            help="Allow binding to a non-loopback host (unsafe on untrusted networks).",
+        ),
+    ] = False,
+) -> None:
+    """Start the local Hypora Web UI and SSE API server."""
+    import uvicorn
+
+    from hypora.api.server import create_app, is_loopback_host
+
+    if not allow_remote and not is_loopback_host(host):
+        raise _fail(f"refusing to bind to non-loopback host {host!r} without --allow-remote", 2)
+    typer.echo(f"Starting Hypora Web UI on http://{host}:{port}")
+    asgi_app = create_app(
+        db_path=db,
+        runs_root=runs_root,
+        extra_state_dirs=extra_state_dir or [],
+        dev_cors=dev_cors,
+    )
+    uvicorn.run(asgi_app, host=host, port=port)
+
+
 app.command("eval")(eval_command)
 
 
