@@ -1,0 +1,688 @@
+{
+  "step": "S5.4",
+  "title": "Master Evidence Index (Core + Claimed Features)",
+  "commits": {
+    "eval_freeze": "62b4e3fb6016a0abddf70a14152252a62c8aca4a",
+    "post_f7_fix": "f8505880a1de78331dd4834e9ea22ebb4191778c"
+  },
+  "rubric_summary": {
+    "core_points": 35,
+    "core_rows": [
+      "Agent",
+      "Evaluation",
+      "Analysis",
+      "Repository"
+    ],
+    "claimed_features_raw_points": 60,
+    "claimed_features_solo_cap": 40,
+    "claimed_features": [
+      "F1",
+      "F3",
+      "F4",
+      "F5",
+      "F6",
+      "F7"
+    ],
+    "rubric_subparts_per_feature": [
+      "implementation",
+      "architecture",
+      "evaluation",
+      "analysis"
+    ]
+  },
+  "core": {
+    "Agent": {
+      "points": 13,
+      "spec_sections": [
+        "\u00a75",
+        "\u00a76",
+        "\u00a77",
+        "\u00a78",
+        "\u00a79",
+        "\u00a711",
+        "\u00a714",
+        "\u00a715"
+      ],
+      "commits": [
+        "62b4e3fb6016a0abddf70a14152252a62c8aca4a",
+        "f8505880a1de78331dd4834e9ea22ebb4191778c"
+      ],
+      "case_counts": {
+        "held_out_primary": 26,
+        "repeat_sample": 18
+      },
+      "evidence_paths": [
+        "hypora/core/controller/",
+        "hypora/core/roles/",
+        "hypora/core/llm/",
+        "hypora/mcp_server/",
+        "hypora/research/",
+        "hypora/execution/",
+        "results/final/s5.2-summary.json",
+        "results/62b4e3fb6016a0abddf70a14152252a62c8aca4a/default/agent/test_clean_rice.json",
+        "results/f8505880a1de78331dd4834e9ea22ebb4191778c/default/agent/test_clean_rice.json"
+      ],
+      "scripts": [
+        "scripts/final_eval.py",
+        "scripts/eval_s53_f7.py"
+      ],
+      "notes": [
+        "docs/notes/controller.md",
+        "docs/notes/mcp-server.md"
+      ],
+      "summary": "A/B/C multi-agent runtime with bounded workers and deterministic policy/sandbox enforcement: multi 25/26 pre-fix (96.2%) and 25/26 post-fix (96.2%)."
+    },
+    "Evaluation": {
+      "points": 11,
+      "spec_sections": [
+        "\u00a719",
+        "\u00a719.1",
+        "\u00a719.2",
+        "\u00a719.3",
+        "\u00a719.4",
+        "\u00a719.5",
+        "\u00a719.6"
+      ],
+      "commits": [
+        "62b4e3fb6016a0abddf70a14152252a62c8aca4a",
+        "f8505880a1de78331dd4834e9ea22ebb4191778c"
+      ],
+      "case_counts": {
+        "held_out_primary": 26,
+        "modelable_cases": 24,
+        "malformed_safe_stops": 2,
+        "repeat_sample_runs_per_arm": 18
+      },
+      "evidence_paths": [
+        "hypora/evaluation/",
+        "hypora/evaluation/cases/dev/",
+        "hypora/evaluation/cases/test/",
+        "results/final/s5.2-summary.json",
+        "results/final/s5.2-summary.md",
+        "results/final/s5.2-evidence-index.json",
+        "results/final/s5.2-manifest.json",
+        "results/final/s5.2-paid-accounting.json",
+        "results/62b4e3fb6016a0abddf70a14152252a62c8aca4a/default/agent/test_clean_rice.json",
+        "results/62b4e3fb6016a0abddf70a14152252a62c8aca4a/default/baseline/test_clean_rice.json"
+      ],
+      "scripts": [
+        "scripts/final_eval.py",
+        "scripts/final_eval_report.py"
+      ],
+      "notes": [
+        "docs/notes/final-eval.md",
+        "docs/notes/test-set-protocol.md"
+      ],
+      "summary": "26 held-out test cases + separate dev set, fixed-pipeline baseline (10/26), 95% Wilson CIs, 10,000-resample paired bootstrap (seed 1990), and 6x3 repeat samples."
+    },
+    "Analysis": {
+      "points": 6,
+      "spec_sections": [
+        "\u00a719.5",
+        "\u00a720"
+      ],
+      "commits": [
+        "62b4e3fb6016a0abddf70a14152252a62c8aca4a",
+        "f8505880a1de78331dd4834e9ea22ebb4191778c"
+      ],
+      "case_counts": {
+        "representative_failure_categories": 10,
+        "s52_primary_cases": 26,
+        "s53_feature_evaluations": 6
+      },
+      "evidence_paths": [
+        "results/analysis/evidence-index.json",
+        "results/analysis/consolidated-summary.json",
+        "results/analysis/consolidated-summary.md",
+        "results/final/s5.2-summary.json",
+        "results/final/s5.2-paid-accounting.json"
+      ],
+      "scripts": [
+        "scripts/build_s54_analysis.py",
+        "scripts/final_eval_report.py"
+      ],
+      "notes": [
+        "docs/notes/s54-consolidated-analysis.md"
+      ],
+      "summary": "Consolidated master tables, 10 categorized representative failures, actual vs. list-price spend, sample latency estimates, and step breakdown."
+    },
+    "Repository": {
+      "points": 5,
+      "spec_sections": [
+        "\u00a722"
+      ],
+      "commits": [
+        "62b4e3fb6016a0abddf70a14152252a62c8aca4a",
+        "f8505880a1de78331dd4834e9ea22ebb4191778c"
+      ],
+      "case_counts": {
+        "locked_dependencies": 1
+      },
+      "evidence_paths": [
+        "README.md",
+        "pyproject.toml",
+        "uv.lock",
+        "Makefile",
+        ".env.example",
+        "configs/",
+        "docs/PROJECT_SPEC.md",
+        "docs/PLAN.md",
+        "docs/DECISIONS.md",
+        "tests/unit/test_repo_conventions.py"
+      ],
+      "scripts": [
+        "scripts/scan_secrets.py",
+        "scripts/ci_scope.py"
+      ],
+      "notes": [
+        "docs/notes/dev-environment.md",
+        "docs/notes/ci-secret-scanning.md"
+      ],
+      "summary": "Pinned uv.lock Python 3.12 repo, one-command run/eval targets, gitleaks hygiene, and convention tests."
+    }
+  },
+  "claimed_features": {
+    "F1": {
+      "title": "Retrieval-augmented generation (RAG)",
+      "raw_points": 10,
+      "spec_sections": [
+        "\u00a713",
+        "\u00a720"
+      ],
+      "commits": [
+        "62b4e3fb6016a0abddf70a14152252a62c8aca4a"
+      ],
+      "case_counts": {
+        "primary_questions": 30,
+        "public_sklearn": 20,
+        "hypora_local": 10,
+        "boundary_queries": 6,
+        "repeat_sample": 18
+      },
+      "rubric_parts": {
+        "implementation": {
+          "evidence_paths": [
+            "hypora/research/retrieval/",
+            "results/s5.3/f1/f1-evidence.json"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f1.py"
+          ],
+          "notes": [
+            "docs/notes/s53-f3-f1.md"
+          ],
+          "summary": "Persisted RetrievalIndex (.save()/.load()), metadata filters, and RRF hybrid fusion over BM25 + TruncatedSVD."
+        },
+        "architecture": {
+          "evidence_paths": [
+            "hypora/research/retrieval/",
+            "hypora/mcp_server/",
+            "results/s5.3/f1/f1-evidence.json"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f1.py"
+          ],
+          "notes": [
+            "docs/notes/research.md",
+            "docs/notes/s53-f3-f1.md"
+          ],
+          "summary": "Documented chunking, persisted index with source_url/revision/license filters, and hybrid RRF reranking."
+        },
+        "evaluation": {
+          "evidence_paths": [
+            "hypora/evaluation/cases/rag/questions.json",
+            "results/s5.3/f1/f1-evidence.json",
+            "results/s5.3/f1/f1-summary.md",
+            "tests/unit/evaluation/test_s53_f3_f1.py"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f1.py"
+          ],
+          "notes": [
+            "docs/notes/s53-f3-f1.md"
+          ],
+          "summary": "30/30 Top-5 hit rate (MRR@5 0.967) across tfidf/bm25/embedding/hybrid; live hybrid 29/30 vs off 12/30 factual (+0.567)."
+        },
+        "analysis": {
+          "evidence_paths": [
+            "results/s5.3/f1/f1-evidence.json",
+            "results/s5.3/f1/f1-summary.md",
+            "results/analysis/consolidated-summary.json"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f1.py",
+            "scripts/build_s54_analysis.py"
+          ],
+          "notes": [
+            "docs/notes/s53-f3-f1.md",
+            "docs/notes/s54-consolidated-analysis.md"
+          ],
+          "summary": "3 failure/boundary categories documented (incl. q29 numeric confusion and 6 out-of-corpus boundary queries)."
+        }
+      }
+    },
+    "F3": {
+      "title": "Multi-agent coordination",
+      "raw_points": 12,
+      "spec_sections": [
+        "\u00a76",
+        "\u00a77",
+        "\u00a78",
+        "\u00a720"
+      ],
+      "commits": [
+        "62b4e3fb6016a0abddf70a14152252a62c8aca4a"
+      ],
+      "case_counts": {
+        "held_out_primary": 26,
+        "role_failure_tests": 4,
+        "helped_hurt_cases": 4,
+        "repeat_sample": 18
+      },
+      "rubric_parts": {
+        "implementation": {
+          "evidence_paths": [
+            "hypora/core/roles/",
+            "hypora/core/controller/",
+            "results/s5.3/f3/f3-evidence.json"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f3.py"
+          ],
+          "notes": [
+            "docs/notes/s53-f3-f1.md"
+          ],
+          "summary": "Working A -> B -> A -> C -> A traced handoffs (test_clean_rice, run_2a2d5305864e, 258 events)."
+        },
+        "architecture": {
+          "evidence_paths": [
+            "hypora/core/controller/",
+            "hypora/core/schemas/",
+            "results/s5.3/f3/f3-evidence.json"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f3.py"
+          ],
+          "notes": [
+            "docs/notes/controller.md",
+            "docs/notes/s53-f3-f1.md"
+          ],
+          "summary": "RunController shared state, LeadAction stopping condition, and 4 deterministic role-failure tests."
+        },
+        "evaluation": {
+          "evidence_paths": [
+            "results/final/s5.2-summary.json",
+            "results/s5.3/f3/f3-evidence.json",
+            "results/s5.3/f3/f3-summary.md",
+            "tests/unit/evaluation/test_s53_f3_f1.py"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f3.py",
+            "scripts/final_eval.py"
+          ],
+          "notes": [
+            "docs/notes/s53-f3-f1.md"
+          ],
+          "summary": "Reuses frozen S5.2: multi 25/26 (96.2%) vs single 23/26 (88.5%), diff +0.077 [-0.077, +0.231] inconclusive."
+        },
+        "analysis": {
+          "evidence_paths": [
+            "results/s5.3/f3/f3-evidence.json",
+            "results/s5.3/f3/f3-summary.md",
+            "results/analysis/consolidated-summary.json"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f3.py",
+            "scripts/build_s54_analysis.py"
+          ],
+          "notes": [
+            "docs/notes/s53-f3-f1.md",
+            "docs/notes/s54-consolidated-analysis.md"
+          ],
+          "summary": "All 4 discordant cases analyzed from traces: 3 helped (malformed safe stops, bankruptcy) and 1 hurt (superconductivity 300s timeout)."
+        }
+      }
+    },
+    "F4": {
+      "title": "Planning & error recovery",
+      "raw_points": 10,
+      "spec_sections": [
+        "\u00a78.7",
+        "\u00a715.2",
+        "\u00a719.4",
+        "\u00a720"
+      ],
+      "commits": [
+        "62b4e3fb6016a0abddf70a14152252a62c8aca4a",
+        "06bfaa54c5f242950b9ddb04f3ecb607a2a23413"
+      ],
+      "case_counts": {
+        "fault_cases_total": 15,
+        "tool_error": 5,
+        "timeout": 5,
+        "malformed_data": 5,
+        "reused_from_s52": 6,
+        "new_f4_fault_cases": 9,
+        "repeat_sample": 18
+      },
+      "rubric_parts": {
+        "implementation": {
+          "evidence_paths": [
+            "hypora/core/controller/",
+            "hypora/core/roles/",
+            "hypora/evaluation/runner/agent.py",
+            "results/s5.3/f4/f4-evidence.json"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f4.py"
+          ],
+          "notes": [
+            "docs/notes/s53-f4-planning.md"
+          ],
+          "summary": "Pre-tool structured Plan events (15/15 runs, 50 plans) and RecoverySession exponential backoff + replanning."
+        },
+        "architecture": {
+          "evidence_paths": [
+            "hypora/core/controller/",
+            "hypora/core/policy/",
+            "hypora/core/schemas/",
+            "results/s5.3/f4/f4-evidence.json"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f4.py"
+          ],
+          "notes": [
+            "docs/notes/controller-robustness.md",
+            "docs/notes/s53-f4-planning.md"
+          ],
+          "summary": "Plan-before-first-tool contract, RecoverySession policy decisions, and TimeoutInjectingWorker harness."
+        },
+        "evaluation": {
+          "evidence_paths": [
+            "hypora/evaluation/cases/f4_faults/",
+            "results/s5.3/f4/f4-evidence.json",
+            "results/s5.3/f4/f4-summary.md",
+            "tests/unit/evaluation/test_s53_f4.py"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f4.py"
+          ],
+          "notes": [
+            "docs/notes/s53-f4-planning.md"
+          ],
+          "summary": "planning=on 14/15 (93.3%) vs planning=off 15/15 (100.0%), diff -0.067 [-0.200, 0.000]; mean latency 639.4s vs 803.2s (-163.8s)."
+        },
+        "analysis": {
+          "evidence_paths": [
+            "results/s5.3/f4/f4-evidence.json",
+            "results/s5.3/f4/f4-summary.md",
+            "results/analysis/consolidated-summary.json"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f4.py",
+            "scripts/build_s54_analysis.py"
+          ],
+          "notes": [
+            "docs/notes/s53-f4-planning.md",
+            "docs/notes/s54-consolidated-analysis.md"
+          ],
+          "summary": "Sanitized recovered/unrecovered traces; documents zero live plan_revisions (backoff resolved transient faults on retry #1)."
+        }
+      }
+    },
+    "F5": {
+      "title": "MCP server",
+      "raw_points": 8,
+      "spec_sections": [
+        "\u00a712",
+        "\u00a719.4",
+        "\u00a720"
+      ],
+      "commits": [
+        "62b4e3fb6016a0abddf70a14152252a62c8aca4a"
+      ],
+      "case_counts": {
+        "primary_tasks": 24,
+        "offline_tools_tested": 8,
+        "total_mcp_tools": 10,
+        "models": 2,
+        "description_versions": 2,
+        "repeat_sample_per_arm": 18
+      },
+      "rubric_parts": {
+        "implementation": {
+          "evidence_paths": [
+            "hypora/mcp_server/",
+            "docs/mcp/tools.json",
+            "results/s5.3/f5/f5-evidence.json"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f5.py"
+          ],
+          "notes": [
+            "docs/notes/s53-f5-mcp.md"
+          ],
+          "summary": "Real stdio MCP server (10 typed tools), mode-0600 hash-only session auth, and actionable ToolError recovery."
+        },
+        "architecture": {
+          "evidence_paths": [
+            "hypora/mcp_server/",
+            "docs/mcp/tools.json",
+            "results/s5.3/f5/f5-evidence.json"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f5.py"
+          ],
+          "notes": [
+            "docs/notes/mcp-server.md",
+            "docs/notes/s53-f5-mcp.md"
+          ],
+          "summary": "Verified across dual stdio clients (mcp.Client + ClientSession) with strict JSON schemas and secret rejection."
+        },
+        "evaluation": {
+          "evidence_paths": [
+            "hypora/evaluation/cases/mcp/tasks.json",
+            "results/s5.3/f5/f5-evidence.json",
+            "results/s5.3/f5/f5-summary.md",
+            "tests/unit/evaluation/test_s53_f5.py"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f5.py"
+          ],
+          "notes": [
+            "docs/notes/s53-f5-mcp.md"
+          ],
+          "summary": "24 tasks x 2 models x 2 description versions: OpenAI v1 23/24 vs v0 15/24 (+0.333); Gemini v1 22/24 vs v0 14/24 (+0.333)."
+        },
+        "analysis": {
+          "evidence_paths": [
+            "results/s5.3/f5/f5-evidence.json",
+            "results/s5.3/f5/f5-summary.md",
+            "results/analysis/consolidated-summary.json"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f5.py",
+            "scripts/build_s54_analysis.py"
+          ],
+          "notes": [
+            "docs/notes/s53-f5-mcp.md",
+            "docs/notes/s54-consolidated-analysis.md"
+          ],
+          "summary": "Description revision impact, dual-model cost/latency (Gemini $0 free tier vs $0.1597 list), and offline-tool limitation."
+        }
+      }
+    },
+    "F6": {
+      "title": "Safety & security",
+      "raw_points": 12,
+      "spec_sections": [
+        "\u00a74.3",
+        "\u00a710",
+        "\u00a711",
+        "\u00a714.3",
+        "\u00a719.4",
+        "\u00a720"
+      ],
+      "commits": [
+        "62b4e3fb6016a0abddf70a14152252a62c8aca4a"
+      ],
+      "case_counts": {
+        "total_attacks": 36,
+        "indirect_injections": 12,
+        "defense_configs": 7,
+        "repeat_sample_per_config": 18
+      },
+      "rubric_parts": {
+        "implementation": {
+          "evidence_paths": [
+            "hypora/core/policy/",
+            "hypora/mcp_server/",
+            "hypora/execution/sandbox/",
+            "results/s5.3/f6/f6-evidence.json"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f6.py"
+          ],
+          "notes": [
+            "docs/notes/s53-f6-safety.md"
+          ],
+          "summary": "Per-task allowlist, data firewall, approval gate, injection screen, and Docker sandbox isolation (network=none)."
+        },
+        "architecture": {
+          "evidence_paths": [
+            "hypora/core/policy/",
+            "hypora/execution/sandbox/",
+            "results/s5.3/f6/f6-evidence.json"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f6.py"
+          ],
+          "notes": [
+            "docs/notes/threat-model.md",
+            "docs/notes/hardening.md",
+            "docs/notes/s53-f6-safety.md"
+          ],
+          "summary": "Least-privilege isolation and defense-in-depth threat model verified by structural invariants."
+        },
+        "evaluation": {
+          "evidence_paths": [
+            "hypora/evaluation/cases/safety/attacks.json",
+            "results/s5.3/f6/f6-evidence.json",
+            "results/s5.3/f6/f6-summary.md",
+            "tests/unit/evaluation/test_s53_f6.py"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f6.py"
+          ],
+          "notes": [
+            "docs/notes/s53-f6-safety.md"
+          ],
+          "summary": "36 attacks across 7 configs: all_on 1/36 (2.8%) vs all_off 25/36 (69.4%), diff -0.667 [-0.806, -0.500]."
+        },
+        "analysis": {
+          "evidence_paths": [
+            "results/s5.3/f6/f6-evidence.json",
+            "results/s5.3/f6/f6-summary.md",
+            "results/analysis/consolidated-summary.json"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f6.py",
+            "scripts/build_s54_analysis.py"
+          ],
+          "notes": [
+            "docs/notes/threat-model.md",
+            "docs/notes/s53-f6-safety.md",
+            "docs/notes/s54-consolidated-analysis.md"
+          ],
+          "summary": "Leave-one-out ablation attribution and residual-risk analysis of ATK-INJ-10 paraphrased prompt injection."
+        }
+      }
+    },
+    "F7": {
+      "title": "Observability & traceability",
+      "raw_points": 8,
+      "spec_sections": [
+        "\u00a716",
+        "\u00a719.5",
+        "\u00a720"
+      ],
+      "commits": [
+        "62b4e3fb6016a0abddf70a14152252a62c8aca4a",
+        "f8505880a1de78331dd4834e9ea22ebb4191778c"
+      ],
+      "case_counts": {
+        "pre_fix_primary": 26,
+        "post_fix_primary": 26,
+        "repeat_sample_per_arm": 18,
+        "predictive_quality_paired": 22
+      },
+      "rubric_parts": {
+        "implementation": {
+          "evidence_paths": [
+            "hypora/storage/",
+            "hypora/core/roles/research_agent.py",
+            "hypora/core/llm/adapter.py",
+            "results/s5.3/f7/f7-evidence.json"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f7.py"
+          ],
+          "notes": [
+            "docs/notes/s53-f7-bottleneck.md",
+            "docs/notes/s53-f7-observability.md"
+          ],
+          "summary": "Append-only SQLite EventLog (100% model_call & 1:1 tool_call/tool_result join, 0 leaked secrets) + Agent B single-pass exit."
+        },
+        "architecture": {
+          "evidence_paths": [
+            "hypora/storage/",
+            "hypora/core/schemas/",
+            "results/s5.3/f7/f7-evidence.json"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f7.py"
+          ],
+          "notes": [
+            "docs/notes/storage.md",
+            "docs/notes/s53-f7-bottleneck.md",
+            "docs/notes/s53-f7-observability.md"
+          ],
+          "summary": "Indexed EventRow store, hypora trace CLI filter, and --query trace search across 44+44 runs."
+        },
+        "evaluation": {
+          "evidence_paths": [
+            "results/s5.3/f7/f7-evidence.json",
+            "results/s5.3/f7/f7-summary.md",
+            "results/final/s5.2-summary.json",
+            "results/f8505880a1de78331dd4834e9ea22ebb4191778c/default/agent/test_clean_rice.json",
+            "tests/unit/evaluation/test_s53_f7.py"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f7.py"
+          ],
+          "notes": [
+            "docs/notes/s53-f7-observability.md"
+          ],
+          "summary": "25/26 vs 25/26 pass rate; mean latency 633.7s -> 485.9s (-147.8s, CI [-228.0, -74.2]); Agent B calls 142 -> 85."
+        },
+        "analysis": {
+          "evidence_paths": [
+            "results/s5.3/f7/f7-evidence.json",
+            "results/s5.3/f7/f7-summary.md",
+            "results/analysis/consolidated-summary.json"
+          ],
+          "scripts": [
+            "scripts/eval_s53_f7.py",
+            "scripts/build_s54_analysis.py"
+          ],
+          "notes": [
+            "docs/notes/s53-f7-bottleneck.md",
+            "docs/notes/s53-f7-observability.md",
+            "docs/notes/s54-consolidated-analysis.md"
+          ],
+          "summary": "Stage/actor/tool/sandbox breakdown showing PHASE_B as remaining dominant bottleneck (75.0% wall, 50.8% cost) and full ledger."
+        }
+      }
+    }
+  }
+}
