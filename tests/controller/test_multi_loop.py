@@ -77,6 +77,18 @@ class ScriptedMulti(ScriptedRun):
     assignment = "Inspect approved data and run a bounded baseline"
     evidence: dict[str, object]
 
+    def capture_b_evidence(self, request) -> None:
+        import json
+
+        from hypora.core.llm.types import MessageRole
+
+        for message in reversed(request.messages):
+            if message.role is MessageRole.TOOL and not message.is_error:
+                content = json.loads(message.content)
+                if isinstance(content, dict) and content.get("passages"):
+                    self.evidence = content["passages"][0]
+                    return
+
     async def generate(self, request):
         if request.output_schema_name == "WorkerProposal":
             self.requests.append(request)
@@ -90,6 +102,7 @@ class ScriptedMulti(ScriptedRun):
                 response["assignment"] = self.assignment
             return json_result(response)
         if request.output_schema_name == "ResearchObservation":
+            self.capture_b_evidence(request)
             self.requests.append(request)
             return json_result(
                 {
@@ -175,11 +188,12 @@ async def test_multi_loop_role_order_context_and_plan(
         if r.output_schema_name == "LeadAction" and "Platform evidence:" in r.messages[1].content
     ]
     assert lead_reviews and "C output:" in lead_reviews[0]
-    # Each A/B invocation starts a separate two-message conversation with no tool list.
-    no_tools = [
-        r for r in script.requests if r.output_schema_name in {"LeadAction", "ResearchObservation"}
-    ]
+    # Each A invocation starts a separate two-message conversation with no tool list;
+    # B receives ResearchObservation alongside tools on turns > 0 (F7 single-pass exit).
+    no_tools = [r for r in script.requests if r.output_schema_name == "LeadAction"]
     assert no_tools and all(not r.tools for r in no_tools)
+    b_obs = [r for r in script.requests if r.output_schema_name == "ResearchObservation"]
+    assert len(b_obs) == 1 and b_obs[0].tools
 
 
 async def test_lead_can_choose_to_report_before_research(
@@ -606,6 +620,7 @@ async def test_ab_role_outputs_and_forwarded_context_redact_configured_secrets(
     class SecretRoles(ScriptedMulti):
         async def generate(self, request):
             if request.output_schema_name == "ResearchObservation":
+                self.capture_b_evidence(request)
                 self.requests.append(request)
                 return json_result(
                     {
@@ -791,19 +806,17 @@ async def test_b_controller_uses_cited_recorded_mcp_research(
         evidence: dict[str, object]
 
         async def generate(self, request):
-            if (
-                request.output_schema_name is None
-                and "You are Agent B" in request.messages[0].content
-            ):
-                self.requests.append(request)
+            if "You are Agent B" in request.messages[0].content:
                 last = request.messages[-1]
-                if last.role is not MessageRole.TOOL:
+                if request.output_schema_name is None and last.role is not MessageRole.TOOL:
+                    self.requests.append(request)
                     return self._call("search_model_catalog", category="tabular")
-                content = json.loads(last.content)
-                if last.tool_name == "search_model_catalog":
+                if last.role is MessageRole.TOOL and last.tool_name == "search_model_catalog":
+                    self.requests.append(request)
+                    content = json.loads(last.content)
                     return self._call("get_model_evidence", ref=content["entries"][0]["ref"])
-                self.evidence = content
-                return text_result("Evidence gathered.")
+                if last.role is MessageRole.TOOL and last.tool_name == "get_model_evidence":
+                    self.evidence = json.loads(last.content)
             if request.output_schema_name == "ResearchObservation":
                 self.requests.append(request)
                 assert self.evidence is not None

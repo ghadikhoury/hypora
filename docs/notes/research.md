@@ -31,3 +31,5 @@ full comparison and error analysis belong to the planned evaluation step.
 This design limits external egress but does not make untrusted text truthful. The model may still
 misinterpret a source or accept an instruction in it; B cannot execute or delegate, and platform
 code validates citation identity against tool results, rejects uncited substantive tradeoffs and option summaries, labels model interpretations and recommendations unverified, and reports model-card prices as unavailable.
+
+See also `docs/notes/s53-f7-bottleneck.md` for the S5.3 F7 single-pass `agent_b` exit and `ASSESSED_RECOMMENDATION_RULE` note.

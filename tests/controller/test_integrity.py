@@ -631,6 +631,7 @@ async def test_an_instruction_in_research_text_cannot_reach_c_as_an_assignment(
 
         async def generate(self, request: Any) -> Any:
             if request.output_schema_name == "ResearchObservation":
+                self.capture_b_evidence(request)
                 self.requests.append(request)
                 return json_result(
                     {

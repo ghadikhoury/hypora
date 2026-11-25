@@ -76,6 +76,8 @@ WORKER_REPLY_TOKENS = 2048
 """Output a worker attempt asks for when its request names no output cap."""
 _MODEL_ID_ALLOWANCE = 128
 """Bytes reserved for the model ID when bounding a worker call before the model is chosen."""
+_TOOLS_WITH_SCHEMA_PROVIDERS = frozenset({Provider.OPENAI, Provider.GEMINI})
+"""Providers verified to accept `tools` and `output_schema` in the same call."""
 
 SCHEMA_RETRY_PROMPT = (
     "Your previous reply did not validate against the required JSON schema `{schema}`.\n"
@@ -338,6 +340,21 @@ class LLMAdapter:
                 raise ConfigError(f"no {target.provider.value} client for {target.model_id}")
 
     # --- public API ---------------------------------------------------------------------------
+
+    def supports_tools_with_output_schema(self, tier: ModelTier) -> bool:
+        """Whether `tier`'s active provider supports `tools` alongside `output_schema`."""
+        profile = self._models.profile(self._profile)
+        providers = {profile.tiers.for_tier(tier).provider}
+        policy = profile.fallback
+        if (
+            self._profile is not ModelProfile.EVAL
+            and policy.enabled
+            and policy.tiers_from is not None
+        ):
+            fallback = self._models.profile(policy.tiers_from).tiers.for_tier(tier)
+            if not _is_placeholder(fallback) and fallback.provider in self._clients:
+                providers.add(fallback.provider)
+        return providers.issubset(_TOOLS_WITH_SCHEMA_PROVIDERS)
 
     async def complete(
         self,
