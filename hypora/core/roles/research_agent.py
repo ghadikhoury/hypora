@@ -63,6 +63,18 @@ CITATION_FORMAT = (
     "the source's retrieval time. Rate a tradeoff unknown unless a cited source supports it."
 )
 """How B copies citations (D-056): live, B copied the catalog entry's bare ref and a timestamp."""
+ASSESSED_RECOMMENDATION_RULE = (
+    " Only include an option_id in recommendation.option_ids or "
+    "proposed_phase_b_plan.measurements when that option has non-empty evidence_refs from "
+    "returned sources."
+)
+"""How B avoids unassessed recommendations (F7): live, 5/26 runs needed a 3rd retry call."""
+
+
+def _supports_tools_with_output_schema(adapter: LLMAdapter) -> bool:
+    """Return whether `adapter` supports `output_schema` alongside `tools`."""
+    checker = getattr(adapter, "supports_tools_with_output_schema", None)
+    return bool(checker(ModelTier.LEAD)) if callable(checker) else True
 
 
 @dataclass(frozen=True)
@@ -302,22 +314,54 @@ async def run_research_agent(
     )
     prompt = load_prompt("agent_b")
     call_context = CallContext(run_id=run_id, actor_role=ActorRole.AGENT_B, prompt_ref=prompt.ref)
-    messages = [Message.system(prompt.text), Message.user(context)]
+    typical_request = (
+        ""
+        if typical_range_metric is None
+        else TYPICAL_RANGE_REQUEST.format(metric=typical_range_metric.value)
+    )
+    output_contract = (
+        "Return a ResearchObservation with a complete StrategyReport for run "
+        + run_id
+        + ". Compare all four paths, explicitly state unknowns, and cite only returned "
+        "source references, URLs, and exact revisions."
+        + CITATION_FORMAT
+        + ASSESSED_RECOMMENDATION_RULE
+        + typical_request
+    )
+    messages = [
+        Message.system(prompt.text),
+        Message.user(context + "\n\n" + output_contract),
+    ]
     references: dict[str, tuple[str, str, str]] = {}
     turns = 0
+    direct_response = None
+    use_single_pass = _supports_tools_with_output_schema(adapter)
     try:
         while True:
             if turns >= max_turns:
                 raise guard.stop("max_agent_turns", turns, max_turns)
             guard.before_model_call()
-            response = await adapter.complete(
-                messages, tier=ModelTier.LEAD, context=call_context, tools=tools
-            )
+            if turns > 0 and use_single_pass:
+                response = await adapter.complete(
+                    messages,
+                    tier=ModelTier.LEAD,
+                    context=call_context,
+                    tools=tools,
+                    output_schema=schema,
+                )
+            else:
+                response = await adapter.complete(
+                    messages, tier=ModelTier.LEAD, context=call_context, tools=tools
+                )
             guard.after_model_call(response)
             turns += 1
-            messages.append(response.message)
             if not response.tool_calls:
+                if isinstance(getattr(response, "parsed", None), schema):
+                    direct_response = response
+                else:
+                    messages.append(response.message)
                 break
+            messages.append(response.message)
             for call in response.tool_calls:
                 if call.arguments_error:
                     messages.append(
@@ -337,31 +381,20 @@ async def run_research_agent(
                 messages.append(revised)
             if recovery is not None and recovery.stopped:
                 break
-        final_messages = [
-            *messages,
-            Message.user(
-                "Return a ResearchObservation with a complete StrategyReport for run "
-                + run_id
-                + ". Compare all four paths, explicitly state unknowns, and cite only returned "
-                "source references, URLs, and exact revisions."
-                + CITATION_FORMAT
-                + (
-                    ""
-                    if typical_range_metric is None
-                    else TYPICAL_RANGE_REQUEST.format(metric=typical_range_metric.value)
-                )
-            ),
-        ]
+        final_messages = [*messages, Message.user(output_contract)]
         for attempt in range(1, MAX_REPORT_ATTEMPTS + 1):
-            guard.before_model_call()
-            response = await adapter.complete(
-                final_messages,
-                tier=ModelTier.LEAD,
-                context=call_context,
-                output_schema=schema,
-            )
-            guard.after_model_call(response)
-            result = response.parsed
+            if attempt == 1 and direct_response is not None:
+                response = direct_response
+            else:
+                guard.before_model_call()
+                response = await adapter.complete(
+                    final_messages,
+                    tier=ModelTier.LEAD,
+                    context=call_context,
+                    output_schema=schema,
+                )
+                guard.after_model_call(response)
+            result = getattr(response, "parsed", None)
             if response.tool_calls or not isinstance(result, schema):
                 raise ValueError("invalid final research response")
             result, downgraded = drop_uncited_ratings(result)
@@ -375,8 +408,9 @@ async def run_research_agent(
                 # the adapter does for its schema-repair retries of A/B output; the provider's
                 # encrypted reasoning is replayed intact (D-047: rewriting it caused HTTP 400).
                 previous = adapter.redact_message(response.message)
+                base = messages if attempt == 1 and direct_response is not None else final_messages
                 final_messages = [
-                    *final_messages,
+                    *base,
                     previous,
                     Message.user(
                         f"That report was not accepted: {refused}. Return the corrected "
@@ -386,6 +420,7 @@ async def run_research_agent(
                         "unknown when no returned source supports it, and rate every tradeoff of "
                         "an option unknown when no returned source covers that path."
                         + CITATION_FORMAT
+                        + ASSESSED_RECOMMENDATION_RULE
                     ),
                 ]
                 continue

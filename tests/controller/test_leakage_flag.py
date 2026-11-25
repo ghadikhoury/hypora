@@ -92,7 +92,7 @@ class LeakageScript(MultiWithTrials):
             )
         if schema == "ResearchObservation":
             response = await super().generate(request)
-            if "typical_score_range" in request.messages[-1].content:
+            if any("typical_score_range" in m.content for m in request.messages):
                 body = json.loads(response.text)
                 low, high = self.typical
                 body["typical_score_range"] = {

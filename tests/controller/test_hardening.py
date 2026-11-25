@@ -111,6 +111,7 @@ class ReuseResearch(ScriptedMulti):
 
     async def generate(self, request):
         if request.output_schema_name == "ResearchObservation":
+            self.capture_b_evidence(request)
             self.requests.append(request)
             report = cited_strategy_fixture(self.run_id, self.evidence)
             report["recommendation"] = {
@@ -179,6 +180,7 @@ async def test_methodology_review_uses_training_intent_and_keeps_approval(
         async def generate(self, request):
             context = request.messages[1].content
             if request.output_schema_name == "ResearchObservation" and material_conflict:
+                self.capture_b_evidence(request)
                 self.requests.append(request)
                 return json_result(
                     {
@@ -356,6 +358,7 @@ async def test_a_data_finding_returns_through_a_for_revised_research(
         async def generate(self, request):
             context = request.messages[1].content
             if request.output_schema_name == "ResearchObservation":
+                self.capture_b_evidence(request)
                 self.requests.append(request)
                 report = cited_strategy_fixture(self.run_id, self.evidence)
                 if "Data finding that may change the research question" in context:

@@ -639,16 +639,15 @@ class ResearchesTooMuch(ScriptedMulti):
     """B asks for three methodology retrievals in a row."""
 
     async def generate(self, request: Any) -> Any:
-        if request.output_schema_name is None and "You are Agent B" in request.messages[0].content:
-            self.requests.append(request)
+        if "You are Agent B" in request.messages[0].content:
             tool_results = [m for m in request.messages if m.role is MessageRole.TOOL]
             for message in tool_results:
                 content = json.loads(message.content)
                 if not message.is_error and content.get("passages"):
                     self.evidence = content["passages"][0]
             if len(tool_results) < 3:
+                self.requests.append(request)
                 return self._call("retrieve_methodology", topic="evaluation")
-            return text_result("Research source reviewed.")
         return await super().generate(request)
 
 
